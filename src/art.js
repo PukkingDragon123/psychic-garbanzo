@@ -1,0 +1,383 @@
+/* All sprites are generated at load time from code -- no image files, so the
+   game is a pure "open index.html and play" package. */
+(function (PD) {
+  'use strict';
+  const pix = PD.pix;
+  const U = PD.util;
+
+  const C = {
+    ink: '#1a1030', ink2: '#2e1d52',
+    skin: '#7ff08a', skinD: '#43ba5f', skinL: '#c4ffce',
+    eye: '#151233', white: '#ffffff',
+    glass: '#9fe0ff', glassD: '#66b0dc', glassL: '#eafcff',
+    suit: '#ff5fa8', suitD: '#c02f74', suitL: '#ffb0d6',
+    met: '#d3dcf0', metD: '#8290b0', metDD: '#4e5a7e',
+    gold: '#ffd34d', goldD: '#d99a1e',
+    red: '#ff5a4d', redD: '#b32b2f',
+    cyan: '#58e8ff', cyanD: '#2b9fc4',
+    purple: '#bb8cff', purpleD: '#6b3fb5',
+    lime: '#c8ff5a', limeD: '#7cbb26',
+    orange: '#ff9b3d', orangeD: '#c25c14',
+    slime: '#8affd0', slimeD: '#33b58a'
+  };
+
+  const sprites = {};
+
+  function reg(name, builders, ox, oy) {
+    const frames = builders.map(b => b.toCanvas());
+    sprites[name] = {
+      frames, w: frames[0].width, h: frames[0].height,
+      ox: ox === undefined ? frames[0].width / 2 : ox,
+      oy: oy === undefined ? frames[0].height / 2 : oy
+    };
+    return sprites[name];
+  }
+
+  /* ------------------------------------------------------------------ player
+     A round little alien in a bubble helmet. Drawn facing right; the renderer
+     flips it for leftward travel. */
+  function buildAlien(blink, squish) {
+    const p = pix(22, 32);
+    const cy = 14 + (squish ? 1 : 0);   // helmet centre
+    const by = 20 + (squish ? 1 : 0);   // suit top
+
+    // jetpack
+    p.round(1, by - 1, 5, 8, 2, C.metD);
+    p.rect(2, by, 2, 5, C.met);
+
+    // suit body
+    p.round(5, by, 13, 9, 3, C.suit);
+    p.rect(7, by, 9, 2, C.suitL);
+    p.round(6, by + 6, 4, 3, 1, C.metD);
+    p.round(13, by + 6, 4, 3, 1, C.metD);
+    p.rect(10, by + 4, 3, 2, C.gold);
+
+    // helmet glass + alien head
+    p.disc(11, cy, 8, C.glass);
+    p.disc(11, cy + 1, 5.6, C.skin);
+    p.shade(C.skin, C.skinD, 1, 1);
+    p.ellipse(11, cy - 2.5, 3.4, 1.6, C.skinL);
+
+    if (blink) {
+      p.rect(7, cy + 1, 3, 1, C.eye);
+      p.rect(13, cy + 1, 3, 1, C.eye);
+    } else {
+      p.ellipse(8.4, cy + 1, 1.7, 2.4, C.eye);
+      p.ellipse(14.2, cy + 1, 1.7, 2.4, C.eye);
+      p.set(9, cy - 1, C.white); p.set(9, cy, C.white);
+      p.set(15, cy - 1, C.white); p.set(15, cy, C.white);
+    }
+    // smirk
+    p.rect(11, cy + 4, 3, 1, C.skinD);
+    p.set(14, cy + 3, C.skinD);
+
+    // glass shine
+    p.set(6, cy - 4, C.glassL); p.set(7, cy - 5, C.glassL);
+    p.set(8, cy - 6, C.glassL); p.set(7, cy - 4, C.glassL);
+
+    // antenna with bobble
+    p.line(11, cy - 8, 11, cy - 10, C.metD);
+    p.disc(11, cy - 11.5, 1.8, C.gold);
+
+    p.outline(C.ink);
+    return p;
+  }
+
+  reg('alien', [buildAlien(false, false), buildAlien(false, true), buildAlien(true, false)], 11, 19);
+
+  /* ------------------------------------------------------------------- drill
+     Horizontal, pointing right, anchored at the shoulder end. */
+  function buildDrill(phase) {
+    const p = pix(26, 12);
+    p.round(0, 3, 9, 6, 2, C.metDD);          // housing
+    p.rect(2, 4, 5, 2, C.met);
+    p.rect(8, 4, 3, 4, C.orange);             // collar
+    for (let x = 10; x < 25; x++) {           // tapering bit
+      const t = (x - 10) / 15;
+      const half = Math.max(0.6, 4 * (1 - t * 0.92));
+      for (let y = -half; y <= half; y++) {
+        const yy = Math.round(6 + y);
+        const stripe = ((x * 2 + yy + phase * 3) % 7) < 3;
+        p.set(x, yy, stripe ? C.met : C.metDD);
+      }
+    }
+    p.outline(C.ink);
+    return p;
+  }
+  reg('drill', [0, 1, 2, 3].map(buildDrill), 3, 6);
+
+  /* ------------------------------------------------------------------ pistol */
+  function buildGun(charge) {
+    const p = pix(18, 11);
+    p.round(0, 3, 11, 6, 2, C.metDD);
+    p.rect(2, 4, 5, 2, C.met);
+    p.rect(3, 8, 3, 3, C.suitD);              // grip
+    p.rect(11, 4, 4, 4, C.metD);
+    p.rect(15, 4, 2, 4, charge ? C.cyan : C.cyanD);
+    p.rect(6, 2, 4, 2, C.cyanD);              // energy cell
+    p.outline(C.ink);
+    return p;
+  }
+  reg('gun', [buildGun(false), buildGun(true)], 3, 6);
+
+  /* -------------------------------------------------------------------- ship
+     The Rustmaw: a fat little mining barge with landing legs and a bay door. */
+  function buildShip(blink) {
+    const p = pix(84, 52);
+    // landing legs first so the hull covers their tops
+    p.line(16, 32, 10, 47, C.metDD); p.line(17, 32, 11, 47, C.metDD);
+    p.line(67, 32, 73, 47, C.metDD); p.line(66, 32, 72, 47, C.metDD);
+    p.round(5, 46, 12, 4, 2, C.metD);
+    p.round(66, 46, 12, 4, 2, C.metD);
+
+    // hull
+    p.round(6, 12, 72, 24, 10, C.met);
+    p.shade(C.met, C.metD, 0, 1);
+    p.round(9, 14, 66, 5, 2, C.white);
+    p.round(6, 30, 72, 7, 6, C.metD);
+
+    // engine pods
+    p.round(0, 17, 10, 12, 4, C.metDD);
+    p.round(74, 17, 10, 12, 4, C.metDD);
+    p.rect(2, 21, 3, 4, C.cyan);
+    p.rect(79, 21, 3, 4, C.cyan);
+
+    // cockpit dome
+    p.disc(28, 12, 11, C.glass);
+    p.disc(28, 13, 8, C.ink2);
+    p.ellipse(25, 8, 3.2, 1.6, C.glassL);
+    p.round(18, 12, 21, 3, 1, C.metD);
+
+    // bay door + tractor emitter
+    p.round(36, 33, 16, 5, 2, C.metDD);
+    p.rect(40, 35, 8, 3, blink ? C.cyan : C.cyanD);
+
+    // hull lights and decal
+    p.disc(58, 24, 2.4, blink ? C.gold : C.goldD);
+    p.disc(50, 24, 2.4, C.red);
+    p.disc(66, 24, 2.4, C.lime);
+    // tiny skull decal, because we are the villain
+    p.round(13, 20, 8, 7, 2, C.gold);
+    p.rect(15, 22, 2, 2, C.ink); p.rect(18, 22, 2, 2, C.ink);
+    p.rect(16, 25, 3, 1, C.ink);
+
+    // antenna
+    p.line(45, 12, 45, 3, C.metD);
+    p.disc(45, 2, 2, C.red);
+
+    p.outline(C.ink);
+    return p;
+  }
+  reg('ship', [buildShip(false), buildShip(true)], 42, 26);
+
+  /* ------------------------------------------------------------------- drone */
+  function buildDrone(phase) {
+    const p = pix(14, 12);
+    p.round(3, 4, 8, 6, 2, C.met);
+    p.shade(C.met, C.metD, 0, 1);
+    p.disc(7, 6.5, 2, C.cyan);
+    const lift = phase ? 0 : 1;
+    p.rect(0, 3 + lift, 4, 1, C.metD);
+    p.rect(10, 3 + lift, 4, 1, C.metD);
+    p.rect(5, 10, 4, 2, C.metDD);
+    p.outline(C.ink);
+    return p;
+  }
+  reg('drone', [buildDrone(0), buildDrone(1)], 7, 6);
+
+  /* ----------------------------------------------------------------- enemies */
+  function buildGrub(phase) {
+    const p = pix(20, 14);
+    const hump = phase === 1 ? 1 : 0;
+    p.ellipse(10, 8 - hump, 8, 4.4, C.limeD);
+    p.ellipse(10, 7 - hump, 7.4, 3.6, C.lime);
+    for (let i = 0; i < 4; i++) p.rect(4 + i * 4, 4 - hump, 2, 3, C.limeD); // back ridges
+    // legs
+    for (let i = 0; i < 3; i++) {
+      const lx = 5 + i * 5, d = ((i + phase) % 2) ? 1 : 0;
+      p.line(lx, 11 - hump, lx - 1, 13 - d, C.ink2);
+    }
+    // face at the right end
+    p.ellipse(15, 7 - hump, 1.5, 2, C.eye);
+    p.set(16, 6 - hump, C.white);
+    p.ellipse(12, 7 - hump, 1.5, 2, C.eye);
+    p.set(13, 6 - hump, C.white);
+    p.rect(17, 9 - hump, 2, 1, C.redD);
+    p.outline(C.ink);
+    return p;
+  }
+  reg('grub', [buildGrub(0), buildGrub(1)], 10, 8);
+
+  function buildJelly(phase) {
+    const p = pix(18, 22);
+    const squash = phase === 1 ? 1 : 0;
+    p.ellipse(9, 7 + squash, 7.5 - squash, 6 + squash, C.purple);
+    p.shade(C.purple, C.purpleD, 0, 1);
+    p.ellipse(6.5, 4 + squash, 2.4, 1.4, C.white);
+    // tentacles
+    for (let i = 0; i < 4; i++) {
+      const tx = 3 + i * 4;
+      const wob = ((i + phase) % 2) ? 1 : -1;
+      p.line(tx, 12 + squash, tx + wob, 16 + squash, C.purpleD);
+      p.line(tx + wob, 16 + squash, tx, 20, C.purpleD);
+    }
+    // one big cyclops eye
+    p.disc(9, 8 + squash, 2.6, C.white);
+    p.disc(9.5, 8 + squash, 1.5, C.eye);
+    p.outline(C.ink);
+    return p;
+  }
+  reg('jelly', [buildJelly(0), buildJelly(1)], 9, 8);
+
+  function buildSpit(phase) {
+    const p = pix(22, 16);
+    p.ellipse(9, 9, 8, 6, C.slimeD);
+    p.ellipse(9, 8, 7, 5, C.slime);
+    p.ellipse(6, 5, 2.6, 1.4, C.white);
+    // snout
+    const open = phase === 1 ? 1 : 0;
+    p.round(16, 6 - open, 5, 5 + open * 2, 1, C.slimeD);
+    p.rect(20, 8 - open, 2, 2 + open, C.ink2);
+    // eyes
+    p.ellipse(9, 7, 1.6, 2.1, C.eye); p.set(10, 6, C.white);
+    p.ellipse(13, 7, 1.6, 2.1, C.eye); p.set(14, 6, C.white);
+    // spikes
+    p.spike(5, 1, 4, 3, -1, C.slimeD);
+    p.spike(10, 1, 4, 3, -1, C.slimeD);
+    p.outline(C.ink);
+    return p;
+  }
+  reg('spit', [buildSpit(0), buildSpit(1)], 9, 9);
+
+  function buildGnasher(phase) {
+    const p = pix(24, 17);
+    p.ellipse(11, 9, 9.5, 6.5, C.orangeD);
+    p.ellipse(11, 8, 8.6, 5.6, C.orange);
+    p.ellipse(7, 4, 3, 1.6, C.white);
+    // huge mouth on the right
+    const gape = phase === 1 ? 2 : 0;
+    p.round(15, 6 - gape, 8, 7 + gape * 2, 2, C.redD);
+    for (let i = 0; i < 3; i++) {
+      p.spike(17 + i * 2, 6 - gape, 3, 3, 1, C.white);
+      p.spike(17 + i * 2, 10 + gape, 3, 3, -1, C.white);
+    }
+    // angry eyes
+    p.ellipse(10, 7, 1.8, 2.2, C.eye); p.set(11, 6, C.white);
+    p.ellipse(14, 7, 1.8, 2.2, C.eye); p.set(15, 6, C.white);
+    p.line(8, 3, 12, 4, C.ink); p.line(13, 4, 16, 3, C.ink);
+    // back spines
+    p.spike(5, 0, 5, 4, -1, C.orangeD);
+    p.spike(10, 0, 5, 4, -1, C.orangeD);
+    p.outline(C.ink);
+    return p;
+  }
+  reg('gnasher', [buildGnasher(0), buildGnasher(1)], 11, 9);
+
+  function buildLurker(phase) {
+    const p = pix(30, 26);
+    const bob = phase === 1 ? 1 : 0;
+    // tentacle skirt
+    for (let i = 0; i < 5; i++) {
+      const tx = 5 + i * 5;
+      const wob = ((i + phase) % 2) ? 1 : -1;
+      p.line(tx, 17, tx + wob, 21, C.purpleD);
+      p.line(tx + wob, 21, tx, 25 - bob, C.purpleD);
+      p.set(tx, 25 - bob, C.red);
+    }
+    p.ellipse(14, 11 + bob, 12, 9, C.purpleD);
+    p.ellipse(14, 10 + bob, 11, 8, C.purple);
+    p.ellipse(9, 5 + bob, 4, 2, C.glassL);
+    // single glowing eye
+    p.disc(15, 11 + bob, 4.4, C.white);
+    p.disc(16, 11 + bob, 2.8, C.red);
+    p.disc(16.5, 11 + bob, 1.2, C.ink);
+    // horns
+    p.spike(6, 1 + bob, 6, 5, -1, C.purpleD);
+    p.spike(20, 1 + bob, 6, 5, -1, C.purpleD);
+    p.outline(C.ink);
+    return p;
+  }
+  reg('lurker', [buildLurker(0), buildLurker(1)], 14, 12);
+
+  function buildWarden(phase) {
+    const p = pix(40, 36);
+    const bob = phase === 1 ? 1 : 0;
+    // armoured legs
+    for (let i = 0; i < 4; i++) {
+      const lx = 6 + i * 9, d = ((i + phase) % 2) ? 1 : 0;
+      p.line(lx, 26, lx - 2, 32 - d, C.metDD);
+      p.line(lx - 2, 32 - d, lx - 3, 35, C.metDD);
+      p.rect(lx - 5, 34, 5, 2, C.metD);
+    }
+    p.ellipse(20, 17 + bob, 16, 12, C.metDD);
+    p.ellipse(20, 16 + bob, 15, 11, C.metD);
+    p.ellipse(20, 14 + bob, 12, 7, C.met);
+    p.shade(C.met, C.metD, 0, 1);
+    // armour plates
+    for (let i = 0; i < 4; i++) p.rect(8 + i * 8, 8 + bob, 5, 3, C.orangeD);
+    // giant core eye
+    p.disc(20, 18 + bob, 6.5, C.ink2);
+    p.disc(20, 18 + bob, 5, C.orange);
+    p.disc(20, 18 + bob, 2.6, C.gold);
+    p.disc(19, 17 + bob, 1.2, C.white);
+    // shoulder spikes
+    p.spike(6, 2 + bob, 8, 7, -1, C.metDD);
+    p.spike(34, 2 + bob, 8, 7, -1, C.metDD);
+    p.outline(C.ink);
+    return p;
+  }
+  reg('warden', [buildWarden(0), buildWarden(1)], 20, 18);
+
+  /* ------------------------------------------------------------------ pickups
+     One small gem sprite per material tint, plus a generic rubble nugget. */
+  function buildGem(cols) {
+    const p = pix(11, 11);
+    p.spike(5, 1, 9, 5, 1, cols[1]);
+    p.spike(5, 5, 9, 5, -1, cols[1]);
+    p.spike(5, 2, 5, 4, 1, cols[0]);
+    p.set(4, 4, C.white); p.set(5, 3, C.white);
+    p.outline(C.ink);
+    return p;
+  }
+  function buildNugget(cols) {
+    const p = pix(10, 9);
+    p.ellipse(5, 5, 4, 3.4, cols[1]);
+    p.ellipse(4, 4, 2.2, 1.6, cols[0]);
+    p.set(3, 3, C.white);
+    p.outline(C.ink);
+    return p;
+  }
+
+  const gemSprites = {};
+  function gemFor(matId) {
+    if (gemSprites[matId]) return gemSprites[matId];
+    const m = PD.data.MAT[matId];
+    const build = m.shine ? buildGem : buildNugget;
+    const cv = build(m.c).toCanvas();
+    gemSprites[matId] = { frames: [cv], w: cv.width, h: cv.height, ox: cv.width / 2, oy: cv.height / 2 };
+    return gemSprites[matId];
+  }
+
+  /* ---------------------------------------------------------------- ui icons */
+  const ICON = {};
+  function icon(name, fn) {
+    const p = pix(16, 16);
+    fn(p);
+    p.outline(C.ink);
+    ICON[name] = p.toCanvas();
+  }
+  icon('drill', p => { p.rect(1, 6, 6, 4, C.metDD); for (let x = 7; x < 15; x++) { const h = Math.max(1, 3 - (x - 7) * 0.35); for (let y = -h; y <= h; y++) p.set(x, 8 + y, ((x + y) % 3) ? C.met : C.metD); } });
+  icon('arm', p => { p.rect(1, 7, 10, 3, C.metD); p.round(10, 4, 5, 9, 2, C.orange); p.rect(2, 8, 6, 1, C.met); });
+  icon('tank', p => { p.round(4, 2, 8, 12, 3, C.cyan); p.rect(6, 0, 4, 3, C.metD); p.rect(6, 5, 2, 6, C.white); });
+  icon('pod', p => { p.round(1, 4, 14, 10, 2, C.orangeD); p.rect(1, 6, 14, 2, C.orange); p.rect(7, 4, 2, 10, C.metD); });
+  icon('hull', p => { p.round(2, 1, 12, 10, 3, C.met); p.spike(8, 8, 12, 6, 1, C.met); p.rect(6, 4, 4, 4, C.cyan); });
+  icon('thrust', p => { p.round(5, 1, 6, 8, 2, C.metD); p.spike(8, 9, 8, 6, 1, C.orange); p.spike(8, 9, 4, 4, 1, C.gold); });
+  icon('gun', p => { p.round(1, 5, 10, 5, 2, C.metDD); p.rect(3, 9, 3, 4, C.suitD); p.rect(11, 6, 4, 3, C.cyan); });
+  icon('coil', p => { p.disc(8, 8, 6, C.metD); p.disc(8, 8, 3, C.cyan); for (let i = 0; i < 4; i++) p.rect(7, 0 + i * 4, 2, 2, C.gold); });
+  icon('lamp', p => { p.round(2, 4, 6, 8, 2, C.metD); p.spike(11, 8, 12, 8, 1, C.gold); p.rect(4, 6, 2, 4, C.white); });
+  icon('magnet', p => { p.round(2, 2, 12, 10, 4, C.red); p.rect(5, 7, 6, 7, null); p.rect(2, 10, 4, 4, C.met); p.rect(10, 10, 4, 4, C.met); });
+  icon('drone', p => { p.round(4, 5, 8, 6, 2, C.met); p.disc(8, 8, 2, C.cyan); p.rect(0, 3, 5, 1, C.metD); p.rect(11, 3, 5, 1, C.metD); });
+  icon('claw', p => { p.rect(7, 1, 2, 6, C.metD); p.line(7, 7, 3, 13, C.met); p.line(9, 7, 13, 13, C.met); p.rect(2, 12, 3, 3, C.orange); p.rect(11, 12, 3, 3, C.orange); });
+
+  PD.art = { C, sprites, gemFor, ICON };
+})(window.PD);

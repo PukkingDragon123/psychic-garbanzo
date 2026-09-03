@@ -1,0 +1,95 @@
+:root {
+  --ink: #05030f;
+  --grape: #1d1338;
+  --edge: #5b3f96;
+  --gold: #ffd34d;
+  --pink: #ff5fa8;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--ink);
+  color: #f2e9ff;
+  font-family: "Courier New", ui-monospace, monospace;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: none;
+}
+
+#screen {
+  display: block;
+  width: 100vw;
+  height: 100vh;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  cursor: crosshair;
+  background: var(--ink);
+}
+
+/* Subtle scanline + vignette laid over the canvas for that CRT arcade feel. */
+#crt {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(
+      to bottom,
+      rgba(0, 0, 0, 0.14) 0px,
+      rgba(0, 0, 0, 0.14) 1px,
+      rgba(0, 0, 0, 0) 1px,
+      rgba(0, 0, 0, 0) 3px
+    ),
+    radial-gradient(ellipse at center, rgba(0, 0, 0, 0) 55%, rgba(0, 0, 0, 0.55) 100%);
+  mix-blend-mode: multiply;
+  opacity: 0.85;
+  z-index: 5;
+}
+
+#boot {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  background: var(--ink);
+  z-index: 10;
+  text-align: center;
+  padding: 24px;
+}
+
+#boot h1 {
+  margin: 0;
+  font-size: clamp(24px, 6vw, 54px);
+  letter-spacing: 4px;
+  color: var(--gold);
+  text-shadow: 4px 4px 0 #7a2a10;
+}
+
+#boot h2 {
+  margin: 0;
+  font-size: clamp(18px, 4.5vw, 40px);
+  letter-spacing: 3px;
+  color: var(--pink);
+  text-shadow: 4px 4px 0 #3a0c30;
+}
+
+#boot p { margin: 0; color: #9c8ec4; max-width: 34em; line-height: 1.5; }
+
+#boot .err {
+  color: #ff6b8a;
+  border: 1px solid #8a2f4a;
+  background: #200a18;
+  padding: 10px 14px;
+  max-width: 40em;
+  text-align: left;
+  white-space: pre-wrap;
+}
+
+.hidden { display: none !important; }

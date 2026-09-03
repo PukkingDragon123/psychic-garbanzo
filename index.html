@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Planet Destroyer</title>
+<meta name="description" content="A 2D pixel-art mining sandbox: drill asteroids to the core, get obscenely rich, take over the galaxy.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<canvas id="screen" width="960" height="540"></canvas>
+<div id="crt"></div>
+
+<div id="boot">
+  <h1>PLANET</h1>
+  <h2>DESTROYER</h2>
+  <p>Loading the drill&hellip;</p>
+</div>
+
+<script src="src/util.js"></script>
+<script src="src/pix.js"></script>
+<script src="src/data.js"></script>
+<script src="src/art.js"></script>
+<script src="src/font.js"></script>
+<script src="src/audio.js"></script>
+<script src="src/input.js"></script>
+<script src="src/fx.js"></script>
+<script src="src/world.js"></script>
+<script src="src/entities.js"></script>
+<script src="src/player.js"></script>
+<script src="src/ui.js"></script>
+<script src="src/game.js"></script>
+<script>
+(function () {
+  var boot = document.getElementById('boot');
+  function fail(msg) {
+    boot.classList.remove('hidden');
+    boot.innerHTML = '<h1>PLANET</h1><h2>DESTROYER</h2>' +
+      '<div class="err">' + String(msg).replace(/[<>&]/g, '') + '</div>' +
+      '<p>Reload the page. If this keeps happening the browser may be blocking canvas or local storage.</p>';
+  }
+  window.addEventListener('error', function (e) { fail(e.message || 'Unknown script error'); });
+  try {
+    if (!window.PD || !window.PD.boot) throw new Error('Game scripts failed to load.');
+    window.PD.boot();
+    boot.classList.add('hidden');
+  } catch (e) {
+    fail((e && e.stack) || e);
+  }
+})();
+</script>
+</body>
+</html>
