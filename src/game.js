@@ -86,7 +86,7 @@
   g.droneIncome = function () {
     const n = g.save.upg.drones || 0;
     if (!n) return 0;
-    return n * 4 * D.UPG.droneyield.value(g.save.upg.droneyield || 0) * (1 + g.save.dominion / 60);
+    return n * 2.4 * D.UPG.droneyield.value(g.save.upg.droneyield || 0) * (1 + g.save.dominion / 100);
   };
 
   /* ------------------------------------------------------------------ toasts */
@@ -803,7 +803,7 @@
       ctx.fillRect(0, 0, VW, VH);
     }
 
-    if (g.state !== 'victory') UI.hud(ctx, g);
+    if (g.state !== 'victory' && g.state !== 'ending') UI.hud(ctx, g);
     UI.sellSplash(ctx, g);
 
     if (g.state === 'shop') {

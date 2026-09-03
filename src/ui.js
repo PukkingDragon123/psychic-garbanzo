@@ -135,7 +135,7 @@
       ctx.fillRect(8, my + 1, 5, 5);
       ctx.fillStyle = m.c[0];
       ctx.fillRect(8, my + 1, 5, 2);
-      F.draw(ctx, m.name.slice(0, 9) + ' ' + p.cargo[k], 17, my, COL.dim);
+      F.draw(ctx, m.name.slice(0, 12) + ' ' + p.cargo[k], 17, my, COL.dim);
       my += 9;
     }
     if (p.cargoValue() > 0) F.draw(ctx, '$' + U.fmt(p.cargoValue()), 8, my + 1, COL.gold);
@@ -246,10 +246,10 @@
         ctx.fillStyle = on ? (maxed ? COL.gold : COL.lineHi) : '#3a2a5e';
         ctx.fillRect(x + 4 + k * 5, y + 30, 4, 4);
       }
-      F.draw(ctx, 'LV' + lvl, x + 68, y + 28, COL.dim, { right: true });
+      F.draw(ctx, 'LV' + lvl, x + 134, y + 4, maxed ? COL.gold : COL.dim, { right: true });
 
       if (maxed) {
-        F.draw(ctx, 'MAX', x + 134, y + 16, COL.gold, { right: true });
+        F.draw(ctx, 'MAXED', x + 108, y + 26, COL.gold, { center: true });
       } else if (button(ctx, x + 82, y + 22, 52, 15, '$' + U.fmt(cost), { enabled: afford, accent: afford ? '#3f6ea8' : undefined, id: 'buy' + u.id })) {
         g.buy(u.id);
       }
@@ -354,19 +354,19 @@
     // the doomed planet
     ctx.fillStyle = '#2b1c4a';
     ctx.beginPath(); ctx.arc(px, py, r + 3, 0, U.TAU); ctx.fill();
-    ctx.fillStyle = '#4d6b8a';
+    ctx.fillStyle = '#4f7d6a';
     ctx.beginPath(); ctx.arc(px, py, r, 0, U.TAU); ctx.fill();
-    ctx.fillStyle = '#3b5470';
+    ctx.fillStyle = '#3a5f55';
     ctx.beginPath(); ctx.arc(px + 10, py + 12, r - 8, 0, U.TAU); ctx.fill();
-    ctx.fillStyle = '#5d7f9e';
+    ctx.fillStyle = '#6a9a80';
     [[-26, -18, 9], [12, -30, 6], [-8, 6, 5], [26, -6, 7]].forEach(c => {
       ctx.beginPath(); ctx.arc(px + c[0], py + c[1], c[2], 0, U.TAU); ctx.fill();
     });
 
     // glowing fissures, breathing in time with the drill
-    const glow = 0.55 + 0.45 * Math.sin(t * 4);
-    ctx.strokeStyle = 'rgba(255,150,60,' + glow.toFixed(2) + ')';
-    ctx.lineWidth = 2;
+    const glow = 0.7 + 0.3 * Math.sin(t * 4);
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = 'rgba(200,50,10,' + (glow * 0.8).toFixed(2) + ')';
     const cracks = [
       [[-6, -56], [-2, -34], [-14, -18], [-4, 0]],
       [[-4, -34], [14, -26], [22, -8]],
@@ -378,8 +378,20 @@
       for (let i = 1; i < line.length; i++) ctx.lineTo(px + line[i][0], py + line[i][1]);
       ctx.stroke();
     }
-    ctx.fillStyle = 'rgba(255,220,150,' + (glow * 0.9).toFixed(2) + ')';
-    ctx.fillRect(px - 8, py - 60, 4, 4);
+    // hot inner line on top of the dark fissure
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = 'rgba(255,190,80,' + glow.toFixed(2) + ')';
+    for (const line of cracks) {
+      ctx.beginPath();
+      ctx.moveTo(px + line[0][0], py + line[0][1]);
+      for (let i = 1; i < line.length; i++) ctx.lineTo(px + line[i][0], py + line[i][1]);
+      ctx.stroke();
+    }
+    const hg = ctx.createRadialGradient(px - 6, py - 56, 1, px - 6, py - 56, 22);
+    hg.addColorStop(0, 'rgba(255,240,190,' + glow.toFixed(2) + ')');
+    hg.addColorStop(1, 'rgba(255,140,40,0)');
+    ctx.fillStyle = hg;
+    ctx.fillRect(px - 28, py - 78, 56, 56);
 
     // sparks off the bit
     for (let i = 0; i < 9; i++) {
@@ -419,13 +431,13 @@
     let wipe = false;
     if (g.save.totalEarned > 0) wipe = button(ctx, cx - 62, 154, 124, 13, 'NEW GAME', { accent: '#8a2f4a' });
 
-    F.draw(ctx, 'GET RICH.  BREAK WORLDS.', 12, 190, COL.gold);
-    F.draw(ctx, 'OWN THE GALAXY.', 12, 200, COL.gold);
-    F.draw(ctx, 'WASD / ARROWS   THRUSTERS', 12, 218, COL.text);
-    F.draw(ctx, 'LEFT MOUSE      DRILL', 12, 228, COL.text);
-    F.draw(ctx, 'RIGHT / SPACE   PISTOL', 12, 238, COL.text);
-    F.draw(ctx, 'E DOCK   R BEAM HOME', 12, 248, COL.text);
-    F.draw(ctx, 'CLICK ONCE TO ENABLE SOUND', 12, 262, COL.dim);
+    F.draw(ctx, 'GET RICH.  BREAK WORLDS.', 12, 182, COL.gold);
+    F.draw(ctx, 'OWN THE GALAXY.', 12, 192, COL.gold);
+    F.draw(ctx, 'WASD / ARROWS   THRUSTERS', 12, 210, COL.text);
+    F.draw(ctx, 'LEFT MOUSE      DRILL', 12, 220, COL.text);
+    F.draw(ctx, 'RIGHT / SPACE   PISTOL', 12, 230, COL.text);
+    F.draw(ctx, 'E DOCK   R BEAM HOME', 12, 240, COL.text);
+    F.draw(ctx, 'CLICK ONCE TO ENABLE SOUND', 12, 254, COL.dim);
     return { start, wipe };
   }
 

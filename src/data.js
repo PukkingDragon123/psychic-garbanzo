@@ -22,7 +22,7 @@
     { id: 11, key: 'void',   name: 'Voidstone',   hp: 215,  kg: 4.5,  cr: 2600,  c: ['#b98cff', '#7d4fd6', '#4a2591'], shine: 1 },
     { id: 12, key: 'star',   name: 'Starmetal',   hp: 255,  kg: 5.5,  cr: 7200,  c: ['#fff3b0', '#ffc44d', '#e06a1f'], shine: 1 },
     { id: 13, key: 'core',   name: 'Planet Core', hp: 255,  kg: 0,    cr: 0,     c: ['#ffd9a0', '#ff8a3d', '#c93b1c'], shine: 1 },
-    { id: 14, key: 'shell',  name: 'Dense Shell', hp: 190,  kg: 3.0,  cr: 45,    c: ['#5d6b7a', '#46525e', '#333c46'] }
+    { id: 14, key: 'shell',  name: 'Shellrock',    hp: 190,  kg: 3.0,  cr: 45,    c: ['#5d6b7a', '#46525e', '#333c46'] }
   ];
   const M = {};
   for (const m of MAT) M[m.key] = m.id;
@@ -135,7 +135,7 @@
       id: 'reach', name: 'Drill Arm', icon: 'arm', max: 8, base: 340, growth: 1.7,
       blurb: 'Longer arm, wider bore -- eats 2 tiles at once at high tiers.',
       value: l => 14 + l * 2.6,
-      show: l => (14 + l * 2.6).toFixed(1) + ' px reach'
+      show: l => (14 + l * 2.6).toFixed(1) + ' PX BORE'
     },
     {
       id: 'oxygen', name: 'O2 Tank', icon: 'tank', max: 14, base: 190, growth: 1.55,
@@ -177,13 +177,13 @@
       id: 'lamp', name: 'Headlamp', icon: 'lamp', max: 8, base: 160, growth: 1.55,
       blurb: 'See the thing that is about to eat you.',
       value: l => 62 + l * 15,
-      show: l => (62 + l * 15) + ' px light'
+      show: l => (62 + l * 15) + ' PX LAMP'
     },
     {
       id: 'magnet', name: 'Tractor Magnet', icon: 'magnet', max: 8, base: 300, growth: 1.6,
       blurb: 'Sucks loose ore straight into the hold.',
       value: l => 26 + l * 11,
-      show: l => (26 + l * 11) + ' px pull'
+      show: l => (26 + l * 11) + ' PX PULL'
     },
     {
       id: 'drones', name: 'Harvest Drones', icon: 'drone', max: 40, base: 500, growth: 1.28,
@@ -195,7 +195,7 @@
       id: 'droneyield', name: 'Drone Claws', icon: 'claw', max: 25, base: 900, growth: 1.34,
       blurb: 'Each drone brings back a whole lot more.',
       value: l => 1 + l * 0.55,
-      show: l => 'x' + (1 + l * 0.55).toFixed(2) + ' per drone'
+      show: l => 'X' + (1 + l * 0.55).toFixed(2) + ' EACH'
     }
   ];
 

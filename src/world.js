@@ -107,8 +107,10 @@
   World.prototype.generate = function () {
     const b = this.body, s = this.seed;
     const r = this.radius;
-    const coreR = Math.max(3.4, r * 0.12 + 1.8);
-    const chamberR = coreR + Math.max(4, r * 0.09);
+    // Core and chamber scale with the body: a pebble must not be two thirds
+    // hollow, and a superplanet needs room to fight the Warden in.
+    const coreR = Math.max(2.6, r * 0.1 + 1.2);
+    const chamberR = coreR + U.clamp(r * 0.14, 3.5, 11);
 
     // ores sorted valuable-first so the rarest vein wins a contested tile
     const ores = b.ores.slice().sort((a, x) => D.MAT[x[0]].cr - D.MAT[a[0]].cr);
