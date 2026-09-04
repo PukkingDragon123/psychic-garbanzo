@@ -36,7 +36,30 @@
     this.alarmT = 0;
     this.squish = 0;
     this.tetherT = 0;
+    this.weapon = 'pistol';
+    this.dashCool = 0; this.dashT = 0;
+    this.lastTap = { key: '', t: -9 };
+    this.scanCool = 0;
+    this.burnCool = 0;
+    this.lastStratum = -2;
   }
+
+  /* Weapons you have actually fabricated. */
+  Player.prototype.weapons = function () {
+    const list = ['pistol'];
+    if (this.g.save.upg.scatter > 0) list.push('scatter');
+    if (this.g.save.upg.lance > 0) list.push('lance');
+    return list;
+  };
+  Player.prototype.cycleWeapon = function (dir) {
+    const list = this.weapons();
+    if (list.length < 2) return;
+    let i = list.indexOf(this.weapon);
+    i = (i + (dir || 1) + list.length) % list.length;
+    this.weapon = list[i];
+    A.tone(700, { type: 'square', to: 1100, dur: 0.08, vol: 0.09 });
+    FX.text(this.x, this.y - 16, this.weapon.toUpperCase(), '#7ef9ff', 0);
+  };
 
   Player.prototype.stat = function (id) {
     const u = D.UPG[id];
@@ -89,6 +112,14 @@
 
     this.blink -= dt;
     if (this.blink < -0.2) this.blink = U.rand(2, 6);
+    this.dashCool = Math.max(0, this.dashCool - dt);
+    this.dashT = Math.max(0, this.dashT - dt);
+    this.scanCool = Math.max(0, this.scanCool - dt);
+    this.burnCool = Math.max(0, this.burnCool - dt);
+    if (!frozen && !g.uiBlocking) {
+      if (IN.hit('KeyQ') || IN.mouse.wheel) this.cycleWeapon(IN.mouse.wheel < 0 ? -1 : 1);
+      if (IN.hit('Tab')) this.scan(g);
+    }
     this.gunCool = Math.max(0, this.gunCool - dt);
     this.gunFlash = Math.max(0, this.gunFlash - dt);
     this.invuln = Math.max(0, this.invuln - dt);
@@ -109,6 +140,17 @@
     if (ix) this.facing = ix;
     else if (Math.abs(dxm) > 6) this.facing = Math.sign(dxm);
 
+    if (!frozen) {
+      let wantDash = IN.hit('shift');
+      for (const k of ['left', 'right', 'up', 'down']) {
+        if (IN.hit(k)) {
+          if (this.lastTap.key === k && g.time - this.lastTap.t < 0.26) wantDash = true;
+          this.lastTap = { key: k, t: g.time };
+        }
+      }
+      if (wantDash) this.dash(ix, iy, g);
+    }
+
     const load = this.loadFactor();
     const thrust = this.stat('thruster') * (1 - load * 0.42);
     const grav = w.gravityAt(this.y);
@@ -123,10 +165,12 @@
       this.vy += Math.sin(this.aim) * 150 * dt;
     }
 
-    const drag = this.onGround(w) ? 0.82 : 0.94;
+    // a burst ignores friction and the speed cap while it lasts
+    const dashing = this.dashT > 0;
+    const drag = dashing ? 0.985 : (this.onGround(w) ? 0.82 : 0.94);
     this.vx *= Math.pow(drag, dt * 60);
-    this.vy *= Math.pow(0.955, dt * 60);
-    const maxSp = 150 - load * 40;
+    this.vy *= Math.pow(dashing ? 0.985 : 0.955, dt * 60);
+    const maxSp = dashing ? 400 : 150 - load * 40;
     const sp = Math.hypot(this.vx, this.vy);
     if (sp > maxSp) { this.vx *= maxSp / sp; this.vy *= maxSp / sp; }
 
@@ -159,6 +203,32 @@
       A.drill(false);
       A.thrust(0);
     }
+  };
+
+  /* Burst jets: a short invulnerable lunge. Direction from the keys, or the
+     aim if you are not steering. */
+  Player.prototype.dash = function (ix, iy, g) {
+    if (this.dashCool > 0 || this.docked) return;
+    let dx = ix, dy = iy;
+    if (!dx && !dy) { dx = Math.cos(this.aim); dy = Math.sin(this.aim); }
+    const n = Math.hypot(dx, dy) || 1;
+    this.vx = dx / n * 330;
+    this.vy = dy / n * 330;
+    this.dashCool = this.stat('dash');
+    this.dashT = 0.26;
+    this.invuln = Math.max(this.invuln, 0.3);
+    A.sfx.tone(300, { type: 'sawtooth', to: 1200, dur: 0.16, vol: 0.12 });
+    A.sfx.noise({ from: 900, to: 3000, dur: 0.14, vol: 0.1 });
+    FX.ring(this.x, this.y, 3, 22, 0.3, '#7ef9ff', 2);
+    for (let i = 0; i < 8; i++) FX.trail(this.x - dx / n * i * 3, this.y - dy / n * i * 3, '#7ef9ff', 2);
+    FX.shake(1.5);
+  };
+
+  /* Sonar ping: paints nearby ore on to the minimap. */
+  Player.prototype.scan = function (g) {
+    if (this.scanCool > 0 || this.docked) { A.sfx.deny(); return; }
+    this.scanCool = 4;
+    g.scan(this.x, this.y, this.stat('scanner'));
   };
 
   Player.prototype.onGround = function (w) {
@@ -234,21 +304,76 @@
     const IN = PD.input;
     const want = (IN.mouse.right || IN.down('space')) && !g.uiBlocking;
     if (!want || this.gunCool > 0) return;
-    this.gunCool = this.stat('trigger');
-    this.gunFlash = 0.09;
-    const dmg = this.stat('pistol');
-    const a = this.aim + U.rand(-0.035, 0.035);
-    const ox = Math.cos(a) * 12, oy = Math.sin(a) * 12;
-    g.bullets.push(new Bullet(this.x + ox, this.y + oy, Math.cos(a) * 330, Math.sin(a) * 330, dmg, true));
-    this.vx -= Math.cos(a) * 28;
-    this.vy -= Math.sin(a) * 28;
-    FX.burst(this.x + ox, this.y + oy, 4, ['#7ef9ff', '#ffffff'], 70, true);
-    FX.shake(1.1);
-    A.sfx.shoot();
+    const a0 = this.aim;
+    const ox = Math.cos(a0) * 12, oy = Math.sin(a0) * 12;
+
+    if (this.weapon === 'scatter') {
+      this.gunCool = 0.72;
+      this.gunFlash = 0.1;
+      const dmg = this.stat('scatter');
+      for (let i = 0; i < 5; i++) {
+        const a = a0 + (i - 2) * 0.13 + U.rand(-0.04, 0.04);
+        const sp = 300 + U.rand(-30, 30);
+        g.bullets.push(new Bullet(this.x + ox, this.y + oy, Math.cos(a) * sp, Math.sin(a) * sp, dmg, true, '#ffb03d', { life: 0.34 }));
+      }
+      this.vx -= Math.cos(a0) * 110;
+      this.vy -= Math.sin(a0) * 110;
+      FX.burst(this.x + ox, this.y + oy, 9, ['#ffb03d', '#ffffff', '#ff7a2a'], 110, true);
+      FX.shake(3.2);
+      A.sfx.boom(0.35);
+      A.sfx.shoot();
+    } else if (this.weapon === 'lance') {
+      this.gunCool = 1.05;
+      this.gunFlash = 0.14;
+      const dmg = this.stat('lance');
+      g.bullets.push(new PD.ent.Beam(this.x + ox, this.y + oy, a0, 190, dmg, g));
+      this.vx -= Math.cos(a0) * 60;
+      this.vy -= Math.sin(a0) * 60;
+      FX.shake(2.6);
+      FX.hitStop(0.03);
+      A.sfx.tone(1800, { type: 'sawtooth', to: 200, dur: 0.26, vol: 0.14, filter: 5000 });
+      A.sfx.noise({ from: 6000, to: 400, dur: 0.2, vol: 0.1 });
+    } else {
+      this.gunCool = this.stat('trigger');
+      this.gunFlash = 0.09;
+      const dmg = this.stat('pistol');
+      const a = a0 + U.rand(-0.035, 0.035);
+      g.bullets.push(new Bullet(this.x + ox, this.y + oy, Math.cos(a) * 330, Math.sin(a) * 330, dmg, true));
+      this.vx -= Math.cos(a) * 28;
+      this.vy -= Math.sin(a) * 28;
+      FX.burst(this.x + ox, this.y + oy, 4, ['#7ef9ff', '#ffffff'], 70, true);
+      FX.shake(1.1);
+      A.sfx.shoot();
+    }
   };
 
   /* --------------------------------------------------------------------- air */
   Player.prototype.doAir = function (dt, g) {
+    // the lamp reveals the map as you go
+    g.world.reveal(this.x, this.y, this.stat('lamp') * 0.9);
+
+    // magma burns; uranium in the hold cooks you slowly
+    const hz = g.world.hazardIn(this.x - this.w / 2, this.y - this.h / 2, this.w, this.h);
+    if (hz && !this.docked) {
+      this.hull -= hz * dt;
+      this.vy -= 90 * dt;
+      if (this.burnCool <= 0) {
+        this.burnCool = 0.4;
+        FX.burst(this.x, this.y + 6, 6, ['#ff7a2a', '#ffd27a'], 60, true);
+        A.sfx.tone(200, { type: 'sawtooth', to: 120, dur: 0.12, vol: 0.09 });
+        FX.flash(0.15, '#ff5a2a');
+        g.hint('lava', 'MAGMA! GET OUT OF IT');
+      }
+      if (this.hull <= 0) { this.hull = 0; g.onPlayerDown(); return; }
+    }
+    const uran = this.cargo[D.M.uran] || 0;
+    if (uran > 0 && !this.docked) {
+      this.hull -= 0.35 * uran * dt;
+      if (U.chance(dt * 3)) FX.trail(this.x + U.rand(-5, 5), this.y + U.rand(-6, 6), '#a6ff3d', 1.4);
+      g.hint('uran', 'URANIUM IN THE HOLD IS COOKING YOU. SELL IT FAST.');
+      if (this.hull <= 0) { this.hull = 0; g.onPlayerDown(); return; }
+    }
+
     if (this.docked) {
       this.o2 = Math.min(this.stat('oxygen'), this.o2 + 90 * dt);
       this.suffocating = 0;
@@ -304,18 +429,25 @@
     const skin = PD.art.skinFor(this.g.save.cos);
     const spr = skin.alien;
     const drill = skin.drill;
-    const gun = PD.art.sprites.gun;
+    const gun = PD.art.sprites[this.weapon === 'pistol' ? 'gun' : this.weapon];
     const px = this.x - cam.x, py = this.y - cam.y;
     const flip = Math.cos(this.aim) < 0;
 
-    if (this.invuln > 0 && Math.sin(this.invuln * 40) < -0.2) return;
+    if (this.dashT > 0) {
+      // afterimages along the burst
+      ctx.globalAlpha = 0.35;
+      for (let k = 1; k <= 3; k++) {
+        PD.ent.drawSprite(ctx, spr, 0, px - this.vx * k * 0.012, py - this.vy * k * 0.012 - 1, flip, true);
+      }
+      ctx.globalAlpha = 1;
+    } else if (this.invuln > 0 && Math.sin(this.invuln * 40) < -0.2) return;
 
     // pistol on the far side, drill on the aiming side
     ctx.save();
     ctx.translate(px | 0, py | 0);
     ctx.rotate(this.aim + (flip ? Math.PI : 0));
     ctx.scale(1, flip ? -1 : 1);
-    const g = gun.frames[this.gunCool < this.stat('trigger') * 0.4 ? 0 : 1];
+    const g = gun.frames[this.gunCool > 0.05 ? 1 : 0];
     ctx.drawImage(g, -2, -10);
     ctx.restore();
 

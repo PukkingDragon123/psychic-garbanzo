@@ -281,6 +281,31 @@
     return p;
   }
 
+  function refinery(lit) {
+    const p = pix(72, 58);
+    p.round(2, 40, 68, 18, 3, P.steelDD);                  // base
+    p.rect(6, 43, 60, 3, P.rust);
+    // conveyor with a moving lump of ore
+    p.rect(8, 36, 52, 5, P.steelD);
+    for (let x = 10; x < 58; x += 6) p.rect(x + (lit ? 3 : 0), 37, 3, 3, P.steelDD);
+    p.round(lit ? 30 : 22, 32, 6, 5, 1, P.amber);
+    // smelter tower with a glowing mouth
+    p.round(8, 6, 22, 30, 3, P.steelD);
+    p.round(12, 10, 14, 10, 2, P.screenD);
+    p.rect(13, 11, 12, 8, lit ? '#ff9b3d' : '#c25c14');
+    p.rect(14, 26, 10, 6, P.steelDD);
+    p.rect(11, 2, 4, 6, P.pipeD); p.rect(23, 2, 4, 6, P.pipeD);
+    // press on the right
+    p.round(40, 10, 26, 22, 3, P.steelD);
+    p.rect(50, 4, 6, 8, P.steel);
+    p.round(44, lit ? 20 : 16, 18, 6, 2, P.steelDD);
+    p.rect(42, 14, 22, 1, P.rust);
+    // smoke puffs
+    if (lit) { p.disc(13, 0, 1.5, P.steelD); p.disc(25, 1, 1.2, P.steelD); }
+    p.outline(P.ink);
+    return p;
+  }
+
   function crate(kind) {
     const p = pix(22, 18);
     p.round(1, 2, 20, 16, 2, kind ? P.rust : P.steelD);
@@ -379,6 +404,7 @@
   reg('dronebay', [droneBay(false), droneBay(true)], 31, 54);
   reg('wardrobe', [wardrobe(false), wardrobe(true)], 22, 60);
   reg('navchart', [navChart(false), navChart(true)], 38, 50);
+  reg('refinery', [refinery(false), refinery(true)], 36, 58);
   reg('crate', [crate(0), crate(1)], 11, 18);
   reg('plant', [plant()], 10, 26);
   reg('nix', [nix(0), nix(1)], 13, 34);

@@ -10,7 +10,7 @@
   const AI = PD.artint;
 
   const VW = 480, VH = 270;
-  const ROOM_W = 720, ROOM_H = 270;
+  const ROOM_W = 840, ROOM_H = 270;
   const FLOOR = ROOM_H - 22;
 
   let bg = null;
@@ -21,8 +21,9 @@
     { id: 'market',  x: 160, spr: 'console',    label: 'CARGO EXCHANGE', app: 'market' },
     { id: 'fab',     x: 300, spr: 'fabricator', label: 'FABRICATOR',     app: 'fab' },
     { id: 'bay',     x: 440, spr: 'dronebay',   label: 'DRONE BAY',      app: 'bay' },
-    { id: 'vanity',  x: 560, spr: 'wardrobe',   label: 'IDENTITY POD',   app: 'vanity' },
-    { id: 'nav',     x: 660, spr: 'navchart',   label: 'NAV COMPUTER',   app: 'nav' }
+    { id: 'refinery', x: 580, spr: 'refinery',  label: 'REFINERY DECK',  app: 'refinery' },
+    { id: 'vanity',  x: 690, spr: 'wardrobe',   label: 'IDENTITY POD',   app: 'vanity' },
+    { id: 'nav',     x: 786, spr: 'navchart',   label: 'NAV COMPUTER',   app: 'nav' }
   ];
 
   const CREW = [
@@ -33,7 +34,7 @@
 
   const DECOR = [
     { x: 108, spr: 'crate', f: 0 }, { x: 128, spr: 'crate', f: 1 },
-    { x: 396, spr: 'crate', f: 1 }, { x: 612, spr: 'plant', f: 0 },
+    { x: 396, spr: 'crate', f: 1 }, { x: 740, spr: 'plant', f: 0 }, { x: 640, spr: 'crate', f: 0 },
     { x: 88, spr: 'plant', f: 0 }
   ];
 
@@ -50,7 +51,8 @@
       'Bring me ore, not excuses. The bin does not fill itself.',
       'I welded that seam twice. Do not make me do it a third time.',
       'Every module you fabricate, I bleed a little coolant. You are welcome.',
-      'Rocks in. Machines out. That is the whole religion.'
+      'Rocks in. Machines out. That is the whole religion.',
+      'Feed the hoppers and the refinery runs itself. Ingots sell for triple. Alloys? Do not ask, just build it.'
     ],
     gloop: [
       'GLOOP chirps and headbutts the glass affectionately.',

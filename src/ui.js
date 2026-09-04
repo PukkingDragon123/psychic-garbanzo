@@ -167,6 +167,41 @@
       bar(ctx, VW / 2 - 40, VH - 36, 80, 6, p.recall / 1.4, COL.o2, {});
     }
 
+    // weapon, dash and scanner readouts under the meters
+    const wy = 100 + Object.keys(p.cargo).length * 0;
+    const wname = { pistol: 'PISTOL', scatter: 'SCATTER', lance: 'LANCE' }[p.weapon];
+    const wsp = PD.art.sprites[p.weapon === 'pistol' ? 'gun' : p.weapon];
+    ctx.drawImage(wsp.frames[0], 6, VH - 62);
+    F.draw(ctx, wname + (p.weapons().length > 1 ? '  [Q]' : ''), 30, VH - 60, COL.text);
+    const dashF = p.dashCool / Math.max(0.1, p.stat('dash'));
+    bar(ctx, 30, VH - 49, 40, 3, 1 - dashF, dashF > 0 ? '#9c8ec4' : COL.gold, {});
+    F.draw(ctx, 'DASH', 74, VH - 51, COL.dim);
+    bar(ctx, 30, VH - 39, 40, 3, 1 - p.scanCool / 4, p.scanCool > 0 ? '#9c8ec4' : COL.good, {});
+    F.draw(ctx, 'SCAN', 74, VH - 41, COL.dim);
+
+    // kill combo
+    if (g.combo.n >= 3) {
+      const pulse = 1 + 0.08 * Math.sin(g.time * 14);
+      F.draw(ctx, 'x' + g.combo.mult.toFixed(1), VW / 2, 34, '#ff8ad8', { center: true, scale: 2 });
+      F.draw(ctx, g.combo.n + ' KILL CHAIN', VW / 2, 52, COL.text, { center: true });
+      bar(ctx, VW / 2 - 30, 62, 60, 3, g.combo.t / 2.6, '#ff8ad8', {});
+    }
+
+    minimap(ctx, g);
+
+    // stratum banner
+    if (g.banner) {
+      const a = U.clamp(Math.min(g.banner.t * 2, (3.2 - g.banner.t) * 2), 0, 1);
+      ctx.globalAlpha = a;
+      ctx.fillStyle = 'rgba(8,4,18,0.6)';
+      ctx.fillRect(VW / 2 - 120, 86, 240, 22);
+      ctx.fillStyle = COL.gold; ctx.fillRect(VW / 2 - 120, 86, 240, 1); ctx.fillRect(VW / 2 - 120, 107, 240, 1);
+      F.draw(ctx, '- ' + g.banner.text + ' -', VW / 2, 92, COL.gold, { center: true, scale: 1 });
+      const d = g.world.depthMeters(p.y);
+      F.draw(ctx, 'DEPTH ' + d + 'M', VW / 2, 101, COL.dim, { center: true });
+      ctx.globalAlpha = 1;
+    }
+
     // hints
     if (g.hintT > 0) {
       ctx.globalAlpha = U.clamp(g.hintT, 0, 1);
@@ -188,6 +223,58 @@
       ctx.globalAlpha = 1;
       ty -= 16;
     }
+  }
+
+  /* ---------------------------------------------------------------- minimap
+     Fog of war: only what the lamp has touched is drawn. Scanner pings paint
+     ore you have not reached yet. */
+  let mmCv = null, mmCtx = null, mmDirty = 0;
+  function minimap(ctx, g) {
+    const w = g.world;
+    const MW = 92, MH = 92;
+    const x0 = VW - MW - 8, y0 = 58;
+    const sc = Math.min(MW / w.w, MH / w.h);
+    const ox = x0 + (MW - w.w * sc) / 2, oy = y0 + (MH - w.h * sc) / 2;
+
+    if (!mmCv) { mmCv = document.createElement('canvas'); mmCtx = mmCv.getContext('2d'); }
+    if (mmCv.width !== w.w || mmCv.height !== w.h) { mmCv.width = w.w; mmCv.height = w.h; mmDirty = 0; }
+    // rebuild the fog texture a few times a second, not every frame
+    mmDirty -= 1;
+    if (mmDirty <= 0) {
+      mmDirty = 8;
+      const img = mmCtx.createImageData(w.w, w.h);
+      for (let i = 0; i < w.cells.length; i++) {
+        if (!w.seen[i]) continue;
+        const m = w.cells[i];
+        const k = i * 4;
+        if (!m) { if (w.inside[i]) { img.data[k] = 24; img.data[k + 1] = 18; img.data[k + 2] = 40; img.data[k + 3] = 255; } continue; }
+        const c = D.MAT[m].c[1];
+        img.data[k] = parseInt(c.slice(1, 3), 16); img.data[k + 1] = parseInt(c.slice(3, 5), 16); img.data[k + 2] = parseInt(c.slice(5, 7), 16);
+        img.data[k + 3] = 255;
+      }
+      mmCtx.putImageData(img, 0, 0);
+    }
+
+    ctx.fillStyle = 'rgba(8,4,18,0.75)';
+    ctx.fillRect(x0 - 2, y0 - 2, MW + 4, MH + 4);
+    ctx.strokeStyle = COL.line; ctx.strokeRect(x0 - 1.5, y0 - 1.5, MW + 3, MH + 3);
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(mmCv, 0, 0, w.w, w.h, ox, oy, w.w * sc, w.h * sc);
+
+    // scanner pings
+    for (const pg of g.pings) {
+      ctx.globalAlpha = U.clamp(pg.life / 3, 0, 1) * (0.6 + 0.4 * Math.sin(g.time * 6 + pg.cx));
+      ctx.fillStyle = D.MAT[pg.mat].c[0];
+      ctx.fillRect(ox + pg.cx * sc - 1, oy + pg.cy * sc - 1, Math.max(2, sc * 2), Math.max(2, sc * 2));
+    }
+    ctx.globalAlpha = 1;
+    // core, ship, you
+    if (w.coreHp > 0) { ctx.fillStyle = '#ff8a3d'; ctx.fillRect(ox + w.cx * sc - 1, oy + w.cy * sc - 1, 3, 3); }
+    ctx.fillStyle = '#7ef9ff'; ctx.fillRect(ox + g.ship.x / 10 * sc - 2, oy + g.ship.y / 10 * sc - 1, 4, 2);
+    const px = ox + g.player.x / 10 * sc, py = oy + g.player.y / 10 * sc;
+    ctx.fillStyle = Math.sin(g.time * 10) > 0 ? '#ffffff' : '#ff5fa8';
+    ctx.fillRect(px - 1, py - 1, 3, 3);
+    F.draw(ctx, 'MAP  [TAB] SCAN', x0 + MW / 2, y0 + MH + 4, COL.dim, { center: true });
   }
 
   /* ------------------------------------------------------------------- shop */

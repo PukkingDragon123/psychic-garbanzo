@@ -84,6 +84,11 @@
     this.cells = new Uint8Array(this.w * this.h);
     this.dmg = new Float32Array(this.w * this.h);
     this.heat = new Float32Array(this.w * this.h);
+    this.inside = new Uint8Array(this.w * this.h);    // silhouette mask: cave backdrop goes here
+    this.stratum = new Uint8Array(this.w * this.h);   // which depth band a cell belongs to
+    this.seen = new Uint8Array(this.w * this.h);      // fog of war for the minimap
+    this.pois = [];                                    // ruins etc. the game spawns things at
+    this.strata = D.STRATA[body.type] || D.STRATA.rock;
 
     this.coreCells = [];
     this.coreMax = body.coreHp;
@@ -91,9 +96,10 @@
     this.mined = 0;
     this.totalSolid = 0;
 
-    this.hardness = 1 + index * 0.16;
+    this.hardness = 1 + index * 0.14;
     this.seed = 1000 + index * 977;
     this.generate();
+    this.buildBackdrop();
     this.buildStars();
   }
 
@@ -104,6 +110,25 @@
     return this.cells[cy * this.w + cx];
   };
 
+  /* Pick from a [[key, weight]...] table using a 0..1 value, so neighbouring
+     cells sharing a noise value share a rock and the base fill clumps. */
+  function pickTable(table, t) {
+    let total = 0;
+    for (const e of table) total += e[1];
+    let acc = 0;
+    for (const e of table) {
+      acc += e[1] / total;
+      if (t <= acc) return M[e[0]];
+    }
+    return M[table[table.length - 1][0]];
+  }
+
+  World.prototype.stratumFor = function (depth) {
+    const st = this.strata;
+    for (let i = 0; i < st.length; i++) if (depth >= st[i].a && depth < st[i].b) return i;
+    return st.length - 1;
+  };
+
   World.prototype.generate = function () {
     const b = this.body, s = this.seed;
     const r = this.radius;
@@ -111,79 +136,214 @@
     // hollow, and a superplanet needs room to fight the Warden in.
     const coreR = Math.max(2.6, r * 0.1 + 1.2);
     const chamberR = coreR + U.clamp(r * 0.14, 3.5, 11);
-
-    // ores sorted valuable-first so the rarest vein wins a contested tile
-    const ores = b.ores.slice().sort((a, x) => D.MAT[x[0]].cr - D.MAT[a[0]].cr);
-    const totalW = b.ores.reduce((t, o) => t + o[1], 0);
+    const strata = this.strata;
 
     for (let cy = 0; cy < this.h; cy++) {
       for (let cx = 0; cx < this.w; cx++) {
         const dx = cx + 0.5 - this.cx, dy = cy + 0.5 - this.cy;
         const d = Math.sqrt(dx * dx + dy * dy);
         const ang = Math.atan2(dy, dx);
-        // lumpy silhouette so asteroids read as hand-drawn rocks
+        // lumpy silhouette so bodies read as hand-drawn rocks
         const wobble = (U.fbm(Math.cos(ang) * 2 + s, Math.sin(ang) * 2 + s, 3) - 0.5) * r * 0.22
                      + (U.noise2(Math.cos(ang) * 6 + s, Math.sin(ang) * 6 + s) - 0.5) * r * 0.09;
         const rEff = r + wobble;
         if (d > rEff) continue;
 
+        const i = this.idx(cx, cy);
+        this.inside[i] = 1;
         const depth = 1 - d / Math.max(1, rEff);   // 0 at surface, 1 at core
+        const si = this.stratumFor(depth);
+        const L0 = strata[si];
+        this.stratum[i] = si;
         let mat;
 
         if (d < coreR) { mat = M.core; }
         else if (d < chamberR) { mat = 0; }        // hollow core chamber
         else {
-          // caves. Frequency matters as much as the threshold here: too low
-          // and a small asteroid only samples a handful of noise features,
-          // so whole materials can vanish by luck.
-          const cave = U.fbm(cx * 0.12 + s, cy * 0.12 - s, 3);
-          const caveWant = b.caves * (0.16 + depth * 0.72);
-          if (cave > U.fbmThreshold(caveWant, 0.52, 0.145) && depth > 0.13) {
-            this.cells[this.idx(cx, cy)] = 0; continue;
+          // pocket biome: swap in the stratum's alternate table where the
+          // slow biome noise runs hot
+          const biome = U.fbm(cx * 0.05 + s * 2, cy * 0.05 - s * 2, 2);
+          const pocket = L0.alt && biome > U.fbmThreshold(0.3, 0.52, 0.14);
+          const fills = pocket ? L0.alt.fills : L0.fills;
+          const ores = pocket ? L0.alt.ores : L0.ores;
+
+          // caves: tight worm tunnels plus a few grand caverns
+          const tunnel = U.fbm(cx * 0.12 + s, cy * 0.12 - s, 3);
+          const cavern = U.fbm(cx * 0.045 - s, cy * 0.05 + s, 2);
+          const caveWant = L0.caves * (0.22 + depth * 0.6);
+          if (depth > 0.1 && (tunnel > U.fbmThreshold(caveWant, 0.52, 0.145) ||
+              cavern > U.fbmThreshold(caveWant * 0.28, 0.52, 0.15))) {
+            this.cells[i] = 0; continue;
           }
 
-          if (depth < 0.09) mat = b.ores[0][0] === M.ice ? M.ice : M.crust;
-          else {
-            mat = depth > 0.72 && U.chance(0.3) ? M.shell : M.stone;
-            for (const [oid, wt] of ores) {
+          if (depth < 0.07) {
+            mat = pickTable(strata[0].fills, U.hash2(cx, cy));
+          } else {
+            const fillT = U.clamp((U.fbm(cx * 0.055 + s * 5, cy * 0.055 + s * 7, 2) - 0.22) / 0.6, 0, 0.999);
+            mat = pickTable(fills, fillT);
+
+            // veins, valuable first so the rarest ore wins a contested tile
+            const totalW = ores.reduce((t, o) => t + o[1], 0);
+            const sorted = ores.slice().sort((a, x) => D.MAT[M[x[0]]].cr - D.MAT[M[a[0]]].cr);
+            for (const [okey, wt] of sorted) {
+              const oid = M[okey];
               const om = D.MAT[oid];
-              const share = wt / totalW;
-              const rarity = U.clamp(om.cr / 900, 0, 1);
+              const share = wt / Math.max(1, totalW);
+              const rarity = U.clamp(om.cr / 5000, 0, 1);
               // the good stuff only shows up once you have committed to the dig
-              if (depth < rarity * 0.34) continue;
-              const want = U.clamp(share * (0.4 + depth * 1.4) * (1 - rarity * 0.35), 0, 0.8);
+              if (depth < rarity * 0.3) continue;
+              // steep curve: a 2000-credit ore is a find, a 40000-credit one a legend
+              const scarce = Math.max(0.03, Math.pow(1 - rarity, 1.7)) * (om.shine ? 0.6 : 1);
+              const want = U.clamp(share * (0.3 + depth * 1.0) * scarce, 0, 0.6);
+              if (want <= 0) continue;
               const vein = U.fbm(cx * 0.24 + oid * 21 + s, cy * 0.24 - oid * 13 - s, 2);
               if (vein > U.fbmThreshold(want, 0.52, 0.155)) { mat = oid; break; }
             }
+
+            // magma pockets in the hot bands
+            if (L0.lava) {
+              const hot = U.fbm(cx * 0.16 + s * 3, cy * 0.16 + s * 9, 2);
+              if (hot > U.fbmThreshold(L0.lava, 0.52, 0.15)) mat = M.lava;
+            }
           }
         }
-        this.cells[this.idx(cx, cy)] = mat;
-        if (mat === M.core) this.coreCells.push(this.idx(cx, cy));
+        this.cells[i] = mat;
+        if (mat === M.core) this.coreCells.push(i);
         if (mat) this.totalSolid++;
-      }
-    }
-
-    this.carveCraters(r);
-
-    // a crust skin makes the silhouette crisp and gives a surface to land on
-    for (let cy = 0; cy < this.h; cy++) {
-      for (let cx = 0; cx < this.w; cx++) {
-        const i = this.idx(cx, cy);
-        const m = this.cells[i];
-        if (!m || m === M.core) continue;
-        if (!this.at(cx, cy - 1) && U.hash2(cx, cy) > 0.25) {
-          if (D.MAT[m].cr < 40) this.cells[i] = this.body.ores[0][0] === M.ice ? M.ice : M.crust;
-        }
       }
     }
 
     this.coreCenter = { x: this.cx * TILE, y: this.cy * TILE };
     this.coreR = coreR * TILE;
     this.chamberR = chamberR * TILE;
+
+    this.carveCraters(r);
+    this.lavaLakes();
+    this.placePois();
+
+    // a crust skin makes the silhouette crisp and gives a surface to land on
+    for (let cy = 0; cy < this.h; cy++) {
+      for (let cx = 0; cx < this.w; cx++) {
+        const i = this.idx(cx, cy);
+        const m = this.cells[i];
+        if (!m || m === M.core || m === M.lava) continue;
+        if (!this.at(cx, cy - 1) && this.stratum[i] === 0 && U.hash2(cx, cy) > 0.25) {
+          if (D.MAT[m].cr < 40) this.cells[i] = pickTable(this.strata[0].fills, U.hash2(cy, cx));
+        }
+      }
+    }
   };
 
-  /* Bite shallow bowls out of the rim so the silhouette reads as a cratered
-     moon rather than a smooth potato. */
+  /* Molten pools settle on cavern floors in the hot strata. */
+  World.prototype.lavaLakes = function () {
+    const rnd = U.mulberry32(this.seed + 99);
+    for (let cy = 1; cy < this.h - 1; cy++) {
+      for (let cx = 1; cx < this.w - 1; cx++) {
+        const i = this.idx(cx, cy);
+        if (!this.inside[i] || this.cells[i]) continue;
+        const L0 = this.strata[this.stratum[i]];
+        if (!L0.lava) continue;
+        if (!this.at(cx, cy + 1) || this.at(cx, cy + 1) === M.lava) continue;
+        if (rnd() > L0.lava * 0.9) continue;
+        // spread sideways along the floor
+        for (let k = -4; k <= 4; k++) {
+          const x2 = cx + k;
+          if (!this.inBounds(x2, cy)) continue;
+          const j = this.idx(x2, cy);
+          if (this.cells[j] || !this.inside[j]) continue;
+          if (!this.at(x2, cy + 1)) continue;
+          this.cells[j] = M.lava;
+          if (rnd() > 0.55 && !this.cells[j - this.w]) this.cells[j - this.w] = M.lava;
+        }
+      }
+    }
+  };
+
+  /* Points of interest: geodes, fossil beds and precursor ruins. */
+  World.prototype.placePois = function () {
+    const rnd = U.mulberry32(this.seed + 4242);
+    const r = this.radius;
+    const poi = this.body.poi || {};
+    const spot = (dmin, dmax) => {
+      for (let t = 0; t < 60; t++) {
+        const ang = rnd() * U.TAU, dd = r * (1 - (dmin + rnd() * (dmax - dmin)));
+        const cx = Math.round(this.cx + Math.cos(ang) * dd), cy = Math.round(this.cy + Math.sin(ang) * dd);
+        if (!this.inBounds(cx, cy) || !this.inside[this.idx(cx, cy)]) continue;
+        if (U.dist(cx, cy, this.cx, this.cy) < this.chamberR / TILE + 6) continue;
+        return { cx, cy };
+      }
+      return null;
+    };
+    const gemsFor = (cx, cy) => {
+      const L0 = this.strata[this.stratum[this.idx(cx, cy)]];
+      const shiny = L0.ores.filter(o => D.MAT[M[o[0]]].shine);
+      return shiny.length ? shiny : [['crystal', 1]];
+    };
+
+    for (let n = 0; n < (poi.geode || 0); n++) {
+      const at = spot(0.25, 0.85); if (!at) continue;
+      const R = 2.5 + rnd() * 3.5;
+      const gems = gemsFor(at.cx, at.cy);
+      for (let cy = Math.floor(at.cy - R - 2); cy <= at.cy + R + 2; cy++) {
+        for (let cx = Math.floor(at.cx - R - 2); cx <= at.cx + R + 2; cx++) {
+          if (!this.inBounds(cx, cy)) continue;
+          const i = this.idx(cx, cy);
+          if (!this.inside[i] || this.cells[i] === M.core) continue;
+          const d = U.dist(cx + 0.5, cy + 0.5, at.cx + 0.5, at.cy + 0.5);
+          if (d < R) this.cells[i] = 0;
+          else if (d < R + 1.6) this.cells[i] = rnd() > 0.45 ? M.crystal : M[pickTableKey(gems, rnd())];
+        }
+      }
+      this.pois.push({ kind: 'geode', cx: at.cx, cy: at.cy });
+    }
+
+    for (let n = 0; n < (poi.fossil || 0); n++) {
+      const at = spot(0.3, 0.8); if (!at) continue;
+      for (let k = 0; k < 9; k++) {
+        const cx = at.cx + Math.round((rnd() - 0.5) * 7), cy = at.cy + Math.round((rnd() - 0.5) * 3);
+        if (!this.inBounds(cx, cy)) continue;
+        const i = this.idx(cx, cy);
+        if (this.inside[i] && this.cells[i] && this.cells[i] !== M.core) this.cells[i] = M.fossil;
+      }
+    }
+
+    for (let n = 0; n < (poi.ruin || 0); n++) {
+      const at = spot(0.35, 0.8); if (!at) continue;
+      const W = 8 + Math.floor(rnd() * 6), H = 5 + Math.floor(rnd() * 2);
+      const x0 = at.cx - (W >> 1), y0 = at.cy - (H >> 1);
+      let ok = true;
+      for (let cy = y0 - 1; cy <= y0 + H; cy++) for (let cx = x0 - 1; cx <= x0 + W; cx++) {
+        if (!this.inBounds(cx, cy) || !this.inside[this.idx(cx, cy)]) ok = false;
+      }
+      if (!ok) continue;
+      for (let cy = y0 - 1; cy <= y0 + H; cy++) {
+        for (let cx = x0 - 1; cx <= x0 + W; cx++) {
+          const i = this.idx(cx, cy);
+          const wall = cy === y0 - 1 || cy === y0 + H || cx === x0 - 1 || cx === x0 + W;
+          this.cells[i] = wall ? M.hull : 0;
+        }
+      }
+      // a plinth with the relic on it, and room for the loot
+      const px = x0 + (W >> 1);
+      this.cells[this.idx(px, y0 + H - 1)] = M.hull;
+      this.cells[this.idx(px, y0 + H - 2)] = M.relic;
+      // one doorway so it can be found by tunnelling in
+      this.cells[this.idx(x0 - 1, y0 + H - 1)] = 0;
+      this.cells[this.idx(x0 + W, y0 + H - 1)] = 0;
+      this.pois.push({ kind: 'ruin', cx: at.cx, cy: at.cy, x0, y0, w: W, h: H });
+    }
+    this.totalSolid = 0;
+    for (let i = 0; i < this.cells.length; i++) if (this.cells[i]) this.totalSolid++;
+  };
+
+  function pickTableKey(table, t) {
+    let total = 0;
+    for (const e of table) total += e[1];
+    let acc = 0;
+    for (const e of table) { acc += e[1] / total; if (t <= acc) return e[0]; }
+    return table[table.length - 1][0];
+  }
+
   World.prototype.carveCraters = function (r) {
     const rnd = U.mulberry32(this.seed + 17);
     const n = Math.round(4 + r * 0.32);
@@ -204,7 +364,52 @@
           if (this.cells[i2] === M.core) continue;
           if (this.cells[i2]) this.totalSolid--;
           this.cells[i2] = 0;
+          this.inside[i2] = 0;
         }
+      }
+    }
+  };
+
+  /* Dark rock face drawn behind caves so tunnels no longer show stars. */
+  World.prototype.buildBackdrop = function () {
+    this.bgAtlas = this.strata.map((L0, si) => {
+      const variants = [];
+      for (let v = 0; v < 4; v++) {
+        const cv = document.createElement('canvas');
+        cv.width = TILE; cv.height = TILE;
+        const c = cv.getContext('2d');
+        c.fillStyle = L0.tint;
+        c.fillRect(0, 0, TILE, TILE);
+        c.globalAlpha = 0.35;
+        for (let k = 0; k < 6; k++) {
+          const h = U.hash2(v * 17 + k, si * 31 + k * 5);
+          c.fillStyle = h > 0.5 ? '#000000' : '#ffffff';
+          c.globalAlpha = h > 0.5 ? 0.35 : 0.08;
+          c.fillRect(Math.floor(h * TILE), Math.floor(U.hash2(k, v + si) * TILE), 1 + (k % 2), 1);
+        }
+        c.globalAlpha = 1;
+        variants.push(cv);
+      }
+      return variants;
+    });
+  };
+
+  /* Stratum under a world point -- for banners, ambience and light colour. */
+  World.prototype.stratumAt = function (x, y) {
+    const d = U.dist(x, y, this.coreCenter.x, this.coreCenter.y) / (this.radius * TILE);
+    if (d > 1.02) return -1;
+    return this.stratumFor(U.clamp(1 - d, 0, 1));
+  };
+
+  /* Mark everything the lamp can reach as seen, for the minimap. */
+  World.prototype.reveal = function (x, y, radius) {
+    const c0 = Math.max(0, Math.floor((x - radius) / TILE)), c1 = Math.min(this.w - 1, Math.ceil((x + radius) / TILE));
+    const r0 = Math.max(0, Math.floor((y - radius) / TILE)), r1 = Math.min(this.h - 1, Math.ceil((y + radius) / TILE));
+    const rr = radius * radius;
+    for (let cy = r0; cy <= r1; cy++) {
+      for (let cx = c0; cx <= c1; cx++) {
+        const dx = cx * TILE + 5 - x, dy = cy * TILE + 5 - y;
+        if (dx * dx + dy * dy <= rr) this.seen[cy * this.w + cx] = 1;
       }
     }
   };
@@ -308,8 +513,13 @@
   };
 
   /* --------------------------------------------------------------- drilling */
-  World.prototype.tileHp = function (mat) {
-    return D.MAT[mat].hp * this.hardness;
+  World.prototype.tileHp = function (mat, cx, cy) {
+    let h = D.MAT[mat].hp * this.hardness;
+    if (cx !== undefined) {
+      const si = this.stratum[this.idx(cx, cy)];
+      h *= 1 + si * 0.22;           // every band down is tougher rock
+    }
+    return h;
   };
 
   /* Returns the material id if the tile broke this call, else 0. */
@@ -324,13 +534,30 @@
       return this.coreHp <= 0 ? M.core : 0;
     }
     this.dmg[i] += amount;
-    if (this.dmg[i] >= this.tileHp(mat)) {
-      this.cells[i] = 0;
+    if (this.dmg[i] >= this.tileHp(mat, cx, cy)) {
+      const mm = D.MAT[mat];
       this.dmg[i] = 0;
+      if (mm.drop) {                 // magma quenches into basalt; nothing to collect
+        this.cells[i] = mm.drop;
+        return -mat;
+      }
+      this.cells[i] = 0;
       this.mined++;
       return mat;
     }
     return 0;
+  };
+
+  /* Hazard damage per second for a world rect (magma, mostly). */
+  World.prototype.hazardIn = function (x, y, w, h) {
+    const x0 = Math.floor(x / TILE), x1 = Math.floor((x + w) / TILE);
+    const y0 = Math.floor(y / TILE), y1 = Math.floor((y + h) / TILE);
+    let worst = 0;
+    for (let cy = y0; cy <= y1; cy++) for (let cx = x0; cx <= x1; cx++) {
+      const m = this.at(cx, cy);
+      if (m && D.MAT[m].hazard) worst = Math.max(worst, D.MAT[m].hazard);
+    }
+    return worst;
   };
 
   World.prototype.crackFrac = function (cx, cy) {
@@ -338,7 +565,7 @@
     const mat = this.cells[i];
     if (!mat) return 0;
     if (mat === M.core) return 1 - this.coreHp / this.coreMax;
-    return U.clamp(this.dmg[i] / this.tileHp(mat), 0, 1);
+    return U.clamp(this.dmg[i] / this.tileHp(mat, cx, cy), 0, 1);
   };
 
   World.prototype.clear = function (cx, cy) {
@@ -480,15 +707,27 @@
     const r0 = Math.max(0, Math.floor(cam.y / TILE));
     const r1 = Math.min(this.h - 1, Math.ceil((cam.y + vh) / TILE));
 
+    this.glows = this.glows || [];
+    this.glows.length = 0;
+
     for (let cy = r0; cy <= r1; cy++) {
       for (let cx = c0; cx <= c1; cx++) {
         const i = cy * this.w + cx;
         const m = this.cells[i];
-        if (!m) continue;
         const sx = cx * TILE - cam.x | 0;
         const sy = cy * TILE - cam.y | 0;
+        if (!m) {
+          // a cave shows the rock face behind it, not the stars
+          if (this.inside[i]) {
+            const v = (U.hash2(cx * 3, cy * 7) * 4) | 0;
+            ctx.drawImage(this.bgAtlas[this.stratum[i]][v], sx, sy);
+          }
+          continue;
+        }
 
         if (m === PD.data.M.core) { this.drawCoreTile(ctx, sx, sy, cx, cy, time); continue; }
+        if (m === PD.data.M.lava) { this.drawLavaTile(ctx, sx, sy, cx, cy, time); this.glows.push(sx + 5, sy + 5, 26, 0); continue; }
+        if (D.MAT[m].glow && this.glows.length < 200) this.glows.push(sx + 5, sy + 5, D.MAT[m].glowR || 16, m);
 
         const v = (U.hash2(cx, cy) * 4) | 0;
         ctx.drawImage(atlas[m][v], sx, sy);
@@ -537,7 +776,7 @@
 
         const dmg = this.dmg[i];
         if (dmg > 0) {
-          const f = dmg / this.tileHp(m);
+          const f = dmg / this.tileHp(m, cx, cy);
           const stage = f > 0.72 ? 2 : (f > 0.38 ? 1 : 0);
           ctx.drawImage(crackCv[stage], sx, sy);
         }
@@ -555,6 +794,25 @@
 
   /* The core reads as one molten orb rather than a stack of flat tiles:
      each tile is shaded by its distance from the core centre. */
+  /* Magma: a slow churn of bright cells on a dark crust, with a hot skin. */
+  World.prototype.drawLavaTile = function (ctx, sx, sy, cx, cy, time) {
+    const swirl = Math.sin(time * 1.6 + cx * 0.9 + cy * 1.3) * 0.5 + 0.5;
+    ctx.fillStyle = swirl > 0.55 ? '#ff7a2a' : '#e0521c';
+    ctx.fillRect(sx, sy, TILE, TILE);
+    ctx.fillStyle = '#ffd27a';
+    ctx.globalAlpha = 0.5 + swirl * 0.5;
+    const ox = Math.floor(U.hash2(cx, cy + Math.floor(time * 2)) * 6);
+    ctx.fillRect(sx + ox, sy + 3, 3, 2);
+    ctx.fillRect(sx + (ox + 4) % 8, sy + 6, 2, 2);
+    ctx.globalAlpha = 1;
+    if (!this.at(cx, cy - 1)) {                  // glowing surface skin
+      ctx.fillStyle = '#fff0b0';
+      ctx.fillRect(sx, sy, TILE, 1);
+    }
+    ctx.fillStyle = 'rgba(60,10,10,0.35)';
+    ctx.fillRect(sx, sy + TILE - 2, TILE, 2);
+  };
+
   World.prototype.drawCoreTile = function (ctx, sx, sy, cx, cy, time) {
     const dx = (cx + 0.5) - this.cx, dy = (cy + 0.5) - this.cy;
     const t = U.clamp(Math.sqrt(dx * dx + dy * dy) / Math.max(1, this.coreR / TILE), 0, 1);

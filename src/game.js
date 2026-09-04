@@ -31,7 +31,13 @@
     victory: null,
     sellReport: null,
     droneAcc: 0,
-    fps: 60
+    fps: 60,
+    crates: [],
+    combo: { n: 0, t: 0, mult: 1 },
+    pings: [],                 // scanner hits for the minimap
+    banner: null,              // stratum name card
+    lastStratum: -2,
+    ambT: 0
   };
   PD.game = g;
 
@@ -45,7 +51,9 @@
       vault: {},                                  // ore stockpile aboard the ship
       cos: { suit: 'rose', skin: 'green', glass: 'sky', drill: 'steel', trim: 'stock' },
       owned: {},                                  // purchased cosmetics
-      seenIntro: 0
+      seenIntro: 0,
+      goods: {},                                  // refined output from the refinery deck
+      factory: null                               // machine layout
     };
   }
 
@@ -69,6 +77,8 @@
       base.seenIntro = s.seenIntro ? 1 : 0;
       if (s.vault) for (const k in s.vault) { const n = +s.vault[k]; if (n > 0 && D.MAT[k]) base.vault[k] = n; }
       if (s.owned) base.owned = s.owned;
+      if (s.goods) for (const k in s.goods) { const n = +s.goods[k]; if (n > 0) base.goods[k] = n; }
+      if (s.factory && Array.isArray(s.factory.cells)) base.factory = { cells: s.factory.cells, produced: +s.factory.produced || 0 };
       if (s.cos) for (const k in base.cos) if (s.cos[k]) base.cos[k] = s.cos[k];
       if (s.upg) for (const k in base.upg) base.upg[k] = U.clamp(+s.upg[k] || 0, 0, D.UPG[k].max);
     }
@@ -76,7 +86,11 @@
   }
 
   function saveGame() {
-    try { localStorage.setItem(SAVE_KEY, JSON.stringify(g.save)); } catch (e) { /* private mode */ }
+    try {
+      const f = g.save.factory;
+      const slim = Object.assign({}, g.save, { factory: f ? { cells: f.cells, produced: f.produced || 0 } : null });
+      localStorage.setItem(SAVE_KEY, JSON.stringify(slim));
+    } catch (e) { /* private mode */ }
   }
 
   function wipeSave() {
@@ -104,6 +118,7 @@
     if (g.toasts.length > 4) g.toasts.shift();
   }
   g.toast = toast;
+  g.hint = (k, m) => hint(k, m);
 
   function hint(key, msg) {
     if (g.hintKey === key) { g.hintT = Math.max(g.hintT, 1); return; }
@@ -118,7 +133,9 @@
     g.save.bodyIndex = index;
     const body = D.BODIES[index];
     g.world = new PD.world.World(body, index);
-    g.mobs.length = 0; g.bullets.length = 0; g.pickups.length = 0; g.boulders.length = 0;
+    g.mobs.length = 0; g.bullets.length = 0; g.pickups.length = 0; g.boulders.length = 0; g.crates.length = 0;
+    g.pings.length = 0; g.banner = null; g.lastStratum = -2;
+    g.combo = { n: 0, t: 0, mult: 1 };
     FX.reset();
     g.destruction = null;
     g.victory = null;
@@ -146,24 +163,43 @@
   function spawnMobs() {
     const w = g.world;
     const body = w.body;
-    const cap = Math.min(70, 10 + g.bodyIndex * 6);
+    const cap = Math.min(90, 14 + g.bodyIndex * 7);
+    const scale = 1 + g.bodyIndex * 0.14;
     let tries = 0;
-    while (g.mobs.length < cap && tries < 6000) {
+    while (g.mobs.length < cap && tries < 9000) {
       tries++;
       const cx = U.randInt(2, w.w - 3), cy = U.randInt(PD.world.SKY, w.h - 3);
-      if (w.at(cx, cy)) continue;
-      // must be a real pocket, not open space outside the body
-      const dx = cx - w.cx, dy = cy - w.cy;
-      if (Math.sqrt(dx * dx + dy * dy) > w.radius - 2) continue;
+      const i = w.idx(cx, cy);
+      if (w.at(cx, cy) || !w.inside[i]) continue;
       if (U.dist(cx * TILE, cy * TILE, w.coreCenter.x, w.coreCenter.y) < w.chamberR + TILE) continue;
       if (!U.chance(body.enemyRate * 0.5)) continue;
-      const type = U.weighted(body.mobs);
-      g.mobs.push(new PD.ent.Mob(type, cx * TILE + TILE / 2, cy * TILE + TILE / 2, 1 + g.bodyIndex * 0.14));
+      const L0 = w.strata[w.stratum[i]];
+      const depth = w.stratum[i] / Math.max(1, w.strata.length - 1);
+      let type = U.weighted(body.mobs);
+      const x = cx * TILE + TILE / 2, y = cy * TILE + TILE / 2;
+      // biome flavour: wyrms haunt the hot bands, shellbacks the deep ones, mites the caves
+      if (L0.lava && U.chance(0.35)) type = 'wyrm';
+      else if (depth > 0.5 && U.chance(0.2)) type = 'shellback';
+      else if (U.chance(0.22)) {
+        for (let k = 0; k < 4 + (g.bodyIndex >> 1); k++) g.mobs.push(new PD.ent.Mob('mite', x + U.rand(-10, 10), y + U.rand(-10, 10), scale));
+        continue;
+      }
+      g.mobs.push(new PD.ent.Mob(type, x, y, scale));
+    }
+    // points of interest get guards and loot
+    for (const poi of w.pois) {
+      if (poi.kind !== 'ruin') continue;
+      const fx = (poi.x0 + 1) * TILE + 5, fy = (poi.y0 + poi.h - 1) * TILE + 4;
+      const loot = [];
+      const gems = w.strata.flatMap(L0 => L0.ores).map(o => D.M[o[0]]).filter(m => D.MAT[m].shine);
+      for (let k = 0; k < 4 + g.bodyIndex; k++) loot.push(U.pick(gems.length ? gems : [D.M.gold]));
+      g.crates.push(new PD.ent.Crate(fx + 8, fy, loot));
+      if (poi.w > 9) g.crates.push(new PD.ent.Crate((poi.x0 + poi.w - 2) * TILE + 5, fy, loot.slice(0, 3)));
+      g.mobs.push(new PD.ent.Mob(g.bodyIndex >= 4 ? 'lurker' : 'gnasher', (poi.x0 + (poi.w >> 1)) * TILE, (poi.y0 + 1) * TILE + 6, scale * 1.2));
     }
     if (g.bodyIndex >= 1) {
       const c = w.coreCenter;
-      g.mobs.push(new PD.ent.Mob('guardian', c.x + w.chamberR * 0.5, c.y - w.chamberR * 0.3,
-        0.5 + g.bodyIndex * 0.32));
+      g.mobs.push(new PD.ent.Mob('guardian', c.x + w.chamberR * 0.5, c.y - w.chamberR * 0.3, 0.5 + g.bodyIndex * 0.32));
     }
   }
 
@@ -239,6 +275,56 @@
     for (let i = 0; i < 8; i++) setTimeout(() => A.sfx.coin(i), i * 55);
     PD.term.say('BIN LIQUIDATED: ' + lots + ' LOTS  ->  $' + U.fmt(total), '#39ffa6');
     saveGame();
+  };
+
+  g.sellGood = function (key, qty) {
+    const have = (g.save.goods || {})[key] || 0;
+    qty = Math.min(qty, have);
+    if (qty <= 0) return;
+    const gd = key.indexOf('raw:') === 0 ? { name: D.MAT[+key.slice(4)].name, cr: D.MAT[+key.slice(4)].cr } : D.goodFromKey(key);
+    if (!gd) return;
+    const value = Math.round(gd.cr * qty * g.valueMult());
+    g.save.goods[key] = have - qty;
+    if (g.save.goods[key] <= 0) delete g.save.goods[key];
+    g.save.credits += value; g.save.totalEarned += value;
+    A.sfx.coin(qty % 6);
+    PD.term.say('SOLD ' + qty + ' x ' + gd.name.toUpperCase() + '  ->  $' + U.fmt(value), '#39ffa6');
+    saveGame();
+  };
+  g.sellAllGoods = function () {
+    let total = 0, lots = 0;
+    for (const k in g.save.goods) {
+      const gd = k.indexOf('raw:') === 0 ? { cr: D.MAT[+k.slice(4)].cr } : D.goodFromKey(k);
+      if (!gd) continue;
+      total += Math.round(gd.cr * g.save.goods[k] * g.valueMult()); lots++;
+    }
+    if (!total) { A.sfx.deny(); return; }
+    g.save.goods = {};
+    g.save.credits += total; g.save.totalEarned += total;
+    A.sfx.sell();
+    for (let i = 0; i < 8; i++) setTimeout(() => A.sfx.coin(i), i * 55);
+    PD.term.say('GOODS SOLD: ' + lots + ' LOTS  ->  $' + U.fmt(total), '#39ffa6');
+    saveGame();
+  };
+
+  /* Sonar: paint every valuable tile in range on to the minimap for a while. */
+  g.scan = function (x, y, r) {
+    const w = g.world;
+    const c0 = Math.max(0, Math.floor((x - r) / TILE)), c1 = Math.min(w.w - 1, Math.ceil((x + r) / TILE));
+    const r0 = Math.max(0, Math.floor((y - r) / TILE)), r1 = Math.min(w.h - 1, Math.ceil((y + r) / TILE));
+    let found = 0;
+    for (let cy = r0; cy <= r1; cy++) for (let cx = c0; cx <= c1; cx++) {
+      const m = w.cells[cy * w.w + cx];
+      if (!m || D.MAT[m].cr < 60) continue;
+      if (U.dist2(cx * TILE + 5, cy * TILE + 5, x, y) > r * r) continue;
+      g.pings.push({ cx, cy, mat: m, life: 9 });
+      found++;
+    }
+    FX.ring(x, y, 4, r, 0.8, '#8affa0', 2);
+    FX.ring(x, y, 4, r * 0.6, 0.6, '#8affa0', 1);
+    A.sfx.tone(600, { type: 'sine', to: 1400, dur: 0.5, vol: 0.12 });
+    A.sfx.tone(1400, { type: 'sine', to: 700, dur: 0.4, vol: 0.06, delay: 0.3 });
+    toast(found ? 'SCAN: ' + found + ' DEPOSITS PAINTED' : 'SCAN: NOTHING WORTH DIGGING NEARBY', found ? '#8affa0' : UI.COL.dim);
   };
 
   g.fabricate = function (id) {
@@ -337,10 +423,18 @@
 
   g.onTileBroken = function (cx, cy, mat, byDrill) {
     const w = g.world;
-    const m = D.MAT[mat];
     const x = cx * TILE + TILE / 2, y = cy * TILE + TILE / 2;
+    if (mat < 0) {
+      // magma quenched into basalt
+      FX.burst(x, y, 10, ['#ff7a2a', '#ffd27a', '#5a4a4a'], 80, true);
+      FX.smoke(x, y - 4, 5, '#6a5a5a');
+      A.sfx.noise({ from: 3000, to: 300, dur: 0.3, vol: 0.18 });
+      return;
+    }
+    const m = D.MAT[mat];
 
     if (mat === D.M.core) { beginDestruction(); return; }
+    if (m.cr >= 300) PD.touch.buzz(12);
 
     g.save.totalMined++;
     FX.dust(x, y, m.shine ? 9 : 6, m.c[2], 55);
@@ -367,7 +461,14 @@
   };
 
   g.onMobKilled = function (m) {
-    const bounty = Math.round(m.def.cr * (1 + g.bodyIndex * 0.25) * g.valueMult());
+    // chain kills for a bounty multiplier
+    g.combo.n++;
+    g.combo.t = 2.6;
+    g.combo.mult = 1 + Math.min(4, Math.floor(g.combo.n / 3)) * 0.5;
+    if (g.combo.n % 3 === 0) { FX.text(m.x, m.y - 22, 'x' + g.combo.mult.toFixed(1) + ' COMBO', '#ff8ad8', 1); A.sfx.tone(900 + g.combo.n * 40, { type: 'square', dur: 0.1, vol: 0.1 }); }
+    if (m.type === 'mite') A.sfx.tone(2000, { type: 'square', to: 600, dur: 0.06, vol: 0.06 });
+    PD.touch.buzz(m.def.kind === 'boss' ? 80 : 18);
+    const bounty = Math.round(m.def.cr * (1 + g.bodyIndex * 0.25) * g.valueMult() * g.combo.mult);
     g.save.credits += bounty;
     g.save.totalEarned += bounty;
     FX.text(m.x, m.y - 8, '+$' + U.fmt(bounty), '#ffd34d', 1);
@@ -378,11 +479,12 @@
     A.sfx.killMob();
     if (m.def.kind === 'boss') { A.sfx.boom(1.2); toast('CORE WARDEN DOWN', UI.COL.good); }
     // guts of the beast are worth something
-    const drops = m.def.kind === 'boss' ? 7 : (U.chance(0.5) ? 1 : 0);
+    const drops = m.def.kind === 'boss' ? 7 : (U.chance(0.45) ? 1 : 0);
     for (let i = 0; i < drops; i++) {
       const pool = g.world.body.ores;
       g.pickups.push(new PD.ent.Pickup(m.x, m.y, U.weighted(pool)));
     }
+    if (m.type !== 'mite' && U.chance(m.def.kind === 'boss' ? 1 : 0.3)) g.pickups.push(new PD.ent.Pickup(m.x, m.y, D.M.bio));
   };
 
   g.onPlayerDown = function () {
@@ -639,6 +741,9 @@
     g.uiBlocking = g.state !== 'play';
     handleStateKeys();
 
+    // the refinery deck earns in every state where time passes
+    if (g.state !== 'title' && g.state !== 'cutscene' && g.state !== 'pause') PD.factory.tick(dt, g);
+
     if (g.state === 'cutscene') {
       PD.cutscene.update(dt, g);
       if (PD.cutscene.done) {
@@ -655,6 +760,11 @@
       FX.update(dt, g.world);
       return;
     }
+
+    g.combo.t -= dt;
+    if (g.combo.t <= 0 && g.combo.n) { g.combo.n = 0; g.combo.mult = 1; }
+    for (let i = g.pings.length - 1; i >= 0; i--) { g.pings[i].life -= dt; if (g.pings[i].life <= 0) g.pings.splice(i, 1); }
+    if (g.banner) { g.banner.t -= dt; if (g.banner.t <= 0) g.banner = null; }
 
     if (g.state === 'title' || g.state === 'ending') return;
 
@@ -694,6 +804,22 @@
       b.update(dt, g);
       if (b.dead) g.boulders.splice(i, 1);
     }
+    for (let i = g.crates.length - 1; i >= 0; i--) {
+      const c = g.crates[i];
+      if (Math.abs(c.x - p.x) < VW && Math.abs(c.y - p.y) < VH) c.update(dt, g);
+      if (c.dead) g.crates.splice(i, 1);
+    }
+
+    // stratum banners as you cross into a new band
+    const si = g.world.stratumAt(p.x, p.y);
+    if (si !== g.lastStratum && g.state === 'play') {
+      if (si >= 0 && g.lastStratum !== -2) {
+        g.banner = { text: g.world.strata[si].name, t: 3.2 };
+        A.sfx.tone(220, { type: 'triangle', to: 440, dur: 0.5, vol: 0.1 });
+      }
+      g.lastStratum = si;
+    }
+    ambience(dt);
 
     // heat decays back to rock colour once the fissures stop spreading
     if (!g.destruction && g.world.heatDirty) {
@@ -754,6 +880,24 @@
         if ((e || esc) && g.victory && g.victory.t > 1.0) closeVictory();
         break;
     }
+  }
+
+  /* Drifting motes, embers, snow or spores depending on the band you are in. */
+  function ambience(dt) {
+    const w = g.world, p = g.player;
+    const si = w.stratumAt(p.x, p.y);
+    g.ambT += dt;
+    if (si < 0) {
+      if (U.chance(dt * 4)) FX.spawn({ x: g.cam.x + U.rand(0, VW), y: g.cam.y + U.rand(0, VH), vx: U.rand(-4, 4), vy: U.rand(-4, 4), life: 2, size: 1, color: '#9fb4ff', grav: 0, drag: 1, glow: 1 });
+      return;
+    }
+    const L0 = w.strata[si];
+    const spawn = (n, fn) => { for (let k = 0; k < n; k++) if (U.chance(dt * 6)) fn(g.cam.x + U.rand(-20, VW + 20), g.cam.y + U.rand(-20, VH + 20)); };
+    if (L0.embers) spawn(3, (x, y) => FX.spawn({ x, y, vx: U.rand(-8, 8), vy: U.rand(-40, -14), life: U.rand(1, 2.4), size: U.rand(1, 2), color: U.pick(['#ff9b3d', '#ffd27a', '#ff5a2a']), grav: -0.15, drag: 0.99, glow: 1 }));
+    if (L0.snow) spawn(3, (x, y) => FX.spawn({ x, y, vx: U.rand(-10, 10), vy: U.rand(10, 26), life: U.rand(2, 4), size: U.rand(1, 1.8), color: '#e8fbff', grav: 0.02, drag: 1 }));
+    if (L0.spores) spawn(3, (x, y) => FX.spawn({ x, y, vx: U.rand(-6, 6), vy: U.rand(-8, 6), life: U.rand(2, 4), size: U.rand(1, 2), color: U.pick(['#8affc8', '#5fffb0']), grav: -0.02, drag: 1, glow: 1 }));
+    if (L0.sparkle) spawn(2, (x, y) => FX.spawn({ x, y, vx: 0, vy: U.rand(-3, 3), life: U.rand(0.4, 1), size: 1, color: '#ffffff', grav: 0, drag: 1, glow: 1 }));
+    if (!L0.embers && !L0.snow && !L0.spores) spawn(1, (x, y) => FX.spawn({ x, y, vx: U.rand(-4, 4), vy: U.rand(-3, 3), life: U.rand(2, 4), size: 1, color: '#a09080', grav: 0, drag: 1 }));
   }
 
   function updateCamera(dt, slow) {
@@ -847,10 +991,26 @@
     if (dark < 0.02) return;
 
     lctx.clearRect(0, 0, VW, VH);
-    lctx.fillStyle = 'rgba(3,1,10,' + dark.toFixed(3) + ')';
+    // darkness takes the colour of the band you are in: rust red in the magma
+    // sea, deep blue in the ice, black-green in the glowcap hollows
+    const si = w.stratumAt(p.x, p.y);
+    const tint = si >= 0 ? w.strata[si].tint : '#03010a';
+    const tr = parseInt(tint.slice(1, 3), 16) >> 2, tg = parseInt(tint.slice(3, 5), 16) >> 2, tb = parseInt(tint.slice(5, 7), 16) >> 2;
+    lctx.fillStyle = 'rgba(' + tr + ',' + tg + ',' + tb + ',' + dark.toFixed(3) + ')';
     lctx.fillRect(0, 0, VW, VH);
 
     lctx.globalCompositeOperation = 'destination-out';
+
+    // glowing tiles (magma, crystal, glowcaps, uranium, relics) light their surroundings
+    const gl = w.glows || [];
+    for (let k = 0; k < gl.length; k += 4) {
+      const gx = gl[k], gy = gl[k + 1], gr = gl[k + 2];
+      const gg = lctx.createRadialGradient(gx, gy, 1, gx, gy, gr);
+      gg.addColorStop(0, 'rgba(0,0,0,0.55)');
+      gg.addColorStop(1, 'rgba(0,0,0,0)');
+      lctx.fillStyle = gg;
+      lctx.fillRect(gx - gr, gy - gr, gr * 2, gr * 2);
+    }
     const lamp = p.stat('lamp');
     const px = p.x - cam.x, py = p.y - cam.y;
 
@@ -944,6 +1104,7 @@
     drawShip(ctx, cam);
 
     for (const k of g.pickups) k.draw(ctx, cam, g.time);
+    for (const c of g.crates) c.draw(ctx, cam, g.time);
     for (const b of g.boulders) b.draw(ctx, cam);
     for (const m of g.mobs) m.draw(ctx, cam);
     FX.drawWorld(ctx, cam);
@@ -980,7 +1141,7 @@
       if (UI.ending(ctx, g, g.time)) { g.state = 'shop'; dock(true); }
     }
 
-    PD.touch.draw(ctx, g.state === 'play' ? 'play' : 'ui');
+    PD.touch.draw(ctx, g.state === 'play' ? 'play' : 'ui', g);
     UI.endFrame();
     blit();
   }

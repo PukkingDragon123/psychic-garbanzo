@@ -438,26 +438,113 @@ window.PD = window.PD || {};
     { id: 11, key: 'void',   name: 'Voidstone',   hp: 215,  kg: 4.5,  cr: 2600,  c: ['#b98cff', '#7d4fd6', '#4a2591'], shine: 1 },
     { id: 12, key: 'star',   name: 'Starmetal',   hp: 255,  kg: 5.5,  cr: 7200,  c: ['#fff3b0', '#ffc44d', '#e06a1f'], shine: 1 },
     { id: 13, key: 'core',   name: 'Planet Core', hp: 255,  kg: 0,    cr: 0,     c: ['#ffd9a0', '#ff8a3d', '#c93b1c'], shine: 1 },
-    { id: 14, key: 'shell',  name: 'Shellrock',    hp: 190,  kg: 3.0,  cr: 45,    c: ['#5d6b7a', '#46525e', '#333c46'] }
+    { id: 14, key: 'shell',  name: 'Shellrock',   hp: 190,  kg: 3.0,  cr: 45,    c: ['#5d6b7a', '#46525e', '#333c46'] },
+    { id: 15, key: 'basalt', name: 'Basalt',      hp: 62,   kg: 1.3,  cr: 8,     c: ['#5a4a4a', '#3f3336', '#2a2226'] },
+    { id: 16, key: 'obsid',  name: 'Obsidian',    hp: 205,  kg: 1.6,  cr: 58,    c: ['#7a6a9a', '#3a2f52', '#1d1730'], shine: 1 },
+    { id: 17, key: 'lava',   name: 'Magma',       hp: 140,  kg: 0,    cr: 0,     c: ['#ffd27a', '#ff7a2a', '#c93b1c'], hazard: 14, glow: '#ff8a3d', drop: 15 },
+    { id: 18, key: 'ameth',  name: 'Amethyst',    hp: 165,  kg: 1.5,  cr: 480,   c: ['#c9a0ea', '#8455c4', '#4f2a80'], shine: 1 },
+    { id: 19, key: 'diamond',name: 'Diamond',     hp: 245,  kg: 1.2,  cr: 4200,  c: ['#ffffff', '#b8f0ff', '#68b7d8'], shine: 1 },
+    { id: 20, key: 'titan',  name: 'Titanium',    hp: 155,  kg: 3.0,  cr: 240,   c: ['#d8dde8', '#8a94aa', '#5a6378'] },
+    { id: 21, key: 'uran',   name: 'Uranium',     hp: 175,  kg: 4.0,  cr: 1600,  c: ['#d8ff5a', '#7fbf1a', '#3f6a0a'], shine: 1, glow: '#a6ff3d', toxic: 1 },
+    { id: 22, key: 'crystal',name: 'Cave Crystal',hp: 92,   kg: 1.1,  cr: 95,    c: ['#c4dbe6', '#7f9fb4', '#4f6a80'], shine: 1, glow: '#9fc8e0', glowR: 10 },
+    { id: 23, key: 'fossil', name: 'Xeno Fossil', hp: 115,  kg: 1.4,  cr: 2200,  c: ['#f1e6c8', '#c4b48a', '#8a7a52'], shine: 1 },
+    { id: 24, key: 'relic',  name: 'Precursor Relic', hp: 235, kg: 2.0, cr: 26000, c: ['#ffe9a0', '#e0a92b', '#7a4c10'], shine: 1, glow: '#ffd34d' },
+    { id: 25, key: 'frost',  name: 'Permafrost',  hp: 24,   kg: 0.6,  cr: 5,     c: ['#d4eef7', '#a2ccdd', '#6f9db0'] },
+    { id: 26, key: 'aether', name: 'Aetherium',   hp: 255,  kg: 0.9,  cr: 48000, c: ['#ffffff', '#c9a8ff', '#7a4fd6'], shine: 1, glow: '#d8bcff' },
+    { id: 27, key: 'hull',   name: 'Precursor Plate', hp: 215, kg: 2.6, cr: 60,  c: ['#8fa0b8', '#5c6a82', '#3a4456'] },
+    { id: 28, key: 'fungus', name: 'Glowcap',     hp: 18,   kg: 0.4,  cr: 7,     c: ['#6fd9a8', '#2f7f62', '#1a4a3a'], glow: '#5fffb0', glowR: 9 },
+    { id: 29, key: 'bio',    name: 'Bio Sample',  hp: 0,    kg: 0.5,  cr: 340,   c: ['#ff9ecb', '#d64f8a', '#8a2a56'], shine: 1 }
   ];
   const M = {};
   for (const m of MAT) M[m.key] = m.id;
 
   /* ------------------------------------------------------------------ enemies */
   const ENEMY = {
-    crawler: { name: 'Rock Grub',   hp: 14,  dmg: 7,   speed: 20, w: 12, h: 9,  cr: 12,  kind: 'crawl' },
-    floater: { name: 'Void Jelly',  hp: 10,  dmg: 9,   speed: 15, w: 11, h: 13, cr: 18,  kind: 'float' },
-    spitter: { name: 'Spitworm',    hp: 22,  dmg: 6,   speed: 12, w: 13, h: 11, cr: 34,  kind: 'spit' },
-    gnasher: { name: 'Gnasher',     hp: 46,  dmg: 16,  speed: 44, w: 15, h: 12, cr: 80,  kind: 'charge' },
-    lurker:  { name: 'Deep Lurker', hp: 90,  dmg: 22,  speed: 26, w: 19, h: 16, cr: 220, kind: 'spit' },
-    guardian:{ name: 'Core Warden', hp: 320, dmg: 28,  speed: 22, w: 26, h: 24, cr: 900, kind: 'boss' }
+    crawler:  { name: 'Rock Grub',    hp: 16,  dmg: 7,   speed: 22, w: 12, h: 9,  cr: 14,  kind: 'crawl' },
+    floater:  { name: 'Void Jelly',   hp: 12,  dmg: 9,   speed: 16, w: 11, h: 13, cr: 20,  kind: 'float' },
+    spitter:  { name: 'Spitworm',     hp: 26,  dmg: 7,   speed: 12, w: 13, h: 11, cr: 38,  kind: 'spit',   tele: 0.55 },
+    gnasher:  { name: 'Gnasher',      hp: 54,  dmg: 17,  speed: 44, w: 15, h: 12, cr: 90,  kind: 'charge', tele: 0.45 },
+    mite:     { name: 'Cave Mite',    hp: 6,   dmg: 4,   speed: 60, w: 7,  h: 6,  cr: 9,   kind: 'swarm' },
+    shellback:{ name: 'Shellback',    hp: 140, dmg: 20,  speed: 14, w: 20, h: 14, cr: 260, kind: 'crawl',  armor: 0.6 },
+    wyrm:     { name: 'Magma Wyrm',   hp: 120, dmg: 26,  speed: 30, w: 22, h: 14, cr: 420, kind: 'charge', tele: 0.6, fire: 1 },
+    lurker:   { name: 'Deep Lurker',  hp: 110, dmg: 22,  speed: 26, w: 19, h: 16, cr: 240, kind: 'spit',   tele: 0.7 },
+    guardian: { name: 'Core Warden',  hp: 380, dmg: 28,  speed: 22, w: 26, h: 24, cr: 1100, kind: 'boss', tele: 0.8 }
+  };
+
+  /* ---------------------------------------------------------------- strata
+     Worlds are layered like a cake: each stratum is a depth band with its own
+     base rock, ore table, cave density and light. `alt` is a pocket biome
+     that replaces the band wherever the biome noise runs hot, so two dives on
+     the same world never read the same. Depth fractions: 0 surface, 1 core. */
+  function L(name, a, b, fills, ores, caves, tint, extra) {
+    return Object.assign({ name, a, b, fills, ores, caves, tint }, extra || {});
+  }
+  const STRATA = {
+    rock: [
+      L('REGOLITH CRUST', 0, 0.28, [['crust', 5], ['stone', 3]], [['iron', 10], ['copper', 3]], 0.30, '#3a2a20',
+        { alt: { fills: [['stone', 1]], ores: [['iron', 14], ['silver', 2]] } }),
+      L('IRON SEAMS', 0.28, 0.72, [['stone', 4], ['basalt', 2]], [['iron', 12], ['copper', 7], ['silver', 3]], 0.34, '#2a2230',
+        { alt: { fills: [['basalt', 1]], ores: [['copper', 10], ['gold', 2], ['ameth', 1]] } }),
+      L('DENSE MANTLE', 0.72, 1.01, [['basalt', 3], ['shell', 1]], [['silver', 4], ['gold', 2], ['ameth', 1]], 0.26, '#1e1a2a')
+    ],
+    ice: [
+      L('PERMAFROST', 0, 0.3, [['frost', 5], ['ice', 3]], [['iron', 5], ['silver', 3]], 0.32, '#1a2a3a',
+        { alt: { fills: [['ice', 1]], ores: [['crystal', 8], ['sapphire', 2]] }, snow: 1 }),
+      L('CRYSTAL CAVERNS', 0.3, 0.7, [['ice', 3], ['stone', 2], ['crystal', 2]], [['crystal', 9], ['sapphire', 5], ['silver', 4], ['gold', 1]], 0.46, '#15304a',
+        { alt: { fills: [['crystal', 1]], ores: [['sapphire', 6], ['diamond', 1]] }, sparkle: 1 }),
+      L('GLACIAL CORE', 0.7, 1.01, [['ice', 2], ['shell', 2]], [['sapphire', 5], ['diamond', 2], ['titan', 2]], 0.28, '#0e1e34', { snow: 1 })
+    ],
+    metal: [
+      L('SLAG CRUST', 0, 0.26, [['stone', 4], ['basalt', 2]], [['iron', 12], ['copper', 8]], 0.28, '#2a201c'),
+      L('TITANIUM SEAMS', 0.26, 0.68, [['basalt', 3], ['stone', 2]], [['iron', 8], ['titan', 6], ['silver', 5], ['gold', 3]], 0.34, '#241a1c',
+        { alt: { fills: [['shell', 1]], ores: [['titan', 10], ['emerald', 2]] } }),
+      L('OBSIDIAN HEART', 0.68, 1.01, [['obsid', 2], ['basalt', 2], ['shell', 1]], [['gold', 4], ['uran', 2], ['emerald', 2]], 0.3, '#1a1220', { embers: 1 })
+    ],
+    gem: [
+      L('QUARTZ SHELL', 0, 0.24, [['stone', 4], ['crystal', 2]], [['crystal', 8], ['iron', 4], ['gold', 3]], 0.34, '#1e2a30', { sparkle: 1 }),
+      L('JEWEL GALLERIES', 0.24, 0.68, [['stone', 3], ['crystal', 3]], [['emerald', 6], ['sapphire', 6], ['ameth', 5], ['gold', 4], ['ruby', 2]], 0.5, '#182a2e',
+        { alt: { fills: [['crystal', 1]], ores: [['ruby', 5], ['diamond', 2]] }, sparkle: 1 }),
+      L('DIAMOND ROOT', 0.68, 1.01, [['shell', 2], ['obsid', 2]], [['ruby', 5], ['diamond', 3], ['void', 2]], 0.3, '#14182a')
+    ],
+    moon: [
+      L('DEAD REGOLITH', 0, 0.3, [['crust', 4], ['basalt', 3]], [['iron', 6], ['titan', 3], ['silver', 3]], 0.28, '#24242e'),
+      L('FOSSIL BEDS', 0.3, 0.7, [['basalt', 3], ['stone', 3]], [['fossil', 2], ['gold', 4], ['sapphire', 4], ['ruby', 3]], 0.38, '#20202c',
+        { alt: { fills: [['shell', 1]], ores: [['fossil', 4], ['void', 3]] } }),
+      L('HOLLOW MANTLE', 0.7, 1.01, [['shell', 3], ['obsid', 1]], [['ruby', 4], ['void', 4], ['uran', 2], ['star', 1]], 0.44, '#181828')
+    ],
+    terra: [
+      L('TOPSOIL', 0, 0.2, [['crust', 5], ['stone', 3]], [['iron', 6], ['copper', 5], ['gold', 2]], 0.3, '#2a2a1a'),
+      L('GLOWCAP HOLLOWS', 0.2, 0.46, [['stone', 3], ['fungus', 3]], [['emerald', 6], ['copper', 4], ['crystal', 3]], 0.52, '#12301f',
+        { alt: { fills: [['fungus', 1]], ores: [['emerald', 8]] }, spores: 1 }),
+      L('CRYSTAL VAULTS', 0.46, 0.7, [['stone', 2], ['crystal', 3]], [['sapphire', 5], ['ameth', 5], ['gold', 4]], 0.44, '#152a34', { sparkle: 1 }),
+      L('MAGMA SEA', 0.7, 0.9, [['basalt', 4], ['obsid', 1]], [['ruby', 7], ['gold', 3], ['void', 3]], 0.36, '#301410', { lava: 0.12, embers: 1 }),
+      L('CORE SHELL', 0.9, 1.01, [['shell', 3], ['obsid', 1]], [['void', 5], ['star', 2], ['diamond', 1]], 0.26, '#1a1220')
+    ],
+    volcanic: [
+      L('ASH CRUST', 0, 0.22, [['basalt', 5], ['crust', 2]], [['iron', 5], ['copper', 4], ['obsid', 3]], 0.3, '#2a1a16', { embers: 1 }),
+      L('LAVA TUBES', 0.22, 0.62, [['basalt', 4], ['obsid', 2]], [['ruby', 7], ['gold', 4], ['titan', 3], ['void', 2]], 0.5, '#33150e',
+        { lava: 0.16, embers: 1, alt: { fills: [['obsid', 1]], ores: [['ruby', 8], ['diamond', 1]] } }),
+      L('OBSIDIAN MANTLE', 0.62, 1.01, [['obsid', 3], ['shell', 2]], [['void', 6], ['star', 3], ['uran', 2]], 0.3, '#1e1020', { lava: 0.05, embers: 1 })
+    ],
+    titan: [
+      L('CRYSTAL RIND', 0, 0.3, [['crystal', 4], ['shell', 1]], [['sapphire', 6], ['ameth', 5], ['titan', 3]], 0.4, '#1c2440', { sparkle: 1 }),
+      L('PRISM GALLERIES', 0.3, 0.72, [['crystal', 3], ['obsid', 2]], [['ruby', 5], ['diamond', 4], ['void', 5], ['star', 2]], 0.52, '#1e1a44',
+        { sparkle: 1, alt: { fills: [['shell', 1]], ores: [['diamond', 5], ['aether', 1]] } }),
+      L('AETHER WELL', 0.72, 1.01, [['obsid', 2], ['shell', 2]], [['void', 6], ['star', 4], ['aether', 1]], 0.34, '#160f30')
+    ],
+    core: [
+      L('IRRADIATED SHELL', 0, 0.3, [['shell', 4], ['obsid', 2]], [['uran', 5], ['titan', 4], ['void', 3]], 0.3, '#221a10', { embers: 1 }),
+      L('STARMETAL VEINS', 0.3, 0.72, [['shell', 3], ['obsid', 3]], [['star', 8], ['void', 6], ['ruby', 3], ['diamond', 2]], 0.4, '#2a1a14',
+        { lava: 0.06, embers: 1, alt: { fills: [['obsid', 1]], ores: [['aether', 2], ['star', 6]] } }),
+      L('THE HEART', 0.72, 1.01, [['shell', 3], ['obsid', 1]], [['star', 6], ['aether', 2], ['void', 3]], 0.3, '#1a0c18')
+    ]
   };
 
   /* ------------------------------------------------------------------- bodies
      Each entry is one drillable world. Destroy its core to unlock the next. */
   const BODIES = [
     {
-      name: 'Pebble-7', kind: 'Asteroid', radius: 15, gravity: 34, coreHp: 260,
+      name: 'Pebble-7', kind: 'Asteroid', type: 'rock', radius: 20, poi: { geode: 1, fossil: 0, ruin: 0 }, gravity: 34, coreHp: 260,
       reward: 1200, dominion: 0.4, caves: 0.30, enemyRate: 0.22, drillTier: 0,
       sky: '#0b0720', tint: '#8a6a4f',
       blurb: 'A crumb of rock. Warm up the drill.',
@@ -465,7 +552,7 @@ window.PD = window.PD || {};
       mobs: [['crawler', 6], ['floater', 3]]
     },
     {
-      name: 'Rustclod', kind: 'Asteroid', radius: 20, gravity: 40, coreHp: 700,
+      name: 'Rustclod', kind: 'Asteroid', type: 'rock', radius: 27, poi: { geode: 1, fossil: 1, ruin: 0 }, gravity: 40, coreHp: 700,
       reward: 4200, dominion: 0.8, caves: 0.34, enemyRate: 0.3, drillTier: 1,
       sky: '#160a1c', tint: '#9c6a54',
       blurb: 'Iron-fat and full of grubs.',
@@ -473,7 +560,7 @@ window.PD = window.PD || {};
       mobs: [['crawler', 6], ['floater', 4], ['spitter', 2]]
     },
     {
-      name: 'Glacius Minor', kind: 'Ice Shard', radius: 25, gravity: 44, coreHp: 1600,
+      name: 'Glacius Minor', kind: 'Ice Shard', type: 'ice', radius: 34, poi: { geode: 2, fossil: 1, ruin: 1 }, gravity: 44, coreHp: 1600,
       reward: 12000, dominion: 1.4, caves: 0.42, enemyRate: 0.34, drillTier: 2,
       sky: '#061423', tint: '#79c4de',
       blurb: 'Slick, hollow and humming with cold.',
@@ -481,7 +568,7 @@ window.PD = window.PD || {};
       mobs: [['floater', 6], ['crawler', 3], ['spitter', 3]]
     },
     {
-      name: 'Forge Husk', kind: 'Metal Rock', radius: 31, gravity: 52, coreHp: 3600,
+      name: 'Forge Husk', kind: 'Metal Rock', type: 'metal', radius: 42, poi: { geode: 1, fossil: 1, ruin: 1 }, gravity: 52, coreHp: 3600,
       reward: 34000, dominion: 2.2, caves: 0.36, enemyRate: 0.4, drillTier: 3,
       sky: '#1c0d0a', tint: '#c67a3d',
       blurb: 'Somebody smelted this thing. Badly.',
@@ -489,7 +576,7 @@ window.PD = window.PD || {};
       mobs: [['crawler', 4], ['spitter', 5], ['gnasher', 3]]
     },
     {
-      name: 'Gemworld Shard', kind: 'Fragment', radius: 37, gravity: 58, coreHp: 8000,
+      name: 'Gemworld Shard', kind: 'Fragment', type: 'gem', radius: 50, poi: { geode: 4, fossil: 1, ruin: 1 }, gravity: 58, coreHp: 8000,
       reward: 96000, dominion: 3.4, caves: 0.46, enemyRate: 0.44, drillTier: 4,
       sky: '#101a2e', tint: '#33c470',
       blurb: 'Every wall is a jewellery shop.',
@@ -497,7 +584,7 @@ window.PD = window.PD || {};
       mobs: [['spitter', 5], ['gnasher', 4], ['floater', 4], ['lurker', 1]]
     },
     {
-      name: 'Mourn, the Dead Moon', kind: 'Moon', radius: 46, gravity: 70, coreHp: 20000,
+      name: 'Mourn, the Dead Moon', kind: 'Moon', type: 'moon', radius: 60, poi: { geode: 2, fossil: 4, ruin: 2 }, gravity: 70, coreHp: 20000,
       reward: 290000, dominion: 6.0, caves: 0.4, enemyRate: 0.5, drillTier: 5,
       sky: '#0a0e1d', tint: '#b3c4d8',
       blurb: 'Something used to live here. Rude of it.',
@@ -505,7 +592,7 @@ window.PD = window.PD || {};
       mobs: [['gnasher', 6], ['lurker', 3], ['spitter', 4], ['floater', 3]]
     },
     {
-      name: 'Terra Prime', kind: 'Planet', radius: 56, gravity: 86, coreHp: 60000,
+      name: 'Terra Prime', kind: 'Planet', type: 'terra', radius: 72, poi: { geode: 3, fossil: 2, ruin: 3 }, gravity: 86, coreHp: 60000,
       reward: 950000, dominion: 12.0, caves: 0.44, enemyRate: 0.56, drillTier: 6,
       sky: '#04121a', tint: '#3fa84f',
       blurb: 'Inhabited! Well. Formerly inhabited.',
@@ -513,7 +600,7 @@ window.PD = window.PD || {};
       mobs: [['gnasher', 6], ['lurker', 6], ['spitter', 3], ['floater', 2]]
     },
     {
-      name: 'Cinder Majoris', kind: 'Volcanic', radius: 66, gravity: 104, coreHp: 165000,
+      name: 'Cinder Majoris', kind: 'Volcanic', type: 'volcanic', radius: 84, poi: { geode: 2, fossil: 1, ruin: 2 }, gravity: 104, coreHp: 165000,
       reward: 3200000, dominion: 20.0, caves: 0.5, enemyRate: 0.62, drillTier: 7,
       sky: '#1e0708', tint: '#e8425f',
       blurb: 'Molten, screaming, extremely profitable.',
@@ -521,7 +608,7 @@ window.PD = window.PD || {};
       mobs: [['lurker', 8], ['gnasher', 6], ['spitter', 3]]
     },
     {
-      name: 'The Crystal Titan', kind: 'Superplanet', radius: 78, gravity: 122, coreHp: 480000,
+      name: 'The Crystal Titan', kind: 'Superplanet', type: 'titan', radius: 98, poi: { geode: 6, fossil: 1, ruin: 3 }, gravity: 122, coreHp: 480000,
       reward: 12500000, dominion: 27.0, caves: 0.46, enemyRate: 0.68, drillTier: 8,
       sky: '#150a2b', tint: '#7d4fd6',
       blurb: 'A world-sized gem. Break it. Break it now.',
@@ -529,7 +616,7 @@ window.PD = window.PD || {};
       mobs: [['lurker', 9], ['gnasher', 5], ['floater', 3]]
     },
     {
-      name: 'Galactic Heart', kind: 'Core World', radius: 90, gravity: 140, coreHp: 1600000,
+      name: 'Galactic Heart', kind: 'Core World', type: 'core', radius: 112, poi: { geode: 3, fossil: 2, ruin: 4 }, gravity: 140, coreHp: 1600000,
       reward: 60000000, dominion: 26.8, caves: 0.4, enemyRate: 0.75, drillTier: 9,
       sky: '#2a0a16', tint: '#ffc44d',
       blurb: 'The galaxy keeps its savings here.',
@@ -590,6 +677,30 @@ window.PD = window.PD || {};
       show: l => (1 / (0.34 - l * 0.028)).toFixed(1) + ' shots/s'
     },
     {
+      id: 'scatter', name: 'Scattergun', icon: 'scatter', max: 10, base: 900, growth: 1.7, mats: [['iron', 8], ['copper', 6]], late: ['titan', 2],
+      blurb: 'Five-pellet spread. Level 1 unlocks the weapon; swap with Q.',
+      value: l => l === 0 ? 0 : 5 + l * 3.2,
+      show: l => l === 0 ? 'LOCKED' : (5 + l * 3.2).toFixed(0) + ' dmg x5'
+    },
+    {
+      id: 'lance', name: 'Plasma Lance', icon: 'lance', max: 10, base: 4800, growth: 1.72, mats: [['silver', 6], ['crystal', 6]], late: ['diamond', 1],
+      blurb: 'Charged piercing beam that also carves rock. Level 1 unlocks it.',
+      value: l => l === 0 ? 0 : 40 + l * 26,
+      show: l => l === 0 ? 'LOCKED' : (40 + l * 26) + ' dmg beam'
+    },
+    {
+      id: 'dash', name: 'Burst Jets', icon: 'dash', max: 8, base: 520, growth: 1.6, mats: [['copper', 5], ['iron', 4]], late: ['titan', 2],
+      blurb: 'Shift / double-tap for an invulnerable burst. Shorter cooldown per level.',
+      value: l => 1.6 - l * 0.13,
+      show: l => (1.6 - l * 0.13).toFixed(2) + 's cooldown'
+    },
+    {
+      id: 'scanner', name: 'Ore Scanner', icon: 'scan', max: 8, base: 380, growth: 1.6, mats: [['copper', 4], ['silver', 2]], late: ['crystal', 4],
+      blurb: 'Tab pulses a sonar ping that paints ore on the minimap.',
+      value: l => 70 + l * 22,
+      show: l => (70 + l * 22) + ' px ping'
+    },
+    {
       id: 'lamp', mats: [['crust', 8], ['copper', 2]], late: ['emerald', 2], name: 'Headlamp', icon: 'lamp', max: 8, base: 160, growth: 1.55,
       blurb: 'See the thing that is about to eat you.',
       value: l => 62 + l * 15,
@@ -633,6 +744,41 @@ window.PD = window.PD || {};
       out.push({ mat: M[u.late[0]], qty: Math.ceil(u.late[1] * Math.pow(1.4, level - 5)) });
     }
     return out;
+  }
+
+  /* ---------------------------------------------------------------- factory
+     The refinery deck: machines sit on a grid, belts carry ore between them,
+     and everything that reaches a depot becomes refined goods worth multiples
+     of the raw price. Runs in real time whether you are aboard or not. */
+  const MACHINES = {
+    belt:    { name: 'Conveyor',    cost: 40,     blurb: 'Moves items one way. Click again to rotate.', col: '#7c88a8' },
+    hopper:  { name: 'Hopper',      cost: 300,    blurb: 'Pulls one ore type from the bin on to the belt ahead. Click to change ore.', col: '#ffb03d' },
+    smelter: { name: 'Smelter',     cost: 1200,   blurb: 'Metal ore in, ingot out. x2.6 value.', col: '#ff7a2a', time: 2.2, kind: 'smelt' },
+    crusher: { name: 'Crusher',     cost: 800,    blurb: 'Rock in, concentrate out. Makes junk worth something. x4.', col: '#9aa3c4', time: 1.4, kind: 'crush' },
+    cutter:  { name: 'Gem Cutter',  cost: 4500,   blurb: 'Rough gem in, cut stone out. x3.2 value.', col: '#8fb6ff', time: 3.0, kind: 'cut' },
+    forge:   { name: 'Alloy Forge', cost: 16000,  blurb: 'Two different ingots in, alloy out. x2.4 on the pair.', col: '#ff5fa8', time: 3.4, kind: 'alloy' },
+    depot:   { name: 'Depot',       cost: 200,    blurb: 'Items arriving here go to the goods vault for sale.', col: '#39ffa6' }
+  };
+  const METALS = ['iron', 'copper', 'silver', 'gold', 'titan', 'star'];
+  const GEMS = ['emerald', 'sapphire', 'ruby', 'ameth', 'diamond', 'void', 'crystal', 'obsid', 'fossil'];
+  const JUNK = ['crust', 'stone', 'basalt', 'shell', 'ice', 'frost', 'fungus'];
+
+  /* Refined goods are keyed strings so they can live beside raw ore in a save. */
+  function goodOf(kind, matA, matB) {
+    if (kind === 'ingot') return { key: 'ingot:' + matA, name: MAT[matA].name + ' Ingot', cr: Math.round(MAT[matA].cr * 2.6), c: MAT[matA].c };
+    if (kind === 'conc') return { key: 'conc:' + matA, name: MAT[matA].name + ' Concentrate', cr: Math.round(MAT[matA].cr * 4 + 6), c: MAT[matA].c };
+    if (kind === 'cut') return { key: 'cut:' + matA, name: 'Cut ' + MAT[matA].name, cr: Math.round(MAT[matA].cr * 3.2), c: MAT[matA].c };
+    if (kind === 'alloy') {
+      const a = Math.min(matA, matB), b = Math.max(matA, matB);
+      return { key: 'alloy:' + a + ':' + b, name: MAT[a].name + '-' + MAT[b].name + ' Alloy',
+        cr: Math.round((MAT[a].cr + MAT[b].cr) * 2.6 * 2.4), c: MAT[b].c };
+    }
+    return null;
+  }
+  function goodFromKey(key) {
+    const parts = key.split(':');
+    if (parts[0] === 'alloy') return goodOf('alloy', +parts[1], +parts[2]);
+    return goodOf({ ingot: 'ingot', conc: 'conc', cut: 'cut' }[parts[0]], +parts[1]);
   }
 
   /* --------------------------------------------------------------- cosmetics
@@ -715,7 +861,8 @@ window.PD = window.PD || {};
       save.destroyed.filter(Boolean).length * 250000));
   }
 
-  PD.data = { MAT, M, ENEMY, BODIES, UPGRADES, UPG, upgradeCost, recipe, COSMETICS, COS, TITLES, titleFor, bountyFor };
+  PD.data = { MAT, M, ENEMY, BODIES, UPGRADES, UPG, upgradeCost, recipe, COSMETICS, COS, TITLES, titleFor, bountyFor,
+    STRATA, MACHINES, METALS, GEMS, JUNK, goodOf, goodFromKey };
 })(window.PD);
 
 /* ===== src/art.js ===== */
@@ -1052,6 +1199,105 @@ window.PD = window.PD || {};
   }
   reg('warden', [buildWarden(0), buildWarden(1)], 20, 18);
 
+  /* CAVE MITE: tiny, fast, comes in clouds. */
+  function buildMite(phase) {
+    const p = pix(10, 9);
+    p.ellipse(5, 4, 3.6, 2.6, C.limeD);
+    p.ellipse(5, 3.6, 3, 2, C.lime);
+    p.set(6, 3, C.eye); p.set(4, 3, C.eye);
+    const f = phase ? 1 : -1;
+    p.line(1, 4, 0, 2 + f, C.ink2); p.line(9, 4, 10, 2 - f, C.ink2);
+    p.line(2, 6, 1, 8, C.ink2); p.line(8, 6, 9, 8, C.ink2);
+    p.outline(C.ink);
+    return p;
+  }
+  reg('mite', [buildMite(0), buildMite(1)], 5, 4);
+
+  /* SHELLBACK: armoured slab of a beast; shots glance off the carapace. */
+  function buildShellback(phase) {
+    const p = pix(28, 20);
+    const lift = phase ? 1 : 0;
+    for (let i = 0; i < 4; i++) {
+      const lx = 5 + i * 6, d = ((i + phase) % 2) ? 1 : 0;
+      p.line(lx, 15, lx - 1, 19 - d, C.ink2);
+    }
+    p.ellipse(13, 10, 12, 7, C.metDD);
+    p.ellipse(13, 9 - lift, 11, 6, C.metD);
+    for (let i = 0; i < 3; i++) p.round(4 + i * 7, 4 - lift, 5, 5, 2, C.met);   // plates
+    p.rect(3, 9 - lift, 20, 1, C.metDD);
+    // head at the right
+    p.ellipse(24, 12, 3.4, 2.8, C.orangeD);
+    p.ellipse(24.5, 11.5, 2.6, 2, C.orange);
+    p.set(25, 11, C.eye); p.set(26, 11, C.eye);
+    p.rect(26, 13, 2, 1, C.redD);
+    p.outline(C.ink);
+    return p;
+  }
+  reg('shellback', [buildShellback(0), buildShellback(1)], 14, 12);
+
+  /* MAGMA WYRM: lives in the lava, bursts out to bite. */
+  function buildWyrm(phase) {
+    const p = pix(30, 20);
+    const und = phase ? 1 : 0;
+    // segmented body trailing left
+    for (let i = 0; i < 4; i++) {
+      const bx = 4 + i * 5, by = 12 + Math.sin(i * 1.4 + und) * 2;
+      p.disc(bx, by, 3.4 - i * 0.3, C.redD);
+      p.disc(bx, by - 1, 2.4 - i * 0.25, C.orange);
+    }
+    // head
+    p.ellipse(22, 9 - und, 6.5, 5, C.redD);
+    p.ellipse(22, 8 - und, 5.5, 4, C.orange);
+    p.ellipse(21, 5 - und, 2.6, 1.2, C.gold);
+    p.round(24, 8 - und, 6, 4 + und, 1, C.ink2);           // maw
+    for (let i = 0; i < 3; i++) p.set(25 + i * 2, 8 - und, C.white);
+    p.ellipse(21, 7 - und, 1.5, 1.7, C.eye); p.set(22, 6 - und, C.gold);
+    p.spike(18, 1 - und, 4, 4, -1, C.redD);
+    p.outline(C.ink);
+    return p;
+  }
+  reg('wyrm', [buildWyrm(0), buildWyrm(1)], 15, 11);
+
+  /* SCATTERGUN and LANCE: the other two things you point at problems. */
+  function buildScatter(charge) {
+    const p = pix(20, 11);
+    p.round(0, 3, 12, 6, 2, C.metDD);
+    p.rect(2, 4, 6, 2, C.met);
+    p.rect(3, 8, 3, 3, C.suitD);
+    p.rect(12, 3, 6, 3, C.metD); p.rect(12, 6, 6, 3, C.metD);
+    p.rect(17, 4, 2, 1, charge ? C.orange : C.orangeD); p.rect(17, 7, 2, 1, charge ? C.orange : C.orangeD);
+    p.rect(6, 2, 4, 2, C.orangeD);
+    p.outline(C.ink);
+    return p;
+  }
+  reg('scatter', [buildScatter(false), buildScatter(true)], 3, 6);
+
+  function buildLance(charge) {
+    const p = pix(24, 11);
+    p.round(0, 3, 10, 6, 2, C.metDD);
+    p.rect(2, 4, 5, 2, C.met);
+    p.rect(3, 8, 3, 3, C.suitD);
+    p.rect(10, 4, 10, 4, C.metD);
+    for (let i = 0; i < 3; i++) p.rect(11 + i * 3, 5, 2, 2, charge ? C.purple : C.purpleD);
+    p.rect(20, 3, 3, 6, charge ? C.cyan : C.cyanD);
+    p.outline(C.ink);
+    return p;
+  }
+  reg('lance', [buildLance(false), buildLance(true)], 3, 6);
+
+  /* LOOT CRATE: precursor supply case. */
+  function buildCrate(open) {
+    const p = pix(16, 13);
+    p.round(1, 3, 14, 10, 2, C.metDD);
+    p.rect(3, 5, 10, 2, open ? C.gold : C.metD);
+    p.rect(1, 2, 14, 2, open ? C.gold : C.metD);
+    p.rect(7, 2, 2, 11, C.metDD);
+    p.set(7, 6, open ? C.gold : C.orange); p.set(8, 6, open ? C.gold : C.orange);
+    p.outline(C.ink);
+    return p;
+  }
+  reg('crate', [buildCrate(false), buildCrate(true)], 8, 7);
+
   /* ------------------------------------------------------------------ pickups
      One small gem sprite per material tint, plus a generic rubble nugget. */
   function buildGem(cols) {
@@ -1101,6 +1347,10 @@ window.PD = window.PD || {};
   icon('lamp', p => { p.round(2, 4, 6, 8, 2, C.metD); p.spike(11, 8, 12, 8, 1, C.gold); p.rect(4, 6, 2, 4, C.white); });
   icon('magnet', p => { p.round(2, 2, 12, 10, 4, C.red); p.rect(5, 7, 6, 7, null); p.rect(2, 10, 4, 4, C.met); p.rect(10, 10, 4, 4, C.met); });
   icon('drone', p => { p.round(4, 5, 8, 6, 2, C.met); p.disc(8, 8, 2, C.cyan); p.rect(0, 3, 5, 1, C.metD); p.rect(11, 3, 5, 1, C.metD); });
+  icon('scatter', p => { p.round(1, 5, 9, 6, 2, C.metDD); p.rect(9, 5, 6, 2, C.metD); p.rect(9, 8, 6, 2, C.metD); p.rect(3, 10, 3, 4, C.suitD); });
+  icon('lance', p => { p.round(1, 6, 8, 5, 2, C.metDD); p.rect(8, 7, 7, 3, C.purpleD); p.rect(14, 5, 2, 7, C.cyan); p.rect(3, 10, 3, 4, C.suitD); });
+  icon('dash', p => { p.round(6, 4, 8, 8, 3, C.met); p.spike(4, 8, 6, 5, 1, C.orange); p.rect(0, 6, 4, 1, C.gold); p.rect(0, 9, 4, 1, C.gold); p.rect(1, 12, 3, 1, C.gold); });
+  icon('scan', p => { p.disc(8, 8, 7, C.metDD); p.disc(8, 8, 5, C.ink2); p.disc(8, 8, 2, C.cyan); for (let a = 0; a < 6.3; a += 0.8) p.set(8 + Math.cos(a) * 5, 8 + Math.sin(a) * 5, C.cyanD); p.line(8, 8, 12, 4, C.cyan); });
   icon('claw', p => { p.rect(7, 1, 2, 6, C.metD); p.line(7, 7, 3, 13, C.met); p.line(9, 7, 13, 13, C.met); p.rect(2, 12, 3, 3, C.orange); p.rect(11, 12, 3, 3, C.orange); });
 
   /* ------------------------------------------------------------ cosmetics
@@ -1431,6 +1681,31 @@ window.PD = window.PD || {};
     return p;
   }
 
+  function refinery(lit) {
+    const p = pix(72, 58);
+    p.round(2, 40, 68, 18, 3, P.steelDD);                  // base
+    p.rect(6, 43, 60, 3, P.rust);
+    // conveyor with a moving lump of ore
+    p.rect(8, 36, 52, 5, P.steelD);
+    for (let x = 10; x < 58; x += 6) p.rect(x + (lit ? 3 : 0), 37, 3, 3, P.steelDD);
+    p.round(lit ? 30 : 22, 32, 6, 5, 1, P.amber);
+    // smelter tower with a glowing mouth
+    p.round(8, 6, 22, 30, 3, P.steelD);
+    p.round(12, 10, 14, 10, 2, P.screenD);
+    p.rect(13, 11, 12, 8, lit ? '#ff9b3d' : '#c25c14');
+    p.rect(14, 26, 10, 6, P.steelDD);
+    p.rect(11, 2, 4, 6, P.pipeD); p.rect(23, 2, 4, 6, P.pipeD);
+    // press on the right
+    p.round(40, 10, 26, 22, 3, P.steelD);
+    p.rect(50, 4, 6, 8, P.steel);
+    p.round(44, lit ? 20 : 16, 18, 6, 2, P.steelDD);
+    p.rect(42, 14, 22, 1, P.rust);
+    // smoke puffs
+    if (lit) { p.disc(13, 0, 1.5, P.steelD); p.disc(25, 1, 1.2, P.steelD); }
+    p.outline(P.ink);
+    return p;
+  }
+
   function crate(kind) {
     const p = pix(22, 18);
     p.round(1, 2, 20, 16, 2, kind ? P.rust : P.steelD);
@@ -1529,6 +1804,7 @@ window.PD = window.PD || {};
   reg('dronebay', [droneBay(false), droneBay(true)], 31, 54);
   reg('wardrobe', [wardrobe(false), wardrobe(true)], 22, 60);
   reg('navchart', [navChart(false), navChart(true)], 38, 50);
+  reg('refinery', [refinery(false), refinery(true)], 36, 58);
   reg('crate', [crate(0), crate(1)], 11, 18);
   reg('plant', [plant()], 10, 26);
   reg('nix', [nix(0), nix(1)], 13, 34);
@@ -2045,7 +2321,7 @@ window.PD = window.PD || {};
       const c = code(e);
       if (!keys[c]) pressed[c] = true;
       keys[c] = true;
-      if (['space', 'up', 'down', 'left', 'right', 'Tab'].indexOf(c) >= 0) e.preventDefault();
+      if (['space', 'up', 'down', 'left', 'right', 'Tab', 'shift'].indexOf(c) >= 0) e.preventDefault();
       if (firstTouch) firstTouch();
     });
     window.addEventListener('keyup', e => {
@@ -2091,14 +2367,15 @@ window.PD = window.PD || {};
 
   const down = k => !!keys[k];
   const hit = k => !!pressed[k];
+  const pressedSet = k => { pressed[k] = true; };
 
-  PD.input = { keys, mouse, attach, endFrame, down, hit, onFirstInteraction };
+  PD.input = { keys, mouse, attach, endFrame, down, hit, pressedSet, onFirstInteraction };
 })(window.PD);
 
 /* ===== src/touch.js ===== */
-/* Touch controls. A thumbstick for the jets, drag-to-aim that also drills,
-   and chunky action keys -- all drawn into the low-res canvas so they look
-   like part of the ship, not a browser overlay. */
+/* Touch controls, drawn into the low-res canvas so they look like part of the
+   suit's HUD: a thumbstick for the jets, drag-to-aim that also drills, and a
+   cluster of action keys. Haptics where the browser allows. */
 (function (PD) {
   'use strict';
   const U = PD.util;
@@ -2107,18 +2384,24 @@ window.PD = window.PD || {};
   const VW = 480, VH = 270;
 
   const cfg = {
-    stick: { x: 62, y: VH - 58, r: 34, knob: 15 },
-    fire:  { x: VW - 40, y: VH - 40, r: 21, label: 'FIRE', col: '#7ef9ff' },
-    use:   { x: VW - 40, y: VH - 92, r: 15, label: 'E', col: '#ffd34d' },
-    beam:  { x: VW - 88, y: VH - 34, r: 14, label: 'R', col: '#ff8ad8' }
+    stick: { x: 62, y: VH - 60, r: 36, knob: 16 },
+    keys: {
+      fire: { x: VW - 38, y: VH - 46, r: 22, label: 'FIRE', col: '#7ef9ff', key: null },
+      dash: { x: VW - 86, y: VH - 30, r: 16, label: 'DASH', col: '#ffd34d', key: 'shift' },
+      swap: { x: VW - 90, y: VH - 72, r: 13, label: 'SWAP', col: '#ff8ad8', key: 'KeyQ' },
+      scan: { x: VW - 40, y: VH - 96, r: 13, label: 'SCAN', col: '#8affa0', key: 'Tab' },
+      use:  { x: VW - 130, y: VH - 54, r: 13, label: 'E',    col: '#ffb03d', key: 'KeyE' },
+      beam: { x: VW - 130, y: VH - 22, r: 11, label: 'R',    col: '#ff5a4d', key: 'KeyR', hold: true }
+    }
   };
 
   const state = {
     enabled: false, forced: null,
     stickId: null, sx: 0, sy: 0, dx: 0, dy: 0,
     aimId: null, ax: 0, ay: 0, aiming: false,
-    fire: false, use: false, useEdge: false, beam: false,
-    mode: 'play', tapX: 0, tapY: 0, tapPress: false, tapHold: false
+    down: {}, edge: {},                 // per key: held, pressed-this-frame
+    mode: 'play', tapX: 0, tapY: 0, tapPress: false, tapHold: false,
+    pressAnim: {}
   };
 
   function autoDetect() {
@@ -2126,18 +2409,19 @@ window.PD = window.PD || {};
     return coarse || ('ontouchstart' in window && navigator.maxTouchPoints > 0);
   }
 
-  let toScreen = null;      // set by game.js: css px -> internal px
+  function buzz(ms) {
+    if (!state.enabled) return;
+    try { if (navigator.vibrate) navigator.vibrate(ms); } catch (e) { /* not allowed */ }
+  }
+
+  let toScreen = null;
 
   function attach(canvas, mapper) {
     toScreen = mapper;
     state.enabled = state.forced === null ? autoDetect() : state.forced;
-
-    const hit = (p, c) => U.dist(p.x, p.y, c.x, c.y) <= c.r + 8;
-
-    function pos(touch) {
-      const r = canvas.getBoundingClientRect();
-      return toScreen(touch.clientX - r.left, touch.clientY - r.top);
-    }
+    const hit = (p, c) => U.dist(p.x, p.y, c.x, c.y) <= c.r + 7;
+    const pos = tch => { const r = canvas.getBoundingClientRect(); return toScreen(tch.clientX - r.left, tch.clientY - r.top); };
+    const keyOwner = {};   // touch id -> key name
 
     canvas.addEventListener('touchstart', e => {
       state.enabled = state.forced === null ? true : state.forced;
@@ -2145,15 +2429,18 @@ window.PD = window.PD || {};
         const p = pos(tch);
         state.tapX = p.x; state.tapY = p.y;
         if (state.mode !== 'play') { state.tapPress = true; state.tapHold = true; continue; }
-        if (hit(p, cfg.fire)) { state.fire = true; continue; }
-        if (hit(p, cfg.use)) { state.use = true; state.useEdge = true; continue; }
-        if (hit(p, cfg.beam)) { state.beam = true; continue; }
-        if (p.x < VW * 0.45) {
-          state.stickId = tch.identifier;
-          state.sx = p.x; state.sy = p.y; state.dx = 0; state.dy = 0;
+        let took = false;
+        for (const k in cfg.keys) {
+          if (hit(p, cfg.keys[k])) {
+            state.down[k] = true; state.edge[k] = true; state.pressAnim[k] = 1;
+            keyOwner[tch.identifier] = k; took = true; buzz(8); break;
+          }
+        }
+        if (took) continue;
+        if (p.x < VW * 0.42) {
+          state.stickId = tch.identifier; state.sx = p.x; state.sy = p.y; state.dx = 0; state.dy = 0;
         } else {
-          state.aimId = tch.identifier;
-          state.ax = p.x; state.ay = p.y; state.aiming = true;
+          state.aimId = tch.identifier; state.ax = p.x; state.ay = p.y; state.aiming = true;
         }
       }
       e.preventDefault();
@@ -2168,9 +2455,7 @@ window.PD = window.PD || {};
           const d = Math.hypot(dx, dy) || 1;
           const k = Math.min(1, d / cfg.stick.r);
           state.dx = dx / d * k; state.dy = dy / d * k;
-        } else if (tch.identifier === state.aimId) {
-          state.ax = p.x; state.ay = p.y;
-        }
+        } else if (tch.identifier === state.aimId) { state.ax = p.x; state.ay = p.y; }
       }
       e.preventDefault();
     }, { passive: false });
@@ -2179,97 +2464,131 @@ window.PD = window.PD || {};
       for (const tch of e.changedTouches) {
         if (tch.identifier === state.stickId) { state.stickId = null; state.dx = state.dy = 0; }
         if (tch.identifier === state.aimId) { state.aimId = null; state.aiming = false; }
+        const k = keyOwner[tch.identifier];
+        if (k) { state.down[k] = false; delete keyOwner[tch.identifier]; }
       }
-      if (!e.touches.length) { state.fire = state.use = state.beam = false; state.tapHold = false; }
+      if (!e.touches.length) { for (const k in state.down) state.down[k] = false; state.tapHold = false; }
       e.preventDefault();
     }
     canvas.addEventListener('touchend', end, { passive: false });
     canvas.addEventListener('touchcancel', end, { passive: false });
   }
 
-  /* Push the touch state into the shared input object before the game reads it. */
+  /* Push touch state into the shared input object before the game reads it. */
   function apply(mode) {
     state.mode = mode;
     if (!state.enabled) return;
     const IN = PD.input;
-
     if (mode === 'play') {
-      const dz = 0.28;
-      IN.keys.left = state.dx < -dz;
-      IN.keys.right = state.dx > dz;
-      IN.keys.up = state.dy < -dz;
-      IN.keys.down = state.dy > dz;
-
-      if (state.aiming) {
-        IN.mouse.x = state.ax; IN.mouse.y = state.ay;
-        IN.mouse.inside = true;
-        IN.mouse.left = true;
-      } else {
-        IN.mouse.left = false;
+      const dz = 0.26;
+      IN.keys.left = state.dx < -dz; IN.keys.right = state.dx > dz;
+      IN.keys.up = state.dy < -dz;   IN.keys.down = state.dy > dz;
+      if (state.aiming) { IN.mouse.x = state.ax; IN.mouse.y = state.ay; IN.mouse.inside = true; IN.mouse.left = true; }
+      else IN.mouse.left = false;
+      IN.mouse.right = !!state.down.fire;
+      IN.keys.KeyR = !!state.down.beam;
+      for (const k in cfg.keys) {
+        const key = cfg.keys[k].key;
+        if (!key || cfg.keys[k].hold) continue;
+        if (state.edge[k]) { IN.keys[key] = true; IN.pressedSet(key); state.edge[k] = false; }
       }
-      IN.mouse.right = state.fire;
-      if (state.useEdge) { IN.keys.KeyE = true; state.useEdge = false; }
-      IN.keys.KeyR = state.beam;
     } else {
-      // menus, interior and terminals: touches behave like a mouse
-      IN.mouse.x = state.tapX; IN.mouse.y = state.tapY;
-      IN.mouse.inside = true;
+      IN.mouse.x = state.tapX; IN.mouse.y = state.tapY; IN.mouse.inside = true;
       IN.mouse.left = state.tapHold;
       if (state.tapPress) { IN.mouse.leftPressed = true; state.tapPress = false; }
+      // E still works as a tap-through in menus and on deck
+      if (state.edge.use) { IN.pressedSet('KeyE'); state.edge.use = false; }
     }
   }
 
-  /* Called after apply() so a synthetic KeyE only lasts one frame. */
   function clearEdges() {
     if (!state.enabled) return;
-    PD.input.keys.KeyE = false;
+    const IN = PD.input;
+    for (const k in cfg.keys) {
+      const key = cfg.keys[k].key;
+      if (key && !cfg.keys[k].hold) IN.keys[key] = false;
+    }
   }
 
-  function ring(ctx, x, y, r, col, alpha, width) {
-    ctx.globalAlpha = alpha;
-    ctx.strokeStyle = col;
-    ctx.lineWidth = width || 2;
-    ctx.beginPath(); ctx.arc(x, y, r, 0, U.TAU); ctx.stroke();
+  /* --------------------------------------------------------------- drawing */
+  function hexPath(ctx, x, y, r) {
+    ctx.beginPath();
+    for (let i = 0; i < 6; i++) {
+      const a = Math.PI / 6 + i * Math.PI / 3;
+      const px = x + Math.cos(a) * r, py = y + Math.sin(a) * r;
+      if (i) ctx.lineTo(px, py); else ctx.moveTo(px, py);
+    }
+    ctx.closePath();
+  }
+
+  function padKey(ctx, k, c, t) {
+    const pressed = !!state.down[k];
+    state.pressAnim[k] = U.damp(state.pressAnim[k] || 0, pressed ? 1 : 0, 0.3, 1 / 60);
+    const a = state.pressAnim[k];
+    const r = c.r * (1 + a * 0.1);
+    ctx.fillStyle = 'rgba(8,4,18,0.72)';
+    hexPath(ctx, c.x, c.y, r + 2); ctx.fill();
+    ctx.fillStyle = c.col; ctx.globalAlpha = 0.18 + a * 0.5;
+    hexPath(ctx, c.x, c.y, r); ctx.fill();
+    ctx.globalAlpha = 0.9;
+    ctx.strokeStyle = c.col; ctx.lineWidth = pressed ? 2 : 1;
+    hexPath(ctx, c.x, c.y, r); ctx.stroke();
+    ctx.globalAlpha = 0.35;
+    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.arc(c.x, c.y, r * 0.55, Math.PI * 1.1, Math.PI * 1.6); ctx.stroke();
     ctx.globalAlpha = 1;
+    F.draw(ctx, c.label, c.x, c.y - 3, '#ffffff', { center: true, shadow: false, scale: c.r > 18 ? 1 : 1 });
   }
 
-  function padBtn(ctx, c, pressed) {
-    ctx.globalAlpha = pressed ? 0.5 : 0.24;
-    ctx.fillStyle = c.col;
-    ctx.beginPath(); ctx.arc(c.x, c.y, c.r, 0, U.TAU); ctx.fill();
-    ctx.globalAlpha = 1;
-    ring(ctx, c.x, c.y, c.r, c.col, pressed ? 1 : 0.6, 2);
-    F.draw(ctx, c.label, c.x, c.y - 3, '#ffffff', { center: true, shadow: false, alpha: pressed ? 1 : 0.85 });
-  }
-
-  function draw(ctx, mode) {
+  function draw(ctx, mode, g) {
     if (!state.enabled || mode !== 'play') return;
+    const t = g ? g.time : 0;
     const s = cfg.stick;
-    ring(ctx, s.x, s.y, s.r, '#7ef9ff', 0.35, 2);
-    ring(ctx, s.x, s.y, s.r - 10, '#7ef9ff', 0.15, 1);
+    // stick well
+    ctx.fillStyle = 'rgba(8,4,18,0.55)';
+    ctx.beginPath(); ctx.arc(s.x, s.y, s.r + 4, 0, U.TAU); ctx.fill();
+    ctx.strokeStyle = '#7ef9ff'; ctx.globalAlpha = 0.5; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, U.TAU); ctx.stroke();
+    ctx.globalAlpha = 0.25;
+    for (let i = 0; i < 4; i++) {
+      const a = i * Math.PI / 2;
+      F.draw(ctx, ['>', 'V', '<', '^'][i], s.x + Math.cos(a) * (s.r - 8), s.y + Math.sin(a) * (s.r - 8) - 3, '#7ef9ff', { center: true, shadow: false });
+    }
+    ctx.globalAlpha = 1;
     const kx = s.x + state.dx * (s.r - s.knob), ky = s.y + state.dy * (s.r - s.knob);
-    ctx.globalAlpha = 0.45;
-    ctx.fillStyle = '#7ef9ff';
+    ctx.fillStyle = '#7ef9ff'; ctx.globalAlpha = state.stickId !== null ? 0.6 : 0.35;
     ctx.beginPath(); ctx.arc(kx, ky, s.knob, 0, U.TAU); ctx.fill();
     ctx.globalAlpha = 1;
-    ring(ctx, kx, ky, s.knob, '#eafcff', 0.8, 1);
+    ctx.strokeStyle = '#eafcff'; ctx.beginPath(); ctx.arc(kx, ky, s.knob, 0, U.TAU); ctx.stroke();
 
-    padBtn(ctx, cfg.fire, state.fire);
-    padBtn(ctx, cfg.use, state.use);
-    padBtn(ctx, cfg.beam, state.beam);
+    for (const k in cfg.keys) padKey(ctx, k, cfg.keys[k], t);
 
-    // aim reticle while dragging
+    // cooldown arcs on dash / scan
+    if (g && g.player) {
+      const p = g.player;
+      const arc = (c, frac, col) => {
+        if (frac <= 0) return;
+        ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.globalAlpha = 0.85;
+        ctx.beginPath(); ctx.arc(c.x, c.y, c.r + 4, -Math.PI / 2, -Math.PI / 2 + U.TAU * frac); ctx.stroke();
+        ctx.globalAlpha = 1;
+      };
+      arc(cfg.keys.dash, p.dashCool / Math.max(0.1, p.stat('dash')), '#ffd34d');
+      arc(cfg.keys.scan, p.scanCool / 4, '#8affa0');
+    }
+
     if (state.aiming) {
-      ring(ctx, state.ax, state.ay, 9, '#ffd34d', 0.9, 1);
-      ring(ctx, state.ax, state.ay, 3, '#ffffff', 0.9, 1);
-    } else {
-      F.draw(ctx, 'DRAG RIGHT SIDE TO DRILL', VW - 6, VH - 128, 'rgba(255,255,255,0.35)', { right: true, shadow: false });
+      ctx.strokeStyle = '#ffd34d'; ctx.globalAlpha = 0.9;
+      ctx.beginPath(); ctx.arc(state.ax, state.ay, 9, 0, U.TAU); ctx.stroke();
+      ctx.beginPath(); ctx.arc(state.ax, state.ay, 3, 0, U.TAU); ctx.stroke();
+      ctx.globalAlpha = 1;
+    } else if (g && g.time < 30) {
+      F.draw(ctx, 'DRAG THE RIGHT SIDE TO AIM AND DRILL', VW / 2, VH - 130, 'rgba(255,255,255,0.4)', { center: true, shadow: false });
     }
   }
 
   function setEnabled(on) { state.forced = on; state.enabled = on; }
 
-  PD.touch = { attach, apply, clearEdges, draw, setEnabled, cfg, state, get enabled() { return state.enabled; } };
+  PD.touch = { attach, apply, clearEdges, draw, setEnabled, buzz, cfg, state, get enabled() { return state.enabled; } };
 })(window.PD);
 
 /* ===== src/fx.js ===== */
@@ -2585,6 +2904,11 @@ window.PD = window.PD || {};
     this.cells = new Uint8Array(this.w * this.h);
     this.dmg = new Float32Array(this.w * this.h);
     this.heat = new Float32Array(this.w * this.h);
+    this.inside = new Uint8Array(this.w * this.h);    // silhouette mask: cave backdrop goes here
+    this.stratum = new Uint8Array(this.w * this.h);   // which depth band a cell belongs to
+    this.seen = new Uint8Array(this.w * this.h);      // fog of war for the minimap
+    this.pois = [];                                    // ruins etc. the game spawns things at
+    this.strata = D.STRATA[body.type] || D.STRATA.rock;
 
     this.coreCells = [];
     this.coreMax = body.coreHp;
@@ -2592,9 +2916,10 @@ window.PD = window.PD || {};
     this.mined = 0;
     this.totalSolid = 0;
 
-    this.hardness = 1 + index * 0.16;
+    this.hardness = 1 + index * 0.14;
     this.seed = 1000 + index * 977;
     this.generate();
+    this.buildBackdrop();
     this.buildStars();
   }
 
@@ -2605,6 +2930,25 @@ window.PD = window.PD || {};
     return this.cells[cy * this.w + cx];
   };
 
+  /* Pick from a [[key, weight]...] table using a 0..1 value, so neighbouring
+     cells sharing a noise value share a rock and the base fill clumps. */
+  function pickTable(table, t) {
+    let total = 0;
+    for (const e of table) total += e[1];
+    let acc = 0;
+    for (const e of table) {
+      acc += e[1] / total;
+      if (t <= acc) return M[e[0]];
+    }
+    return M[table[table.length - 1][0]];
+  }
+
+  World.prototype.stratumFor = function (depth) {
+    const st = this.strata;
+    for (let i = 0; i < st.length; i++) if (depth >= st[i].a && depth < st[i].b) return i;
+    return st.length - 1;
+  };
+
   World.prototype.generate = function () {
     const b = this.body, s = this.seed;
     const r = this.radius;
@@ -2612,79 +2956,214 @@ window.PD = window.PD || {};
     // hollow, and a superplanet needs room to fight the Warden in.
     const coreR = Math.max(2.6, r * 0.1 + 1.2);
     const chamberR = coreR + U.clamp(r * 0.14, 3.5, 11);
-
-    // ores sorted valuable-first so the rarest vein wins a contested tile
-    const ores = b.ores.slice().sort((a, x) => D.MAT[x[0]].cr - D.MAT[a[0]].cr);
-    const totalW = b.ores.reduce((t, o) => t + o[1], 0);
+    const strata = this.strata;
 
     for (let cy = 0; cy < this.h; cy++) {
       for (let cx = 0; cx < this.w; cx++) {
         const dx = cx + 0.5 - this.cx, dy = cy + 0.5 - this.cy;
         const d = Math.sqrt(dx * dx + dy * dy);
         const ang = Math.atan2(dy, dx);
-        // lumpy silhouette so asteroids read as hand-drawn rocks
+        // lumpy silhouette so bodies read as hand-drawn rocks
         const wobble = (U.fbm(Math.cos(ang) * 2 + s, Math.sin(ang) * 2 + s, 3) - 0.5) * r * 0.22
                      + (U.noise2(Math.cos(ang) * 6 + s, Math.sin(ang) * 6 + s) - 0.5) * r * 0.09;
         const rEff = r + wobble;
         if (d > rEff) continue;
 
+        const i = this.idx(cx, cy);
+        this.inside[i] = 1;
         const depth = 1 - d / Math.max(1, rEff);   // 0 at surface, 1 at core
+        const si = this.stratumFor(depth);
+        const L0 = strata[si];
+        this.stratum[i] = si;
         let mat;
 
         if (d < coreR) { mat = M.core; }
         else if (d < chamberR) { mat = 0; }        // hollow core chamber
         else {
-          // caves. Frequency matters as much as the threshold here: too low
-          // and a small asteroid only samples a handful of noise features,
-          // so whole materials can vanish by luck.
-          const cave = U.fbm(cx * 0.12 + s, cy * 0.12 - s, 3);
-          const caveWant = b.caves * (0.16 + depth * 0.72);
-          if (cave > U.fbmThreshold(caveWant, 0.52, 0.145) && depth > 0.13) {
-            this.cells[this.idx(cx, cy)] = 0; continue;
+          // pocket biome: swap in the stratum's alternate table where the
+          // slow biome noise runs hot
+          const biome = U.fbm(cx * 0.05 + s * 2, cy * 0.05 - s * 2, 2);
+          const pocket = L0.alt && biome > U.fbmThreshold(0.3, 0.52, 0.14);
+          const fills = pocket ? L0.alt.fills : L0.fills;
+          const ores = pocket ? L0.alt.ores : L0.ores;
+
+          // caves: tight worm tunnels plus a few grand caverns
+          const tunnel = U.fbm(cx * 0.12 + s, cy * 0.12 - s, 3);
+          const cavern = U.fbm(cx * 0.045 - s, cy * 0.05 + s, 2);
+          const caveWant = L0.caves * (0.22 + depth * 0.6);
+          if (depth > 0.1 && (tunnel > U.fbmThreshold(caveWant, 0.52, 0.145) ||
+              cavern > U.fbmThreshold(caveWant * 0.28, 0.52, 0.15))) {
+            this.cells[i] = 0; continue;
           }
 
-          if (depth < 0.09) mat = b.ores[0][0] === M.ice ? M.ice : M.crust;
-          else {
-            mat = depth > 0.72 && U.chance(0.3) ? M.shell : M.stone;
-            for (const [oid, wt] of ores) {
+          if (depth < 0.07) {
+            mat = pickTable(strata[0].fills, U.hash2(cx, cy));
+          } else {
+            const fillT = U.clamp((U.fbm(cx * 0.055 + s * 5, cy * 0.055 + s * 7, 2) - 0.22) / 0.6, 0, 0.999);
+            mat = pickTable(fills, fillT);
+
+            // veins, valuable first so the rarest ore wins a contested tile
+            const totalW = ores.reduce((t, o) => t + o[1], 0);
+            const sorted = ores.slice().sort((a, x) => D.MAT[M[x[0]]].cr - D.MAT[M[a[0]]].cr);
+            for (const [okey, wt] of sorted) {
+              const oid = M[okey];
               const om = D.MAT[oid];
-              const share = wt / totalW;
-              const rarity = U.clamp(om.cr / 900, 0, 1);
+              const share = wt / Math.max(1, totalW);
+              const rarity = U.clamp(om.cr / 5000, 0, 1);
               // the good stuff only shows up once you have committed to the dig
-              if (depth < rarity * 0.34) continue;
-              const want = U.clamp(share * (0.4 + depth * 1.4) * (1 - rarity * 0.35), 0, 0.8);
+              if (depth < rarity * 0.3) continue;
+              // steep curve: a 2000-credit ore is a find, a 40000-credit one a legend
+              const scarce = Math.max(0.03, Math.pow(1 - rarity, 1.7)) * (om.shine ? 0.6 : 1);
+              const want = U.clamp(share * (0.3 + depth * 1.0) * scarce, 0, 0.6);
+              if (want <= 0) continue;
               const vein = U.fbm(cx * 0.24 + oid * 21 + s, cy * 0.24 - oid * 13 - s, 2);
               if (vein > U.fbmThreshold(want, 0.52, 0.155)) { mat = oid; break; }
             }
+
+            // magma pockets in the hot bands
+            if (L0.lava) {
+              const hot = U.fbm(cx * 0.16 + s * 3, cy * 0.16 + s * 9, 2);
+              if (hot > U.fbmThreshold(L0.lava, 0.52, 0.15)) mat = M.lava;
+            }
           }
         }
-        this.cells[this.idx(cx, cy)] = mat;
-        if (mat === M.core) this.coreCells.push(this.idx(cx, cy));
+        this.cells[i] = mat;
+        if (mat === M.core) this.coreCells.push(i);
         if (mat) this.totalSolid++;
-      }
-    }
-
-    this.carveCraters(r);
-
-    // a crust skin makes the silhouette crisp and gives a surface to land on
-    for (let cy = 0; cy < this.h; cy++) {
-      for (let cx = 0; cx < this.w; cx++) {
-        const i = this.idx(cx, cy);
-        const m = this.cells[i];
-        if (!m || m === M.core) continue;
-        if (!this.at(cx, cy - 1) && U.hash2(cx, cy) > 0.25) {
-          if (D.MAT[m].cr < 40) this.cells[i] = this.body.ores[0][0] === M.ice ? M.ice : M.crust;
-        }
       }
     }
 
     this.coreCenter = { x: this.cx * TILE, y: this.cy * TILE };
     this.coreR = coreR * TILE;
     this.chamberR = chamberR * TILE;
+
+    this.carveCraters(r);
+    this.lavaLakes();
+    this.placePois();
+
+    // a crust skin makes the silhouette crisp and gives a surface to land on
+    for (let cy = 0; cy < this.h; cy++) {
+      for (let cx = 0; cx < this.w; cx++) {
+        const i = this.idx(cx, cy);
+        const m = this.cells[i];
+        if (!m || m === M.core || m === M.lava) continue;
+        if (!this.at(cx, cy - 1) && this.stratum[i] === 0 && U.hash2(cx, cy) > 0.25) {
+          if (D.MAT[m].cr < 40) this.cells[i] = pickTable(this.strata[0].fills, U.hash2(cy, cx));
+        }
+      }
+    }
   };
 
-  /* Bite shallow bowls out of the rim so the silhouette reads as a cratered
-     moon rather than a smooth potato. */
+  /* Molten pools settle on cavern floors in the hot strata. */
+  World.prototype.lavaLakes = function () {
+    const rnd = U.mulberry32(this.seed + 99);
+    for (let cy = 1; cy < this.h - 1; cy++) {
+      for (let cx = 1; cx < this.w - 1; cx++) {
+        const i = this.idx(cx, cy);
+        if (!this.inside[i] || this.cells[i]) continue;
+        const L0 = this.strata[this.stratum[i]];
+        if (!L0.lava) continue;
+        if (!this.at(cx, cy + 1) || this.at(cx, cy + 1) === M.lava) continue;
+        if (rnd() > L0.lava * 0.9) continue;
+        // spread sideways along the floor
+        for (let k = -4; k <= 4; k++) {
+          const x2 = cx + k;
+          if (!this.inBounds(x2, cy)) continue;
+          const j = this.idx(x2, cy);
+          if (this.cells[j] || !this.inside[j]) continue;
+          if (!this.at(x2, cy + 1)) continue;
+          this.cells[j] = M.lava;
+          if (rnd() > 0.55 && !this.cells[j - this.w]) this.cells[j - this.w] = M.lava;
+        }
+      }
+    }
+  };
+
+  /* Points of interest: geodes, fossil beds and precursor ruins. */
+  World.prototype.placePois = function () {
+    const rnd = U.mulberry32(this.seed + 4242);
+    const r = this.radius;
+    const poi = this.body.poi || {};
+    const spot = (dmin, dmax) => {
+      for (let t = 0; t < 60; t++) {
+        const ang = rnd() * U.TAU, dd = r * (1 - (dmin + rnd() * (dmax - dmin)));
+        const cx = Math.round(this.cx + Math.cos(ang) * dd), cy = Math.round(this.cy + Math.sin(ang) * dd);
+        if (!this.inBounds(cx, cy) || !this.inside[this.idx(cx, cy)]) continue;
+        if (U.dist(cx, cy, this.cx, this.cy) < this.chamberR / TILE + 6) continue;
+        return { cx, cy };
+      }
+      return null;
+    };
+    const gemsFor = (cx, cy) => {
+      const L0 = this.strata[this.stratum[this.idx(cx, cy)]];
+      const shiny = L0.ores.filter(o => D.MAT[M[o[0]]].shine);
+      return shiny.length ? shiny : [['crystal', 1]];
+    };
+
+    for (let n = 0; n < (poi.geode || 0); n++) {
+      const at = spot(0.25, 0.85); if (!at) continue;
+      const R = 2.5 + rnd() * 3.5;
+      const gems = gemsFor(at.cx, at.cy);
+      for (let cy = Math.floor(at.cy - R - 2); cy <= at.cy + R + 2; cy++) {
+        for (let cx = Math.floor(at.cx - R - 2); cx <= at.cx + R + 2; cx++) {
+          if (!this.inBounds(cx, cy)) continue;
+          const i = this.idx(cx, cy);
+          if (!this.inside[i] || this.cells[i] === M.core) continue;
+          const d = U.dist(cx + 0.5, cy + 0.5, at.cx + 0.5, at.cy + 0.5);
+          if (d < R) this.cells[i] = 0;
+          else if (d < R + 1.6) this.cells[i] = rnd() > 0.45 ? M.crystal : M[pickTableKey(gems, rnd())];
+        }
+      }
+      this.pois.push({ kind: 'geode', cx: at.cx, cy: at.cy });
+    }
+
+    for (let n = 0; n < (poi.fossil || 0); n++) {
+      const at = spot(0.3, 0.8); if (!at) continue;
+      for (let k = 0; k < 9; k++) {
+        const cx = at.cx + Math.round((rnd() - 0.5) * 7), cy = at.cy + Math.round((rnd() - 0.5) * 3);
+        if (!this.inBounds(cx, cy)) continue;
+        const i = this.idx(cx, cy);
+        if (this.inside[i] && this.cells[i] && this.cells[i] !== M.core) this.cells[i] = M.fossil;
+      }
+    }
+
+    for (let n = 0; n < (poi.ruin || 0); n++) {
+      const at = spot(0.35, 0.8); if (!at) continue;
+      const W = 8 + Math.floor(rnd() * 6), H = 5 + Math.floor(rnd() * 2);
+      const x0 = at.cx - (W >> 1), y0 = at.cy - (H >> 1);
+      let ok = true;
+      for (let cy = y0 - 1; cy <= y0 + H; cy++) for (let cx = x0 - 1; cx <= x0 + W; cx++) {
+        if (!this.inBounds(cx, cy) || !this.inside[this.idx(cx, cy)]) ok = false;
+      }
+      if (!ok) continue;
+      for (let cy = y0 - 1; cy <= y0 + H; cy++) {
+        for (let cx = x0 - 1; cx <= x0 + W; cx++) {
+          const i = this.idx(cx, cy);
+          const wall = cy === y0 - 1 || cy === y0 + H || cx === x0 - 1 || cx === x0 + W;
+          this.cells[i] = wall ? M.hull : 0;
+        }
+      }
+      // a plinth with the relic on it, and room for the loot
+      const px = x0 + (W >> 1);
+      this.cells[this.idx(px, y0 + H - 1)] = M.hull;
+      this.cells[this.idx(px, y0 + H - 2)] = M.relic;
+      // one doorway so it can be found by tunnelling in
+      this.cells[this.idx(x0 - 1, y0 + H - 1)] = 0;
+      this.cells[this.idx(x0 + W, y0 + H - 1)] = 0;
+      this.pois.push({ kind: 'ruin', cx: at.cx, cy: at.cy, x0, y0, w: W, h: H });
+    }
+    this.totalSolid = 0;
+    for (let i = 0; i < this.cells.length; i++) if (this.cells[i]) this.totalSolid++;
+  };
+
+  function pickTableKey(table, t) {
+    let total = 0;
+    for (const e of table) total += e[1];
+    let acc = 0;
+    for (const e of table) { acc += e[1] / total; if (t <= acc) return e[0]; }
+    return table[table.length - 1][0];
+  }
+
   World.prototype.carveCraters = function (r) {
     const rnd = U.mulberry32(this.seed + 17);
     const n = Math.round(4 + r * 0.32);
@@ -2705,7 +3184,52 @@ window.PD = window.PD || {};
           if (this.cells[i2] === M.core) continue;
           if (this.cells[i2]) this.totalSolid--;
           this.cells[i2] = 0;
+          this.inside[i2] = 0;
         }
+      }
+    }
+  };
+
+  /* Dark rock face drawn behind caves so tunnels no longer show stars. */
+  World.prototype.buildBackdrop = function () {
+    this.bgAtlas = this.strata.map((L0, si) => {
+      const variants = [];
+      for (let v = 0; v < 4; v++) {
+        const cv = document.createElement('canvas');
+        cv.width = TILE; cv.height = TILE;
+        const c = cv.getContext('2d');
+        c.fillStyle = L0.tint;
+        c.fillRect(0, 0, TILE, TILE);
+        c.globalAlpha = 0.35;
+        for (let k = 0; k < 6; k++) {
+          const h = U.hash2(v * 17 + k, si * 31 + k * 5);
+          c.fillStyle = h > 0.5 ? '#000000' : '#ffffff';
+          c.globalAlpha = h > 0.5 ? 0.35 : 0.08;
+          c.fillRect(Math.floor(h * TILE), Math.floor(U.hash2(k, v + si) * TILE), 1 + (k % 2), 1);
+        }
+        c.globalAlpha = 1;
+        variants.push(cv);
+      }
+      return variants;
+    });
+  };
+
+  /* Stratum under a world point -- for banners, ambience and light colour. */
+  World.prototype.stratumAt = function (x, y) {
+    const d = U.dist(x, y, this.coreCenter.x, this.coreCenter.y) / (this.radius * TILE);
+    if (d > 1.02) return -1;
+    return this.stratumFor(U.clamp(1 - d, 0, 1));
+  };
+
+  /* Mark everything the lamp can reach as seen, for the minimap. */
+  World.prototype.reveal = function (x, y, radius) {
+    const c0 = Math.max(0, Math.floor((x - radius) / TILE)), c1 = Math.min(this.w - 1, Math.ceil((x + radius) / TILE));
+    const r0 = Math.max(0, Math.floor((y - radius) / TILE)), r1 = Math.min(this.h - 1, Math.ceil((y + radius) / TILE));
+    const rr = radius * radius;
+    for (let cy = r0; cy <= r1; cy++) {
+      for (let cx = c0; cx <= c1; cx++) {
+        const dx = cx * TILE + 5 - x, dy = cy * TILE + 5 - y;
+        if (dx * dx + dy * dy <= rr) this.seen[cy * this.w + cx] = 1;
       }
     }
   };
@@ -2809,8 +3333,13 @@ window.PD = window.PD || {};
   };
 
   /* --------------------------------------------------------------- drilling */
-  World.prototype.tileHp = function (mat) {
-    return D.MAT[mat].hp * this.hardness;
+  World.prototype.tileHp = function (mat, cx, cy) {
+    let h = D.MAT[mat].hp * this.hardness;
+    if (cx !== undefined) {
+      const si = this.stratum[this.idx(cx, cy)];
+      h *= 1 + si * 0.22;           // every band down is tougher rock
+    }
+    return h;
   };
 
   /* Returns the material id if the tile broke this call, else 0. */
@@ -2825,13 +3354,30 @@ window.PD = window.PD || {};
       return this.coreHp <= 0 ? M.core : 0;
     }
     this.dmg[i] += amount;
-    if (this.dmg[i] >= this.tileHp(mat)) {
-      this.cells[i] = 0;
+    if (this.dmg[i] >= this.tileHp(mat, cx, cy)) {
+      const mm = D.MAT[mat];
       this.dmg[i] = 0;
+      if (mm.drop) {                 // magma quenches into basalt; nothing to collect
+        this.cells[i] = mm.drop;
+        return -mat;
+      }
+      this.cells[i] = 0;
       this.mined++;
       return mat;
     }
     return 0;
+  };
+
+  /* Hazard damage per second for a world rect (magma, mostly). */
+  World.prototype.hazardIn = function (x, y, w, h) {
+    const x0 = Math.floor(x / TILE), x1 = Math.floor((x + w) / TILE);
+    const y0 = Math.floor(y / TILE), y1 = Math.floor((y + h) / TILE);
+    let worst = 0;
+    for (let cy = y0; cy <= y1; cy++) for (let cx = x0; cx <= x1; cx++) {
+      const m = this.at(cx, cy);
+      if (m && D.MAT[m].hazard) worst = Math.max(worst, D.MAT[m].hazard);
+    }
+    return worst;
   };
 
   World.prototype.crackFrac = function (cx, cy) {
@@ -2839,7 +3385,7 @@ window.PD = window.PD || {};
     const mat = this.cells[i];
     if (!mat) return 0;
     if (mat === M.core) return 1 - this.coreHp / this.coreMax;
-    return U.clamp(this.dmg[i] / this.tileHp(mat), 0, 1);
+    return U.clamp(this.dmg[i] / this.tileHp(mat, cx, cy), 0, 1);
   };
 
   World.prototype.clear = function (cx, cy) {
@@ -2981,15 +3527,27 @@ window.PD = window.PD || {};
     const r0 = Math.max(0, Math.floor(cam.y / TILE));
     const r1 = Math.min(this.h - 1, Math.ceil((cam.y + vh) / TILE));
 
+    this.glows = this.glows || [];
+    this.glows.length = 0;
+
     for (let cy = r0; cy <= r1; cy++) {
       for (let cx = c0; cx <= c1; cx++) {
         const i = cy * this.w + cx;
         const m = this.cells[i];
-        if (!m) continue;
         const sx = cx * TILE - cam.x | 0;
         const sy = cy * TILE - cam.y | 0;
+        if (!m) {
+          // a cave shows the rock face behind it, not the stars
+          if (this.inside[i]) {
+            const v = (U.hash2(cx * 3, cy * 7) * 4) | 0;
+            ctx.drawImage(this.bgAtlas[this.stratum[i]][v], sx, sy);
+          }
+          continue;
+        }
 
         if (m === PD.data.M.core) { this.drawCoreTile(ctx, sx, sy, cx, cy, time); continue; }
+        if (m === PD.data.M.lava) { this.drawLavaTile(ctx, sx, sy, cx, cy, time); this.glows.push(sx + 5, sy + 5, 26, 0); continue; }
+        if (D.MAT[m].glow && this.glows.length < 200) this.glows.push(sx + 5, sy + 5, D.MAT[m].glowR || 16, m);
 
         const v = (U.hash2(cx, cy) * 4) | 0;
         ctx.drawImage(atlas[m][v], sx, sy);
@@ -3038,7 +3596,7 @@ window.PD = window.PD || {};
 
         const dmg = this.dmg[i];
         if (dmg > 0) {
-          const f = dmg / this.tileHp(m);
+          const f = dmg / this.tileHp(m, cx, cy);
           const stage = f > 0.72 ? 2 : (f > 0.38 ? 1 : 0);
           ctx.drawImage(crackCv[stage], sx, sy);
         }
@@ -3056,6 +3614,25 @@ window.PD = window.PD || {};
 
   /* The core reads as one molten orb rather than a stack of flat tiles:
      each tile is shaded by its distance from the core centre. */
+  /* Magma: a slow churn of bright cells on a dark crust, with a hot skin. */
+  World.prototype.drawLavaTile = function (ctx, sx, sy, cx, cy, time) {
+    const swirl = Math.sin(time * 1.6 + cx * 0.9 + cy * 1.3) * 0.5 + 0.5;
+    ctx.fillStyle = swirl > 0.55 ? '#ff7a2a' : '#e0521c';
+    ctx.fillRect(sx, sy, TILE, TILE);
+    ctx.fillStyle = '#ffd27a';
+    ctx.globalAlpha = 0.5 + swirl * 0.5;
+    const ox = Math.floor(U.hash2(cx, cy + Math.floor(time * 2)) * 6);
+    ctx.fillRect(sx + ox, sy + 3, 3, 2);
+    ctx.fillRect(sx + (ox + 4) % 8, sy + 6, 2, 2);
+    ctx.globalAlpha = 1;
+    if (!this.at(cx, cy - 1)) {                  // glowing surface skin
+      ctx.fillStyle = '#fff0b0';
+      ctx.fillRect(sx, sy, TILE, 1);
+    }
+    ctx.fillStyle = 'rgba(60,10,10,0.35)';
+    ctx.fillRect(sx, sy + TILE - 2, TILE, 2);
+  };
+
   World.prototype.drawCoreTile = function (ctx, sx, sy, cx, cy, time) {
     const dx = (cx + 0.5) - this.cx, dy = (cy + 0.5) - this.cy;
     const t = U.clamp(Math.sqrt(dx * dx + dy * dy) / Math.max(1, this.coreR / TILE), 0, 1);
@@ -3089,6 +3666,7 @@ window.PD = window.PD || {};
   const D = PD.data;
   const FX = PD.fx;
   const TILE = PD.world.TILE;
+  const A = PD.audio;
 
   /* Cache a solid-white copy of each sprite frame for hit flashes. */
   const whiteCache = new Map();
@@ -3162,12 +3740,14 @@ window.PD = window.PD || {};
   }
 
   /* ------------------------------------------------------------------- bullet */
-  function Bullet(x, y, vx, vy, dmg, friendly, color) {
+  function Bullet(x, y, vx, vy, dmg, friendly, color, opts) {
+    opts = opts || {};
     this.x = x; this.y = y; this.vx = vx; this.vy = vy;
     this.dmg = dmg; this.friendly = friendly;
     this.color = color || (friendly ? '#7ef9ff' : '#ff8ab0');
-    this.life = 1.5; this.dead = false;
+    this.life = opts.life || 1.5; this.dead = false;
     this.w = 3; this.h = 3;
+    this.size = opts.size || 1;
   }
   Bullet.prototype.update = function (dt, g) {
     this.life -= dt;
@@ -3191,7 +3771,7 @@ window.PD = window.PD || {};
         for (const m of g.mobs) {
           if (m.dead) continue;
           if (Math.abs(this.x - m.x) < m.w / 2 + 2 && Math.abs(this.y - m.y) < m.h / 2 + 2) {
-            m.hurtBy(this.dmg, g, Math.sign(this.vx));
+            m.hurtBy(this.dmg, g, Math.sign(this.vx), 'bullet');
             this.dead = true;
             return;
           }
@@ -3209,19 +3789,64 @@ window.PD = window.PD || {};
   };
   Bullet.prototype.draw = function (ctx, cam) {
     const x = this.x - cam.x | 0, y = this.y - cam.y | 0;
+    const s2 = this.size;
     ctx.fillStyle = this.color;
     ctx.globalAlpha = 0.45;
-    ctx.fillRect(x - 2, y - 2, 5, 5);
+    ctx.fillRect(x - 2 * s2, y - 2 * s2, 5 * s2, 5 * s2);
     ctx.globalAlpha = 1;
-    ctx.fillRect(x - 1, y - 1, 3, 3);
+    ctx.fillRect(x - s2, y - s2, 3 * s2, 3 * s2);
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(x, y, 1, 1);
+  };
+
+  /* ------------------------------------------------------------------- beam
+     The plasma lance: an instant piercing line that scorches rock too. */
+  function Beam(x0, y0, ang, len, dmg, g) {
+    this.x0 = x0; this.y0 = y0;
+    this.ang = ang; this.len = len;
+    this.life = 0.22; this.max = 0.22; this.dead = false;
+    // walk the line: hit every mob once, chip every tile
+    const hit = new Set();
+    const step = 4;
+    let endD = len;
+    for (let d = 0; d < len; d += step) {
+      const x = x0 + Math.cos(ang) * d, y = y0 + Math.sin(ang) * d;
+      const cx = Math.floor(x / TILE), cy = Math.floor(y / TILE);
+      const mat = g.world.at(cx, cy);
+      if (mat) {
+        const broke = g.world.damage(cx, cy, dmg * 0.45);
+        if (broke > 0) g.onTileBroken(cx, cy, broke, false);
+        if (g.world.at(cx, cy) && D.MAT[mat].hp > 150) { endD = d; break; }   // dense rock stops it
+      }
+      for (const m of g.mobs) {
+        if (m.dead || hit.has(m)) continue;
+        if (Math.abs(x - m.x) < m.w / 2 + 3 && Math.abs(y - m.y) < m.h / 2 + 3) {
+          hit.add(m);
+          m.hurtBy(dmg, g, Math.sign(Math.cos(ang)), 'beam');
+        }
+      }
+      if (U.chance(0.35)) FX.trail(x, y, '#d8bcff', 1.6);
+    }
+    this.len = endD;
+    FX.burst(x0 + Math.cos(ang) * endD, y0 + Math.sin(ang) * endD, 10, ['#ffffff', '#d8bcff', '#7ef9ff'], 120, true);
+  }
+  Beam.prototype.update = function (dt) { this.life -= dt; if (this.life <= 0) this.dead = true; };
+  Beam.prototype.draw = function (ctx, cam) {
+    const t = this.life / this.max;
+    const x1 = this.x0 + Math.cos(this.ang) * this.len, y1 = this.y0 + Math.sin(this.ang) * this.len;
+    ctx.globalAlpha = t;
+    ctx.strokeStyle = '#d8bcff'; ctx.lineWidth = 5 * t + 1;
+    ctx.beginPath(); ctx.moveTo(this.x0 - cam.x, this.y0 - cam.y); ctx.lineTo(x1 - cam.x, y1 - cam.y); ctx.stroke();
+    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2 * t;
+    ctx.beginPath(); ctx.moveTo(this.x0 - cam.x, this.y0 - cam.y); ctx.lineTo(x1 - cam.x, y1 - cam.y); ctx.stroke();
+    ctx.globalAlpha = 1;
   };
 
   /* --------------------------------------------------------------------- mob */
   const SPRITE_FOR = {
     crawler: 'grub', floater: 'jelly', spitter: 'spit',
-    gnasher: 'gnasher', lurker: 'lurker', guardian: 'warden'
+    gnasher: 'gnasher', lurker: 'lurker', guardian: 'warden',
+    mite: 'mite', shellback: 'shellback', wyrm: 'wyrm'
   };
 
   function Mob(type, x, y, scale) {
@@ -3244,9 +3869,18 @@ window.PD = window.PD || {};
     this.stateT = 0;
     this.touchCool = 0;
     this.bob = U.rand(0, U.TAU);
+    this.wind = 0;                 // telegraph timer before an attack
+    this.submerged = false;        // wyrms hide in magma
   }
 
-  Mob.prototype.hurtBy = function (dmg, g, dir) {
+  Mob.prototype.hurtBy = function (dmg, g, dir, src) {
+    if (this.submerged) { FX.text(this.x, this.y - 12, 'SUBMERGED', '#ff8a3d', 0); return; }
+    // carapace: shots glance off, the drill and beams do not
+    if (this.def.armor && src === 'bullet') {
+      dmg *= 1 - this.def.armor;
+      FX.sparks(this.x, this.y - 4, U.rand(0, U.TAU), D.MAT[2], 4);
+      A.tone(1800, { type: 'square', to: 900, dur: 0.05, vol: 0.06 });
+    }
     this.hp -= dmg;
     this.hurtT = 0.14;
     this.vx += (dir || 0) * 60;
@@ -3282,16 +3916,35 @@ window.PD = window.PD || {};
     const kind = this.def.kind;
     const sees = toP < 190 && !p.dead && lineClear(w, this.x, this.y, p.x, p.y);
 
+    // magma wyrms lurk under the lava until you come close
+    if (this.def.fire) {
+      const inLava = w.matAt(this.x, this.y + this.h / 2 + 2) === D.M.lava || w.matAt(this.x, this.y) === D.M.lava;
+      this.submerged = inLava && (toP > 110 || !sees);
+      if (U.chance(dt * 8)) FX.spawn({ x: this.x + U.rand(-8, 8), y: this.y, vx: U.rand(-8, 8), vy: U.rand(-40, -15), life: 0.6, size: 1.5, color: '#ffb03d', grav: -0.2, glow: 1 });
+    }
+
     if (kind === 'crawl' || kind === 'charge') {
       this.vy += w.gravityAt(this.y) * 2.4 * dt;
-      if (kind === 'charge' && sees && this.state !== 'dash' && this.cool <= 0) {
-        this.state = 'dash'; this.stateT = 0; this.cool = U.rand(1.6, 2.6);
+      // wind-up: the tell before a charge, so it can be dodged
+      if (kind === 'charge' && sees && this.state === 'idle' && this.cool <= 0 && !this.submerged) {
+        this.state = 'wind'; this.stateT = 0; this.wind = this.def.tele || 0.4;
         this.facing = Math.sign(p.x - this.x) || 1;
-        this.vy = -70;
-        PD.audio.sfx.tone(180, { type: 'square', to: 420, dur: 0.18, vol: 0.1 });
+        this.vx = 0;
+        A.tone(140, { type: 'square', to: 90, dur: 0.25, vol: 0.09 });
       }
-      if (this.state === 'dash') {
+      if (this.state === 'wind') {
+        this.wind -= dt;
+        this.vx *= 0.8;
+        if (this.wind <= 0) {
+          this.state = 'dash'; this.stateT = 0; this.cool = U.rand(1.7, 2.8);
+          this.facing = Math.sign(p.x - this.x) || this.facing;
+          this.vy = -70;
+          A.sfx.tone(180, { type: 'square', to: 420, dur: 0.18, vol: 0.1 });
+          FX.ring(this.x, this.y, 2, 18, 0.25, '#ffffff', 2);
+        }
+      } else if (this.state === 'dash') {
         this.vx = this.facing * this.def.speed * 3.4;
+        if (this.def.fire && U.chance(dt * 30)) FX.trail(this.x, this.y + 4, '#ff7a2a', 2);
         if (this.stateT > 0.55) this.state = 'idle';
       } else if (sees) {
         this.facing = Math.sign(p.x - this.x) || this.facing;
@@ -3314,17 +3967,35 @@ window.PD = window.PD || {};
       if (hit.x) this.vx *= -1;
       if (hit.y) this.vy *= -1;
       if (U.chance(dt * 5)) FX.trail(this.x, this.y + this.h / 2, '#8f6ad8', 1.6);
+    } else if (kind === 'swarm') {
+      // mites orbit and dart; annoying rather than deadly, and they come in clouds
+      const a = this.bob + this.anim * 0.9;
+      const tx = (sees ? p.x : this.x) + Math.cos(a) * 26, ty = (sees ? p.y : this.y) + Math.sin(a * 1.3) * 18;
+      this.vx = U.damp(this.vx, U.clamp((tx - this.x) * 4, -this.def.speed * 2, this.def.speed * 2), 0.12, dt);
+      this.vy = U.damp(this.vy, U.clamp((ty - this.y) * 4, -this.def.speed * 2, this.def.speed * 2), 0.12, dt);
+      const hit = moveBody(this, w, dt);
+      if (hit.x) this.vx *= -1;
+      if (hit.y) this.vy *= -1;
+      this.facing = this.vx < 0 ? -1 : 1;
     } else if (kind === 'spit') {
       this.vy += w.gravityAt(this.y) * 1.6 * dt;
       if (sees) {
         this.facing = Math.sign(p.x - this.x) || this.facing;
         this.vx = U.damp(this.vx, Math.sign(p.x - this.x) * this.def.speed * 0.6, 0.04, dt);
-        if (this.cool <= 0) {
-          this.shoot(g, 0);
-          if (this.type === 'lurker') { this.shoot(g, 0.28); this.shoot(g, -0.28); }
-          this.cool = this.type === 'lurker' ? 1.5 : 2.1;
+        if (this.cool <= 0 && this.state !== 'wind') {
+          this.state = 'wind'; this.wind = this.def.tele || 0.4;
         }
-      } else this.vx *= 0.9;
+        if (this.state === 'wind') {
+          this.wind -= dt;
+          if (U.chance(dt * 14)) FX.trail(this.x + this.facing * 9, this.y - 1, '#b6ff8a', 1.5);
+          if (this.wind <= 0) {
+            this.state = 'idle';
+            this.shoot(g, 0);
+            if (this.type === 'lurker') { this.shoot(g, 0.28); this.shoot(g, -0.28); }
+            this.cool = this.type === 'lurker' ? 1.5 : 2.1;
+          }
+        }
+      } else { this.vx *= 0.9; this.state = 'idle'; }
       moveBody(this, w, dt);
     } else if (kind === 'boss') {
       // hovers around the core chamber and punishes anyone who gets close
@@ -3338,15 +4009,21 @@ window.PD = window.PD || {};
       this.vy = U.damp(this.vy, U.clamp((goY - this.y) * 2.2, -90, 90), 0.06, dt);
       this.x += this.vx * dt; this.y += this.vy * dt;
       this.facing = this.vx < 0 ? -1 : 1;
-      if (this.cool <= 0 && sees) {
-        for (let i = -2; i <= 2; i++) this.shoot(g, i * 0.24);
-        this.cool = 2.2;
-        FX.shake(3);
+      if (this.cool <= 0 && sees && this.state !== 'wind') { this.state = 'wind'; this.wind = this.def.tele || 0.6; }
+      if (this.state === 'wind') {
+        this.wind -= dt;
+        if (U.chance(dt * 20)) FX.trail(this.x + U.rand(-10, 10), this.y + U.rand(-8, 8), '#ffb03d', 2);
+        if (this.wind <= 0) {
+          this.state = 'idle';
+          for (let i = -2; i <= 2; i++) this.shoot(g, i * 0.24);
+          this.cool = 2.2;
+          FX.shake(3);
+        }
       }
     }
 
     // contact damage
-    if (!p.dead && this.touchCool <= 0 &&
+    if (!p.dead && this.touchCool <= 0 && !this.submerged &&
         Math.abs(this.x - p.x) < (this.w + p.w) / 2 && Math.abs(this.y - p.y) < (this.h + p.h) / 2) {
       p.hurt(this.dmg, g, Math.sign(p.x - this.x));
       this.touchCool = 0.7;
@@ -3356,7 +4033,20 @@ window.PD = window.PD || {};
 
   Mob.prototype.draw = function (ctx, cam) {
     const frame = Math.floor(this.anim) % this.spr.frames.length;
-    drawSprite(ctx, this.spr, frame, this.x - cam.x, this.y - cam.y, this.facing < 0, this.hurtT > 0);
+    if (this.submerged) {
+      // just a pair of eyes in the magma
+      ctx.fillStyle = '#ffe27a';
+      ctx.fillRect(this.x - cam.x - 4 | 0, this.y - cam.y - 2 | 0, 2, 2);
+      ctx.fillRect(this.x - cam.x + 2 | 0, this.y - cam.y - 2 | 0, 2, 2);
+      return;
+    }
+    const winding = this.state === 'wind';
+    const flash = this.hurtT > 0 || (winding && Math.sin(this.wind * 40) > 0);
+    drawSprite(ctx, this.spr, frame, this.x - cam.x, this.y - cam.y, this.facing < 0, flash);
+    if (winding) {
+      PD.font.draw(ctx, '!', this.x - cam.x, this.y - cam.y - this.h / 2 - 14 + Math.sin(this.wind * 30) * 1.5,
+        '#ff5a4d', { center: true, scale: 1 });
+    }
     if (this.hp < this.maxHp && !this.dead) {
       const w = Math.max(10, this.w);
       const x = (this.x - cam.x - w / 2) | 0, y = (this.y - cam.y - this.h / 2 - 6) | 0;
@@ -3469,7 +4159,44 @@ window.PD = window.PD || {};
     ctx.restore();
   };
 
-  PD.ent = { Mob, Bullet, Pickup, Boulder, moveBody, lineClear, drawSprite, flashOf };
+  /* ------------------------------------------------------------------- crate
+     Precursor supply case: bump it and it bursts into loot. */
+  function Crate(x, y, loot) {
+    this.x = x; this.y = y; this.vx = 0; this.vy = 0;
+    this.w = 14; this.h = 11;
+    this.loot = loot;            // array of material ids
+    this.dead = false; this.opened = false; this.t = 0;
+  }
+  Crate.prototype.update = function (dt, g) {
+    this.t += dt;
+    this.vy += g.world.gravityAt(this.y) * 1.5 * dt;
+    moveBody(this, g.world, dt);
+    const p = g.player;
+    if (!this.opened && Math.abs(this.x - p.x) < 14 && Math.abs(this.y - p.y) < 14) {
+      this.opened = true;
+      this.t = 0;
+      A.sfx.fanfare();
+      FX.ring(this.x, this.y, 2, 40, 0.5, '#ffd34d', 2);
+      FX.burst(this.x, this.y - 4, 24, ['#ffd34d', '#ffffff', '#fff3c0'], 150, true);
+      for (const mat of this.loot) g.pickups.push(new Pickup(this.x, this.y - 6, mat, U.rand(-60, 60), U.rand(-140, -60)));
+      const bonus = Math.round(200 * (1 + g.bodyIndex * 0.8) * g.valueMult());
+      g.save.credits += bonus; g.save.totalEarned += bonus;
+      FX.text(this.x, this.y - 16, 'PRECURSOR CACHE  +$' + U.fmt(bonus), '#ffd34d', 1);
+      g.toast('PRECURSOR CACHE OPENED', '#ffd34d');
+    }
+    if (this.opened && this.t > 1.2) this.dead = true;
+  };
+  Crate.prototype.draw = function (ctx, cam, t) {
+    const spr = PD.art.sprites.crate;
+    if (!this.opened && Math.sin(t * 4) > 0.6) {
+      ctx.globalAlpha = 0.5; ctx.fillStyle = '#ffd34d';
+      ctx.fillRect(this.x - cam.x - 9 | 0, this.y - cam.y - 8 | 0, 18, 14);
+      ctx.globalAlpha = 1;
+    }
+    drawSprite(ctx, spr, this.opened ? 1 : 0, this.x - cam.x, this.y - cam.y, false, false);
+  };
+
+  PD.ent = { Mob, Bullet, Beam, Pickup, Boulder, Crate, moveBody, lineClear, drawSprite, flashOf };
 })(window.PD);
 
 /* ===== src/player.js ===== */
@@ -3511,7 +4238,30 @@ window.PD = window.PD || {};
     this.alarmT = 0;
     this.squish = 0;
     this.tetherT = 0;
+    this.weapon = 'pistol';
+    this.dashCool = 0; this.dashT = 0;
+    this.lastTap = { key: '', t: -9 };
+    this.scanCool = 0;
+    this.burnCool = 0;
+    this.lastStratum = -2;
   }
+
+  /* Weapons you have actually fabricated. */
+  Player.prototype.weapons = function () {
+    const list = ['pistol'];
+    if (this.g.save.upg.scatter > 0) list.push('scatter');
+    if (this.g.save.upg.lance > 0) list.push('lance');
+    return list;
+  };
+  Player.prototype.cycleWeapon = function (dir) {
+    const list = this.weapons();
+    if (list.length < 2) return;
+    let i = list.indexOf(this.weapon);
+    i = (i + (dir || 1) + list.length) % list.length;
+    this.weapon = list[i];
+    A.tone(700, { type: 'square', to: 1100, dur: 0.08, vol: 0.09 });
+    FX.text(this.x, this.y - 16, this.weapon.toUpperCase(), '#7ef9ff', 0);
+  };
 
   Player.prototype.stat = function (id) {
     const u = D.UPG[id];
@@ -3564,6 +4314,14 @@ window.PD = window.PD || {};
 
     this.blink -= dt;
     if (this.blink < -0.2) this.blink = U.rand(2, 6);
+    this.dashCool = Math.max(0, this.dashCool - dt);
+    this.dashT = Math.max(0, this.dashT - dt);
+    this.scanCool = Math.max(0, this.scanCool - dt);
+    this.burnCool = Math.max(0, this.burnCool - dt);
+    if (!frozen && !g.uiBlocking) {
+      if (IN.hit('KeyQ') || IN.mouse.wheel) this.cycleWeapon(IN.mouse.wheel < 0 ? -1 : 1);
+      if (IN.hit('Tab')) this.scan(g);
+    }
     this.gunCool = Math.max(0, this.gunCool - dt);
     this.gunFlash = Math.max(0, this.gunFlash - dt);
     this.invuln = Math.max(0, this.invuln - dt);
@@ -3584,6 +4342,17 @@ window.PD = window.PD || {};
     if (ix) this.facing = ix;
     else if (Math.abs(dxm) > 6) this.facing = Math.sign(dxm);
 
+    if (!frozen) {
+      let wantDash = IN.hit('shift');
+      for (const k of ['left', 'right', 'up', 'down']) {
+        if (IN.hit(k)) {
+          if (this.lastTap.key === k && g.time - this.lastTap.t < 0.26) wantDash = true;
+          this.lastTap = { key: k, t: g.time };
+        }
+      }
+      if (wantDash) this.dash(ix, iy, g);
+    }
+
     const load = this.loadFactor();
     const thrust = this.stat('thruster') * (1 - load * 0.42);
     const grav = w.gravityAt(this.y);
@@ -3598,10 +4367,12 @@ window.PD = window.PD || {};
       this.vy += Math.sin(this.aim) * 150 * dt;
     }
 
-    const drag = this.onGround(w) ? 0.82 : 0.94;
+    // a burst ignores friction and the speed cap while it lasts
+    const dashing = this.dashT > 0;
+    const drag = dashing ? 0.985 : (this.onGround(w) ? 0.82 : 0.94);
     this.vx *= Math.pow(drag, dt * 60);
-    this.vy *= Math.pow(0.955, dt * 60);
-    const maxSp = 150 - load * 40;
+    this.vy *= Math.pow(dashing ? 0.985 : 0.955, dt * 60);
+    const maxSp = dashing ? 400 : 150 - load * 40;
     const sp = Math.hypot(this.vx, this.vy);
     if (sp > maxSp) { this.vx *= maxSp / sp; this.vy *= maxSp / sp; }
 
@@ -3634,6 +4405,32 @@ window.PD = window.PD || {};
       A.drill(false);
       A.thrust(0);
     }
+  };
+
+  /* Burst jets: a short invulnerable lunge. Direction from the keys, or the
+     aim if you are not steering. */
+  Player.prototype.dash = function (ix, iy, g) {
+    if (this.dashCool > 0 || this.docked) return;
+    let dx = ix, dy = iy;
+    if (!dx && !dy) { dx = Math.cos(this.aim); dy = Math.sin(this.aim); }
+    const n = Math.hypot(dx, dy) || 1;
+    this.vx = dx / n * 330;
+    this.vy = dy / n * 330;
+    this.dashCool = this.stat('dash');
+    this.dashT = 0.26;
+    this.invuln = Math.max(this.invuln, 0.3);
+    A.sfx.tone(300, { type: 'sawtooth', to: 1200, dur: 0.16, vol: 0.12 });
+    A.sfx.noise({ from: 900, to: 3000, dur: 0.14, vol: 0.1 });
+    FX.ring(this.x, this.y, 3, 22, 0.3, '#7ef9ff', 2);
+    for (let i = 0; i < 8; i++) FX.trail(this.x - dx / n * i * 3, this.y - dy / n * i * 3, '#7ef9ff', 2);
+    FX.shake(1.5);
+  };
+
+  /* Sonar ping: paints nearby ore on to the minimap. */
+  Player.prototype.scan = function (g) {
+    if (this.scanCool > 0 || this.docked) { A.sfx.deny(); return; }
+    this.scanCool = 4;
+    g.scan(this.x, this.y, this.stat('scanner'));
   };
 
   Player.prototype.onGround = function (w) {
@@ -3709,21 +4506,76 @@ window.PD = window.PD || {};
     const IN = PD.input;
     const want = (IN.mouse.right || IN.down('space')) && !g.uiBlocking;
     if (!want || this.gunCool > 0) return;
-    this.gunCool = this.stat('trigger');
-    this.gunFlash = 0.09;
-    const dmg = this.stat('pistol');
-    const a = this.aim + U.rand(-0.035, 0.035);
-    const ox = Math.cos(a) * 12, oy = Math.sin(a) * 12;
-    g.bullets.push(new Bullet(this.x + ox, this.y + oy, Math.cos(a) * 330, Math.sin(a) * 330, dmg, true));
-    this.vx -= Math.cos(a) * 28;
-    this.vy -= Math.sin(a) * 28;
-    FX.burst(this.x + ox, this.y + oy, 4, ['#7ef9ff', '#ffffff'], 70, true);
-    FX.shake(1.1);
-    A.sfx.shoot();
+    const a0 = this.aim;
+    const ox = Math.cos(a0) * 12, oy = Math.sin(a0) * 12;
+
+    if (this.weapon === 'scatter') {
+      this.gunCool = 0.72;
+      this.gunFlash = 0.1;
+      const dmg = this.stat('scatter');
+      for (let i = 0; i < 5; i++) {
+        const a = a0 + (i - 2) * 0.13 + U.rand(-0.04, 0.04);
+        const sp = 300 + U.rand(-30, 30);
+        g.bullets.push(new Bullet(this.x + ox, this.y + oy, Math.cos(a) * sp, Math.sin(a) * sp, dmg, true, '#ffb03d', { life: 0.34 }));
+      }
+      this.vx -= Math.cos(a0) * 110;
+      this.vy -= Math.sin(a0) * 110;
+      FX.burst(this.x + ox, this.y + oy, 9, ['#ffb03d', '#ffffff', '#ff7a2a'], 110, true);
+      FX.shake(3.2);
+      A.sfx.boom(0.35);
+      A.sfx.shoot();
+    } else if (this.weapon === 'lance') {
+      this.gunCool = 1.05;
+      this.gunFlash = 0.14;
+      const dmg = this.stat('lance');
+      g.bullets.push(new PD.ent.Beam(this.x + ox, this.y + oy, a0, 190, dmg, g));
+      this.vx -= Math.cos(a0) * 60;
+      this.vy -= Math.sin(a0) * 60;
+      FX.shake(2.6);
+      FX.hitStop(0.03);
+      A.sfx.tone(1800, { type: 'sawtooth', to: 200, dur: 0.26, vol: 0.14, filter: 5000 });
+      A.sfx.noise({ from: 6000, to: 400, dur: 0.2, vol: 0.1 });
+    } else {
+      this.gunCool = this.stat('trigger');
+      this.gunFlash = 0.09;
+      const dmg = this.stat('pistol');
+      const a = a0 + U.rand(-0.035, 0.035);
+      g.bullets.push(new Bullet(this.x + ox, this.y + oy, Math.cos(a) * 330, Math.sin(a) * 330, dmg, true));
+      this.vx -= Math.cos(a) * 28;
+      this.vy -= Math.sin(a) * 28;
+      FX.burst(this.x + ox, this.y + oy, 4, ['#7ef9ff', '#ffffff'], 70, true);
+      FX.shake(1.1);
+      A.sfx.shoot();
+    }
   };
 
   /* --------------------------------------------------------------------- air */
   Player.prototype.doAir = function (dt, g) {
+    // the lamp reveals the map as you go
+    g.world.reveal(this.x, this.y, this.stat('lamp') * 0.9);
+
+    // magma burns; uranium in the hold cooks you slowly
+    const hz = g.world.hazardIn(this.x - this.w / 2, this.y - this.h / 2, this.w, this.h);
+    if (hz && !this.docked) {
+      this.hull -= hz * dt;
+      this.vy -= 90 * dt;
+      if (this.burnCool <= 0) {
+        this.burnCool = 0.4;
+        FX.burst(this.x, this.y + 6, 6, ['#ff7a2a', '#ffd27a'], 60, true);
+        A.sfx.tone(200, { type: 'sawtooth', to: 120, dur: 0.12, vol: 0.09 });
+        FX.flash(0.15, '#ff5a2a');
+        g.hint('lava', 'MAGMA! GET OUT OF IT');
+      }
+      if (this.hull <= 0) { this.hull = 0; g.onPlayerDown(); return; }
+    }
+    const uran = this.cargo[D.M.uran] || 0;
+    if (uran > 0 && !this.docked) {
+      this.hull -= 0.35 * uran * dt;
+      if (U.chance(dt * 3)) FX.trail(this.x + U.rand(-5, 5), this.y + U.rand(-6, 6), '#a6ff3d', 1.4);
+      g.hint('uran', 'URANIUM IN THE HOLD IS COOKING YOU. SELL IT FAST.');
+      if (this.hull <= 0) { this.hull = 0; g.onPlayerDown(); return; }
+    }
+
     if (this.docked) {
       this.o2 = Math.min(this.stat('oxygen'), this.o2 + 90 * dt);
       this.suffocating = 0;
@@ -3779,18 +4631,25 @@ window.PD = window.PD || {};
     const skin = PD.art.skinFor(this.g.save.cos);
     const spr = skin.alien;
     const drill = skin.drill;
-    const gun = PD.art.sprites.gun;
+    const gun = PD.art.sprites[this.weapon === 'pistol' ? 'gun' : this.weapon];
     const px = this.x - cam.x, py = this.y - cam.y;
     const flip = Math.cos(this.aim) < 0;
 
-    if (this.invuln > 0 && Math.sin(this.invuln * 40) < -0.2) return;
+    if (this.dashT > 0) {
+      // afterimages along the burst
+      ctx.globalAlpha = 0.35;
+      for (let k = 1; k <= 3; k++) {
+        PD.ent.drawSprite(ctx, spr, 0, px - this.vx * k * 0.012, py - this.vy * k * 0.012 - 1, flip, true);
+      }
+      ctx.globalAlpha = 1;
+    } else if (this.invuln > 0 && Math.sin(this.invuln * 40) < -0.2) return;
 
     // pistol on the far side, drill on the aiming side
     ctx.save();
     ctx.translate(px | 0, py | 0);
     ctx.rotate(this.aim + (flip ? Math.PI : 0));
     ctx.scale(1, flip ? -1 : 1);
-    const g = gun.frames[this.gunCool < this.stat('trigger') * 0.4 ? 0 : 1];
+    const g = gun.frames[this.gunCool > 0.05 ? 1 : 0];
     ctx.drawImage(g, -2, -10);
     ctx.restore();
 
@@ -3998,6 +4857,41 @@ window.PD = window.PD || {};
       bar(ctx, VW / 2 - 40, VH - 36, 80, 6, p.recall / 1.4, COL.o2, {});
     }
 
+    // weapon, dash and scanner readouts under the meters
+    const wy = 100 + Object.keys(p.cargo).length * 0;
+    const wname = { pistol: 'PISTOL', scatter: 'SCATTER', lance: 'LANCE' }[p.weapon];
+    const wsp = PD.art.sprites[p.weapon === 'pistol' ? 'gun' : p.weapon];
+    ctx.drawImage(wsp.frames[0], 6, VH - 62);
+    F.draw(ctx, wname + (p.weapons().length > 1 ? '  [Q]' : ''), 30, VH - 60, COL.text);
+    const dashF = p.dashCool / Math.max(0.1, p.stat('dash'));
+    bar(ctx, 30, VH - 49, 40, 3, 1 - dashF, dashF > 0 ? '#9c8ec4' : COL.gold, {});
+    F.draw(ctx, 'DASH', 74, VH - 51, COL.dim);
+    bar(ctx, 30, VH - 39, 40, 3, 1 - p.scanCool / 4, p.scanCool > 0 ? '#9c8ec4' : COL.good, {});
+    F.draw(ctx, 'SCAN', 74, VH - 41, COL.dim);
+
+    // kill combo
+    if (g.combo.n >= 3) {
+      const pulse = 1 + 0.08 * Math.sin(g.time * 14);
+      F.draw(ctx, 'x' + g.combo.mult.toFixed(1), VW / 2, 34, '#ff8ad8', { center: true, scale: 2 });
+      F.draw(ctx, g.combo.n + ' KILL CHAIN', VW / 2, 52, COL.text, { center: true });
+      bar(ctx, VW / 2 - 30, 62, 60, 3, g.combo.t / 2.6, '#ff8ad8', {});
+    }
+
+    minimap(ctx, g);
+
+    // stratum banner
+    if (g.banner) {
+      const a = U.clamp(Math.min(g.banner.t * 2, (3.2 - g.banner.t) * 2), 0, 1);
+      ctx.globalAlpha = a;
+      ctx.fillStyle = 'rgba(8,4,18,0.6)';
+      ctx.fillRect(VW / 2 - 120, 86, 240, 22);
+      ctx.fillStyle = COL.gold; ctx.fillRect(VW / 2 - 120, 86, 240, 1); ctx.fillRect(VW / 2 - 120, 107, 240, 1);
+      F.draw(ctx, '- ' + g.banner.text + ' -', VW / 2, 92, COL.gold, { center: true, scale: 1 });
+      const d = g.world.depthMeters(p.y);
+      F.draw(ctx, 'DEPTH ' + d + 'M', VW / 2, 101, COL.dim, { center: true });
+      ctx.globalAlpha = 1;
+    }
+
     // hints
     if (g.hintT > 0) {
       ctx.globalAlpha = U.clamp(g.hintT, 0, 1);
@@ -4019,6 +4913,58 @@ window.PD = window.PD || {};
       ctx.globalAlpha = 1;
       ty -= 16;
     }
+  }
+
+  /* ---------------------------------------------------------------- minimap
+     Fog of war: only what the lamp has touched is drawn. Scanner pings paint
+     ore you have not reached yet. */
+  let mmCv = null, mmCtx = null, mmDirty = 0;
+  function minimap(ctx, g) {
+    const w = g.world;
+    const MW = 92, MH = 92;
+    const x0 = VW - MW - 8, y0 = 58;
+    const sc = Math.min(MW / w.w, MH / w.h);
+    const ox = x0 + (MW - w.w * sc) / 2, oy = y0 + (MH - w.h * sc) / 2;
+
+    if (!mmCv) { mmCv = document.createElement('canvas'); mmCtx = mmCv.getContext('2d'); }
+    if (mmCv.width !== w.w || mmCv.height !== w.h) { mmCv.width = w.w; mmCv.height = w.h; mmDirty = 0; }
+    // rebuild the fog texture a few times a second, not every frame
+    mmDirty -= 1;
+    if (mmDirty <= 0) {
+      mmDirty = 8;
+      const img = mmCtx.createImageData(w.w, w.h);
+      for (let i = 0; i < w.cells.length; i++) {
+        if (!w.seen[i]) continue;
+        const m = w.cells[i];
+        const k = i * 4;
+        if (!m) { if (w.inside[i]) { img.data[k] = 24; img.data[k + 1] = 18; img.data[k + 2] = 40; img.data[k + 3] = 255; } continue; }
+        const c = D.MAT[m].c[1];
+        img.data[k] = parseInt(c.slice(1, 3), 16); img.data[k + 1] = parseInt(c.slice(3, 5), 16); img.data[k + 2] = parseInt(c.slice(5, 7), 16);
+        img.data[k + 3] = 255;
+      }
+      mmCtx.putImageData(img, 0, 0);
+    }
+
+    ctx.fillStyle = 'rgba(8,4,18,0.75)';
+    ctx.fillRect(x0 - 2, y0 - 2, MW + 4, MH + 4);
+    ctx.strokeStyle = COL.line; ctx.strokeRect(x0 - 1.5, y0 - 1.5, MW + 3, MH + 3);
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(mmCv, 0, 0, w.w, w.h, ox, oy, w.w * sc, w.h * sc);
+
+    // scanner pings
+    for (const pg of g.pings) {
+      ctx.globalAlpha = U.clamp(pg.life / 3, 0, 1) * (0.6 + 0.4 * Math.sin(g.time * 6 + pg.cx));
+      ctx.fillStyle = D.MAT[pg.mat].c[0];
+      ctx.fillRect(ox + pg.cx * sc - 1, oy + pg.cy * sc - 1, Math.max(2, sc * 2), Math.max(2, sc * 2));
+    }
+    ctx.globalAlpha = 1;
+    // core, ship, you
+    if (w.coreHp > 0) { ctx.fillStyle = '#ff8a3d'; ctx.fillRect(ox + w.cx * sc - 1, oy + w.cy * sc - 1, 3, 3); }
+    ctx.fillStyle = '#7ef9ff'; ctx.fillRect(ox + g.ship.x / 10 * sc - 2, oy + g.ship.y / 10 * sc - 1, 4, 2);
+    const px = ox + g.player.x / 10 * sc, py = oy + g.player.y / 10 * sc;
+    ctx.fillStyle = Math.sin(g.time * 10) > 0 ? '#ffffff' : '#ff5fa8';
+    ctx.fillRect(px - 1, py - 1, 3, 3);
+    F.draw(ctx, 'MAP  [TAB] SCAN', x0 + MW / 2, y0 + MH + 4, COL.dim, { center: true });
   }
 
   /* ------------------------------------------------------------------- shop */
@@ -4493,7 +5439,8 @@ window.PD = window.PD || {};
     fab:    { hi: '#ffb03d', mid: '#c07a20', lo: '#3d2a0d', bg: '#140f04', name: 'FABRICATOR' },
     bay:    { hi: '#58e8ff', mid: '#2b8fae', lo: '#0d2f3d', bg: '#041014', name: 'DRONE BAY' },
     vanity: { hi: '#ff8ad8', mid: '#b0459a', lo: '#3d0d2f', bg: '#140418', name: 'IDENTITY SUITE' },
-    nav:    { hi: '#9ab4ff', mid: '#4f66c0', lo: '#161d3d', bg: '#060818', name: 'NAV COMPUTER' }
+    nav:    { hi: '#9ab4ff', mid: '#4f66c0', lo: '#161d3d', bg: '#060818', name: 'NAV COMPUTER' },
+    refinery: { hi: '#ffd34d', mid: '#b58a1e', lo: '#3a2c0a', bg: '#120e04', name: 'REFINERY DECK' }
   };
 
   const state = {
@@ -4506,7 +5453,8 @@ window.PD = window.PD || {};
     fab: ['RUSTMAW OS 4.21', 'FABRICATOR ARM ONLINE', 'FEEDSTOCK BIN: READING...', 'BOLT SAYS HURRY UP.'],
     bay: ['RUSTMAW OS 4.21', 'DRONE SWARM HANDSHAKE...', 'ALL UNITS NOMINAL', 'THEY NEVER SLEEP.'],
     vanity: ['RUSTMAW OS 4.21', 'IDENTITY SUITE LOADED', 'GENE VAT: WARM', 'LOOK THE PART.'],
-    nav: ['RUSTMAW OS 4.21', 'STELLAR CARTOGRAPHY ONLINE', 'PLOTTING VICTIMS...', 'SELECT A TARGET.']
+    nav: ['RUSTMAW OS 4.21', 'STELLAR CARTOGRAPHY ONLINE', 'PLOTTING VICTIMS...', 'SELECT A TARGET.'],
+    refinery: ['RUSTMAW OS 4.21', 'REFINERY GRID POWER: ON', 'BELT MOTORS SPUN UP', 'ROCK IN. MONEY OUT.']
   };
 
   function open(app) {
@@ -4633,50 +5581,61 @@ window.PD = window.PD || {};
 
   /* ---------------------------------------------------------------- market */
   function appMarket(ctx, g, th, t) {
-    const vault = g.save.vault;
-    const keys = Object.keys(vault).filter(k => vault[k] > 0).sort((a, b) => D.MAT[b].cr - D.MAT[a].cr);
-    F.draw(ctx, 'ORE                QTY    UNIT      VALUE', IX, IY, th.mid, { shadow: false });
-    ctx.fillStyle = th.lo; ctx.fillRect(IX, IY + 9, IW, 1);
+    state.view = state.view || 'raw';
+    if (key(ctx, IX, IY - 2, 70, 12, 'RAW ORE', th, { enabled: state.view !== 'raw' })) state.view = 'raw';
+    if (key(ctx, IX + 74, IY - 2, 96, 12, 'REFINED GOODS', th, { enabled: state.view !== 'goods' })) state.view = 'goods';
+
+    const isRaw = state.view === 'raw';
+    const src = isRaw ? g.save.vault : (g.save.goods || {});
+    const entry = k => {
+      if (isRaw) { const m = D.MAT[k]; return { name: m.name, cr: m.cr, c: m.c, kg: m.kg }; }
+      if (k.indexOf('raw:') === 0) { const m = D.MAT[+k.slice(4)]; return { name: m.name + ' (pass-thru)', cr: m.cr, c: m.c, kg: m.kg }; }
+      const gd = D.goodFromKey(k); return gd ? { name: gd.name, cr: gd.cr, c: gd.c, kg: 0 } : null;
+    };
+    const keys = Object.keys(src).filter(k => src[k] > 0 && entry(k)).sort((a, b) => entry(b).cr - entry(a).cr);
+
+    F.draw(ctx, 'LOT                QTY    UNIT      VALUE', IX, IY + 14, th.mid, { shadow: false });
+    ctx.fillStyle = th.lo; ctx.fillRect(IX, IY + 23, IW, 1);
 
     if (!keys.length) {
-      F.draw(ctx, 'FEEDSTOCK BIN EMPTY.', IX, IY + 22, th.mid, { shadow: false });
-      F.draw(ctx, 'GO BREAK SOMETHING.', IX, IY + 34, th.hi, { shadow: false });
+      F.draw(ctx, isRaw ? 'FEEDSTOCK BIN EMPTY.' : 'NO REFINED GOODS YET.', IX, IY + 34, th.mid, { shadow: false });
+      F.draw(ctx, isRaw ? 'GO BREAK SOMETHING.' : 'BUILD A LINE ON THE REFINERY DECK.', IX, IY + 46, th.hi, { shadow: false });
     }
 
     let total = 0;
-    const maxRows = 9;
+    const maxRows = 8;
     for (let i = 0; i < Math.min(keys.length, maxRows); i++) {
-      const k = keys[i], m = D.MAT[k], n = vault[k];
-      const unit = Math.round(m.cr * g.valueMult());
+      const k = keys[i], e = entry(k), n = src[k];
+      const unit = Math.round(e.cr * g.valueMult());
       const val = unit * n;
       total += val;
-      const y = IY + 14 + i * 13;
+      const y = IY + 28 + i * 13;
       const r = row(ctx, IX, y, IW, 12, th);
-      ctx.fillStyle = m.c[1]; ctx.fillRect(IX + 2, y + 3, 6, 6);
-      ctx.fillStyle = m.c[0]; ctx.fillRect(IX + 2, y + 3, 6, 2);
-      F.draw(ctx, m.name, IX + 12, y + 3, th.hi, { shadow: false });
+      ctx.fillStyle = e.c[1]; ctx.fillRect(IX + 2, y + 3, 6, 6);
+      ctx.fillStyle = e.c[0]; ctx.fillRect(IX + 2, y + 3, 6, 2);
+      if (!isRaw) { ctx.fillStyle = '#ffffff'; ctx.fillRect(IX + 4, y + 5, 2, 2); }
+      F.draw(ctx, e.name.slice(0, 18), IX + 12, y + 3, th.hi, { shadow: false });
       F.draw(ctx, String(n), IX + 128, y + 3, th.hi, { shadow: false });
       F.draw(ctx, '$' + U.fmt(unit), IX + 176, y + 3, th.mid, { shadow: false });
       F.draw(ctx, '$' + U.fmt(val), IX + 262, y + 3, th.hi, { shadow: false });
-      if (key(ctx, IX + IW - 96, y, 44, 12, 'SELL', th)) g.sellFromVault(+k, n);
-      if (key(ctx, IX + IW - 48, y, 46, 12, 'SELL 1', th)) g.sellFromVault(+k, 1);
-      if (r.hover) state.tip = m.name.toUpperCase() + ' -- ' + m.kg + 'KG PER UNIT, $' + U.fmt(unit) + ' EACH';
+      if (key(ctx, IX + IW - 96, y, 44, 12, 'SELL', th)) (isRaw ? g.sellFromVault(+k, n) : g.sellGood(k, n));
+      if (key(ctx, IX + IW - 48, y, 46, 12, 'SELL 1', th)) (isRaw ? g.sellFromVault(+k, 1) : g.sellGood(k, 1));
+      if (r.hover) state.tip = e.name.toUpperCase() + (isRaw ? ' -- ' + e.kg + 'KG PER UNIT, ' : ' -- REFINED, ') + '$' + U.fmt(unit) + ' EACH';
     }
-    if (keys.length > maxRows) {
-      F.draw(ctx, '+' + (keys.length - maxRows) + ' MORE LINES BELOW THE FOLD', IX, IY + 14 + maxRows * 13, th.mid, { shadow: false });
-    }
+    if (keys.length > maxRows) F.draw(ctx, '+' + (keys.length - maxRows) + ' MORE LOTS BELOW THE FOLD', IX, IY + 28 + maxRows * 13, th.mid, { shadow: false });
+    for (let i = maxRows; i < keys.length; i++) total += Math.round(entry(keys[i]).cr * g.valueMult()) * src[keys[i]];
 
-    // ticker footer
-    for (let i = maxRows; i < keys.length; i++) total += Math.round(D.MAT[keys[i]].cr * g.valueMult()) * vault[keys[i]];
     ctx.fillStyle = th.lo; ctx.fillRect(IX, IY + IH - 22, IW, 1);
-    F.draw(ctx, 'BIN TOTAL', IX, IY + IH - 16, th.mid, { shadow: false });
+    F.draw(ctx, isRaw ? 'BIN TOTAL' : 'GOODS TOTAL', IX, IY + IH - 16, th.mid, { shadow: false });
     F.draw(ctx, '$' + U.fmt(total), IX + 90, IY + IH - 16, th.hi, { shadow: false });
-    if (key(ctx, IX + IW - 132, IY + IH - 19, 130, 14, 'LIQUIDATE ENTIRE BIN', th, { enabled: total > 0 })) g.sellAll();
+    if (key(ctx, IX + IW - 132, IY + IH - 19, 130, 14, isRaw ? 'LIQUIDATE ENTIRE BIN' : 'SELL ALL GOODS', th, { enabled: total > 0 })) {
+      if (isRaw) g.sellAll(); else g.sellAllGoods();
+    }
 
     // scrolling relay chatter, so the tube always has something alive on it
     const feed = [
       'GEM PRICES UP ON GRIEF FROM THE INNER WORLDS',
-      'SALVAGE BOARD: NO PROVENANCE REQUIRED',
+      'REFINED ALLOY FETCHES A PREMIUM: NOBODY ASKS WHERE THE ORE CAME FROM',
       'BUYER SEEKS CORE FRAGMENTS. DISCRETION GUARANTEED',
       'INSURERS DECLINE TO COVER "ACTS OF YOU"',
       'RELAY 7 ASKS THAT YOU STOP SELLING PEOPLE THEIR OWN PLANET'
@@ -4912,7 +5871,8 @@ window.PD = window.PD || {};
     }
   }
 
-  const APPS = { market: appMarket, fab: appFab, bay: appBay, vanity: appVanity, nav: appNav };
+  const APPS = { market: appMarket, fab: appFab, bay: appBay, vanity: appVanity, nav: appNav,
+    refinery: (ctx, g, th, t) => PD.factory.app(ctx, g, th, t) };
 
   /* ------------------------------------------------------------------ draw */
   function draw(ctx, g, dt) {
@@ -4957,10 +5917,312 @@ window.PD = window.PD || {};
 
   PD.term = {
     open, close, draw, say, key, row, chrome, glassOver, THEME,
+    rect: { SX, SY, SW, SH, IX, IY, IW, IH },
     get app() { return state.app; },
     get booting() { return state.boot < 1; },
     state
   };
+})(window.PD);
+
+/* ===== src/factory.js ===== */
+/* The refinery deck: a Factorio-flavoured grid aboard the ship.
+   Hoppers pull raw ore out of the bin, belts carry it, machines turn it into
+   goods worth multiples of the raw price, depots bank the result. It ticks in
+   real time whenever the game does, so it earns while you are down a hole. */
+(function (PD) {
+  'use strict';
+  const U = PD.util;
+  const D = PD.data;
+  const F = PD.font;
+  const A = PD.audio;
+
+  const COLS = 12, ROWS = 6, CELL = 26;
+  const BELT_TIME = 0.5;
+  const DIRS = [[1, 0], [0, 1], [-1, 0], [0, -1]];      // right, down, left, up
+  const ARROW = ['>', 'V', '<', '^'];
+
+  const state = { tool: 'belt', hover: -1, acc: 0, produced: 0, msgT: 0 };
+
+  function ensure(save) {
+    if (!save.factory) save.factory = { cells: new Array(COLS * ROWS).fill(null), produced: 0 };
+    if (!save.goods) save.goods = {};
+    // runtime item state lives beside the saved layout
+    if (!save.factory.rt) save.factory.rt = new Array(COLS * ROWS).fill(null).map(() => ({ item: null, prog: 0, buf: [], work: 0 }));
+    return save.factory;
+  }
+
+  const idx = (cx, cy) => cy * COLS + cx;
+  const inb = (cx, cy) => cx >= 0 && cy >= 0 && cx < COLS && cy < ROWS;
+
+  /* --------------------------------------------------------------- recipes */
+  function isMetal(mat) { return D.METALS.indexOf(D.MAT[mat].key) >= 0; }
+  function isGem(mat) { return D.GEMS.indexOf(D.MAT[mat].key) >= 0; }
+  function isJunk(mat) { return D.JUNK.indexOf(D.MAT[mat].key) >= 0; }
+
+  /* Can this machine take the item? Items are numbers (raw) or good keys. */
+  function accepts(cell, item) {
+    const kind = D.MACHINES[cell.t].kind;
+    if (kind === 'smelt') return typeof item === 'number' && isMetal(item);
+    if (kind === 'crush') return typeof item === 'number' && isJunk(item);
+    if (kind === 'cut') return typeof item === 'number' && isGem(item);
+    if (kind === 'alloy') return typeof item === 'string' && item.indexOf('ingot:') === 0;
+    return false;
+  }
+
+  function produce(cell, rt) {
+    const kind = D.MACHINES[cell.t].kind;
+    if (kind === 'smelt') return D.goodOf('ingot', rt.buf.shift()).key;
+    if (kind === 'crush') return D.goodOf('conc', rt.buf.shift()).key;
+    if (kind === 'cut') return D.goodOf('cut', rt.buf.shift()).key;
+    if (kind === 'alloy') {
+      const a = +rt.buf.shift().split(':')[1], b = +rt.buf.shift().split(':')[1];
+      return D.goodOf('alloy', a, b).key;
+    }
+    return null;
+  }
+
+  /* An alloy forge needs two different ingots waiting. */
+  function ready(cell, rt) {
+    const kind = D.MACHINES[cell.t].kind;
+    if (kind === 'alloy') return rt.buf.length >= 2 && rt.buf[0] !== rt.buf[1];
+    return rt.buf.length >= 1;
+  }
+
+  /* -------------------------------------------------------------------- sim */
+  function tryPush(f, save, from, item) {
+    const cell = f.cells[from];
+    const cx = from % COLS, cy = (from / COLS) | 0;
+    const [dx, dy] = DIRS[cell.d || 0];
+    const nx = cx + dx, ny = cy + dy;
+    if (!inb(nx, ny)) return false;
+    const to = idx(nx, ny);
+    const tc = f.cells[to];
+    if (!tc) return false;
+    const trt = f.rt[to];
+    if (tc.t === 'belt') {
+      if (trt.item !== null) return false;
+      trt.item = item; trt.prog = 0;
+      return true;
+    }
+    if (tc.t === 'depot') {
+      const key = typeof item === 'number' ? 'raw:' + item : item;
+      save.goods[key] = (save.goods[key] || 0) + 1;
+      f.produced = (f.produced || 0) + 1;
+      state.produced++;
+      return true;
+    }
+    if (tc.t === 'hopper') return false;
+    if (accepts(tc, item) && trt.buf.length < 3) { trt.buf.push(item); return true; }
+    return false;
+  }
+
+  function step(f, save, dt) {
+    // machines first, then belts from the far end so items flow without gaps
+    for (let i = 0; i < f.cells.length; i++) {
+      const c = f.cells[i]; if (!c) continue;
+      const rt = f.rt[i];
+      const def = D.MACHINES[c.t];
+      if (c.t === 'hopper') {
+        rt.work += dt;
+        if (rt.work >= 1.2 && c.filter !== undefined && (save.vault[c.filter] || 0) > 0) {
+          if (tryPush(f, save, i, c.filter)) {
+            save.vault[c.filter]--;
+            if (save.vault[c.filter] <= 0) delete save.vault[c.filter];
+            rt.work = 0;
+          }
+        }
+      } else if (def.kind) {
+        if (rt.item === null && ready(c, rt)) {
+          rt.work += dt;
+          if (rt.work >= def.time) { rt.item = produce(c, rt); rt.work = 0; }
+        }
+        if (rt.item !== null && tryPush(f, save, i, rt.item)) rt.item = null;
+      }
+    }
+    const order = [];
+    for (let i = 0; i < f.cells.length; i++) if (f.cells[i] && f.cells[i].t === 'belt' && f.rt[i].item !== null) order.push(i);
+    // belts whose target is free move first: two passes is enough for short lines
+    for (let pass = 0; pass < 2; pass++) {
+      for (const i of order) {
+        const rt = f.rt[i];
+        if (rt.item === null) continue;
+        rt.prog = Math.min(BELT_TIME, rt.prog + (pass === 0 ? dt : 0));
+        if (rt.prog >= BELT_TIME && tryPush(f, save, i, rt.item)) { rt.item = null; rt.prog = 0; }
+      }
+    }
+  }
+
+  function tick(dt, g) {
+    const f = ensure(g.save);
+    state.acc += dt;
+    while (state.acc >= 0.1) { step(f, g.save, 0.1); state.acc -= 0.1; }
+    state.msgT = Math.max(0, state.msgT - dt);
+  }
+
+  /* --------------------------------------------------------------- editing */
+  function place(g, cx, cy, tool) {
+    const f = ensure(g.save);
+    const i = idx(cx, cy);
+    const cur = f.cells[i];
+    if (tool === 'erase') {
+      if (!cur) return;
+      g.save.credits += Math.round(D.MACHINES[cur.t].cost * 0.5);
+      f.cells[i] = null; f.rt[i] = { item: null, prog: 0, buf: [], work: 0 };
+      A.sfx.click();
+      return;
+    }
+    if (cur && cur.t === tool) {
+      if (tool === 'belt') { cur.d = ((cur.d || 0) + 1) % 4; A.sfx.click(); return; }
+      if (tool === 'hopper') { cycleFilter(g, cur); return; }
+      if (D.MACHINES[tool].kind) { cur.d = ((cur.d || 0) + 1) % 4; A.sfx.click(); return; }
+      return;
+    }
+    const cost = D.MACHINES[tool].cost;
+    if (g.save.credits < cost) { A.sfx.deny(); PD.term.say('NEED $' + U.fmt(cost) + ' FOR ' + D.MACHINES[tool].name.toUpperCase(), '#ff5a4d'); return; }
+    if (cur) g.save.credits += Math.round(D.MACHINES[cur.t].cost * 0.5);
+    g.save.credits -= cost;
+    f.cells[i] = { t: tool, d: 0 };
+    f.rt[i] = { item: null, prog: 0, buf: [], work: 0 };
+    if (tool === 'hopper') cycleFilter(g, f.cells[i], true);
+    A.sfx.buy();
+  }
+
+  /* Hopper filter cycles through whatever is actually in the bin. */
+  function cycleFilter(g, cell, silent) {
+    const mats = Object.keys(g.save.vault).map(Number).filter(m => (g.save.vault[m] || 0) > 0).sort((a, b) => a - b);
+    if (!mats.length) { cell.filter = undefined; if (!silent) PD.term.say('BIN IS EMPTY -- NOTHING TO FEED', '#ff5a4d'); return; }
+    const i = mats.indexOf(cell.filter);
+    cell.filter = mats[(i + 1) % mats.length];
+    if (!silent) A.sfx.click();
+  }
+
+  /* ---------------------------------------------------------------- drawing */
+  function itemColor(item) {
+    if (typeof item === 'number') return D.MAT[item].c;
+    const gd = D.goodFromKey(item);
+    return gd ? gd.c : ['#fff', '#aaa', '#555'];
+  }
+
+  function drawItem(ctx, item, x, y) {
+    const c = itemColor(item);
+    const refined = typeof item === 'string';
+    ctx.fillStyle = c[1]; ctx.fillRect(x - 3, y - 3, 6, 6);
+    ctx.fillStyle = c[0]; ctx.fillRect(x - 3, y - 3, 6, 2);
+    if (refined) { ctx.fillStyle = '#ffffff'; ctx.fillRect(x - 1, y - 1, 2, 2); }
+  }
+
+  function app(ctx, g, th, t) {
+    const R = PD.term.rect;
+    const f = ensure(g.save);
+    const gx = R.IX, gy = R.IY + 12;
+
+    F.draw(ctx, 'REFINERY DECK  //  BIN -> BELTS -> MACHINES -> DEPOT', gx, R.IY, th.mid, { shadow: false });
+
+    // grid
+    ctx.fillStyle = '#0a0808';
+    ctx.fillRect(gx - 1, gy - 1, COLS * CELL + 2, ROWS * CELL + 2);
+    for (let cy = 0; cy < ROWS; cy++) for (let cx = 0; cx < COLS; cx++) {
+      const x = gx + cx * CELL, y = gy + cy * CELL;
+      ctx.fillStyle = (cx + cy) % 2 ? '#16110e' : '#1a1410';
+      ctx.fillRect(x, y, CELL, CELL);
+      ctx.fillStyle = th.lo; ctx.fillRect(x, y, CELL, 1); ctx.fillRect(x, y, 1, CELL);
+    }
+
+    const m = PD.input.mouse;
+    const hx = Math.floor((m.x - gx) / CELL), hy = Math.floor((m.y - gy) / CELL);
+    const hovering = m.inside && inb(hx, hy) && m.x >= gx && m.y >= gy;
+    state.hover = hovering ? idx(hx, hy) : -1;
+
+    // cells
+    for (let i = 0; i < f.cells.length; i++) {
+      const c = f.cells[i]; if (!c) continue;
+      const cx = i % COLS, cy = (i / COLS) | 0;
+      const x = gx + cx * CELL, y = gy + cy * CELL;
+      const def = D.MACHINES[c.t];
+      const rt = f.rt[i];
+      if (c.t === 'belt') {
+        ctx.fillStyle = '#2a2a36'; ctx.fillRect(x + 3, y + 3, CELL - 6, CELL - 6);
+        // moving chevrons
+        const [dx, dy] = DIRS[c.d || 0];
+        for (let k = 0; k < 3; k++) {
+          const ph = ((t * 2 + k / 3) % 1);
+          const px = x + CELL / 2 + dx * (ph - 0.5) * (CELL - 10), py = y + CELL / 2 + dy * (ph - 0.5) * (CELL - 10);
+          ctx.fillStyle = th.mid; ctx.globalAlpha = 0.7;
+          ctx.fillRect(px - 1, py - 1, 3, 3);
+        }
+        ctx.globalAlpha = 1;
+        if (rt.item !== null) {
+          const p2 = rt.prog / BELT_TIME;
+          drawItem(ctx, rt.item, x + CELL / 2 + dx * (p2 - 0.5) * (CELL - 8), y + CELL / 2 + dy * (p2 - 0.5) * (CELL - 8));
+        }
+      } else {
+        ctx.fillStyle = def.col; ctx.globalAlpha = 0.28; ctx.fillRect(x + 2, y + 2, CELL - 4, CELL - 4); ctx.globalAlpha = 1;
+        ctx.strokeStyle = def.col; ctx.strokeRect(x + 2.5, y + 2.5, CELL - 5, CELL - 5);
+        F.draw(ctx, def.name.slice(0, 3).toUpperCase(), x + CELL / 2, y + 5, def.col, { center: true, shadow: false });
+        if (c.t === 'hopper') {
+          if (c.filter !== undefined) drawItem(ctx, c.filter, x + CELL / 2, y + 16);
+          else F.draw(ctx, '?', x + CELL / 2, y + 14, '#ff5a4d', { center: true, shadow: false });
+        } else if (c.t === 'depot') {
+          ctx.fillStyle = th.hi; ctx.globalAlpha = 0.4 + 0.3 * Math.sin(t * 4 + i);
+          ctx.fillRect(x + 8, y + 15, CELL - 16, 4); ctx.globalAlpha = 1;
+        } else {
+          // progress + buffer dots
+          const frac = ready(c, rt) || rt.item !== null ? Math.min(1, rt.work / def.time) : 0;
+          ctx.fillStyle = '#000'; ctx.fillRect(x + 5, y + 19, CELL - 10, 3);
+          ctx.fillStyle = def.col; ctx.fillRect(x + 5, y + 19, Math.round((CELL - 10) * frac), 3);
+          for (let k = 0; k < rt.buf.length; k++) drawItem(ctx, rt.buf[k], x + 7 + k * 6, y + 14);
+          if (rt.item !== null) drawItem(ctx, rt.item, x + CELL - 6, y + 14);
+        }
+        if (c.t !== 'depot' && c.t !== 'belt') {
+          // output direction nub
+          const [dx, dy] = DIRS[c.d || 0];
+          ctx.fillStyle = def.col;
+          ctx.fillRect(x + CELL / 2 + dx * (CELL / 2 - 3) - 1, y + CELL / 2 + dy * (CELL / 2 - 3) - 1, 3, 3);
+        }
+      }
+    }
+
+    // hover + click
+    if (hovering) {
+      const x = gx + hx * CELL, y = gy + hy * CELL;
+      ctx.strokeStyle = state.tool === 'erase' ? '#ff5a4d' : '#ffffff';
+      ctx.strokeRect(x + 0.5, y + 0.5, CELL - 1, CELL - 1);
+      const cur = f.cells[idx(hx, hy)];
+      if (cur) PD.term.state.tip = D.MACHINES[cur.t].name.toUpperCase() + ' -- ' + D.MACHINES[cur.t].blurb.toUpperCase();
+      if (m.leftPressed) place(g, hx, hy, state.tool);
+      if (m.rightPressed) place(g, hx, hy, 'erase');
+    }
+
+    // palette
+    const px = gx + COLS * CELL + 10, tools = Object.keys(D.MACHINES).concat(['erase']);
+    for (let k = 0; k < tools.length; k++) {
+      const tname = tools[k];
+      const y = gy + k * 19;
+      const def = D.MACHINES[tname];
+      const on = state.tool === tname;
+      const r = PD.term.row(ctx, px, y, R.IX + R.IW - px, 18, th, { active: on });
+      ctx.fillStyle = def ? def.col : '#ff5a4d'; ctx.fillRect(px + 3, y + 5, 8, 8);
+      F.draw(ctx, def ? def.name : 'Eraser', px + 15, y + 2, on ? '#ffffff' : th.hi, { shadow: false });
+      F.draw(ctx, def ? '$' + U.fmt(def.cost) : 'REFUND 50%', px + 15, y + 10, th.mid, { shadow: false });
+      if (r.clicked) { state.tool = tname; A.sfx.click(); }
+      if (r.hover && def) PD.term.state.tip = def.blurb.toUpperCase();
+    }
+
+    // stats strip
+    const sy = gy + ROWS * CELL + 6;
+    const machines = f.cells.filter(c => c && c.t !== 'belt').length;
+    let goodsVal = 0, goodsN = 0;
+    for (const k in g.save.goods) {
+      const n = g.save.goods[k];
+      const gd = k.indexOf('raw:') === 0 ? { cr: D.MAT[+k.slice(4)].cr } : D.goodFromKey(k);
+      goodsVal += (gd ? gd.cr : 0) * n; goodsN += n;
+    }
+    F.draw(ctx, 'MACHINES ' + machines + '   PRODUCED ' + U.fmt(f.produced || 0) + '   GOODS IN VAULT ' + U.fmt(goodsN) +
+      '  ($' + U.fmt(Math.round(goodsVal * g.valueMult())) + ')', gx, sy, th.mid, { shadow: false });
+    F.draw(ctx, 'LEFT CLICK PLACE / ROTATE   RIGHT CLICK ERASE   HOPPER CLICK = NEXT ORE', gx, sy + 10, th.lo, { shadow: false });
+  }
+
+  PD.factory = { ensure, tick, app, place, COLS, ROWS, state };
 })(window.PD);
 
 /* ===== src/cutscene.js ===== */
@@ -5102,7 +6364,7 @@ window.PD = window.PD || {};
   const AI = PD.artint;
 
   const VW = 480, VH = 270;
-  const ROOM_W = 720, ROOM_H = 270;
+  const ROOM_W = 840, ROOM_H = 270;
   const FLOOR = ROOM_H - 22;
 
   let bg = null;
@@ -5113,8 +6375,9 @@ window.PD = window.PD || {};
     { id: 'market',  x: 160, spr: 'console',    label: 'CARGO EXCHANGE', app: 'market' },
     { id: 'fab',     x: 300, spr: 'fabricator', label: 'FABRICATOR',     app: 'fab' },
     { id: 'bay',     x: 440, spr: 'dronebay',   label: 'DRONE BAY',      app: 'bay' },
-    { id: 'vanity',  x: 560, spr: 'wardrobe',   label: 'IDENTITY POD',   app: 'vanity' },
-    { id: 'nav',     x: 660, spr: 'navchart',   label: 'NAV COMPUTER',   app: 'nav' }
+    { id: 'refinery', x: 580, spr: 'refinery',  label: 'REFINERY DECK',  app: 'refinery' },
+    { id: 'vanity',  x: 690, spr: 'wardrobe',   label: 'IDENTITY POD',   app: 'vanity' },
+    { id: 'nav',     x: 786, spr: 'navchart',   label: 'NAV COMPUTER',   app: 'nav' }
   ];
 
   const CREW = [
@@ -5125,7 +6388,7 @@ window.PD = window.PD || {};
 
   const DECOR = [
     { x: 108, spr: 'crate', f: 0 }, { x: 128, spr: 'crate', f: 1 },
-    { x: 396, spr: 'crate', f: 1 }, { x: 612, spr: 'plant', f: 0 },
+    { x: 396, spr: 'crate', f: 1 }, { x: 740, spr: 'plant', f: 0 }, { x: 640, spr: 'crate', f: 0 },
     { x: 88, spr: 'plant', f: 0 }
   ];
 
@@ -5142,7 +6405,8 @@ window.PD = window.PD || {};
       'Bring me ore, not excuses. The bin does not fill itself.',
       'I welded that seam twice. Do not make me do it a third time.',
       'Every module you fabricate, I bleed a little coolant. You are welcome.',
-      'Rocks in. Machines out. That is the whole religion.'
+      'Rocks in. Machines out. That is the whole religion.',
+      'Feed the hoppers and the refinery runs itself. Ingots sell for triple. Alloys? Do not ask, just build it.'
     ],
     gloop: [
       'GLOOP chirps and headbutts the glass affectionately.',
@@ -5345,7 +6609,13 @@ window.PD = window.PD || {};
     victory: null,
     sellReport: null,
     droneAcc: 0,
-    fps: 60
+    fps: 60,
+    crates: [],
+    combo: { n: 0, t: 0, mult: 1 },
+    pings: [],                 // scanner hits for the minimap
+    banner: null,              // stratum name card
+    lastStratum: -2,
+    ambT: 0
   };
   PD.game = g;
 
@@ -5359,7 +6629,9 @@ window.PD = window.PD || {};
       vault: {},                                  // ore stockpile aboard the ship
       cos: { suit: 'rose', skin: 'green', glass: 'sky', drill: 'steel', trim: 'stock' },
       owned: {},                                  // purchased cosmetics
-      seenIntro: 0
+      seenIntro: 0,
+      goods: {},                                  // refined output from the refinery deck
+      factory: null                               // machine layout
     };
   }
 
@@ -5383,6 +6655,8 @@ window.PD = window.PD || {};
       base.seenIntro = s.seenIntro ? 1 : 0;
       if (s.vault) for (const k in s.vault) { const n = +s.vault[k]; if (n > 0 && D.MAT[k]) base.vault[k] = n; }
       if (s.owned) base.owned = s.owned;
+      if (s.goods) for (const k in s.goods) { const n = +s.goods[k]; if (n > 0) base.goods[k] = n; }
+      if (s.factory && Array.isArray(s.factory.cells)) base.factory = { cells: s.factory.cells, produced: +s.factory.produced || 0 };
       if (s.cos) for (const k in base.cos) if (s.cos[k]) base.cos[k] = s.cos[k];
       if (s.upg) for (const k in base.upg) base.upg[k] = U.clamp(+s.upg[k] || 0, 0, D.UPG[k].max);
     }
@@ -5390,7 +6664,11 @@ window.PD = window.PD || {};
   }
 
   function saveGame() {
-    try { localStorage.setItem(SAVE_KEY, JSON.stringify(g.save)); } catch (e) { /* private mode */ }
+    try {
+      const f = g.save.factory;
+      const slim = Object.assign({}, g.save, { factory: f ? { cells: f.cells, produced: f.produced || 0 } : null });
+      localStorage.setItem(SAVE_KEY, JSON.stringify(slim));
+    } catch (e) { /* private mode */ }
   }
 
   function wipeSave() {
@@ -5418,6 +6696,7 @@ window.PD = window.PD || {};
     if (g.toasts.length > 4) g.toasts.shift();
   }
   g.toast = toast;
+  g.hint = (k, m) => hint(k, m);
 
   function hint(key, msg) {
     if (g.hintKey === key) { g.hintT = Math.max(g.hintT, 1); return; }
@@ -5432,7 +6711,9 @@ window.PD = window.PD || {};
     g.save.bodyIndex = index;
     const body = D.BODIES[index];
     g.world = new PD.world.World(body, index);
-    g.mobs.length = 0; g.bullets.length = 0; g.pickups.length = 0; g.boulders.length = 0;
+    g.mobs.length = 0; g.bullets.length = 0; g.pickups.length = 0; g.boulders.length = 0; g.crates.length = 0;
+    g.pings.length = 0; g.banner = null; g.lastStratum = -2;
+    g.combo = { n: 0, t: 0, mult: 1 };
     FX.reset();
     g.destruction = null;
     g.victory = null;
@@ -5460,24 +6741,43 @@ window.PD = window.PD || {};
   function spawnMobs() {
     const w = g.world;
     const body = w.body;
-    const cap = Math.min(70, 10 + g.bodyIndex * 6);
+    const cap = Math.min(90, 14 + g.bodyIndex * 7);
+    const scale = 1 + g.bodyIndex * 0.14;
     let tries = 0;
-    while (g.mobs.length < cap && tries < 6000) {
+    while (g.mobs.length < cap && tries < 9000) {
       tries++;
       const cx = U.randInt(2, w.w - 3), cy = U.randInt(PD.world.SKY, w.h - 3);
-      if (w.at(cx, cy)) continue;
-      // must be a real pocket, not open space outside the body
-      const dx = cx - w.cx, dy = cy - w.cy;
-      if (Math.sqrt(dx * dx + dy * dy) > w.radius - 2) continue;
+      const i = w.idx(cx, cy);
+      if (w.at(cx, cy) || !w.inside[i]) continue;
       if (U.dist(cx * TILE, cy * TILE, w.coreCenter.x, w.coreCenter.y) < w.chamberR + TILE) continue;
       if (!U.chance(body.enemyRate * 0.5)) continue;
-      const type = U.weighted(body.mobs);
-      g.mobs.push(new PD.ent.Mob(type, cx * TILE + TILE / 2, cy * TILE + TILE / 2, 1 + g.bodyIndex * 0.14));
+      const L0 = w.strata[w.stratum[i]];
+      const depth = w.stratum[i] / Math.max(1, w.strata.length - 1);
+      let type = U.weighted(body.mobs);
+      const x = cx * TILE + TILE / 2, y = cy * TILE + TILE / 2;
+      // biome flavour: wyrms haunt the hot bands, shellbacks the deep ones, mites the caves
+      if (L0.lava && U.chance(0.35)) type = 'wyrm';
+      else if (depth > 0.5 && U.chance(0.2)) type = 'shellback';
+      else if (U.chance(0.22)) {
+        for (let k = 0; k < 4 + (g.bodyIndex >> 1); k++) g.mobs.push(new PD.ent.Mob('mite', x + U.rand(-10, 10), y + U.rand(-10, 10), scale));
+        continue;
+      }
+      g.mobs.push(new PD.ent.Mob(type, x, y, scale));
+    }
+    // points of interest get guards and loot
+    for (const poi of w.pois) {
+      if (poi.kind !== 'ruin') continue;
+      const fx = (poi.x0 + 1) * TILE + 5, fy = (poi.y0 + poi.h - 1) * TILE + 4;
+      const loot = [];
+      const gems = w.strata.flatMap(L0 => L0.ores).map(o => D.M[o[0]]).filter(m => D.MAT[m].shine);
+      for (let k = 0; k < 4 + g.bodyIndex; k++) loot.push(U.pick(gems.length ? gems : [D.M.gold]));
+      g.crates.push(new PD.ent.Crate(fx + 8, fy, loot));
+      if (poi.w > 9) g.crates.push(new PD.ent.Crate((poi.x0 + poi.w - 2) * TILE + 5, fy, loot.slice(0, 3)));
+      g.mobs.push(new PD.ent.Mob(g.bodyIndex >= 4 ? 'lurker' : 'gnasher', (poi.x0 + (poi.w >> 1)) * TILE, (poi.y0 + 1) * TILE + 6, scale * 1.2));
     }
     if (g.bodyIndex >= 1) {
       const c = w.coreCenter;
-      g.mobs.push(new PD.ent.Mob('guardian', c.x + w.chamberR * 0.5, c.y - w.chamberR * 0.3,
-        0.5 + g.bodyIndex * 0.32));
+      g.mobs.push(new PD.ent.Mob('guardian', c.x + w.chamberR * 0.5, c.y - w.chamberR * 0.3, 0.5 + g.bodyIndex * 0.32));
     }
   }
 
@@ -5553,6 +6853,56 @@ window.PD = window.PD || {};
     for (let i = 0; i < 8; i++) setTimeout(() => A.sfx.coin(i), i * 55);
     PD.term.say('BIN LIQUIDATED: ' + lots + ' LOTS  ->  $' + U.fmt(total), '#39ffa6');
     saveGame();
+  };
+
+  g.sellGood = function (key, qty) {
+    const have = (g.save.goods || {})[key] || 0;
+    qty = Math.min(qty, have);
+    if (qty <= 0) return;
+    const gd = key.indexOf('raw:') === 0 ? { name: D.MAT[+key.slice(4)].name, cr: D.MAT[+key.slice(4)].cr } : D.goodFromKey(key);
+    if (!gd) return;
+    const value = Math.round(gd.cr * qty * g.valueMult());
+    g.save.goods[key] = have - qty;
+    if (g.save.goods[key] <= 0) delete g.save.goods[key];
+    g.save.credits += value; g.save.totalEarned += value;
+    A.sfx.coin(qty % 6);
+    PD.term.say('SOLD ' + qty + ' x ' + gd.name.toUpperCase() + '  ->  $' + U.fmt(value), '#39ffa6');
+    saveGame();
+  };
+  g.sellAllGoods = function () {
+    let total = 0, lots = 0;
+    for (const k in g.save.goods) {
+      const gd = k.indexOf('raw:') === 0 ? { cr: D.MAT[+k.slice(4)].cr } : D.goodFromKey(k);
+      if (!gd) continue;
+      total += Math.round(gd.cr * g.save.goods[k] * g.valueMult()); lots++;
+    }
+    if (!total) { A.sfx.deny(); return; }
+    g.save.goods = {};
+    g.save.credits += total; g.save.totalEarned += total;
+    A.sfx.sell();
+    for (let i = 0; i < 8; i++) setTimeout(() => A.sfx.coin(i), i * 55);
+    PD.term.say('GOODS SOLD: ' + lots + ' LOTS  ->  $' + U.fmt(total), '#39ffa6');
+    saveGame();
+  };
+
+  /* Sonar: paint every valuable tile in range on to the minimap for a while. */
+  g.scan = function (x, y, r) {
+    const w = g.world;
+    const c0 = Math.max(0, Math.floor((x - r) / TILE)), c1 = Math.min(w.w - 1, Math.ceil((x + r) / TILE));
+    const r0 = Math.max(0, Math.floor((y - r) / TILE)), r1 = Math.min(w.h - 1, Math.ceil((y + r) / TILE));
+    let found = 0;
+    for (let cy = r0; cy <= r1; cy++) for (let cx = c0; cx <= c1; cx++) {
+      const m = w.cells[cy * w.w + cx];
+      if (!m || D.MAT[m].cr < 60) continue;
+      if (U.dist2(cx * TILE + 5, cy * TILE + 5, x, y) > r * r) continue;
+      g.pings.push({ cx, cy, mat: m, life: 9 });
+      found++;
+    }
+    FX.ring(x, y, 4, r, 0.8, '#8affa0', 2);
+    FX.ring(x, y, 4, r * 0.6, 0.6, '#8affa0', 1);
+    A.sfx.tone(600, { type: 'sine', to: 1400, dur: 0.5, vol: 0.12 });
+    A.sfx.tone(1400, { type: 'sine', to: 700, dur: 0.4, vol: 0.06, delay: 0.3 });
+    toast(found ? 'SCAN: ' + found + ' DEPOSITS PAINTED' : 'SCAN: NOTHING WORTH DIGGING NEARBY', found ? '#8affa0' : UI.COL.dim);
   };
 
   g.fabricate = function (id) {
@@ -5651,10 +7001,18 @@ window.PD = window.PD || {};
 
   g.onTileBroken = function (cx, cy, mat, byDrill) {
     const w = g.world;
-    const m = D.MAT[mat];
     const x = cx * TILE + TILE / 2, y = cy * TILE + TILE / 2;
+    if (mat < 0) {
+      // magma quenched into basalt
+      FX.burst(x, y, 10, ['#ff7a2a', '#ffd27a', '#5a4a4a'], 80, true);
+      FX.smoke(x, y - 4, 5, '#6a5a5a');
+      A.sfx.noise({ from: 3000, to: 300, dur: 0.3, vol: 0.18 });
+      return;
+    }
+    const m = D.MAT[mat];
 
     if (mat === D.M.core) { beginDestruction(); return; }
+    if (m.cr >= 300) PD.touch.buzz(12);
 
     g.save.totalMined++;
     FX.dust(x, y, m.shine ? 9 : 6, m.c[2], 55);
@@ -5681,7 +7039,14 @@ window.PD = window.PD || {};
   };
 
   g.onMobKilled = function (m) {
-    const bounty = Math.round(m.def.cr * (1 + g.bodyIndex * 0.25) * g.valueMult());
+    // chain kills for a bounty multiplier
+    g.combo.n++;
+    g.combo.t = 2.6;
+    g.combo.mult = 1 + Math.min(4, Math.floor(g.combo.n / 3)) * 0.5;
+    if (g.combo.n % 3 === 0) { FX.text(m.x, m.y - 22, 'x' + g.combo.mult.toFixed(1) + ' COMBO', '#ff8ad8', 1); A.sfx.tone(900 + g.combo.n * 40, { type: 'square', dur: 0.1, vol: 0.1 }); }
+    if (m.type === 'mite') A.sfx.tone(2000, { type: 'square', to: 600, dur: 0.06, vol: 0.06 });
+    PD.touch.buzz(m.def.kind === 'boss' ? 80 : 18);
+    const bounty = Math.round(m.def.cr * (1 + g.bodyIndex * 0.25) * g.valueMult() * g.combo.mult);
     g.save.credits += bounty;
     g.save.totalEarned += bounty;
     FX.text(m.x, m.y - 8, '+$' + U.fmt(bounty), '#ffd34d', 1);
@@ -5692,11 +7057,12 @@ window.PD = window.PD || {};
     A.sfx.killMob();
     if (m.def.kind === 'boss') { A.sfx.boom(1.2); toast('CORE WARDEN DOWN', UI.COL.good); }
     // guts of the beast are worth something
-    const drops = m.def.kind === 'boss' ? 7 : (U.chance(0.5) ? 1 : 0);
+    const drops = m.def.kind === 'boss' ? 7 : (U.chance(0.45) ? 1 : 0);
     for (let i = 0; i < drops; i++) {
       const pool = g.world.body.ores;
       g.pickups.push(new PD.ent.Pickup(m.x, m.y, U.weighted(pool)));
     }
+    if (m.type !== 'mite' && U.chance(m.def.kind === 'boss' ? 1 : 0.3)) g.pickups.push(new PD.ent.Pickup(m.x, m.y, D.M.bio));
   };
 
   g.onPlayerDown = function () {
@@ -5953,6 +7319,9 @@ window.PD = window.PD || {};
     g.uiBlocking = g.state !== 'play';
     handleStateKeys();
 
+    // the refinery deck earns in every state where time passes
+    if (g.state !== 'title' && g.state !== 'cutscene' && g.state !== 'pause') PD.factory.tick(dt, g);
+
     if (g.state === 'cutscene') {
       PD.cutscene.update(dt, g);
       if (PD.cutscene.done) {
@@ -5969,6 +7338,11 @@ window.PD = window.PD || {};
       FX.update(dt, g.world);
       return;
     }
+
+    g.combo.t -= dt;
+    if (g.combo.t <= 0 && g.combo.n) { g.combo.n = 0; g.combo.mult = 1; }
+    for (let i = g.pings.length - 1; i >= 0; i--) { g.pings[i].life -= dt; if (g.pings[i].life <= 0) g.pings.splice(i, 1); }
+    if (g.banner) { g.banner.t -= dt; if (g.banner.t <= 0) g.banner = null; }
 
     if (g.state === 'title' || g.state === 'ending') return;
 
@@ -6008,6 +7382,22 @@ window.PD = window.PD || {};
       b.update(dt, g);
       if (b.dead) g.boulders.splice(i, 1);
     }
+    for (let i = g.crates.length - 1; i >= 0; i--) {
+      const c = g.crates[i];
+      if (Math.abs(c.x - p.x) < VW && Math.abs(c.y - p.y) < VH) c.update(dt, g);
+      if (c.dead) g.crates.splice(i, 1);
+    }
+
+    // stratum banners as you cross into a new band
+    const si = g.world.stratumAt(p.x, p.y);
+    if (si !== g.lastStratum && g.state === 'play') {
+      if (si >= 0 && g.lastStratum !== -2) {
+        g.banner = { text: g.world.strata[si].name, t: 3.2 };
+        A.sfx.tone(220, { type: 'triangle', to: 440, dur: 0.5, vol: 0.1 });
+      }
+      g.lastStratum = si;
+    }
+    ambience(dt);
 
     // heat decays back to rock colour once the fissures stop spreading
     if (!g.destruction && g.world.heatDirty) {
@@ -6068,6 +7458,24 @@ window.PD = window.PD || {};
         if ((e || esc) && g.victory && g.victory.t > 1.0) closeVictory();
         break;
     }
+  }
+
+  /* Drifting motes, embers, snow or spores depending on the band you are in. */
+  function ambience(dt) {
+    const w = g.world, p = g.player;
+    const si = w.stratumAt(p.x, p.y);
+    g.ambT += dt;
+    if (si < 0) {
+      if (U.chance(dt * 4)) FX.spawn({ x: g.cam.x + U.rand(0, VW), y: g.cam.y + U.rand(0, VH), vx: U.rand(-4, 4), vy: U.rand(-4, 4), life: 2, size: 1, color: '#9fb4ff', grav: 0, drag: 1, glow: 1 });
+      return;
+    }
+    const L0 = w.strata[si];
+    const spawn = (n, fn) => { for (let k = 0; k < n; k++) if (U.chance(dt * 6)) fn(g.cam.x + U.rand(-20, VW + 20), g.cam.y + U.rand(-20, VH + 20)); };
+    if (L0.embers) spawn(3, (x, y) => FX.spawn({ x, y, vx: U.rand(-8, 8), vy: U.rand(-40, -14), life: U.rand(1, 2.4), size: U.rand(1, 2), color: U.pick(['#ff9b3d', '#ffd27a', '#ff5a2a']), grav: -0.15, drag: 0.99, glow: 1 }));
+    if (L0.snow) spawn(3, (x, y) => FX.spawn({ x, y, vx: U.rand(-10, 10), vy: U.rand(10, 26), life: U.rand(2, 4), size: U.rand(1, 1.8), color: '#e8fbff', grav: 0.02, drag: 1 }));
+    if (L0.spores) spawn(3, (x, y) => FX.spawn({ x, y, vx: U.rand(-6, 6), vy: U.rand(-8, 6), life: U.rand(2, 4), size: U.rand(1, 2), color: U.pick(['#8affc8', '#5fffb0']), grav: -0.02, drag: 1, glow: 1 }));
+    if (L0.sparkle) spawn(2, (x, y) => FX.spawn({ x, y, vx: 0, vy: U.rand(-3, 3), life: U.rand(0.4, 1), size: 1, color: '#ffffff', grav: 0, drag: 1, glow: 1 }));
+    if (!L0.embers && !L0.snow && !L0.spores) spawn(1, (x, y) => FX.spawn({ x, y, vx: U.rand(-4, 4), vy: U.rand(-3, 3), life: U.rand(2, 4), size: 1, color: '#a09080', grav: 0, drag: 1 }));
   }
 
   function updateCamera(dt, slow) {
@@ -6161,10 +7569,26 @@ window.PD = window.PD || {};
     if (dark < 0.02) return;
 
     lctx.clearRect(0, 0, VW, VH);
-    lctx.fillStyle = 'rgba(3,1,10,' + dark.toFixed(3) + ')';
+    // darkness takes the colour of the band you are in: rust red in the magma
+    // sea, deep blue in the ice, black-green in the glowcap hollows
+    const si = w.stratumAt(p.x, p.y);
+    const tint = si >= 0 ? w.strata[si].tint : '#03010a';
+    const tr = parseInt(tint.slice(1, 3), 16) >> 2, tg = parseInt(tint.slice(3, 5), 16) >> 2, tb = parseInt(tint.slice(5, 7), 16) >> 2;
+    lctx.fillStyle = 'rgba(' + tr + ',' + tg + ',' + tb + ',' + dark.toFixed(3) + ')';
     lctx.fillRect(0, 0, VW, VH);
 
     lctx.globalCompositeOperation = 'destination-out';
+
+    // glowing tiles (magma, crystal, glowcaps, uranium, relics) light their surroundings
+    const gl = w.glows || [];
+    for (let k = 0; k < gl.length; k += 4) {
+      const gx = gl[k], gy = gl[k + 1], gr = gl[k + 2];
+      const gg = lctx.createRadialGradient(gx, gy, 1, gx, gy, gr);
+      gg.addColorStop(0, 'rgba(0,0,0,0.55)');
+      gg.addColorStop(1, 'rgba(0,0,0,0)');
+      lctx.fillStyle = gg;
+      lctx.fillRect(gx - gr, gy - gr, gr * 2, gr * 2);
+    }
     const lamp = p.stat('lamp');
     const px = p.x - cam.x, py = p.y - cam.y;
 
@@ -6258,6 +7682,7 @@ window.PD = window.PD || {};
     drawShip(ctx, cam);
 
     for (const k of g.pickups) k.draw(ctx, cam, g.time);
+    for (const c of g.crates) c.draw(ctx, cam, g.time);
     for (const b of g.boulders) b.draw(ctx, cam);
     for (const m of g.mobs) m.draw(ctx, cam);
     FX.drawWorld(ctx, cam);
@@ -6294,7 +7719,7 @@ window.PD = window.PD || {};
       if (UI.ending(ctx, g, g.time)) { g.state = 'shop'; dock(true); }
     }
 
-    PD.touch.draw(ctx, g.state === 'play' ? 'play' : 'ui');
+    PD.touch.draw(ctx, g.state === 'play' ? 'play' : 'ui', g);
     UI.endFrame();
     blit();
   }

@@ -16,7 +16,8 @@
     fab:    { hi: '#ffb03d', mid: '#c07a20', lo: '#3d2a0d', bg: '#140f04', name: 'FABRICATOR' },
     bay:    { hi: '#58e8ff', mid: '#2b8fae', lo: '#0d2f3d', bg: '#041014', name: 'DRONE BAY' },
     vanity: { hi: '#ff8ad8', mid: '#b0459a', lo: '#3d0d2f', bg: '#140418', name: 'IDENTITY SUITE' },
-    nav:    { hi: '#9ab4ff', mid: '#4f66c0', lo: '#161d3d', bg: '#060818', name: 'NAV COMPUTER' }
+    nav:    { hi: '#9ab4ff', mid: '#4f66c0', lo: '#161d3d', bg: '#060818', name: 'NAV COMPUTER' },
+    refinery: { hi: '#ffd34d', mid: '#b58a1e', lo: '#3a2c0a', bg: '#120e04', name: 'REFINERY DECK' }
   };
 
   const state = {
@@ -29,7 +30,8 @@
     fab: ['RUSTMAW OS 4.21', 'FABRICATOR ARM ONLINE', 'FEEDSTOCK BIN: READING...', 'BOLT SAYS HURRY UP.'],
     bay: ['RUSTMAW OS 4.21', 'DRONE SWARM HANDSHAKE...', 'ALL UNITS NOMINAL', 'THEY NEVER SLEEP.'],
     vanity: ['RUSTMAW OS 4.21', 'IDENTITY SUITE LOADED', 'GENE VAT: WARM', 'LOOK THE PART.'],
-    nav: ['RUSTMAW OS 4.21', 'STELLAR CARTOGRAPHY ONLINE', 'PLOTTING VICTIMS...', 'SELECT A TARGET.']
+    nav: ['RUSTMAW OS 4.21', 'STELLAR CARTOGRAPHY ONLINE', 'PLOTTING VICTIMS...', 'SELECT A TARGET.'],
+    refinery: ['RUSTMAW OS 4.21', 'REFINERY GRID POWER: ON', 'BELT MOTORS SPUN UP', 'ROCK IN. MONEY OUT.']
   };
 
   function open(app) {
@@ -156,50 +158,61 @@
 
   /* ---------------------------------------------------------------- market */
   function appMarket(ctx, g, th, t) {
-    const vault = g.save.vault;
-    const keys = Object.keys(vault).filter(k => vault[k] > 0).sort((a, b) => D.MAT[b].cr - D.MAT[a].cr);
-    F.draw(ctx, 'ORE                QTY    UNIT      VALUE', IX, IY, th.mid, { shadow: false });
-    ctx.fillStyle = th.lo; ctx.fillRect(IX, IY + 9, IW, 1);
+    state.view = state.view || 'raw';
+    if (key(ctx, IX, IY - 2, 70, 12, 'RAW ORE', th, { enabled: state.view !== 'raw' })) state.view = 'raw';
+    if (key(ctx, IX + 74, IY - 2, 96, 12, 'REFINED GOODS', th, { enabled: state.view !== 'goods' })) state.view = 'goods';
+
+    const isRaw = state.view === 'raw';
+    const src = isRaw ? g.save.vault : (g.save.goods || {});
+    const entry = k => {
+      if (isRaw) { const m = D.MAT[k]; return { name: m.name, cr: m.cr, c: m.c, kg: m.kg }; }
+      if (k.indexOf('raw:') === 0) { const m = D.MAT[+k.slice(4)]; return { name: m.name + ' (pass-thru)', cr: m.cr, c: m.c, kg: m.kg }; }
+      const gd = D.goodFromKey(k); return gd ? { name: gd.name, cr: gd.cr, c: gd.c, kg: 0 } : null;
+    };
+    const keys = Object.keys(src).filter(k => src[k] > 0 && entry(k)).sort((a, b) => entry(b).cr - entry(a).cr);
+
+    F.draw(ctx, 'LOT                QTY    UNIT      VALUE', IX, IY + 14, th.mid, { shadow: false });
+    ctx.fillStyle = th.lo; ctx.fillRect(IX, IY + 23, IW, 1);
 
     if (!keys.length) {
-      F.draw(ctx, 'FEEDSTOCK BIN EMPTY.', IX, IY + 22, th.mid, { shadow: false });
-      F.draw(ctx, 'GO BREAK SOMETHING.', IX, IY + 34, th.hi, { shadow: false });
+      F.draw(ctx, isRaw ? 'FEEDSTOCK BIN EMPTY.' : 'NO REFINED GOODS YET.', IX, IY + 34, th.mid, { shadow: false });
+      F.draw(ctx, isRaw ? 'GO BREAK SOMETHING.' : 'BUILD A LINE ON THE REFINERY DECK.', IX, IY + 46, th.hi, { shadow: false });
     }
 
     let total = 0;
-    const maxRows = 9;
+    const maxRows = 8;
     for (let i = 0; i < Math.min(keys.length, maxRows); i++) {
-      const k = keys[i], m = D.MAT[k], n = vault[k];
-      const unit = Math.round(m.cr * g.valueMult());
+      const k = keys[i], e = entry(k), n = src[k];
+      const unit = Math.round(e.cr * g.valueMult());
       const val = unit * n;
       total += val;
-      const y = IY + 14 + i * 13;
+      const y = IY + 28 + i * 13;
       const r = row(ctx, IX, y, IW, 12, th);
-      ctx.fillStyle = m.c[1]; ctx.fillRect(IX + 2, y + 3, 6, 6);
-      ctx.fillStyle = m.c[0]; ctx.fillRect(IX + 2, y + 3, 6, 2);
-      F.draw(ctx, m.name, IX + 12, y + 3, th.hi, { shadow: false });
+      ctx.fillStyle = e.c[1]; ctx.fillRect(IX + 2, y + 3, 6, 6);
+      ctx.fillStyle = e.c[0]; ctx.fillRect(IX + 2, y + 3, 6, 2);
+      if (!isRaw) { ctx.fillStyle = '#ffffff'; ctx.fillRect(IX + 4, y + 5, 2, 2); }
+      F.draw(ctx, e.name.slice(0, 18), IX + 12, y + 3, th.hi, { shadow: false });
       F.draw(ctx, String(n), IX + 128, y + 3, th.hi, { shadow: false });
       F.draw(ctx, '$' + U.fmt(unit), IX + 176, y + 3, th.mid, { shadow: false });
       F.draw(ctx, '$' + U.fmt(val), IX + 262, y + 3, th.hi, { shadow: false });
-      if (key(ctx, IX + IW - 96, y, 44, 12, 'SELL', th)) g.sellFromVault(+k, n);
-      if (key(ctx, IX + IW - 48, y, 46, 12, 'SELL 1', th)) g.sellFromVault(+k, 1);
-      if (r.hover) state.tip = m.name.toUpperCase() + ' -- ' + m.kg + 'KG PER UNIT, $' + U.fmt(unit) + ' EACH';
+      if (key(ctx, IX + IW - 96, y, 44, 12, 'SELL', th)) (isRaw ? g.sellFromVault(+k, n) : g.sellGood(k, n));
+      if (key(ctx, IX + IW - 48, y, 46, 12, 'SELL 1', th)) (isRaw ? g.sellFromVault(+k, 1) : g.sellGood(k, 1));
+      if (r.hover) state.tip = e.name.toUpperCase() + (isRaw ? ' -- ' + e.kg + 'KG PER UNIT, ' : ' -- REFINED, ') + '$' + U.fmt(unit) + ' EACH';
     }
-    if (keys.length > maxRows) {
-      F.draw(ctx, '+' + (keys.length - maxRows) + ' MORE LINES BELOW THE FOLD', IX, IY + 14 + maxRows * 13, th.mid, { shadow: false });
-    }
+    if (keys.length > maxRows) F.draw(ctx, '+' + (keys.length - maxRows) + ' MORE LOTS BELOW THE FOLD', IX, IY + 28 + maxRows * 13, th.mid, { shadow: false });
+    for (let i = maxRows; i < keys.length; i++) total += Math.round(entry(keys[i]).cr * g.valueMult()) * src[keys[i]];
 
-    // ticker footer
-    for (let i = maxRows; i < keys.length; i++) total += Math.round(D.MAT[keys[i]].cr * g.valueMult()) * vault[keys[i]];
     ctx.fillStyle = th.lo; ctx.fillRect(IX, IY + IH - 22, IW, 1);
-    F.draw(ctx, 'BIN TOTAL', IX, IY + IH - 16, th.mid, { shadow: false });
+    F.draw(ctx, isRaw ? 'BIN TOTAL' : 'GOODS TOTAL', IX, IY + IH - 16, th.mid, { shadow: false });
     F.draw(ctx, '$' + U.fmt(total), IX + 90, IY + IH - 16, th.hi, { shadow: false });
-    if (key(ctx, IX + IW - 132, IY + IH - 19, 130, 14, 'LIQUIDATE ENTIRE BIN', th, { enabled: total > 0 })) g.sellAll();
+    if (key(ctx, IX + IW - 132, IY + IH - 19, 130, 14, isRaw ? 'LIQUIDATE ENTIRE BIN' : 'SELL ALL GOODS', th, { enabled: total > 0 })) {
+      if (isRaw) g.sellAll(); else g.sellAllGoods();
+    }
 
     // scrolling relay chatter, so the tube always has something alive on it
     const feed = [
       'GEM PRICES UP ON GRIEF FROM THE INNER WORLDS',
-      'SALVAGE BOARD: NO PROVENANCE REQUIRED',
+      'REFINED ALLOY FETCHES A PREMIUM: NOBODY ASKS WHERE THE ORE CAME FROM',
       'BUYER SEEKS CORE FRAGMENTS. DISCRETION GUARANTEED',
       'INSURERS DECLINE TO COVER "ACTS OF YOU"',
       'RELAY 7 ASKS THAT YOU STOP SELLING PEOPLE THEIR OWN PLANET'
@@ -435,7 +448,8 @@
     }
   }
 
-  const APPS = { market: appMarket, fab: appFab, bay: appBay, vanity: appVanity, nav: appNav };
+  const APPS = { market: appMarket, fab: appFab, bay: appBay, vanity: appVanity, nav: appNav,
+    refinery: (ctx, g, th, t) => PD.factory.app(ctx, g, th, t) };
 
   /* ------------------------------------------------------------------ draw */
   function draw(ctx, g, dt) {
@@ -480,6 +494,7 @@
 
   PD.term = {
     open, close, draw, say, key, row, chrome, glassOver, THEME,
+    rect: { SX, SY, SW, SH, IX, IY, IW, IH },
     get app() { return state.app; },
     get booting() { return state.boot < 1; },
     state

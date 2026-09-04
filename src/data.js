@@ -22,26 +22,113 @@
     { id: 11, key: 'void',   name: 'Voidstone',   hp: 215,  kg: 4.5,  cr: 2600,  c: ['#b98cff', '#7d4fd6', '#4a2591'], shine: 1 },
     { id: 12, key: 'star',   name: 'Starmetal',   hp: 255,  kg: 5.5,  cr: 7200,  c: ['#fff3b0', '#ffc44d', '#e06a1f'], shine: 1 },
     { id: 13, key: 'core',   name: 'Planet Core', hp: 255,  kg: 0,    cr: 0,     c: ['#ffd9a0', '#ff8a3d', '#c93b1c'], shine: 1 },
-    { id: 14, key: 'shell',  name: 'Shellrock',    hp: 190,  kg: 3.0,  cr: 45,    c: ['#5d6b7a', '#46525e', '#333c46'] }
+    { id: 14, key: 'shell',  name: 'Shellrock',   hp: 190,  kg: 3.0,  cr: 45,    c: ['#5d6b7a', '#46525e', '#333c46'] },
+    { id: 15, key: 'basalt', name: 'Basalt',      hp: 62,   kg: 1.3,  cr: 8,     c: ['#5a4a4a', '#3f3336', '#2a2226'] },
+    { id: 16, key: 'obsid',  name: 'Obsidian',    hp: 205,  kg: 1.6,  cr: 58,    c: ['#7a6a9a', '#3a2f52', '#1d1730'], shine: 1 },
+    { id: 17, key: 'lava',   name: 'Magma',       hp: 140,  kg: 0,    cr: 0,     c: ['#ffd27a', '#ff7a2a', '#c93b1c'], hazard: 14, glow: '#ff8a3d', drop: 15 },
+    { id: 18, key: 'ameth',  name: 'Amethyst',    hp: 165,  kg: 1.5,  cr: 480,   c: ['#c9a0ea', '#8455c4', '#4f2a80'], shine: 1 },
+    { id: 19, key: 'diamond',name: 'Diamond',     hp: 245,  kg: 1.2,  cr: 4200,  c: ['#ffffff', '#b8f0ff', '#68b7d8'], shine: 1 },
+    { id: 20, key: 'titan',  name: 'Titanium',    hp: 155,  kg: 3.0,  cr: 240,   c: ['#d8dde8', '#8a94aa', '#5a6378'] },
+    { id: 21, key: 'uran',   name: 'Uranium',     hp: 175,  kg: 4.0,  cr: 1600,  c: ['#d8ff5a', '#7fbf1a', '#3f6a0a'], shine: 1, glow: '#a6ff3d', toxic: 1 },
+    { id: 22, key: 'crystal',name: 'Cave Crystal',hp: 92,   kg: 1.1,  cr: 95,    c: ['#c4dbe6', '#7f9fb4', '#4f6a80'], shine: 1, glow: '#9fc8e0', glowR: 10 },
+    { id: 23, key: 'fossil', name: 'Xeno Fossil', hp: 115,  kg: 1.4,  cr: 2200,  c: ['#f1e6c8', '#c4b48a', '#8a7a52'], shine: 1 },
+    { id: 24, key: 'relic',  name: 'Precursor Relic', hp: 235, kg: 2.0, cr: 26000, c: ['#ffe9a0', '#e0a92b', '#7a4c10'], shine: 1, glow: '#ffd34d' },
+    { id: 25, key: 'frost',  name: 'Permafrost',  hp: 24,   kg: 0.6,  cr: 5,     c: ['#d4eef7', '#a2ccdd', '#6f9db0'] },
+    { id: 26, key: 'aether', name: 'Aetherium',   hp: 255,  kg: 0.9,  cr: 48000, c: ['#ffffff', '#c9a8ff', '#7a4fd6'], shine: 1, glow: '#d8bcff' },
+    { id: 27, key: 'hull',   name: 'Precursor Plate', hp: 215, kg: 2.6, cr: 60,  c: ['#8fa0b8', '#5c6a82', '#3a4456'] },
+    { id: 28, key: 'fungus', name: 'Glowcap',     hp: 18,   kg: 0.4,  cr: 7,     c: ['#6fd9a8', '#2f7f62', '#1a4a3a'], glow: '#5fffb0', glowR: 9 },
+    { id: 29, key: 'bio',    name: 'Bio Sample',  hp: 0,    kg: 0.5,  cr: 340,   c: ['#ff9ecb', '#d64f8a', '#8a2a56'], shine: 1 }
   ];
   const M = {};
   for (const m of MAT) M[m.key] = m.id;
 
   /* ------------------------------------------------------------------ enemies */
   const ENEMY = {
-    crawler: { name: 'Rock Grub',   hp: 14,  dmg: 7,   speed: 20, w: 12, h: 9,  cr: 12,  kind: 'crawl' },
-    floater: { name: 'Void Jelly',  hp: 10,  dmg: 9,   speed: 15, w: 11, h: 13, cr: 18,  kind: 'float' },
-    spitter: { name: 'Spitworm',    hp: 22,  dmg: 6,   speed: 12, w: 13, h: 11, cr: 34,  kind: 'spit' },
-    gnasher: { name: 'Gnasher',     hp: 46,  dmg: 16,  speed: 44, w: 15, h: 12, cr: 80,  kind: 'charge' },
-    lurker:  { name: 'Deep Lurker', hp: 90,  dmg: 22,  speed: 26, w: 19, h: 16, cr: 220, kind: 'spit' },
-    guardian:{ name: 'Core Warden', hp: 320, dmg: 28,  speed: 22, w: 26, h: 24, cr: 900, kind: 'boss' }
+    crawler:  { name: 'Rock Grub',    hp: 16,  dmg: 7,   speed: 22, w: 12, h: 9,  cr: 14,  kind: 'crawl' },
+    floater:  { name: 'Void Jelly',   hp: 12,  dmg: 9,   speed: 16, w: 11, h: 13, cr: 20,  kind: 'float' },
+    spitter:  { name: 'Spitworm',     hp: 26,  dmg: 7,   speed: 12, w: 13, h: 11, cr: 38,  kind: 'spit',   tele: 0.55 },
+    gnasher:  { name: 'Gnasher',      hp: 54,  dmg: 17,  speed: 44, w: 15, h: 12, cr: 90,  kind: 'charge', tele: 0.45 },
+    mite:     { name: 'Cave Mite',    hp: 6,   dmg: 4,   speed: 60, w: 7,  h: 6,  cr: 9,   kind: 'swarm' },
+    shellback:{ name: 'Shellback',    hp: 140, dmg: 20,  speed: 14, w: 20, h: 14, cr: 260, kind: 'crawl',  armor: 0.6 },
+    wyrm:     { name: 'Magma Wyrm',   hp: 120, dmg: 26,  speed: 30, w: 22, h: 14, cr: 420, kind: 'charge', tele: 0.6, fire: 1 },
+    lurker:   { name: 'Deep Lurker',  hp: 110, dmg: 22,  speed: 26, w: 19, h: 16, cr: 240, kind: 'spit',   tele: 0.7 },
+    guardian: { name: 'Core Warden',  hp: 380, dmg: 28,  speed: 22, w: 26, h: 24, cr: 1100, kind: 'boss', tele: 0.8 }
+  };
+
+  /* ---------------------------------------------------------------- strata
+     Worlds are layered like a cake: each stratum is a depth band with its own
+     base rock, ore table, cave density and light. `alt` is a pocket biome
+     that replaces the band wherever the biome noise runs hot, so two dives on
+     the same world never read the same. Depth fractions: 0 surface, 1 core. */
+  function L(name, a, b, fills, ores, caves, tint, extra) {
+    return Object.assign({ name, a, b, fills, ores, caves, tint }, extra || {});
+  }
+  const STRATA = {
+    rock: [
+      L('REGOLITH CRUST', 0, 0.28, [['crust', 5], ['stone', 3]], [['iron', 10], ['copper', 3]], 0.30, '#3a2a20',
+        { alt: { fills: [['stone', 1]], ores: [['iron', 14], ['silver', 2]] } }),
+      L('IRON SEAMS', 0.28, 0.72, [['stone', 4], ['basalt', 2]], [['iron', 12], ['copper', 7], ['silver', 3]], 0.34, '#2a2230',
+        { alt: { fills: [['basalt', 1]], ores: [['copper', 10], ['gold', 2], ['ameth', 1]] } }),
+      L('DENSE MANTLE', 0.72, 1.01, [['basalt', 3], ['shell', 1]], [['silver', 4], ['gold', 2], ['ameth', 1]], 0.26, '#1e1a2a')
+    ],
+    ice: [
+      L('PERMAFROST', 0, 0.3, [['frost', 5], ['ice', 3]], [['iron', 5], ['silver', 3]], 0.32, '#1a2a3a',
+        { alt: { fills: [['ice', 1]], ores: [['crystal', 8], ['sapphire', 2]] }, snow: 1 }),
+      L('CRYSTAL CAVERNS', 0.3, 0.7, [['ice', 3], ['stone', 2], ['crystal', 2]], [['crystal', 9], ['sapphire', 5], ['silver', 4], ['gold', 1]], 0.46, '#15304a',
+        { alt: { fills: [['crystal', 1]], ores: [['sapphire', 6], ['diamond', 1]] }, sparkle: 1 }),
+      L('GLACIAL CORE', 0.7, 1.01, [['ice', 2], ['shell', 2]], [['sapphire', 5], ['diamond', 2], ['titan', 2]], 0.28, '#0e1e34', { snow: 1 })
+    ],
+    metal: [
+      L('SLAG CRUST', 0, 0.26, [['stone', 4], ['basalt', 2]], [['iron', 12], ['copper', 8]], 0.28, '#2a201c'),
+      L('TITANIUM SEAMS', 0.26, 0.68, [['basalt', 3], ['stone', 2]], [['iron', 8], ['titan', 6], ['silver', 5], ['gold', 3]], 0.34, '#241a1c',
+        { alt: { fills: [['shell', 1]], ores: [['titan', 10], ['emerald', 2]] } }),
+      L('OBSIDIAN HEART', 0.68, 1.01, [['obsid', 2], ['basalt', 2], ['shell', 1]], [['gold', 4], ['uran', 2], ['emerald', 2]], 0.3, '#1a1220', { embers: 1 })
+    ],
+    gem: [
+      L('QUARTZ SHELL', 0, 0.24, [['stone', 4], ['crystal', 2]], [['crystal', 8], ['iron', 4], ['gold', 3]], 0.34, '#1e2a30', { sparkle: 1 }),
+      L('JEWEL GALLERIES', 0.24, 0.68, [['stone', 3], ['crystal', 3]], [['emerald', 6], ['sapphire', 6], ['ameth', 5], ['gold', 4], ['ruby', 2]], 0.5, '#182a2e',
+        { alt: { fills: [['crystal', 1]], ores: [['ruby', 5], ['diamond', 2]] }, sparkle: 1 }),
+      L('DIAMOND ROOT', 0.68, 1.01, [['shell', 2], ['obsid', 2]], [['ruby', 5], ['diamond', 3], ['void', 2]], 0.3, '#14182a')
+    ],
+    moon: [
+      L('DEAD REGOLITH', 0, 0.3, [['crust', 4], ['basalt', 3]], [['iron', 6], ['titan', 3], ['silver', 3]], 0.28, '#24242e'),
+      L('FOSSIL BEDS', 0.3, 0.7, [['basalt', 3], ['stone', 3]], [['fossil', 2], ['gold', 4], ['sapphire', 4], ['ruby', 3]], 0.38, '#20202c',
+        { alt: { fills: [['shell', 1]], ores: [['fossil', 4], ['void', 3]] } }),
+      L('HOLLOW MANTLE', 0.7, 1.01, [['shell', 3], ['obsid', 1]], [['ruby', 4], ['void', 4], ['uran', 2], ['star', 1]], 0.44, '#181828')
+    ],
+    terra: [
+      L('TOPSOIL', 0, 0.2, [['crust', 5], ['stone', 3]], [['iron', 6], ['copper', 5], ['gold', 2]], 0.3, '#2a2a1a'),
+      L('GLOWCAP HOLLOWS', 0.2, 0.46, [['stone', 3], ['fungus', 3]], [['emerald', 6], ['copper', 4], ['crystal', 3]], 0.52, '#12301f',
+        { alt: { fills: [['fungus', 1]], ores: [['emerald', 8]] }, spores: 1 }),
+      L('CRYSTAL VAULTS', 0.46, 0.7, [['stone', 2], ['crystal', 3]], [['sapphire', 5], ['ameth', 5], ['gold', 4]], 0.44, '#152a34', { sparkle: 1 }),
+      L('MAGMA SEA', 0.7, 0.9, [['basalt', 4], ['obsid', 1]], [['ruby', 7], ['gold', 3], ['void', 3]], 0.36, '#301410', { lava: 0.12, embers: 1 }),
+      L('CORE SHELL', 0.9, 1.01, [['shell', 3], ['obsid', 1]], [['void', 5], ['star', 2], ['diamond', 1]], 0.26, '#1a1220')
+    ],
+    volcanic: [
+      L('ASH CRUST', 0, 0.22, [['basalt', 5], ['crust', 2]], [['iron', 5], ['copper', 4], ['obsid', 3]], 0.3, '#2a1a16', { embers: 1 }),
+      L('LAVA TUBES', 0.22, 0.62, [['basalt', 4], ['obsid', 2]], [['ruby', 7], ['gold', 4], ['titan', 3], ['void', 2]], 0.5, '#33150e',
+        { lava: 0.16, embers: 1, alt: { fills: [['obsid', 1]], ores: [['ruby', 8], ['diamond', 1]] } }),
+      L('OBSIDIAN MANTLE', 0.62, 1.01, [['obsid', 3], ['shell', 2]], [['void', 6], ['star', 3], ['uran', 2]], 0.3, '#1e1020', { lava: 0.05, embers: 1 })
+    ],
+    titan: [
+      L('CRYSTAL RIND', 0, 0.3, [['crystal', 4], ['shell', 1]], [['sapphire', 6], ['ameth', 5], ['titan', 3]], 0.4, '#1c2440', { sparkle: 1 }),
+      L('PRISM GALLERIES', 0.3, 0.72, [['crystal', 3], ['obsid', 2]], [['ruby', 5], ['diamond', 4], ['void', 5], ['star', 2]], 0.52, '#1e1a44',
+        { sparkle: 1, alt: { fills: [['shell', 1]], ores: [['diamond', 5], ['aether', 1]] } }),
+      L('AETHER WELL', 0.72, 1.01, [['obsid', 2], ['shell', 2]], [['void', 6], ['star', 4], ['aether', 1]], 0.34, '#160f30')
+    ],
+    core: [
+      L('IRRADIATED SHELL', 0, 0.3, [['shell', 4], ['obsid', 2]], [['uran', 5], ['titan', 4], ['void', 3]], 0.3, '#221a10', { embers: 1 }),
+      L('STARMETAL VEINS', 0.3, 0.72, [['shell', 3], ['obsid', 3]], [['star', 8], ['void', 6], ['ruby', 3], ['diamond', 2]], 0.4, '#2a1a14',
+        { lava: 0.06, embers: 1, alt: { fills: [['obsid', 1]], ores: [['aether', 2], ['star', 6]] } }),
+      L('THE HEART', 0.72, 1.01, [['shell', 3], ['obsid', 1]], [['star', 6], ['aether', 2], ['void', 3]], 0.3, '#1a0c18')
+    ]
   };
 
   /* ------------------------------------------------------------------- bodies
      Each entry is one drillable world. Destroy its core to unlock the next. */
   const BODIES = [
     {
-      name: 'Pebble-7', kind: 'Asteroid', radius: 15, gravity: 34, coreHp: 260,
+      name: 'Pebble-7', kind: 'Asteroid', type: 'rock', radius: 20, poi: { geode: 1, fossil: 0, ruin: 0 }, gravity: 34, coreHp: 260,
       reward: 1200, dominion: 0.4, caves: 0.30, enemyRate: 0.22, drillTier: 0,
       sky: '#0b0720', tint: '#8a6a4f',
       blurb: 'A crumb of rock. Warm up the drill.',
@@ -49,7 +136,7 @@
       mobs: [['crawler', 6], ['floater', 3]]
     },
     {
-      name: 'Rustclod', kind: 'Asteroid', radius: 20, gravity: 40, coreHp: 700,
+      name: 'Rustclod', kind: 'Asteroid', type: 'rock', radius: 27, poi: { geode: 1, fossil: 1, ruin: 0 }, gravity: 40, coreHp: 700,
       reward: 4200, dominion: 0.8, caves: 0.34, enemyRate: 0.3, drillTier: 1,
       sky: '#160a1c', tint: '#9c6a54',
       blurb: 'Iron-fat and full of grubs.',
@@ -57,7 +144,7 @@
       mobs: [['crawler', 6], ['floater', 4], ['spitter', 2]]
     },
     {
-      name: 'Glacius Minor', kind: 'Ice Shard', radius: 25, gravity: 44, coreHp: 1600,
+      name: 'Glacius Minor', kind: 'Ice Shard', type: 'ice', radius: 34, poi: { geode: 2, fossil: 1, ruin: 1 }, gravity: 44, coreHp: 1600,
       reward: 12000, dominion: 1.4, caves: 0.42, enemyRate: 0.34, drillTier: 2,
       sky: '#061423', tint: '#79c4de',
       blurb: 'Slick, hollow and humming with cold.',
@@ -65,7 +152,7 @@
       mobs: [['floater', 6], ['crawler', 3], ['spitter', 3]]
     },
     {
-      name: 'Forge Husk', kind: 'Metal Rock', radius: 31, gravity: 52, coreHp: 3600,
+      name: 'Forge Husk', kind: 'Metal Rock', type: 'metal', radius: 42, poi: { geode: 1, fossil: 1, ruin: 1 }, gravity: 52, coreHp: 3600,
       reward: 34000, dominion: 2.2, caves: 0.36, enemyRate: 0.4, drillTier: 3,
       sky: '#1c0d0a', tint: '#c67a3d',
       blurb: 'Somebody smelted this thing. Badly.',
@@ -73,7 +160,7 @@
       mobs: [['crawler', 4], ['spitter', 5], ['gnasher', 3]]
     },
     {
-      name: 'Gemworld Shard', kind: 'Fragment', radius: 37, gravity: 58, coreHp: 8000,
+      name: 'Gemworld Shard', kind: 'Fragment', type: 'gem', radius: 50, poi: { geode: 4, fossil: 1, ruin: 1 }, gravity: 58, coreHp: 8000,
       reward: 96000, dominion: 3.4, caves: 0.46, enemyRate: 0.44, drillTier: 4,
       sky: '#101a2e', tint: '#33c470',
       blurb: 'Every wall is a jewellery shop.',
@@ -81,7 +168,7 @@
       mobs: [['spitter', 5], ['gnasher', 4], ['floater', 4], ['lurker', 1]]
     },
     {
-      name: 'Mourn, the Dead Moon', kind: 'Moon', radius: 46, gravity: 70, coreHp: 20000,
+      name: 'Mourn, the Dead Moon', kind: 'Moon', type: 'moon', radius: 60, poi: { geode: 2, fossil: 4, ruin: 2 }, gravity: 70, coreHp: 20000,
       reward: 290000, dominion: 6.0, caves: 0.4, enemyRate: 0.5, drillTier: 5,
       sky: '#0a0e1d', tint: '#b3c4d8',
       blurb: 'Something used to live here. Rude of it.',
@@ -89,7 +176,7 @@
       mobs: [['gnasher', 6], ['lurker', 3], ['spitter', 4], ['floater', 3]]
     },
     {
-      name: 'Terra Prime', kind: 'Planet', radius: 56, gravity: 86, coreHp: 60000,
+      name: 'Terra Prime', kind: 'Planet', type: 'terra', radius: 72, poi: { geode: 3, fossil: 2, ruin: 3 }, gravity: 86, coreHp: 60000,
       reward: 950000, dominion: 12.0, caves: 0.44, enemyRate: 0.56, drillTier: 6,
       sky: '#04121a', tint: '#3fa84f',
       blurb: 'Inhabited! Well. Formerly inhabited.',
@@ -97,7 +184,7 @@
       mobs: [['gnasher', 6], ['lurker', 6], ['spitter', 3], ['floater', 2]]
     },
     {
-      name: 'Cinder Majoris', kind: 'Volcanic', radius: 66, gravity: 104, coreHp: 165000,
+      name: 'Cinder Majoris', kind: 'Volcanic', type: 'volcanic', radius: 84, poi: { geode: 2, fossil: 1, ruin: 2 }, gravity: 104, coreHp: 165000,
       reward: 3200000, dominion: 20.0, caves: 0.5, enemyRate: 0.62, drillTier: 7,
       sky: '#1e0708', tint: '#e8425f',
       blurb: 'Molten, screaming, extremely profitable.',
@@ -105,7 +192,7 @@
       mobs: [['lurker', 8], ['gnasher', 6], ['spitter', 3]]
     },
     {
-      name: 'The Crystal Titan', kind: 'Superplanet', radius: 78, gravity: 122, coreHp: 480000,
+      name: 'The Crystal Titan', kind: 'Superplanet', type: 'titan', radius: 98, poi: { geode: 6, fossil: 1, ruin: 3 }, gravity: 122, coreHp: 480000,
       reward: 12500000, dominion: 27.0, caves: 0.46, enemyRate: 0.68, drillTier: 8,
       sky: '#150a2b', tint: '#7d4fd6',
       blurb: 'A world-sized gem. Break it. Break it now.',
@@ -113,7 +200,7 @@
       mobs: [['lurker', 9], ['gnasher', 5], ['floater', 3]]
     },
     {
-      name: 'Galactic Heart', kind: 'Core World', radius: 90, gravity: 140, coreHp: 1600000,
+      name: 'Galactic Heart', kind: 'Core World', type: 'core', radius: 112, poi: { geode: 3, fossil: 2, ruin: 4 }, gravity: 140, coreHp: 1600000,
       reward: 60000000, dominion: 26.8, caves: 0.4, enemyRate: 0.75, drillTier: 9,
       sky: '#2a0a16', tint: '#ffc44d',
       blurb: 'The galaxy keeps its savings here.',
@@ -174,6 +261,30 @@
       show: l => (1 / (0.34 - l * 0.028)).toFixed(1) + ' shots/s'
     },
     {
+      id: 'scatter', name: 'Scattergun', icon: 'scatter', max: 10, base: 900, growth: 1.7, mats: [['iron', 8], ['copper', 6]], late: ['titan', 2],
+      blurb: 'Five-pellet spread. Level 1 unlocks the weapon; swap with Q.',
+      value: l => l === 0 ? 0 : 5 + l * 3.2,
+      show: l => l === 0 ? 'LOCKED' : (5 + l * 3.2).toFixed(0) + ' dmg x5'
+    },
+    {
+      id: 'lance', name: 'Plasma Lance', icon: 'lance', max: 10, base: 4800, growth: 1.72, mats: [['silver', 6], ['crystal', 6]], late: ['diamond', 1],
+      blurb: 'Charged piercing beam that also carves rock. Level 1 unlocks it.',
+      value: l => l === 0 ? 0 : 40 + l * 26,
+      show: l => l === 0 ? 'LOCKED' : (40 + l * 26) + ' dmg beam'
+    },
+    {
+      id: 'dash', name: 'Burst Jets', icon: 'dash', max: 8, base: 520, growth: 1.6, mats: [['copper', 5], ['iron', 4]], late: ['titan', 2],
+      blurb: 'Shift / double-tap for an invulnerable burst. Shorter cooldown per level.',
+      value: l => 1.6 - l * 0.13,
+      show: l => (1.6 - l * 0.13).toFixed(2) + 's cooldown'
+    },
+    {
+      id: 'scanner', name: 'Ore Scanner', icon: 'scan', max: 8, base: 380, growth: 1.6, mats: [['copper', 4], ['silver', 2]], late: ['crystal', 4],
+      blurb: 'Tab pulses a sonar ping that paints ore on the minimap.',
+      value: l => 70 + l * 22,
+      show: l => (70 + l * 22) + ' px ping'
+    },
+    {
       id: 'lamp', mats: [['crust', 8], ['copper', 2]], late: ['emerald', 2], name: 'Headlamp', icon: 'lamp', max: 8, base: 160, growth: 1.55,
       blurb: 'See the thing that is about to eat you.',
       value: l => 62 + l * 15,
@@ -217,6 +328,41 @@
       out.push({ mat: M[u.late[0]], qty: Math.ceil(u.late[1] * Math.pow(1.4, level - 5)) });
     }
     return out;
+  }
+
+  /* ---------------------------------------------------------------- factory
+     The refinery deck: machines sit on a grid, belts carry ore between them,
+     and everything that reaches a depot becomes refined goods worth multiples
+     of the raw price. Runs in real time whether you are aboard or not. */
+  const MACHINES = {
+    belt:    { name: 'Conveyor',    cost: 40,     blurb: 'Moves items one way. Click again to rotate.', col: '#7c88a8' },
+    hopper:  { name: 'Hopper',      cost: 300,    blurb: 'Pulls one ore type from the bin on to the belt ahead. Click to change ore.', col: '#ffb03d' },
+    smelter: { name: 'Smelter',     cost: 1200,   blurb: 'Metal ore in, ingot out. x2.6 value.', col: '#ff7a2a', time: 2.2, kind: 'smelt' },
+    crusher: { name: 'Crusher',     cost: 800,    blurb: 'Rock in, concentrate out. Makes junk worth something. x4.', col: '#9aa3c4', time: 1.4, kind: 'crush' },
+    cutter:  { name: 'Gem Cutter',  cost: 4500,   blurb: 'Rough gem in, cut stone out. x3.2 value.', col: '#8fb6ff', time: 3.0, kind: 'cut' },
+    forge:   { name: 'Alloy Forge', cost: 16000,  blurb: 'Two different ingots in, alloy out. x2.4 on the pair.', col: '#ff5fa8', time: 3.4, kind: 'alloy' },
+    depot:   { name: 'Depot',       cost: 200,    blurb: 'Items arriving here go to the goods vault for sale.', col: '#39ffa6' }
+  };
+  const METALS = ['iron', 'copper', 'silver', 'gold', 'titan', 'star'];
+  const GEMS = ['emerald', 'sapphire', 'ruby', 'ameth', 'diamond', 'void', 'crystal', 'obsid', 'fossil'];
+  const JUNK = ['crust', 'stone', 'basalt', 'shell', 'ice', 'frost', 'fungus'];
+
+  /* Refined goods are keyed strings so they can live beside raw ore in a save. */
+  function goodOf(kind, matA, matB) {
+    if (kind === 'ingot') return { key: 'ingot:' + matA, name: MAT[matA].name + ' Ingot', cr: Math.round(MAT[matA].cr * 2.6), c: MAT[matA].c };
+    if (kind === 'conc') return { key: 'conc:' + matA, name: MAT[matA].name + ' Concentrate', cr: Math.round(MAT[matA].cr * 4 + 6), c: MAT[matA].c };
+    if (kind === 'cut') return { key: 'cut:' + matA, name: 'Cut ' + MAT[matA].name, cr: Math.round(MAT[matA].cr * 3.2), c: MAT[matA].c };
+    if (kind === 'alloy') {
+      const a = Math.min(matA, matB), b = Math.max(matA, matB);
+      return { key: 'alloy:' + a + ':' + b, name: MAT[a].name + '-' + MAT[b].name + ' Alloy',
+        cr: Math.round((MAT[a].cr + MAT[b].cr) * 2.6 * 2.4), c: MAT[b].c };
+    }
+    return null;
+  }
+  function goodFromKey(key) {
+    const parts = key.split(':');
+    if (parts[0] === 'alloy') return goodOf('alloy', +parts[1], +parts[2]);
+    return goodOf({ ingot: 'ingot', conc: 'conc', cut: 'cut' }[parts[0]], +parts[1]);
   }
 
   /* --------------------------------------------------------------- cosmetics
@@ -299,5 +445,6 @@
       save.destroyed.filter(Boolean).length * 250000));
   }
 
-  PD.data = { MAT, M, ENEMY, BODIES, UPGRADES, UPG, upgradeCost, recipe, COSMETICS, COS, TITLES, titleFor, bountyFor };
+  PD.data = { MAT, M, ENEMY, BODIES, UPGRADES, UPG, upgradeCost, recipe, COSMETICS, COS, TITLES, titleFor, bountyFor,
+    STRATA, MACHINES, METALS, GEMS, JUNK, goodOf, goodFromKey };
 })(window.PD);

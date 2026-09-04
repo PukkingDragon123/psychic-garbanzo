@@ -331,6 +331,105 @@
   }
   reg('warden', [buildWarden(0), buildWarden(1)], 20, 18);
 
+  /* CAVE MITE: tiny, fast, comes in clouds. */
+  function buildMite(phase) {
+    const p = pix(10, 9);
+    p.ellipse(5, 4, 3.6, 2.6, C.limeD);
+    p.ellipse(5, 3.6, 3, 2, C.lime);
+    p.set(6, 3, C.eye); p.set(4, 3, C.eye);
+    const f = phase ? 1 : -1;
+    p.line(1, 4, 0, 2 + f, C.ink2); p.line(9, 4, 10, 2 - f, C.ink2);
+    p.line(2, 6, 1, 8, C.ink2); p.line(8, 6, 9, 8, C.ink2);
+    p.outline(C.ink);
+    return p;
+  }
+  reg('mite', [buildMite(0), buildMite(1)], 5, 4);
+
+  /* SHELLBACK: armoured slab of a beast; shots glance off the carapace. */
+  function buildShellback(phase) {
+    const p = pix(28, 20);
+    const lift = phase ? 1 : 0;
+    for (let i = 0; i < 4; i++) {
+      const lx = 5 + i * 6, d = ((i + phase) % 2) ? 1 : 0;
+      p.line(lx, 15, lx - 1, 19 - d, C.ink2);
+    }
+    p.ellipse(13, 10, 12, 7, C.metDD);
+    p.ellipse(13, 9 - lift, 11, 6, C.metD);
+    for (let i = 0; i < 3; i++) p.round(4 + i * 7, 4 - lift, 5, 5, 2, C.met);   // plates
+    p.rect(3, 9 - lift, 20, 1, C.metDD);
+    // head at the right
+    p.ellipse(24, 12, 3.4, 2.8, C.orangeD);
+    p.ellipse(24.5, 11.5, 2.6, 2, C.orange);
+    p.set(25, 11, C.eye); p.set(26, 11, C.eye);
+    p.rect(26, 13, 2, 1, C.redD);
+    p.outline(C.ink);
+    return p;
+  }
+  reg('shellback', [buildShellback(0), buildShellback(1)], 14, 12);
+
+  /* MAGMA WYRM: lives in the lava, bursts out to bite. */
+  function buildWyrm(phase) {
+    const p = pix(30, 20);
+    const und = phase ? 1 : 0;
+    // segmented body trailing left
+    for (let i = 0; i < 4; i++) {
+      const bx = 4 + i * 5, by = 12 + Math.sin(i * 1.4 + und) * 2;
+      p.disc(bx, by, 3.4 - i * 0.3, C.redD);
+      p.disc(bx, by - 1, 2.4 - i * 0.25, C.orange);
+    }
+    // head
+    p.ellipse(22, 9 - und, 6.5, 5, C.redD);
+    p.ellipse(22, 8 - und, 5.5, 4, C.orange);
+    p.ellipse(21, 5 - und, 2.6, 1.2, C.gold);
+    p.round(24, 8 - und, 6, 4 + und, 1, C.ink2);           // maw
+    for (let i = 0; i < 3; i++) p.set(25 + i * 2, 8 - und, C.white);
+    p.ellipse(21, 7 - und, 1.5, 1.7, C.eye); p.set(22, 6 - und, C.gold);
+    p.spike(18, 1 - und, 4, 4, -1, C.redD);
+    p.outline(C.ink);
+    return p;
+  }
+  reg('wyrm', [buildWyrm(0), buildWyrm(1)], 15, 11);
+
+  /* SCATTERGUN and LANCE: the other two things you point at problems. */
+  function buildScatter(charge) {
+    const p = pix(20, 11);
+    p.round(0, 3, 12, 6, 2, C.metDD);
+    p.rect(2, 4, 6, 2, C.met);
+    p.rect(3, 8, 3, 3, C.suitD);
+    p.rect(12, 3, 6, 3, C.metD); p.rect(12, 6, 6, 3, C.metD);
+    p.rect(17, 4, 2, 1, charge ? C.orange : C.orangeD); p.rect(17, 7, 2, 1, charge ? C.orange : C.orangeD);
+    p.rect(6, 2, 4, 2, C.orangeD);
+    p.outline(C.ink);
+    return p;
+  }
+  reg('scatter', [buildScatter(false), buildScatter(true)], 3, 6);
+
+  function buildLance(charge) {
+    const p = pix(24, 11);
+    p.round(0, 3, 10, 6, 2, C.metDD);
+    p.rect(2, 4, 5, 2, C.met);
+    p.rect(3, 8, 3, 3, C.suitD);
+    p.rect(10, 4, 10, 4, C.metD);
+    for (let i = 0; i < 3; i++) p.rect(11 + i * 3, 5, 2, 2, charge ? C.purple : C.purpleD);
+    p.rect(20, 3, 3, 6, charge ? C.cyan : C.cyanD);
+    p.outline(C.ink);
+    return p;
+  }
+  reg('lance', [buildLance(false), buildLance(true)], 3, 6);
+
+  /* LOOT CRATE: precursor supply case. */
+  function buildCrate(open) {
+    const p = pix(16, 13);
+    p.round(1, 3, 14, 10, 2, C.metDD);
+    p.rect(3, 5, 10, 2, open ? C.gold : C.metD);
+    p.rect(1, 2, 14, 2, open ? C.gold : C.metD);
+    p.rect(7, 2, 2, 11, C.metDD);
+    p.set(7, 6, open ? C.gold : C.orange); p.set(8, 6, open ? C.gold : C.orange);
+    p.outline(C.ink);
+    return p;
+  }
+  reg('crate', [buildCrate(false), buildCrate(true)], 8, 7);
+
   /* ------------------------------------------------------------------ pickups
      One small gem sprite per material tint, plus a generic rubble nugget. */
   function buildGem(cols) {
@@ -380,6 +479,10 @@
   icon('lamp', p => { p.round(2, 4, 6, 8, 2, C.metD); p.spike(11, 8, 12, 8, 1, C.gold); p.rect(4, 6, 2, 4, C.white); });
   icon('magnet', p => { p.round(2, 2, 12, 10, 4, C.red); p.rect(5, 7, 6, 7, null); p.rect(2, 10, 4, 4, C.met); p.rect(10, 10, 4, 4, C.met); });
   icon('drone', p => { p.round(4, 5, 8, 6, 2, C.met); p.disc(8, 8, 2, C.cyan); p.rect(0, 3, 5, 1, C.metD); p.rect(11, 3, 5, 1, C.metD); });
+  icon('scatter', p => { p.round(1, 5, 9, 6, 2, C.metDD); p.rect(9, 5, 6, 2, C.metD); p.rect(9, 8, 6, 2, C.metD); p.rect(3, 10, 3, 4, C.suitD); });
+  icon('lance', p => { p.round(1, 6, 8, 5, 2, C.metDD); p.rect(8, 7, 7, 3, C.purpleD); p.rect(14, 5, 2, 7, C.cyan); p.rect(3, 10, 3, 4, C.suitD); });
+  icon('dash', p => { p.round(6, 4, 8, 8, 3, C.met); p.spike(4, 8, 6, 5, 1, C.orange); p.rect(0, 6, 4, 1, C.gold); p.rect(0, 9, 4, 1, C.gold); p.rect(1, 12, 3, 1, C.gold); });
+  icon('scan', p => { p.disc(8, 8, 7, C.metDD); p.disc(8, 8, 5, C.ink2); p.disc(8, 8, 2, C.cyan); for (let a = 0; a < 6.3; a += 0.8) p.set(8 + Math.cos(a) * 5, 8 + Math.sin(a) * 5, C.cyanD); p.line(8, 8, 12, 4, C.cyan); });
   icon('claw', p => { p.rect(7, 1, 2, 6, C.metD); p.line(7, 7, 3, 13, C.met); p.line(9, 7, 13, 13, C.met); p.rect(2, 12, 3, 3, C.orange); p.rect(11, 12, 3, 3, C.orange); });
 
   /* ------------------------------------------------------------ cosmetics

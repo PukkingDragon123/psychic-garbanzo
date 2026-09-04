@@ -32,7 +32,7 @@
       const c = code(e);
       if (!keys[c]) pressed[c] = true;
       keys[c] = true;
-      if (['space', 'up', 'down', 'left', 'right', 'Tab'].indexOf(c) >= 0) e.preventDefault();
+      if (['space', 'up', 'down', 'left', 'right', 'Tab', 'shift'].indexOf(c) >= 0) e.preventDefault();
       if (firstTouch) firstTouch();
     });
     window.addEventListener('keyup', e => {
@@ -78,6 +78,7 @@
 
   const down = k => !!keys[k];
   const hit = k => !!pressed[k];
+  const pressedSet = k => { pressed[k] = true; };
 
-  PD.input = { keys, mouse, attach, endFrame, down, hit, onFirstInteraction };
+  PD.input = { keys, mouse, attach, endFrame, down, hit, pressedSet, onFirstInteraction };
 })(window.PD);
