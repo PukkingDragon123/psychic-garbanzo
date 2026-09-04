@@ -65,7 +65,7 @@
       mobs: [['floater', 6], ['crawler', 3], ['spitter', 3]]
     },
     {
-      name: 'Forge Husk', kind: 'Metal Asteroid', radius: 31, gravity: 52, coreHp: 3600,
+      name: 'Forge Husk', kind: 'Metal Rock', radius: 31, gravity: 52, coreHp: 3600,
       reward: 34000, dominion: 2.2, caves: 0.36, enemyRate: 0.4, drillTier: 3,
       sky: '#1c0d0a', tint: '#c67a3d',
       blurb: 'Somebody smelted this thing. Badly.',
@@ -97,7 +97,7 @@
       mobs: [['gnasher', 6], ['lurker', 6], ['spitter', 3], ['floater', 2]]
     },
     {
-      name: 'Cinder Majoris', kind: 'Volcanic World', radius: 66, gravity: 104, coreHp: 165000,
+      name: 'Cinder Majoris', kind: 'Volcanic', radius: 66, gravity: 104, coreHp: 165000,
       reward: 3200000, dominion: 20.0, caves: 0.5, enemyRate: 0.62, drillTier: 7,
       sky: '#1e0708', tint: '#e8425f',
       blurb: 'Molten, screaming, extremely profitable.',
@@ -126,73 +126,73 @@
      value(level) returns the derived stat; cost grows geometrically.        */
   const UPGRADES = [
     {
-      id: 'drill', name: 'Drill Bit', icon: 'drill', max: 12, base: 220, growth: 1.62,
+      id: 'drill', mats: [['iron', 4], ['stone', 8]], late: ['void', 1], name: 'Drill Bit', icon: 'drill', max: 12, base: 220, growth: 1.62,
       blurb: 'Chews tiles faster and cracks harder rock.',
       value: l => 110 + l * 32,
       show: l => (110 + l * 32) + ' dmg/s'
     },
     {
-      id: 'reach', name: 'Drill Arm', icon: 'arm', max: 8, base: 340, growth: 1.7,
+      id: 'reach', mats: [['iron', 5], ['copper', 3]], late: ['void', 1], name: 'Drill Arm', icon: 'arm', max: 8, base: 340, growth: 1.7,
       blurb: 'Longer arm, wider bore -- eats 2 tiles at once at high tiers.',
       value: l => 14 + l * 2.6,
       show: l => (14 + l * 2.6).toFixed(1) + ' PX BORE'
     },
     {
-      id: 'oxygen', name: 'O2 Tank', icon: 'tank', max: 14, base: 190, growth: 1.55,
+      id: 'oxygen', mats: [['ice', 6], ['silver', 2]], late: ['sapphire', 2], name: 'O2 Tank', icon: 'tank', max: 14, base: 190, growth: 1.55,
       blurb: 'More air means deeper runs before the panic sets in.',
       value: l => 110 + l * 30,
       show: l => Math.round(110 + l * 30) + ' O2'
     },
     {
-      id: 'cargo', name: 'Cargo Pod', icon: 'pod', max: 14, base: 240, growth: 1.6,
+      id: 'cargo', mats: [['crust', 10], ['iron', 4]], late: ['shell', 4], name: 'Cargo Pod', icon: 'pod', max: 14, base: 240, growth: 1.6,
       blurb: 'Haul more loot per trip. Heavy pockets, heavy heart.',
       value: l => 30 + l * 18,
       show: l => Math.round(30 + l * 18) + ' kg'
     },
     {
-      id: 'hull', name: 'Hull Plate', icon: 'hull', max: 12, base: 260, growth: 1.6,
+      id: 'hull', mats: [['iron', 6], ['shell', 3]], late: ['star', 1], name: 'Hull Plate', icon: 'hull', max: 12, base: 260, growth: 1.6,
       blurb: 'Survive more bites, blasts and falling boulders.',
       value: l => 50 + l * 26,
       show: l => Math.round(50 + l * 26) + ' HP'
     },
     {
-      id: 'thruster', name: 'Thrusters', icon: 'thrust', max: 10, base: 300, growth: 1.62,
+      id: 'thruster', mats: [['copper', 5], ['gold', 2]], late: ['void', 2], name: 'Thrusters', icon: 'thrust', max: 10, base: 300, growth: 1.62,
       blurb: 'Punch harder against gravity, even loaded down.',
       value: l => 300 + l * 52,
       show: l => '+' + (l * 17) + '% thrust'
     },
     {
-      id: 'pistol', name: 'Plasma Pistol', icon: 'gun', max: 12, base: 280, growth: 1.62,
+      id: 'pistol', mats: [['copper', 4], ['emerald', 2]], late: ['ruby', 2], name: 'Plasma Pistol', icon: 'gun', max: 12, base: 280, growth: 1.62,
       blurb: 'Bigger pew. Fewer aliens.',
       value: l => 9 + l * 7,
       show: l => (9 + l * 7) + ' dmg'
     },
     {
-      id: 'trigger', name: 'Trigger Coil', icon: 'coil', max: 8, base: 360, growth: 1.7,
+      id: 'trigger', mats: [['silver', 4], ['sapphire', 2]], late: ['star', 1], name: 'Trigger Coil', icon: 'coil', max: 8, base: 360, growth: 1.7,
       blurb: 'Faster shots and a snappier recharge.',
       value: l => 0.34 - l * 0.028,
       show: l => (1 / (0.34 - l * 0.028)).toFixed(1) + ' shots/s'
     },
     {
-      id: 'lamp', name: 'Headlamp', icon: 'lamp', max: 8, base: 160, growth: 1.55,
+      id: 'lamp', mats: [['crust', 8], ['copper', 2]], late: ['emerald', 2], name: 'Headlamp', icon: 'lamp', max: 8, base: 160, growth: 1.55,
       blurb: 'See the thing that is about to eat you.',
       value: l => 62 + l * 15,
       show: l => (62 + l * 15) + ' PX LAMP'
     },
     {
-      id: 'magnet', name: 'Tractor Magnet', icon: 'magnet', max: 8, base: 300, growth: 1.6,
+      id: 'magnet', mats: [['iron', 5], ['silver', 3]], late: ['void', 1], name: 'Tractor Magnet', icon: 'magnet', max: 8, base: 300, growth: 1.6,
       blurb: 'Sucks loose ore straight into the hold.',
       value: l => 26 + l * 11,
       show: l => (26 + l * 11) + ' PX PULL'
     },
     {
-      id: 'drones', name: 'Harvest Drones', icon: 'drone', max: 40, base: 500, growth: 1.28,
+      id: 'drones', mats: [['copper', 6], ['gold', 3]], late: ['void', 2], name: 'Harvest Drones', icon: 'drone', max: 40, base: 500, growth: 1.28,
       blurb: 'Idle swarm that strips rubble for credits while you fly.',
       value: l => l,
       show: l => l + ' drone' + (l === 1 ? '' : 's')
     },
     {
-      id: 'droneyield', name: 'Drone Claws', icon: 'claw', max: 25, base: 900, growth: 1.34,
+      id: 'droneyield', mats: [['gold', 4], ['ruby', 2]], late: ['star', 1], name: 'Drone Claws', icon: 'claw', max: 25, base: 900, growth: 1.34,
       blurb: 'Each drone brings back a whole lot more.',
       value: l => 1 + l * 0.55,
       show: l => 'X' + (1 + l * 0.55).toFixed(2) + ' EACH'
@@ -206,5 +206,98 @@
     return Math.round(u.base * Math.pow(u.growth, level) / 10) * 10;
   }
 
-  PD.data = { MAT, M, ENEMY, BODIES, UPGRADES, UPG, upgradeCost };
+  /* Upgrades are fabricated, not bought: every level burns raw ore out of the
+     vault as well as credits, and high tiers demand exotic matter. */
+  function recipe(u, level) {
+    const out = [];
+    for (const [key, base] of u.mats) {
+      out.push({ mat: M[key], qty: Math.ceil(base * Math.pow(1.34, level)) });
+    }
+    if (u.late && level >= 5) {
+      out.push({ mat: M[u.late[0]], qty: Math.ceil(u.late[1] * Math.pow(1.4, level - 5)) });
+    }
+    return out;
+  }
+
+  /* --------------------------------------------------------------- cosmetics
+     Pure vanity, bought with credits -- the "look at me" half of an
+     incremental game. Each option repaints the generated sprites. */
+  const COSMETICS = [
+    {
+      id: 'suit', name: 'Suit Weave', blurb: 'What the galaxy sees you in.',
+      options: [
+        { id: 'rose',   name: 'Rose Terror',   cost: 0,       c: ['#ff5fa8', '#c02f74', '#ffb0d6'] },
+        { id: 'toxic',  name: 'Toxic Slime',   cost: 4000,    c: ['#a6ff4d', '#5f9e1a', '#dcffa8'] },
+        { id: 'void',   name: 'Void Baron',    cost: 25000,   c: ['#a06bff', '#5b2fa8', '#d8bcff'] },
+        { id: 'rust',   name: 'Rust Marauder', cost: 120000,  c: ['#ff8a3d', '#a8481a', '#ffd0a8'] },
+        { id: 'bone',   name: 'Bone Sovereign',cost: 900000,  c: ['#e8e2d0', '#9a927c', '#fffdf4'] },
+        { id: 'gold',   name: 'Solid Bullion', cost: 6000000, c: ['#ffd34d', '#b8860b', '#fff3b0'] }
+      ]
+    },
+    {
+      id: 'skin', name: 'Gene Splice', blurb: 'Ancestry is a choice.',
+      options: [
+        { id: 'green', name: 'Classic Grue', cost: 0,       c: ['#7ff08a', '#43ba5f', '#c4ffce'] },
+        { id: 'blue',  name: 'Cryo Morph',   cost: 6000,    c: ['#7fd8f0', '#3f92ba', '#c4f2ff'] },
+        { id: 'pink',  name: 'Blood Morph',  cost: 45000,   c: ['#ff9a9a', '#c04f4f', '#ffd4d4'] },
+        { id: 'grey',  name: 'Ashen Morph',  cost: 300000,  c: ['#b8b4c8', '#75708c', '#e4e0f0'] },
+        { id: 'star',  name: 'Starlit Morph',cost: 2500000, c: ['#ffe89a', '#c9a23c', '#fff8d8'] }
+      ]
+    },
+    {
+      id: 'glass', name: 'Visor Tint', blurb: 'Menace, refracted.',
+      options: [
+        { id: 'sky',    name: 'Clear Sky',  cost: 0,       c: ['#9fe0ff', '#66b0dc', '#eafcff'] },
+        { id: 'amber',  name: 'Amber Burn', cost: 9000,    c: ['#ffcf8a', '#d6913c', '#fff2d8'] },
+        { id: 'violet', name: 'Violet Hex', cost: 80000,   c: ['#d5a8ff', '#8a5ad0', '#f4e6ff'] },
+        { id: 'crimson',name: 'Crimson Law',cost: 700000,  c: ['#ff9aa8', '#c94f61', '#ffe0e6'] }
+      ]
+    },
+    {
+      id: 'drill', name: 'Bit Finish', blurb: 'The last thing a planet sees.',
+      options: [
+        { id: 'steel',  name: 'Plain Steel',   cost: 0,       c: ['#d3dcf0', '#4e5a7e', '#ff9b3d'] },
+        { id: 'copper', name: 'Hot Copper',    cost: 12000,   c: ['#ffb066', '#8e4a1c', '#ffd34d'] },
+        { id: 'obsid',  name: 'Obsidian Fang', cost: 150000,  c: ['#8a86a8', '#2a2740', '#b98cff'] },
+        { id: 'plasma', name: 'Plasma Edge',   cost: 1200000, c: ['#9ef7ff', '#2b6f8a', '#58e8ff'] }
+      ]
+    },
+    {
+      id: 'trim', name: 'Hull Livery', blurb: 'Repaint the Rustmaw.',
+      options: [
+        { id: 'stock',  name: 'Factory Grey', cost: 0,       c: ['#d3dcf0', '#8290b0', '#4e5a7e'] },
+        { id: 'blood',  name: 'Blood Corsair',cost: 30000,   c: ['#ff8a94', '#b03a48', '#5e1e28'] },
+        { id: 'jade',   name: 'Jade Reaper',  cost: 400000,  c: ['#8fe8c0', '#3f9a76', '#1e4c3a'] },
+        { id: 'royal',  name: 'Tyrant Purple',cost: 3000000, c: ['#c9a8ff', '#6b3fb5', '#33195e'] }
+      ]
+    }
+  ];
+  const COS = {};
+  for (const c of COSMETICS) COS[c.id] = c;
+
+  /* What the galaxy calls you, by how much of it you have wrecked. */
+  const TITLES = [
+    [0,    'UNLICENSED PROSPECTOR'],
+    [1,    'ROCK THIEF'],
+    [4,    'CLAIM JUMPER'],
+    [9,    'ASTEROID BUTCHER'],
+    [18,   'WORLD BREAKER'],
+    [30,   'PLANETARY MENACE'],
+    [46,   'WARLORD OF THE DEEP DARK'],
+    [64,   'TERROR OF THE OUTER ARM'],
+    [82,   'GALACTIC TYRANT'],
+    [99.5, 'SOVEREIGN OF ASH']
+  ];
+  function titleFor(dominion) {
+    let out = TITLES[0][1];
+    for (const [d, name] of TITLES) if (dominion >= d) out = name;
+    return out;
+  }
+  /* Bounty on your head: scales with everything you have ruined. */
+  function bountyFor(save) {
+    return Math.round((save.dominion * 40000 + save.totalEarned * 0.12 +
+      save.destroyed.filter(Boolean).length * 250000));
+  }
+
+  PD.data = { MAT, M, ENEMY, BODIES, UPGRADES, UPG, upgradeCost, recipe, COSMETICS, COS, TITLES, titleFor, bountyFor };
 })(window.PD);

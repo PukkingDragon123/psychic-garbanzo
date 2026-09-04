@@ -163,6 +163,8 @@
       }
     }
 
+    this.carveCraters(r);
+
     // a crust skin makes the silhouette crisp and gives a surface to land on
     for (let cy = 0; cy < this.h; cy++) {
       for (let cx = 0; cx < this.w; cx++) {
@@ -178,6 +180,33 @@
     this.coreCenter = { x: this.cx * TILE, y: this.cy * TILE };
     this.coreR = coreR * TILE;
     this.chamberR = chamberR * TILE;
+  };
+
+  /* Bite shallow bowls out of the rim so the silhouette reads as a cratered
+     moon rather than a smooth potato. */
+  World.prototype.carveCraters = function (r) {
+    const rnd = U.mulberry32(this.seed + 17);
+    const n = Math.round(4 + r * 0.32);
+    for (let i = 0; i < n; i++) {
+      const ang = rnd() * U.TAU;
+      const rad = 1.6 + rnd() * rnd() * (2.2 + r * 0.11);
+      const depth = rad * (0.45 + rnd() * 0.5);
+      const ox = this.cx + Math.cos(ang) * (r + rad - depth);
+      const oy = this.cy + Math.sin(ang) * (r + rad - depth);
+      const c0 = Math.floor(ox - rad - 1), c1 = Math.ceil(ox + rad + 1);
+      const r0 = Math.floor(oy - rad - 1), r1 = Math.ceil(oy + rad + 1);
+      for (let cy = r0; cy <= r1; cy++) {
+        for (let cx = c0; cx <= c1; cx++) {
+          if (!this.inBounds(cx, cy)) continue;
+          const dx = cx + 0.5 - ox, dy = cy + 0.5 - oy;
+          if (dx * dx + dy * dy > rad * rad) continue;
+          const i2 = this.idx(cx, cy);
+          if (this.cells[i2] === M.core) continue;
+          if (this.cells[i2]) this.totalSolid--;
+          this.cells[i2] = 0;
+        }
+      }
+    }
   };
 
   World.prototype.buildStars = function () {
@@ -205,7 +234,39 @@
         p: 0.06 + i * 0.05
       });
     }
+
+    // a big cratered companion moon hanging over the dig site
+    const size = 96 + Math.round(rnd() * 80);
+    this.moon = {
+      cv: PD.artint.buildMoon(size, this.body.tint, this.seed * 3 + 11),
+      x: 0.12 + rnd() * 0.5, y: 0.05 + rnd() * 0.2, p: 0.035
+    };
+    // and a soft nebula wash behind everything
+    this.nebula = buildNebula(this.body.sky, this.body.tint, this.seed);
   };
+
+  /* Low-res coloured clouds, blown up with smoothing off for a chunky wash. */
+  function buildNebula(sky, tint, seed) {
+    const w = 60, h = 34;
+    const cv = document.createElement('canvas');
+    cv.width = w; cv.height = h;
+    const c = cv.getContext('2d');
+    const img = c.createImageData(w, h);
+    const tr = parseInt(tint.slice(1, 3), 16), tg = parseInt(tint.slice(3, 5), 16), tb = parseInt(tint.slice(5, 7), 16);
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const n = U.fbm(x * 0.09 + seed, y * 0.13 - seed, 3);
+        const a = U.clamp((n - 0.5) * 2.6, 0, 1);
+        const i = (y * w + x) * 4;
+        img.data[i] = tr * 0.55 + 40;
+        img.data[i + 1] = tg * 0.5 + 26;
+        img.data[i + 2] = tb * 0.7 + 70;
+        img.data[i + 3] = a * 70;
+      }
+    }
+    c.putImageData(img, 0, 0);
+    return cv;
+  }
 
   /* ------------------------------------------------------------- queries */
   World.prototype.solidAt = function (x, y) {
@@ -344,13 +405,19 @@
   };
 
   /* ---------------------------------------------------------------- drawing */
-  World.prototype.drawSky = function (ctx, cam, vw, vh, time) {
+  World.prototype.drawSky = function (ctx, cam, vw, vh, time, hideMoon) {
     const b = this.body;
     const g = ctx.createLinearGradient(0, 0, 0, vh);
     g.addColorStop(0, b.sky);
     g.addColorStop(1, '#05030f');
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, vw, vh);
+
+    if (this.nebula) {
+      ctx.globalAlpha = 0.85;
+      ctx.drawImage(this.nebula, -((cam.x * 0.02) % vw) - 4, -((cam.y * 0.015) % vh) - 4, vw + 8, vh + 8);
+      ctx.globalAlpha = 1;
+    }
 
     for (let l = 0; l < this.stars.length; l++) {
       const par = 0.04 + l * 0.05;
@@ -373,6 +440,22 @@
       ctx.globalAlpha = 0.5;
       ctx.fillStyle = d.c;
       ctx.beginPath(); ctx.arc(x | 0, y | 0, d.r, 0, U.TAU); ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+
+    if (this.moon && !hideMoon) {
+      const m = this.moon;
+      const x = m.x * vw - cam.x * m.p;
+      const y = m.y * vh - cam.y * m.p * 0.8;
+      ctx.globalAlpha = 0.34;                       // halo
+      const hg = ctx.createRadialGradient(x + m.cv.width / 2, y + m.cv.height / 2, m.cv.width * 0.4,
+        x + m.cv.width / 2, y + m.cv.height / 2, m.cv.width * 0.85);
+      hg.addColorStop(0, this.body.tint);
+      hg.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = hg;
+      ctx.fillRect(x - m.cv.width * 0.4, y - m.cv.height * 0.4, m.cv.width * 1.8, m.cv.height * 1.8);
+      ctx.globalAlpha = 0.95;
+      ctx.drawImage(m.cv, x | 0, y | 0);
       ctx.globalAlpha = 1;
     }
   };
@@ -410,15 +493,33 @@
         const v = (U.hash2(cx, cy) * 4) | 0;
         ctx.drawImage(atlas[m][v], sx, sy);
 
+        const up = cy > 0 ? this.cells[i - this.w] : 1;
+        const dn = cy < this.h - 1 ? this.cells[i + this.w] : 1;
+        const lf = cx > 0 ? this.cells[i - 1] : 1;
+        const rt = cx < this.w - 1 ? this.cells[i + 1] : 1;
+
         // lit top face
-        if (!this.cells[i - this.w] && cy > 0) ctx.drawImage(edgeCache[m], sx, sy);
+        if (!up) ctx.drawImage(edgeCache[m], sx, sy);
         // shadowed underside
-        if (cy < this.h - 1 && !this.cells[i + this.w]) {
+        if (!dn) {
           ctx.fillStyle = 'rgba(8,4,18,0.4)';
           ctx.fillRect(sx, sy + TILE - 2, TILE, 2);
         }
+        // rim light down exposed flanks gives the rock real thickness
+        const mm2 = D.MAT[m];
+        if (!lf) { ctx.fillStyle = mm2.c[0]; ctx.globalAlpha = 0.5; ctx.fillRect(sx, sy, 1, TILE); ctx.globalAlpha = 1; }
+        if (!rt) { ctx.fillStyle = mm2.c[2]; ctx.globalAlpha = 0.7; ctx.fillRect(sx + TILE - 1, sy, 1, TILE); ctx.globalAlpha = 1; }
 
-        const mm = D.MAT[m];
+        // chamfer convex corners so the terrain stops reading as graph paper
+        ctx.fillStyle = mm2.c[2];
+        ctx.globalAlpha = 0.85;
+        if (!up && !lf) { ctx.fillRect(sx, sy, 2, 1); ctx.fillRect(sx, sy + 1, 1, 1); }
+        if (!up && !rt) { ctx.fillRect(sx + TILE - 2, sy, 2, 1); ctx.fillRect(sx + TILE - 1, sy + 1, 1, 1); }
+        if (!dn && !lf) { ctx.fillRect(sx, sy + TILE - 1, 2, 1); ctx.fillRect(sx, sy + TILE - 2, 1, 1); }
+        if (!dn && !rt) { ctx.fillRect(sx + TILE - 2, sy + TILE - 1, 2, 1); ctx.fillRect(sx + TILE - 1, sy + TILE - 2, 1, 1); }
+        ctx.globalAlpha = 1;
+
+        const mm = mm2;
         if (mm.shine) {
           const exposed = !this.cells[i - 1] || !this.cells[i + 1] || !this.cells[i - this.w] || !this.cells[i + this.w];
           if (exposed) {

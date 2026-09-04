@@ -145,6 +145,7 @@
     const dps = g.droneIncome();
     if (dps > 0) F.draw(ctx, '+' + U.fmt(dps) + '/S DRONES', VW - 8, 26, COL.good, { right: true });
     F.draw(ctx, 'GALAXY ' + g.save.dominion.toFixed(1) + '%', VW - 8, 36, COL.lineHi, { right: true });
+    F.draw(ctx, D.titleFor(g.save.dominion), VW - 8, 46, '#ff8ad8', { right: true });
 
     // body + depth
     F.draw(ctx, g.world.body.name, 8, VH - 20, COL.text);
@@ -425,11 +426,14 @@
     F.draw(ctx, 'DESTROYER', cx, 66 + bob, '#ff5fa8', { center: true, scale: 4, shadow: '#3a0c30' });
     F.draw(ctx, 'A GREEDY LITTLE ALIEN', cx, 104, COL.dim, { center: true });
     F.draw(ctx, 'MINING SIMULATOR', cx, 114, COL.dim, { center: true });
+    if (g.save.totalEarned > 0) {
+      F.draw(ctx, 'KNOWN AS ' + D.titleFor(g.save.dominion), cx, 172, '#ff8ad8', { center: true });
+    }
 
-    const start = button(ctx, cx - 62, 132, 124, 18, g.save.totalEarned > 0 ? 'CONTINUE' : 'START DRILLING',
+    const start = button(ctx, cx - 62, 130, 124, 18, g.save.totalEarned > 0 ? 'CONTINUE' : 'START DRILLING',
       { accent: '#2f7a4a' });
     let wipe = false;
-    if (g.save.totalEarned > 0) wipe = button(ctx, cx - 62, 154, 124, 13, 'NEW GAME', { accent: '#8a2f4a' });
+    if (g.save.totalEarned > 0) wipe = button(ctx, cx - 62, 152, 124, 13, 'NEW GAME', { accent: '#8a2f4a' });
 
     F.draw(ctx, 'GET RICH.  BREAK WORLDS.', 12, 182, COL.gold);
     F.draw(ctx, 'OWN THE GALAXY.', 12, 192, COL.gold);

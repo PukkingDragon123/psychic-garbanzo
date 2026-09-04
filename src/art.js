@@ -36,7 +36,8 @@
   /* ------------------------------------------------------------------ player
      A round little alien in a bubble helmet. Drawn facing right; the renderer
      flips it for leftward travel. */
-  function buildAlien(blink, squish) {
+  function buildAlien(blink, squish, P) {
+    P = P || C;
     const p = pix(22, 32);
     const cy = 14 + (squish ? 1 : 0);   // helmet centre
     const by = 20 + (squish ? 1 : 0);   // suit top
@@ -47,16 +48,16 @@
 
     // suit body
     p.round(5, by, 13, 9, 3, C.suit);
-    p.rect(7, by, 9, 2, C.suitL);
+    p.rect(7, by, 9, 2, P.suitL);
     p.round(6, by + 6, 4, 3, 1, C.metD);
     p.round(13, by + 6, 4, 3, 1, C.metD);
     p.rect(10, by + 4, 3, 2, C.gold);
 
     // helmet glass + alien head
-    p.disc(11, cy, 8, C.glass);
-    p.disc(11, cy + 1, 5.6, C.skin);
-    p.shade(C.skin, C.skinD, 1, 1);
-    p.ellipse(11, cy - 2.5, 3.4, 1.6, C.skinL);
+    p.disc(11, cy, 8, P.glass);
+    p.disc(11, cy + 1, 5.6, P.skin);
+    p.shade(P.skin, P.skinD, 1, 1);
+    p.ellipse(11, cy - 2.5, 3.4, 1.6, P.skinL);
 
     if (blink) {
       p.rect(7, cy + 1, 3, 1, C.eye);
@@ -68,12 +69,12 @@
       p.set(15, cy - 1, C.white); p.set(15, cy, C.white);
     }
     // smirk
-    p.rect(11, cy + 4, 3, 1, C.skinD);
-    p.set(14, cy + 3, C.skinD);
+    p.rect(11, cy + 4, 3, 1, P.skinD);
+    p.set(14, cy + 3, P.skinD);
 
     // glass shine
-    p.set(6, cy - 4, C.glassL); p.set(7, cy - 5, C.glassL);
-    p.set(8, cy - 6, C.glassL); p.set(7, cy - 4, C.glassL);
+    p.set(6, cy - 4, P.glassL); p.set(7, cy - 5, P.glassL);
+    p.set(8, cy - 6, P.glassL); p.set(7, cy - 4, P.glassL);
 
     // antenna with bobble
     p.line(11, cy - 8, 11, cy - 10, C.metD);
@@ -87,18 +88,19 @@
 
   /* ------------------------------------------------------------------- drill
      Horizontal, pointing right, anchored at the shoulder end. */
-  function buildDrill(phase) {
+  function buildDrill(phase, P) {
+    P = P || { met: C.met, metDD: C.metDD, accent: C.orange };
     const p = pix(26, 12);
-    p.round(0, 3, 9, 6, 2, C.metDD);          // housing
-    p.rect(2, 4, 5, 2, C.met);
-    p.rect(8, 4, 3, 4, C.orange);             // collar
+    p.round(0, 3, 9, 6, 2, P.metDD);          // housing
+    p.rect(2, 4, 5, 2, P.met);
+    p.rect(8, 4, 3, 4, P.accent);             // collar
     for (let x = 10; x < 25; x++) {           // tapering bit
       const t = (x - 10) / 15;
       const half = Math.max(0.6, 4 * (1 - t * 0.92));
       for (let y = -half; y <= half; y++) {
         const yy = Math.round(6 + y);
         const stripe = ((x * 2 + yy + phase * 3) % 7) < 3;
-        p.set(x, yy, stripe ? C.met : C.metDD);
+        p.set(x, yy, stripe ? P.met : P.metDD);
       }
     }
     p.outline(C.ink);
@@ -122,23 +124,24 @@
 
   /* -------------------------------------------------------------------- ship
      The Rustmaw: a fat little mining barge with landing legs and a bay door. */
-  function buildShip(blink) {
+  function buildShip(blink, P) {
+    P = P || { met: C.met, metD: C.metD, metDD: C.metDD };
     const p = pix(84, 52);
     // landing legs first so the hull covers their tops
-    p.line(16, 32, 10, 47, C.metDD); p.line(17, 32, 11, 47, C.metDD);
-    p.line(67, 32, 73, 47, C.metDD); p.line(66, 32, 72, 47, C.metDD);
-    p.round(5, 46, 12, 4, 2, C.metD);
-    p.round(66, 46, 12, 4, 2, C.metD);
+    p.line(16, 32, 10, 47, P.metDD); p.line(17, 32, 11, 47, P.metDD);
+    p.line(67, 32, 73, 47, P.metDD); p.line(66, 32, 72, 47, P.metDD);
+    p.round(5, 46, 12, 4, 2, P.metD);
+    p.round(66, 46, 12, 4, 2, P.metD);
 
     // hull
-    p.round(6, 12, 72, 24, 10, C.met);
-    p.shade(C.met, C.metD, 0, 1);
+    p.round(6, 12, 72, 24, 10, P.met);
+    p.shade(P.met, P.metD, 0, 1);
     p.round(9, 14, 66, 5, 2, C.white);
-    p.round(6, 30, 72, 7, 6, C.metD);
+    p.round(6, 30, 72, 7, 6, P.metD);
 
     // engine pods
-    p.round(0, 17, 10, 12, 4, C.metDD);
-    p.round(74, 17, 10, 12, 4, C.metDD);
+    p.round(0, 17, 10, 12, 4, P.metDD);
+    p.round(74, 17, 10, 12, 4, P.metDD);
     p.rect(2, 21, 3, 4, C.cyan);
     p.rect(79, 21, 3, 4, C.cyan);
 
@@ -146,10 +149,10 @@
     p.disc(28, 12, 11, C.glass);
     p.disc(28, 13, 8, C.ink2);
     p.ellipse(25, 8, 3.2, 1.6, C.glassL);
-    p.round(18, 12, 21, 3, 1, C.metD);
+    p.round(18, 12, 21, 3, 1, P.metD);
 
     // bay door + tractor emitter
-    p.round(36, 33, 16, 5, 2, C.metDD);
+    p.round(36, 33, 16, 5, 2, P.metDD);
     p.rect(40, 35, 8, 3, blink ? C.cyan : C.cyanD);
 
     // hull lights and decal
@@ -162,7 +165,7 @@
     p.rect(16, 25, 3, 1, C.ink);
 
     // antenna
-    p.line(45, 12, 45, 3, C.metD);
+    p.line(45, 12, 45, 3, P.metD);
     p.disc(45, 2, 2, C.red);
 
     p.outline(C.ink);
@@ -379,5 +382,46 @@
   icon('drone', p => { p.round(4, 5, 8, 6, 2, C.met); p.disc(8, 8, 2, C.cyan); p.rect(0, 3, 5, 1, C.metD); p.rect(11, 3, 5, 1, C.metD); });
   icon('claw', p => { p.rect(7, 1, 2, 6, C.metD); p.line(7, 7, 3, 13, C.met); p.line(9, 7, 13, 13, C.met); p.rect(2, 12, 3, 3, C.orange); p.rect(11, 12, 3, 3, C.orange); });
 
-  PD.art = { C, sprites, gemFor, ICON };
+  /* ------------------------------------------------------------ cosmetics
+     Sprites are code, so a repaint is just a rebuild with a new palette.
+     Cached by option ids -- a wardrobe change rebuilds three little sheets. */
+  const skinCache = {};
+
+  function optOf(catId, id) {
+    const cat = PD.data.COS[catId];
+    return cat.options.find(o => o.id === id) || cat.options[0];
+  }
+
+  function skinFor(cos) {
+    cos = cos || {};
+    const key = [cos.suit, cos.skin, cos.glass, cos.drill, cos.trim].join('|');
+    if (skinCache[key]) return skinCache[key];
+
+    const suit = optOf('suit', cos.suit), skin = optOf('skin', cos.skin);
+    const glass = optOf('glass', cos.glass), bit = optOf('drill', cos.drill);
+    const trim = optOf('trim', cos.trim);
+
+    const P = {
+      suit: suit.c[0], suitD: suit.c[1], suitL: suit.c[2],
+      skin: skin.c[0], skinD: skin.c[1], skinL: skin.c[2],
+      glass: glass.c[0], glassD: glass.c[1], glassL: glass.c[2]
+    };
+    const DP = { met: bit.c[0], metDD: bit.c[1], accent: bit.c[2] };
+    const SP = { met: trim.c[0], metD: trim.c[1], metDD: trim.c[2] };
+
+    const mk = (builders, ox, oy) => {
+      const frames = builders.map(b => b.toCanvas());
+      return { frames, w: frames[0].width, h: frames[0].height, ox, oy };
+    };
+    const set = {
+      alien: mk([buildAlien(false, false, P), buildAlien(false, true, P), buildAlien(true, false, P)], 11, 19),
+      drill: mk([0, 1, 2, 3].map(i => buildDrill(i, DP)), 3, 6),
+      ship: mk([buildShip(false, SP), buildShip(true, SP)], 42, 26),
+      P: P
+    };
+    skinCache[key] = set;
+    return set;
+  }
+
+  PD.art = { C, sprites, gemFor, ICON, skinFor, optOf, reg, pixOf: pix };
 })(window.PD);

@@ -41,7 +41,11 @@
     for (const u of D.UPGRADES) upg[u.id] = 0;
     return {
       credits: 0, upg, unlocked: 0, destroyed: [], dominion: 0, bonus: 0,
-      totalMined: 0, totalEarned: 0, bodyIndex: 0, seen: {}
+      totalMined: 0, totalEarned: 0, bodyIndex: 0, seen: {},
+      vault: {},                                  // ore stockpile aboard the ship
+      cos: { suit: 'rose', skin: 'green', glass: 'sky', drill: 'steel', trim: 'stock' },
+      owned: {},                                  // purchased cosmetics
+      seenIntro: 0
     };
   }
 
@@ -62,6 +66,10 @@
       base.totalEarned = +s.totalEarned || 0;
       base.bodyIndex = U.clamp(+s.bodyIndex || 0, 0, D.BODIES.length - 1);
       base.seen = s.seen || {};
+      base.seenIntro = s.seenIntro ? 1 : 0;
+      if (s.vault) for (const k in s.vault) { const n = +s.vault[k]; if (n > 0 && D.MAT[k]) base.vault[k] = n; }
+      if (s.owned) base.owned = s.owned;
+      if (s.cos) for (const k in base.cos) if (s.cos[k]) base.cos[k] = s.cos[k];
       if (s.upg) for (const k in base.upg) base.upg[k] = U.clamp(+s.upg[k] || 0, 0, D.UPG[k].max);
     }
     g.save = base;
@@ -75,7 +83,8 @@
     try { localStorage.removeItem(SAVE_KEY); } catch (e) {}
     g.save = blankSave();
     startBody(0, true);
-    g.state = 'play';
+    g.state = 'cutscene';
+    PD.cutscene.start();
     toast('SAVE WIPED. BACK TO THE PEBBLE.', UI.COL.bad);
   }
 
@@ -184,6 +193,106 @@
     if (id === 'hull') g.player.hull = g.player.stat('hull');
     toast(u.name.toUpperCase() + ' LV' + (lvl + 1), UI.COL.good);
     saveGame();
+  };
+
+  /* --------------------------------------------------------------- the vault
+     Docking no longer auto-sells: ore lands in the ship's bin, and you choose
+     between cashing it out at the market or burning it in the fabricator. */
+  function stow() {
+    const p = g.player;
+    let n = 0;
+    for (const k in p.cargo) {
+      g.save.vault[k] = (g.save.vault[k] || 0) + p.cargo[k];
+      n += p.cargo[k];
+    }
+    p.clearCargo();
+    return n;
+  }
+
+  g.vaultCount = function (mat) { return g.save.vault[mat] || 0; };
+
+  g.sellFromVault = function (mat, qty) {
+    const have = g.save.vault[mat] || 0;
+    qty = Math.min(qty, have);
+    if (qty <= 0) return;
+    const value = Math.round(D.MAT[mat].cr * qty * g.valueMult());
+    g.save.vault[mat] = have - qty;
+    if (g.save.vault[mat] <= 0) delete g.save.vault[mat];
+    g.save.credits += value;
+    g.save.totalEarned += value;
+    A.sfx.coin(qty % 6);
+    PD.term.say('SOLD ' + qty + ' x ' + D.MAT[mat].name.toUpperCase() + '  ->  $' + U.fmt(value), '#39ffa6');
+    saveGame();
+  };
+
+  g.sellAll = function () {
+    let total = 0, lots = 0;
+    for (const k in g.save.vault) {
+      total += Math.round(D.MAT[k].cr * g.save.vault[k] * g.valueMult());
+      lots++;
+    }
+    if (!total) { A.sfx.deny(); return; }
+    g.save.vault = {};
+    g.save.credits += total;
+    g.save.totalEarned += total;
+    A.sfx.sell();
+    for (let i = 0; i < 8; i++) setTimeout(() => A.sfx.coin(i), i * 55);
+    PD.term.say('BIN LIQUIDATED: ' + lots + ' LOTS  ->  $' + U.fmt(total), '#39ffa6');
+    saveGame();
+  };
+
+  g.fabricate = function (id) {
+    const u = D.UPG[id];
+    const lvl = g.save.upg[id] || 0;
+    if (lvl >= u.max) { A.sfx.deny(); return; }
+    const cost = D.upgradeCost(u, lvl);
+    const rec = D.recipe(u, lvl);
+    if (g.save.credits < cost) { A.sfx.deny(); PD.term.say('INSUFFICIENT CREDITS', '#ff5a4d'); return; }
+    for (const r of rec) {
+      if ((g.save.vault[r.mat] || 0) < r.qty) {
+        A.sfx.deny();
+        PD.term.say('FEEDSTOCK SHORT: ' + D.MAT[r.mat].name.toUpperCase(), '#ff5a4d');
+        return;
+      }
+    }
+    g.save.credits -= cost;
+    for (const r of rec) {
+      g.save.vault[r.mat] -= r.qty;
+      if (g.save.vault[r.mat] <= 0) delete g.save.vault[r.mat];
+    }
+    g.save.upg[id] = lvl + 1;
+    if (id === 'oxygen') g.player.o2 = g.player.stat('oxygen');
+    if (id === 'hull') g.player.hull = g.player.stat('hull');
+    A.sfx.buy();
+    A.sfx.tone(140, { type: 'sawtooth', to: 70, dur: 0.3, vol: 0.12 });
+    FX.flash(0.14, '#ffb03d');
+    PD.term.say(u.name.toUpperCase() + ' FABRICATED  ->  LV' + (lvl + 1), '#ffb03d');
+    saveGame();
+  };
+
+  g.buyCosmetic = function (cat, id) {
+    const o = PD.art.optOf(cat, id);
+    if (g.save.credits < o.cost) { A.sfx.deny(); PD.term.say('CANNOT AFFORD ' + o.name.toUpperCase(), '#ff5a4d'); return; }
+    g.save.credits -= o.cost;
+    g.save.owned[cat] = g.save.owned[cat] || {};
+    g.save.owned[cat][id] = 1;
+    A.sfx.buy();
+    g.equipCosmetic(cat, id);
+    saveGame();
+  };
+
+  g.equipCosmetic = function (cat, id) {
+    g.save.cos[cat] = id;
+    A.sfx.tone(880, { type: 'triangle', dur: 0.12, vol: 0.1 });
+    PD.term.say('EQUIPPED ' + PD.art.optOf(cat, id).name.toUpperCase(), '#ff8ad8');
+    saveGame();
+  };
+
+  /* Tiny rendered thumbnails of each world for the nav computer. */
+  const navIcons = {};
+  g.navIcon = function (i) {
+    if (!navIcons[i]) navIcons[i] = PD.artint.buildMoon(22, D.BODIES[i].tint, 1000 + i * 977);
+    return navIcons[i];
   };
 
   function sellCargo() {
@@ -327,21 +436,31 @@
     p.o2 = p.stat('oxygen');
     p.hull = p.stat('hull');
     p.invuln = 1;
-    g.state = 'shop';
-    g.shopTab = 0;
+    const n = stow();
+    g.state = 'interior';
+    PD.term.close();
+    PD.interior.enter(g, 'airlock');
     A.sfx.dock();
     A.drill(false); A.thrust(0);
-    sellCargo();
+    if (n > 0) PD.dialog.push('bolt', 'Bin took ' + n + ' lumps of rock. Sell it or let me melt it. Your call, boss.');
+    else if (!g.save.seenTour) {
+      g.save.seenTour = 1;
+      PD.dialog.push('nix', 'Deck A. Walk with A and D, press E at anything that glows. Try not to touch Gloop.');
+    }
     saveGame();
   }
 
   g.undock = function () {
     g.player.docked = false;
-    g.player.y = g.ship.y + 42;
+    g.player.x = g.ship.x;
+    g.player.y = g.ship.y + 46;
+    g.player.vx = 0;
     g.player.vy = 30;
     g.state = 'play';
-    g.sellReport = null;
+    PD.term.close();
+    PD.dialog.clear();
     A.sfx.tone(520, { type: 'triangle', dur: 0.2, vol: 0.12 });
+    A.sfx.tone(300, { type: 'square', to: 700, dur: 0.25, vol: 0.08 });
   };
 
   /* --------------------------------------------------- the money shot
@@ -520,6 +639,23 @@
     g.uiBlocking = g.state !== 'play';
     handleStateKeys();
 
+    if (g.state === 'cutscene') {
+      PD.cutscene.update(dt, g);
+      if (PD.cutscene.done) {
+        g.save.seenIntro = 1;
+        saveGame();
+        startBody(g.save.bodyIndex || 0, false);
+        g.state = 'play';
+      }
+      return;
+    }
+
+    if (g.state === 'interior') {
+      PD.interior.update(dt, g);
+      FX.update(dt, g.world);
+      return;
+    }
+
     if (g.state === 'title' || g.state === 'ending') return;
 
     if (g.state === 'victory') {
@@ -607,8 +743,9 @@
         if (e && nearShip()) dock(false);
         else if (esc) { g.state = 'pause'; A.drill(false); A.thrust(0); }
         break;
-      case 'shop':
-        if (e || esc) g.undock();
+      case 'interior':
+        break;                                   // interior.update handles its own keys
+      case 'cutscene':
         break;
       case 'pause':
         if (esc) g.state = 'play';
@@ -655,14 +792,16 @@
     screen.width = w; screen.height = h;
     sctx.imageSmoothingEnabled = false;
     const fit = Math.min(w / VW, h / VH);
-    scale = fit >= 2 ? Math.floor(fit) : Math.max(0.5, Math.floor(fit * 2) / 2);
+    // Integer scaling keeps desktop pixel-perfect; phones would waste half the
+    // screen on letterbox, so below 2x we fill instead.
+    scale = fit >= 2 ? Math.floor(fit) : Math.max(0.5, fit);
     offX = Math.floor((w - VW * scale) / 2);
     offY = Math.floor((h - VH * scale) / 2);
   }
 
   function drawShip(ctx, cam) {
     const s = g.ship;
-    const spr = PD.art.sprites.ship;
+    const spr = PD.art.skinFor(g.save.cos).ship;
     const blink = Math.sin(g.time * 3) > 0;
     const bob = Math.sin(g.time * 1.1) * 2;
     const x = s.x - cam.x, y = s.y - cam.y + bob;
@@ -762,16 +901,40 @@
     ctx.imageSmoothingEnabled = false;
     ctx.clearRect(0, 0, VW, VH);
 
+    if (g.state === 'cutscene') {
+      PD.cutscene.draw(ctx, g, g.time);
+      PD.touch.draw(ctx, 'ui');
+      blit();
+      return;
+    }
+
+    if (g.state === 'interior') {
+      PD.interior.draw(ctx, g, g.time);
+      FX.drawWorld(ctx, { x: Math.round(g.intCam), y: 0 });
+      PD.interior.drawStatus(ctx, g, g.time);
+      PD.term.draw(ctx, g, g.dt || 1 / 60);
+      PD.dialog.draw(ctx, g, g.time, PD.art.skinFor(g.save.cos).alien);
+      if (!PD.term.app && !PD.dialog.active()) {
+        F.draw(ctx, 'A D  WALK    E  USE    ESC  LAUNCH', VW / 2, VH - 12,
+          'rgba(240,235,255,0.45)', { center: true, shadow: false });
+      }
+      UI.endFrame();
+      blit();
+      return;
+    }
+
     if (g.state === 'title') {
       // slow drifting starfield behind the logo
-      g.world.drawSky(ctx, { x: g.time * 6, y: 20 }, VW, VH, g.time);
+      // the title has its own hero art, so the backdrop moon stays out of it
+      g.world.drawSky(ctx, { x: g.time * 6, y: 20 }, VW, VH, g.time, true);
       const r = UI.title(ctx, g, g.time);
       if (r.start) {
         A.resume(); A.music(true);
-        startBody(g.save.bodyIndex || 0, false);
-        g.state = 'play';
+        if (!g.save.seenIntro) { g.state = 'cutscene'; PD.cutscene.start(); }
+        else { startBody(g.save.bodyIndex || 0, false); g.state = 'play'; }
       }
       if (r.wipe) wipeSave();
+      PD.touch.draw(ctx, 'ui');
       blit();
       return;
     }
@@ -806,10 +969,7 @@
     if (g.state !== 'victory' && g.state !== 'ending') UI.hud(ctx, g);
     UI.sellSplash(ctx, g);
 
-    if (g.state === 'shop') {
-      g.shopTip = '';
-      UI.shop(ctx, g);
-    } else if (g.state === 'pause') {
+    if (g.state === 'pause') {
       const r = UI.pause(ctx, g);
       if (r.resume) g.state = 'play';
       if (r.ship) { g.state = 'play'; g.emergencyRecall(); }
@@ -820,6 +980,7 @@
       if (UI.ending(ctx, g, g.time)) { g.state = 'shop'; dock(true); }
     }
 
+    PD.touch.draw(ctx, g.state === 'play' ? 'play' : 'ui');
     UI.endFrame();
     blit();
   }
@@ -846,6 +1007,7 @@
     let dt = (ts - last) / 1000;
     last = ts;
     if (dt > 0.1) dt = 0.1;
+    g.dt = dt;
     g.fps = U.lerp(g.fps, 1 / Math.max(0.0001, dt), 0.05);
 
     // convert pointer position into canvas and world space
@@ -856,6 +1018,9 @@
     m.wy = m.y + g.cam.y;
 
     FX.tickFreeze(dt);
+    PD.touch.apply(g.state === 'play' ? 'play' : 'ui');
+    if (PD.touch.enabled) { m.wx = m.x + g.cam.x; m.wy = m.y + g.cam.y; }
+
     if (FX.freeze > 0) {
       // hit-stop: the world holds still but particles keep creeping
       FX.update(dt * 0.15, g.world);
@@ -864,6 +1029,7 @@
       update(dt);
     }
     render();
+    PD.touch.clearEdges();
     PD.input.endFrame();
   }
 
@@ -871,6 +1037,10 @@
     PD.world.buildAtlas();
     setupCanvas();
     PD.input.attach(screen);
+    PD.touch.attach(screen, (cssX, cssY) => ({
+      x: U.clamp((cssX - offX) / scale, 0, VW),
+      y: U.clamp((cssY - offY) / scale, 0, VH)
+    }));
     PD.input.onFirstInteraction(() => { A.resume(); A.music(true); });
     loadGame();
     // the title screen needs a world for its starfield

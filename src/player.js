@@ -301,8 +301,9 @@
 
   /* ----------------------------------------------------------------- drawing */
   Player.prototype.draw = function (ctx, cam, t) {
-    const spr = PD.art.sprites.alien;
-    const drill = PD.art.sprites.drill;
+    const skin = PD.art.skinFor(this.g.save.cos);
+    const spr = skin.alien;
+    const drill = skin.drill;
     const gun = PD.art.sprites.gun;
     const px = this.x - cam.x, py = this.y - cam.y;
     const flip = Math.cos(this.aim) < 0;
