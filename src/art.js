@@ -39,63 +39,89 @@
   /* pose: 'idle' | 'walk' | 'fly'; f: frame index. Head sits on a chubby
      torso with proper little arms and legs, so it can walk the deck and
      dangle from the tether. */
+  /* The alien: small, round and extremely fat, with a fishbowl helmet, stubby
+     limbs and a bobbing antenna. Poses squash and stretch so he never stands
+     still. */
   function buildAlien(pose, f, P, blink) {
     P = P || C;
-    const p = pix(24, 34);
+    const p = pix(26, 32);
     const walk = pose === 'walk';
     const fly = pose === 'fly';
-    const bob = walk ? (f % 2 ? 1 : 0) : (pose === 'idle' && f ? 1 : 0);
-    const cy = 10 + bob;           // helmet centre
-    const ty = 18 + bob;           // torso top
+    // squash: idle breathes, walk bounces, fly stretches
+    const bob = fly ? -1 : (walk ? [0, -1, 0, 1][f % 4] : (f === 1 ? 1 : 0));
+    const squash = walk ? [0, 1, 0, -1][f % 4] : (f === 1 ? 1 : 0);
+    const cy = 11 + bob;            // helmet centre
+    const ty = 17 + bob;            // belly top
 
-    // legs
+    // --- stubby legs / boots
     if (fly) {
-      // trailing behind in zero-g, slightly apart
-      p.round(7, ty + 8, 4, 7, 2, P.suitD); p.round(13, ty + 9, 4, 6, 2, P.suitD);
-      p.rect(7, ty + 14, 4, 2, C.metD); p.rect(13, ty + 14, 4, 2, C.metD);
+      p.round(7, ty + 9, 5, 5, 2, P.suitD);
+      p.round(14, ty + 10, 5, 4, 2, P.suitD);
+      p.round(6, ty + 12, 7, 4, 2, C.metD);
+      p.round(13, ty + 12, 7, 4, 2, C.metD);
     } else {
-      const swing = walk ? [[-2, 2], [0, 0], [2, -2], [0, 0]][f % 4] : [0, 0];
-      p.round(7 + swing[0], ty + 8, 4, 8 - Math.abs(swing[0]), 2, P.suitD);
-      p.round(13 + swing[1], ty + 8, 4, 8 - Math.abs(swing[1]), 2, P.suitD);
-      p.rect(6 + swing[0], ty + 15 - Math.abs(swing[0]), 6, 2, C.metD);
-      p.rect(12 + swing[1], ty + 15 - Math.abs(swing[1]), 6, 2, C.metD);
+      const sw = walk ? [[-2, 2], [0, 0], [2, -2], [0, 0]][f % 4] : [0, 0];
+      p.round(8 + sw[0], ty + 9, 5, 4, 2, P.suitD);
+      p.round(13 + sw[1], ty + 9, 5, 4, 2, P.suitD);
+      p.round(6 + sw[0], ty + 12, 8, 4, 2, C.metD);      // fat boots
+      p.round(12 + sw[1], ty + 12, 8, 4, 2, C.metD);
+      p.rect(6 + sw[0], ty + 14, 8, 2, C.met);
+      p.rect(12 + sw[1], ty + 14, 8, 2, C.met);
     }
 
-    // jetpack
-    p.round(2, ty - 1, 5, 9, 2, C.metD);
-    p.rect(3, ty, 2, 6, C.met);
-    if (fly) { p.rect(3, ty + 8, 3, 3, C.orange); p.rect(4, ty + 11, 1, 2, C.gold); }
+    // --- little jetpack
+    p.round(2, ty, 6, 9, 3, C.metD);
+    p.rect(3, ty + 1, 2, 6, C.met);
+    p.disc(5, ty + 1, 1.4, C.cyan);
+    if (fly) { p.round(3, ty + 9, 4, 4, 2, C.orange); p.rect(4, ty + 12, 2, 3, C.gold); }
 
-    // torso
-    p.round(6, ty, 12, 10, 3, P.suit);
-    p.rect(8, ty, 8, 2, P.suitL);
-    p.rect(10, ty + 5, 4, 2, C.gold);
+    // --- round belly, wider than it is tall
+    p.ellipse(13, ty + 6 - squash * 0.5, 8 + squash * 0.5, 6.5 - squash * 0.4, P.suit);
+    p.shade(P.suit, P.suitD, 0, 1);
+    p.ellipse(13, ty + 2, 6, 2.4, P.suitL);               // chest highlight
+    p.round(9, ty + 7, 8, 3, 1, C.gold);                  // fat gold belt
+    p.disc(13, ty + 8, 1.6, C.white);                     // buckle
+    p.disc(9, ty + 3, 1.2, C.lime);                       // suit buttons
+    p.disc(9, ty + 6, 1.2, C.red);
 
-    // arms: the back arm swings with the walk, the front arm reaches forward
-    const aswing = walk ? [2, 0, -2, 0][f % 4] : 0;
-    p.round(4, ty + 1 + aswing, 3, 7, 1, P.suit);        // back arm
-    p.round(5, ty + 7 + aswing, 3, 3, 1, P.skin);        // hand
-    p.round(16, ty + 2 - aswing, 4, 6, 1, P.suit);       // front arm
-    p.round(17, ty + 7 - aswing, 3, 3, 1, P.skin);
+    // --- stubby arms with mitten hands
+    const aswing = walk ? [1, 0, -1, 0][f % 4] : 0;
+    p.round(3, ty + 3 + aswing, 4, 5, 2, P.suit);
+    p.disc(5, ty + 8 + aswing, 2.4, P.skin);
+    p.round(19, ty + 3 - aswing, 4, 5, 2, P.suit);
+    p.disc(21, ty + 8 - aswing, 2.4, P.skin);
 
-    // helmet + head
-    p.disc(12, cy, 8, P.glass);
-    p.disc(12, cy + 1, 5.6, P.skin);
+    // --- big fishbowl helmet and a very round head
+    p.disc(13, cy, 9, P.glass);
+    p.disc(13, cy + 1, 6.6, P.skin);
     p.shade(P.skin, P.skinD, 1, 1);
-    p.ellipse(12, cy - 2.5, 3.4, 1.6, P.skinL);
-    if (blink) { p.rect(8, cy + 1, 3, 1, C.eye); p.rect(14, cy + 1, 3, 1, C.eye); }
-    else {
-      p.ellipse(9.4, cy + 1, 1.7, 2.4, C.eye); p.ellipse(15.2, cy + 1, 1.7, 2.4, C.eye);
-      p.set(10, cy - 1, C.white); p.set(10, cy, C.white); p.set(16, cy - 1, C.white); p.set(16, cy, C.white);
+    p.ellipse(13, cy - 2.6, 4, 1.8, P.skinL);
+    if (blink) {
+      p.rect(9, cy + 1, 4, 1, C.ink); p.rect(15, cy + 1, 4, 1, C.ink);
+    } else {
+      p.ellipse(10.2, cy + 1, 2.2, 2.8, C.eye);
+      p.ellipse(16.2, cy + 1, 2.2, 2.8, C.eye);
+      p.disc(10.8, cy, 1, C.white); p.disc(16.8, cy, 1, C.white);
+      p.set(9, cy + 2, C.white); p.set(15, cy + 2, C.white);
     }
-    p.rect(12, cy + 4, 3, 1, P.skinD); p.set(15, cy + 3, P.skinD);
+    // cheeky grin and blush
+    p.rect(12, cy + 4, 4, 1, P.skinD);
+    p.set(11, cy + 3, P.skinD); p.set(16, cy + 3, P.skinD);
+    p.ellipse(8.6, cy + 3, 1.6, 1, '#ff8ab0');
+    p.ellipse(17.6, cy + 3, 1.6, 1, '#ff8ab0');
+    // helmet shine and collar
     p.set(7, cy - 4, P.glassL); p.set(8, cy - 5, P.glassL); p.set(9, cy - 6, P.glassL); p.set(8, cy - 4, P.glassL);
-    p.line(12, cy - 8, 12, cy - 10, C.metD);
-    p.disc(12, cy - 11.5, 1.8, C.gold);
+    p.round(8, cy + 7, 10, 3, 1, C.metD);
+    // antenna with a wobbling bulb
+    const aw = walk ? [1, 0, -1, 0][f % 4] : (f === 1 ? 1 : 0);
+    p.line(13, cy - 9, 13 + aw, cy - 12, C.metD);
+    p.disc(13 + aw, cy - 13, 2, C.gold);
+    p.set(13 + aw, cy - 14, C.white);
 
     p.outline(C.ink);
     return p;
   }
+
 
   function alienSet(P) {
     return {
@@ -106,9 +132,9 @@
   }
 
   const base = alienSet(C);
-  reg('alien', base.idle, 12, 22);
-  reg('alienWalk', base.walk, 12, 22);
-  reg('alienFly', base.fly, 12, 22);
+  reg('alien', base.idle, 13, 21);
+  reg('alienWalk', base.walk, 13, 21);
+  reg('alienFly', base.fly, 13, 21);
 
   /* ------------------------------------------------------------------- drill
      Horizontal, pointing right, anchored at the shoulder end. */
@@ -612,9 +638,9 @@
     };
     const frames = alienSet(P);
     const set = {
-      alien: mk(frames.idle, 12, 22),
-      alienWalk: mk(frames.walk, 12, 22),
-      alienFly: mk(frames.fly, 12, 22),
+      alien: mk(frames.idle, 13, 21),
+      alienWalk: mk(frames.walk, 13, 21),
+      alienFly: mk(frames.fly, 13, 21),
       drill: mk([0, 1, 2, 3].map(i => buildDrill(i, DP)), 3, 6),
       ship: mk([buildShip(false, SP), buildShip(true, SP)], 42, 26),
       pod: mk([buildPod(0, SP), buildPod(1, SP)], 23, 18),

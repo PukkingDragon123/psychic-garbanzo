@@ -21,7 +21,17 @@
   const shapeCache = new Map();
   const R = 5;                 // corner radius on a 10px tile: a lone tile is a ball
 
-  function tilePath(c, mask, v) {
+  /* Lift a colour toward light without washing out its hue. */
+  function lift(hex, f, mix) {
+    const n = parseInt(hex.slice(1), 16);
+    let r = (n >> 16) & 255, g2 = (n >> 8) & 255, b = n & 255;
+    r = U.clamp(r * f + (mix || 0), 0, 255) | 0;
+    g2 = U.clamp(g2 * f + (mix || 0), 0, 255) | 0;
+    b = U.clamp(b * f + (mix || 0), 0, 255) | 0;
+    return 'rgb(' + r + ',' + g2 + ',' + b + ')';
+  }
+
+  function tilePath(c, mask, v, rad) {
     const up = mask & 1, rt = mask & 2, dn = mask & 4, lf = mask & 8;
     // open faces bow in or out a touch, and neighbouring tiles pick different
     // bows, so a long rock face stops being a ruler-straight line
@@ -30,10 +40,11 @@
       if (open) c.quadraticCurveTo((x0 + x1) / 2 + nx * bow, (y0 + y1) / 2 + ny * bow, x1, y1);
       else c.lineTo(x1, y1);
     };
-    const tl = (!up && !lf) ? R : 0;
-    const tr = (!up && !rt) ? R : 0;
-    const br = (!dn && !rt) ? R : 0;
-    const bl = (!dn && !lf) ? R : 0;
+    const RR = rad === undefined ? R : rad;
+    const tl = (!up && !lf) ? RR : 0;
+    const tr = (!up && !rt) ? RR : 0;
+    const br = (!dn && !rt) ? RR : 0;
+    const bl = (!dn && !lf) ? RR : 0;
     const T = TILE;
     c.beginPath();
     c.moveTo(tl, 0);
@@ -53,13 +64,13 @@
        2. the material's blob, cut to a mask of *same-material* neighbours, so
           an iron seam is a rounded vein rather than a run of squares
        3. lighting and the dark rim, drawn only on tiles that face open space */
-  function cut(key, mask, v, paint) {
+  function cut(key, mask, v, paint, rad) {
     let cv = shapeCache.get(key);
     if (cv) return cv;
     cv = document.createElement('canvas');
     cv.width = TILE; cv.height = TILE;
     const c = cv.getContext('2d');
-    tilePath(c, mask, v);
+    tilePath(c, mask, v, rad);
     c.save();
     c.clip();
     paint(c);
@@ -70,10 +81,12 @@
 
   function baseShape(tint, mask, v) {
     return cut('b' + tint + mask + v, mask, v, c => {
-      c.fillStyle = tint;
+      c.fillStyle = lift(tint, 1.34, 14);
       c.fillRect(0, 0, TILE, TILE);
-      c.fillStyle = 'rgba(255,255,255,0.05)';
+      c.fillStyle = lift(tint, 1.7, 30);
       c.fillRect(0, 0, TILE, 3);
+      c.fillStyle = 'rgba(10,5,20,0.22)';
+      c.fillRect(0, TILE - 2, TILE, 2);
     });
   }
 
@@ -91,7 +104,7 @@
         c.fillRect(x, y, h > 0.72 ? 2 : 1, 1);
       }
       c.globalAlpha = 1;
-    });
+    }, 2.5);
   }
 
   /* Colour-free: works over any material underneath. */
@@ -461,14 +474,17 @@
         const cv = document.createElement('canvas');
         cv.width = TILE; cv.height = TILE;
         const c = cv.getContext('2d');
-        c.fillStyle = L0.tint;
+        // the wall behind a cave is lit rock, not a hole: colour it and give it
+        // a soft mottle so caverns read as rooms
+        c.fillStyle = lift(L0.tint, 1.15, 10);
         c.fillRect(0, 0, TILE, TILE);
-        c.globalAlpha = 0.35;
-        for (let k = 0; k < 6; k++) {
+        for (let k = 0; k < 4; k++) {
           const h = U.hash2(v * 17 + k, si * 31 + k * 5);
-          c.fillStyle = h > 0.5 ? '#000000' : '#ffffff';
-          c.globalAlpha = h > 0.5 ? 0.35 : 0.08;
-          c.fillRect(Math.floor(h * TILE), Math.floor(U.hash2(k, v + si) * TILE), 1 + (k % 2), 1);
+          c.fillStyle = lift(L0.tint, h > 0.5 ? 1.5 : 0.75, h > 0.5 ? 18 : 0);
+          c.globalAlpha = 0.5;
+          c.beginPath();
+          c.arc(h * TILE, U.hash2(k, v + si) * TILE, 1.6 + h * 2.4, 0, Math.PI * 2);
+          c.fill();
         }
         c.globalAlpha = 1;
         variants.push(cv);
@@ -526,7 +542,7 @@
     // a big cratered companion moon hanging over the dig site
     const size = 96 + Math.round(rnd() * 80);
     this.moon = {
-      cv: PD.artint.buildMoon(size, this.body.tint, this.seed * 3 + 11),
+      cv: PD.arthome.buildMoon(size, this.body.tint, this.seed * 3 + 11),
       x: 0.12 + rnd() * 0.5, y: 0.05 + rnd() * 0.2, p: 0.035
     };
     // and a soft nebula wash behind everything
@@ -902,9 +918,11 @@
         const above = this.cells[i - this.w];
         if (!below && !above) continue;
         const h = U.hash2(cx * 7 + 3, cy * 13 + 11);
-        if (h > 0.14) continue;                       // sparse: a garden, not a lawn
+        // thicker on a planet's skin, sparser in the caves below
+        const skin = !this.inside[i];
+        if (h > (skin ? 0.34 : 0.16)) continue;
         // keep neighbours apart so plants never merge into a carpet
-        if (U.hash2(cx * 5 + 1, cy) < 0.5 && this.cells[i + 1] === 0 && U.hash2((cx + 1) * 7 + 3, cy * 13 + 11) < 0.14) continue;
+        if (U.hash2(cx * 5 + 1, cy) < 0.4 && this.cells[i + 1] === 0 && U.hash2((cx + 1) * 7 + 3, cy * 13 + 11) < 0.16) continue;
         if (below && this.cells[i - this.w]) continue;  // needs headroom to grow into
         const band = this.strata[this.stratum[i]];
         const list = band && band.flora;
@@ -913,7 +931,7 @@
         const sy = cy * TILE - cam.y;
         const seed = cx * 31 + cy * 17;
         const kind = list[(U.hash2(cx + 5, cy + 9) * list.length) | 0];
-        const size = 6 + U.hash2(cx * 3, cy * 5) * 7;
+        const size = 7 + U.hash2(cx * 3, cy * 5) * 8;
         const jitter = (U.hash2(cx * 11, cy * 2) - 0.5) * 4;
         if (below) FL.draw(ctx, kind, sx + TILE / 2 + jitter, sy + TILE + 1, size, seed, time, 1);
         else if (h < 0.07) FL.draw(ctx, hangKind(kind), sx + TILE / 2 + jitter, sy - 1, size * 0.9, seed + 5, time, -1);

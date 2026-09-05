@@ -142,6 +142,59 @@
     STRATA[k].forEach((band, i) => { band.flora = f[Math.min(i, f.length - 1)]; });
   }
 
+  /* ---------------------------------------------------------------- your moon
+     The hub is a dead little moon you own. Everything you can improve is a
+     building standing on it: pay credits, it goes up a tier and gets visibly
+     bigger. No menus, no staff, no terminals -- walk over and press E. */
+  const BUILDINGS = [
+    {
+      id: 'pad', name: 'LAUNCH PAD', glyph: 'planet', x: 120, max: 0,
+      blurb: 'Fly out and pick a world.', act: 'chart'
+    },
+    {
+      id: 'market', name: 'TRADE MAST', glyph: 'sell', x: 250, max: 8, base: 700,
+      blurb: 'Sell every rock you brought home.', act: 'sell',
+      gives: { crew: 1 }, effect: l => '+' + l * 6 + '% PRICE'
+    },
+    {
+      id: 'works', name: 'DRILL WORKS', glyph: 'drill', x: 370, max: 12, base: 260,
+      blurb: 'A bigger bit and a wider bore.',
+      gives: { drill: 1, reach: 0.5 }, effect: l => (110 + l * 32) + ' DMG/S'
+    },
+    {
+      id: 'still', name: 'AIR STILL', glyph: 'o2', x: 480, max: 14, base: 220,
+      blurb: 'More air in the tank.',
+      gives: { oxygen: 1, lamp: 0.6 }, effect: l => (66 + l * 26) + ' AIR'
+    },
+    {
+      id: 'silo', name: 'CARGO SILO', glyph: 'cargo', x: 590, max: 14, base: 280,
+      blurb: 'A heavier hold and a stronger magnet.',
+      gives: { cargo: 1, magnet: 0.6 }, effect: l => (16 + l * 13) + ' KG'
+    },
+    {
+      id: 'armoury', name: 'GUN SHACK', glyph: 'gun', x: 700, max: 12, base: 340,
+      blurb: 'Louder guns. Level 3 adds the scattergun, 6 the lance.',
+      gives: { pistol: 1, trigger: 0.6, scatter: l => l >= 3 ? l - 2 : 0, lance: l => l >= 6 ? l - 5 : 0 },
+      effect: l => (9 + l * 7) + ' DMG'
+    },
+    {
+      id: 'hangar', name: 'WINCH TOWER', glyph: 'belt', x: 820, max: 12, base: 300,
+      blurb: 'A longer wire and a punchier suit.',
+      gives: { tether: 1, thruster: 0.6, dash: 0.5, hull: 0.8 },
+      effect: l => Math.round((230 + l * 60 - 70) / 10) + 'M WIRE'
+    },
+    {
+      id: 'relic', name: 'RUIN ALTAR', glyph: 'star', x: 930, max: 6, base: 4000,
+      blurb: 'The old ones left something under here.',
+      gives: { scanner: 1, refine: 0.8 }, effect: l => '+' + (l * 9) + '% ORE VALUE'
+    }
+  ];
+  const BUILD = {};
+  for (const b of BUILDINGS) BUILD[b.id] = b;
+  function buildCost(b, level) {
+    return Math.round(b.base * Math.pow(1.72, level) / 10) * 10;
+  }
+
   /* -------------------------------------------------------------------- zones
      The galaxy is four sectors. Each one past the first is locked behind a
      drive you buy outright -- that is the only travel gate in the game. */
@@ -570,5 +623,5 @@
   }
 
   PD.data = { MAT, M, ENEMY, BODIES, UPGRADES, UPG, upgradeCost, recipe, COSMETICS, COS, TITLES, titleFor, bountyFor,
-    STRATA, ZONES, zoneOf, FLORA, MACHINES, METALS, GEMS, JUNK, goodOf, goodFromKey, NODES, appraiseSeconds, appraiseFee };
+    STRATA, ZONES, zoneOf, FLORA, BUILDINGS, BUILD, buildCost, MACHINES, METALS, GEMS, JUNK, goodOf, goodFromKey, NODES, appraiseSeconds, appraiseFee };
 })(window.PD);

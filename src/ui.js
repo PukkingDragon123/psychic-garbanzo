@@ -109,56 +109,10 @@
   /* -------------------------------------------------------------------- HUD */
   const Gd = () => PD.glyph;
 
-  /* Glyph toasts stack up from the bottom; a toast is [glyphs..., number?]. */
-  function toasts(ctx, g) {
-    let ty = VH - 96;
-    for (let i = g.toasts.length - 1; i >= 0; i--) {
-      const t = g.toasts[i];
-      const arr = Array.isArray(t.msg) ? t.msg : null;
-      const w = arr ? arr.length * 16 + 12 + (t.num !== undefined ? F.width(String(t.num), 1) + 6 : 0) : F.width(t.msg, 1) + 12;
-      ctx.globalAlpha = U.clamp(t.life, 0, 1);
-      ctx.fillStyle = 'rgba(18,10,36,0.85)';
-      ctx.fillRect(VW / 2 - w / 2, ty - 3, w, 18);
-      ctx.strokeStyle = t.color || COL.line;
-      ctx.strokeRect(VW / 2 - w / 2 + 0.5, ty - 2.5, w - 1, 17);
-      if (arr) {
-        let gx = VW / 2 - w / 2 + 6;
-        for (const gname of arr) { Gd().draw(ctx, gname, gx, ty - 1, t.color || COL.text, COL.line); gx += 16; }
-        if (t.num !== undefined) F.draw(ctx, t.num, gx + 2, ty + 3, t.color || COL.text);
-      } else F.draw(ctx, t.msg, VW / 2, ty + 3, t.color || COL.text, { center: true });
-      ctx.globalAlpha = 1;
-      ty -= 21;
-    }
-  }
+  /* The old toast / hint / objective boxes are gone. Anything worth saying is
+     said in the world: a floating number, a sign, a light. */
 
-  function hintStrip(ctx, g, y) {
-    if (g.hintT <= 0 || !g.hintGlyphs) return;
-    const arr = g.hintGlyphs;
-    const text = (g.hintText || '').toUpperCase();
-    const w = Math.max(arr.length * 18 + 10, F.width(text, 1) + 16);
-    ctx.globalAlpha = U.clamp(g.hintT, 0, 1);
-    ctx.fillStyle = 'rgba(8,4,18,0.82)';
-    ctx.fillRect(VW / 2 - w / 2, y - 14, w, text ? 32 : 20);
-    ctx.fillStyle = '#ffd34d'; ctx.fillRect(VW / 2 - w / 2, y - 14, w, 1);
-    for (let i = 0; i < arr.length; i++) Gd().draw(ctx, arr[i], VW / 2 - arr.length * 9 + i * 18, y - 11, '#ffffff', '#ffd34d');
-    if (text) F.draw(ctx, text, VW / 2, y + 6, '#ffffff', { center: true });
-    ctx.globalAlpha = 1;
-  }
 
-  /* The objective line: always on, always says what to do next. */
-  function objective(ctx, g) {
-    const o = g.objective && g.objective();
-    if (!o) return;
-    const text = o.t.toUpperCase();
-    const w = F.width(text, 1) + o.g.length * 16 + 24;
-    const x = VW / 2 - w / 2, y = 64;
-    ctx.fillStyle = 'rgba(8,4,18,0.75)';
-    ctx.fillRect(x, y, w, 18);
-    ctx.fillStyle = COL.gold; ctx.fillRect(x, y + 17, w, 1);
-    let gx = x + 6;
-    for (const gname of o.g) { Gd().draw(ctx, gname, gx, y + 2, '#ffffff', COL.gold); gx += 16; }
-    F.draw(ctx, text, gx + 6, y + 6, COL.text);
-  }
 
   /* ----------------------------------------------------------- vitals pod
      Three readouts, no clutter: a glass air tank that empties, hull as a row
@@ -284,7 +238,6 @@
     F.draw(ctx, g.world.body.name, 6, VH - 26, COL.text);
     Gd().draw(ctx, 'depth', 6, VH - 16, COL.dim, '#2a1c4a');
     F.draw(ctx, g.world.depthMeters(p.y) + 'M', 22, VH - 16, COL.text, { scale: 2 });
-    objective(ctx, g);
 
     // one compact action strip: weapon, dash, scan, wire
     const wg = { pistol: 'gun', scatter: 'scatter', lance: 'lance' }[p.weapon];
@@ -325,25 +278,30 @@
 
     minimap(ctx, g);
 
-    // stratum banner: band swatch + depth number
+    // crossing into a new band: just its name, fading, no box
     if (g.banner) {
       const a = U.clamp(Math.min(g.banner.t * 2, (3.2 - g.banner.t) * 2), 0, 1);
-      const si = g.world.stratumAt(p.x, p.y);
-      const tint = si >= 0 ? g.world.strata[si].tint : '#2a1c4a';
       ctx.globalAlpha = a;
-      ctx.fillStyle = 'rgba(8,4,18,0.6)'; ctx.fillRect(VW / 2 - 60, 86, 120, 22);
-      ctx.fillStyle = COL.gold; ctx.fillRect(VW / 2 - 60, 86, 120, 1);
-      for (let i = 0; i < 5; i++) { ctx.fillStyle = tint; ctx.globalAlpha = a * (0.5 + i * 0.1); ctx.fillRect(VW / 2 - 52 + i * 10, 91, 8, 12); }
-      ctx.globalAlpha = a;
-      ctx.globalAlpha = 1;
-      ctx.globalAlpha = a;
-      ctx.fillStyle = 'rgba(8,4,18,0.6)'; ctx.fillRect(VW / 2 - 100, 108, 200, 14);
-      F.draw(ctx, g.banner.text + '  -  ' + g.world.depthMeters(p.y) + 'M', VW / 2, 111, COL.gold, { center: true });
+      F.draw(ctx, g.banner.text, VW / 2, 96, COL.gold, { center: true, scale: 2 });
       ctx.globalAlpha = 1;
     }
 
-    hintStrip(ctx, g, VH - 44);
-    toasts(ctx, g);
+  }
+
+  /* On the moon: what you have, and what it is worth. One line, no boxes. */
+  function homeBar(ctx, g) {
+    const ore = g.vaultTotal();
+    const val = g.vaultValue();
+    ctx.fillStyle = 'rgba(8,4,18,0.62)';
+    ctx.fillRect(0, 0, VW, 20);
+    ctx.fillStyle = '#5b3f96';
+    ctx.fillRect(0, 20, VW, 1);
+    Gd().draw(ctx, 'coin', 4, 3, COL.gold, '#b8860b');
+    F.draw(ctx, '$' + U.fmt(g.save.credits), 20, 2, COL.gold, { scale: 2, shadow: false });
+    Gd().draw(ctx, 'ore', 150, 3, ore ? '#ffb03d' : COL.dim, '#5b3f96');
+    F.draw(ctx, ore + ' ORE', 166, 6, ore ? '#ffb03d' : COL.dim, { shadow: false });
+    if (val > 0) F.draw(ctx, 'WORTH $' + U.fmt(val), 218, 6, '#8affa0', { shadow: false });
+    F.draw(ctx, 'GALAXY ' + g.save.dominion.toFixed(1) + '%', VW - 6, 6, COL.lineHi, { right: true, shadow: false });
   }
 
   /* ---------------------------------------------------------------- minimap
@@ -728,7 +686,7 @@
   }
 
   PD.ui = {
-    VW, VH, COL, panel, bar, button, icon, hud, objective, shop, title, pause, victory,
+    VW, VH, COL, panel, bar, button, icon, hud, homeBar, shop, title, pause, victory,
     sellSplash, ending, endFrame
   };
 })(window.PD);
