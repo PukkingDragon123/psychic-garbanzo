@@ -413,6 +413,122 @@ window.PD = window.PD || {};
   PD.pix = (w, h) => new Pix(w, h);
 })(window.PD);
 
+/* ===== src/glyph.js ===== */
+/* The game's icon language. Every glyph is drawn procedurally at 12x12 and
+   cached per colour, so the HUD, terminals and tutorial can speak without
+   words: a bar plus a glyph plus a number is a sentence. */
+(function (PD) {
+  'use strict';
+  const pix = PD.pix;
+  const U = PD.util;
+
+  const INK = '#1a1030';
+  const builders = {};
+  const cache = {};
+
+  function def(name, fn) { builders[name] = fn; }
+
+  /* Each builder draws in a single "paint" colour c, plus optional accent a. */
+  def('coin', (p, c, a) => { p.disc(6, 6, 5, c); p.disc(6, 6, 3.2, a); p.rect(5, 3, 2, 6, c); p.rect(4, 4, 4, 1, c); p.rect(4, 7, 4, 1, c); });
+  def('ore', (p, c, a) => { p.round(1, 4, 10, 7, 3, c); p.round(3, 1, 6, 5, 2, c); p.rect(3, 3, 3, 1, a); p.rect(2, 6, 2, 2, a); p.rect(7, 7, 2, 1, a); p.set(5, 2, '#ffffff'); });
+  def('drill', (p, c, a) => { p.round(0, 4, 5, 4, 1, a); for (let x = 5; x < 12; x++) { const h = Math.max(0, 2.5 - (x - 5) * 0.4); for (let y = -h; y <= h; y++) p.set(x, Math.round(6 + y), (x + Math.round(y)) % 2 ? c : a); } });
+  def('gun', (p, c, a) => { p.round(0, 4, 8, 4, 1, a); p.rect(2, 8, 2, 3, a); p.rect(8, 5, 4, 2, c); });
+  def('scatter', (p, c, a) => { p.round(0, 4, 7, 4, 1, a); p.rect(2, 8, 2, 3, a); p.rect(7, 3, 5, 2, c); p.rect(7, 7, 5, 2, c); });
+  def('lance', (p, c, a) => { p.round(0, 4, 6, 4, 1, a); p.rect(2, 8, 2, 3, a); p.rect(6, 5, 6, 2, c); p.rect(10, 3, 2, 6, c); });
+  def('dash', (p, c, a) => { p.spike(8, 2, 8, 8, 1, c); p.rect(0, 4, 4, 1, a); p.rect(0, 6, 5, 1, a); p.rect(0, 8, 3, 1, a); });
+  def('scan', (p, c, a) => { for (let t = 0; t < 6.3; t += 0.35) p.set(6 + Math.cos(t) * 5, 6 + Math.sin(t) * 5, a); p.disc(6, 6, 2, c); p.line(6, 6, 10, 2, c); });
+  def('o2', (p, c, a) => { p.round(3, 2, 6, 10, 2, c); p.rect(4, 0, 4, 2, a); p.rect(5, 4, 2, 5, a); });
+  def('hull', (p, c, a) => { p.round(2, 1, 8, 7, 2, c); p.spike(6, 6, 8, 5, 1, c); p.rect(5, 3, 2, 3, a); });
+  def('cargo', (p, c, a) => { p.round(1, 3, 10, 8, 1, c); p.rect(1, 5, 10, 1, a); p.rect(5, 3, 2, 8, a); });
+  def('weight', (p, c, a) => { p.spike(6, 4, 10, 7, 1, c); p.rect(2, 10, 8, 1, c); p.rect(5, 1, 2, 3, a); p.set(5, 1, c); p.set(6, 1, c); });
+  def('planet', (p, c, a) => { p.disc(6, 6, 4.5, c); p.disc(4.5, 4.5, 1.5, a); p.disc(7.5, 7, 1, a); p.rect(0, 6, 12, 1, a); });
+  def('hole', (p, c, a) => { p.disc(6, 6, 5.5, c); p.disc(6, 6, 3.6, a); p.disc(6, 6, 2, INK); p.set(9, 3, a); p.set(3, 9, a); });
+  def('hand', (p, c, a) => { p.rect(5, 0, 3, 7, c); p.round(2, 5, 9, 7, 2, c); p.rect(1, 6, 2, 3, c); p.rect(9, 6, 2, 3, c); p.rect(6, 1, 1, 4, a); p.rect(4, 8, 5, 1, a); });
+  def('arrowR', (p, c) => { p.rect(0, 5, 7, 2, c); p.spike(8, 2, 8, 4, 1, c); p.spike(8, 6, 8, 4, -1, c); p.rect(7, 4, 2, 4, c); });
+  def('arrowD', (p, c) => { p.rect(5, 0, 2, 7, c); for (let i = 0; i < 4; i++) p.rect(2 + i, 6 + i, 8 - i * 2, 1, c); });
+  def('arrowU', (p, c) => { p.rect(5, 5, 2, 7, c); for (let i = 0; i < 4; i++) p.rect(2 + i, 5 - i, 8 - i * 2, 1, c); });
+  def('lock', (p, c, a) => { p.round(2, 5, 8, 7, 1, c); p.rect(3, 2, 6, 4, a); p.rect(4, 3, 4, 3, INK); p.rect(3, 2, 6, 1, a); p.rect(5, 7, 2, 3, INK); });
+  def('check', (p, c) => { p.line(1, 6, 4, 10, c); p.line(2, 6, 5, 10, c); p.line(4, 10, 11, 2, c); p.line(5, 10, 11, 3, c); });
+  def('cross', (p, c) => { p.line(1, 1, 10, 10, c); p.line(2, 1, 11, 10, c); p.line(10, 1, 1, 10, c); p.line(11, 1, 2, 10, c); });
+  def('clock', (p, c, a) => { p.disc(6, 6, 5.5, c); p.disc(6, 6, 4.3, INK); p.rect(5, 2, 2, 5, a); p.rect(6, 6, 3, 2, a); });
+  def('star', (p, c, a) => { p.spike(6, 0, 5, 6, 1, c); p.spike(6, 6, 5, 6, -1, c); p.rect(0, 5, 12, 2, c); p.disc(6, 6, 1.5, a); });
+  def('skull', (p, c, a) => { p.round(2, 1, 8, 7, 3, c); p.rect(3, 3, 2, 2, INK); p.rect(7, 3, 2, 2, INK); p.rect(4, 7, 4, 2, c); p.rect(4, 8, 1, 2, c); p.rect(6, 8, 1, 2, c); p.set(5, 6, INK); p.set(6, 6, INK); });
+  def('machine', (p, c, a) => { p.round(1, 4, 10, 7, 1, c); p.rect(2, 1, 3, 3, a); p.rect(7, 2, 2, 2, a); p.rect(3, 6, 6, 2, INK); p.rect(3, 6, 3, 2, a); });
+  def('belt', (p, c, a) => { p.rect(0, 4, 12, 4, c); p.rect(1, 5, 2, 2, a); p.rect(5, 5, 2, 2, a); p.rect(9, 5, 2, 2, a); });
+  def('crew', (p, c, a) => { p.disc(6, 3.5, 3, c); p.round(1, 7, 10, 5, 2, c); p.set(5, 3, INK); p.set(7, 3, INK); p.rect(3, 9, 6, 1, a); });
+  def('home', (p, c, a) => { p.spike(6, 0, 12, 6, 1, c); p.rect(2, 6, 8, 6, c); p.rect(5, 8, 2, 4, INK); p.rect(3, 7, 2, 2, a); });
+  def('bang', (p, c) => { p.rect(5, 0, 2, 7, c); p.rect(5, 9, 2, 2, c); });
+  def('quest', (p, c) => { p.round(3, 0, 6, 5, 2, c); p.rect(4, 1, 4, 2, INK); p.rect(3, 1, 1, 2, INK); p.rect(6, 5, 2, 3, c); p.rect(6, 10, 2, 2, c); });
+  def('play', (p, c) => { p.spike(6, 1, 10, 10, 1, c); }); // pointing down; rotated in draw
+  def('rock', (p, c, a) => { p.round(1, 3, 10, 8, 3, c); p.round(3, 1, 6, 4, 2, c); p.set(4, 5, a); p.set(7, 6, a); p.set(5, 8, a); });
+  def('depth', (p, c, a) => { p.rect(2, 0, 8, 2, c); p.rect(5, 2, 2, 7, c); p.spike(6, 8, 8, 4, 1, c); p.rect(0, 10, 12, 2, a); });
+  def('speed', (p, c, a) => { for (let k = 0; k < 3; k++) { const x0 = k * 3; p.line(x0, 2, x0 + 3, 6, c); p.line(x0, 10, x0 + 3, 6, c); p.line(x0 + 1, 2, x0 + 4, 6, k === 2 ? c : a); p.line(x0 + 1, 10, x0 + 4, 6, k === 2 ? c : a); } });
+  def('galaxy', (p, c, a) => { for (let t = 0; t < 9; t += 0.25) { const r = t * 0.6; p.set(6 + Math.cos(t) * r, 6 + Math.sin(t) * r, c); } p.disc(6, 6, 1.5, a); });
+  def('sell', (p, c, a) => { p.spike(2, 1, 4, 5, 1, c); p.rect(0, 5, 12, 6, c); p.rect(4, 0, 8, 6, c); p.disc(9, 3, 1.4, INK); p.rect(2, 7, 7, 1, a); p.rect(2, 9, 5, 1, a); });
+  def('build', (p, c, a) => { p.rect(1, 8, 6, 3, c); p.rect(5, 1, 6, 5, c); p.rect(5, 6, 2, 3, c); p.rect(8, 2, 2, 2, a); });
+  def('up', (p, c, a) => { p.spike(6, 0, 12, 6, 1, c); p.rect(3, 6, 6, 2, c); p.rect(3, 9, 6, 2, a); });
+  def('eye', (p, c, a) => { p.ellipse(6, 6, 6, 3.5, c); p.disc(6, 6, 2.2, INK); p.disc(6, 6, 1.2, a); });
+  def('drone', (p, c, a) => { p.round(3, 4, 6, 5, 2, c); p.rect(0, 3, 4, 1, a); p.rect(8, 3, 4, 1, a); p.disc(6, 6.5, 1.2, a); });
+  def('hex', (p, c) => { for (let y = 0; y < 12; y++) { const w = y < 3 ? 2 + y * 1.7 : (y > 8 ? 2 + (11 - y) * 1.7 : 6); for (let x = -w; x <= w; x++) p.set(6 + x, y, c); } });
+
+  function build(name, c, a) {
+    const key = name + '|' + c + '|' + a;
+    if (cache[key]) return cache[key];
+    const p = pix(14, 14);
+    const inner = pix(12, 12);
+    (builders[name] || builders.quest)(inner, c, a || c);
+    for (let y = 0; y < 12; y++) for (let x = 0; x < 12; x++) { const v = inner.get(x, y); if (v) p.set(x + 1, y + 1, v); }
+    p.outline(INK);
+    const cv = p.toCanvas();
+    cache[key] = cv;
+    return cv;
+  }
+
+  /* Draw a glyph with its top-left at x,y (14px box) at integer scale. */
+  function draw(ctx, name, x, y, c, a, scale) {
+    const cv = build(name, c || '#f2e9ff', a || '#9c8ec4');
+    const s = scale || 1;
+    ctx.drawImage(cv, 0, 0, 14, 14, x | 0, y | 0, 14 * s, 14 * s);
+  }
+
+  /* A glyph + a number, the game's basic HUD sentence. Returns the width. */
+  function stat(ctx, name, value, x, y, c, a, numCol) {
+    draw(ctx, name, x, y, c, a);
+    PD.font.draw(ctx, value, x + 17, y + 4, numCol || '#f2e9ff');
+    return 17 + PD.font.width(String(value), 1);
+  }
+
+  /* Hexagon outline/fill helpers -- the UI's only shape besides the rectangle. */
+  function hexPath(ctx, x, y, r) {
+    ctx.beginPath();
+    for (let i = 0; i < 6; i++) {
+      const ang = Math.PI / 6 + i * Math.PI / 3;
+      const px = x + Math.cos(ang) * r, py = y + Math.sin(ang) * r;
+      if (i) ctx.lineTo(px, py); else ctx.moveTo(px, py);
+    }
+    ctx.closePath();
+  }
+  function hex(ctx, x, y, r, fill, stroke, lw) {
+    hexPath(ctx, x, y, r);
+    if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+    if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = lw || 1; ctx.stroke(); }
+  }
+  /* Six-segment progress ring drawn as hex arcs. */
+  function hexProgress(ctx, x, y, r, frac, col) {
+    ctx.strokeStyle = col; ctx.lineWidth = 2;
+    const segs = Math.round(U.clamp(frac, 0, 1) * 6);
+    for (let i = 0; i < segs; i++) {
+      const a0 = -Math.PI / 2 + i * Math.PI / 3, a1 = a0 + Math.PI / 3;
+      ctx.beginPath();
+      ctx.moveTo(x + Math.cos(a0) * r, y + Math.sin(a0) * r);
+      ctx.lineTo(x + Math.cos(a1) * r, y + Math.sin(a1) * r);
+      ctx.stroke();
+    }
+  }
+
+  PD.glyph = { draw, stat, hex, hexPath, hexProgress, names: Object.keys(builders), build };
+})(window.PD);
+
 /* ===== src/data.js ===== */
 /* Static game data: materials, celestial bodies, upgrades, enemy stats. */
 (function (PD) {
@@ -713,6 +829,36 @@ window.PD = window.PD || {};
       show: l => (26 + l * 11) + ' PX PULL'
     },
     {
+      id: 'appraise', name: 'Appraiser', icon: 'clock', max: 8, base: 260, growth: 1.6, mats: [['crust', 6], ['copper', 2]], late: ['silver', 3],
+      blurb: 'Staff: ore is appraised faster and the house takes a smaller cut.',
+      value: l => l,
+      show: l => Math.round(100 / (1 + l * 0.55)) + '% TIME  ' + Math.max(2, 12 - l * 1.25).toFixed(0) + '% FEE'
+    },
+    {
+      id: 'crew', name: 'Broker', icon: 'crew', max: 8, base: 700, growth: 1.7, mats: [['silver', 3], ['gold', 1]], late: ['emerald', 2],
+      blurb: 'Staff: a broker who squeezes buyers. +6% sale value per level.',
+      value: l => 1 + l * 0.06,
+      show: l => '+' + (l * 6) + '% SALES'
+    },
+    {
+      id: 'beltspeed', name: 'Belt Motors', icon: 'belt', max: 6, base: 900, growth: 1.7, mats: [['copper', 6], ['iron', 4]], late: ['titan', 1],
+      blurb: 'Machines: conveyors and hoppers run faster.',
+      value: l => 1 + l * 0.35,
+      show: l => 'x' + (1 + l * 0.35).toFixed(2) + ' BELT'
+    },
+    {
+      id: 'machspeed', name: 'Overclock', icon: 'machine', max: 6, base: 2400, growth: 1.75, mats: [['silver', 4], ['titan', 2]], late: ['void', 1],
+      blurb: 'Machines: smelters, cutters, crushers and forges work faster.',
+      value: l => 1 + l * 0.4,
+      show: l => 'x' + (1 + l * 0.4).toFixed(2) + ' MACHINES'
+    },
+    {
+      id: 'scooter', name: 'Scooter Engine', icon: 'speed', max: 8, base: 200, growth: 1.6, mats: [['crust', 4], ['iron', 2]], late: ['copper', 6],
+      blurb: 'Ship: the scooter accelerates harder out in the field.',
+      value: l => 1 + l * 0.22,
+      show: l => 'x' + (1 + l * 0.22).toFixed(2) + ' THRUST'
+    },
+    {
       id: 'drones', mats: [['copper', 6], ['gold', 3]], late: ['void', 2], name: 'Harvest Drones', icon: 'drone', max: 40, base: 500, growth: 1.28,
       blurb: 'Idle swarm that strips rubble for credits while you fly.',
       value: l => l,
@@ -745,6 +891,46 @@ window.PD = window.PD || {};
     }
     return out;
   }
+
+  /* ------------------------------------------------------------ skill tree
+     Axial hex coordinates. Six branches from the drill at the centre:
+     guns (E), ship (NE), oxygen (NW), cargo (W), staff (SW), machines (SE). */
+  const NODES = [
+    { id: 'drill', q: 0, r: 0, glyph: 'drill', root: 1 },
+    { id: 'reach', q: 0, r: -1, glyph: 'drill' },
+    // guns, east
+    { id: 'pistol', q: 1, r: 0, glyph: 'gun' },
+    { id: 'trigger', q: 2, r: 0, glyph: 'gun' },
+    { id: 'scatter', q: 2, r: -1, glyph: 'scatter' },
+    { id: 'lance', q: 3, r: -1, glyph: 'lance' },
+    // ship, north-east
+    { id: 'thruster', q: 1, r: -1, glyph: 'speed' },
+    { id: 'dash', q: 1, r: -2, glyph: 'dash' },
+    { id: 'scooter', q: 2, r: -2, glyph: 'speed' },
+    { id: 'hull', q: 0, r: -2, glyph: 'hull' },
+    // oxygen and sight, north-west
+    { id: 'oxygen', q: -1, r: 0, glyph: 'o2' },
+    { id: 'lamp', q: -1, r: -1, glyph: 'eye' },
+    { id: 'scanner', q: -2, r: 0, glyph: 'scan' },
+    // cargo, west / south-west
+    { id: 'cargo', q: -1, r: 1, glyph: 'cargo' },
+    { id: 'magnet', q: -2, r: 1, glyph: 'weight' },
+    // staff, south-west
+    { id: 'appraise', q: -1, r: 2, glyph: 'clock' },
+    { id: 'crew', q: -2, r: 2, glyph: 'crew' },
+    // machines, south-east
+    { id: 'drones', q: 0, r: 1, glyph: 'drone' },
+    { id: 'droneyield', q: 1, r: 1, glyph: 'drone' },
+    { id: 'beltspeed', q: 0, r: 2, glyph: 'belt' },
+    { id: 'machspeed', q: 1, r: 2, glyph: 'machine' }
+  ];
+
+  /* Appraisal: raw ore waits to be valued before it can sell. */
+  function appraiseSeconds(mat, level) {
+    const base = 0.6 + Math.log2(1 + MAT[mat].cr / 10) * 0.5; // pricier lots take longer: crust ~1s, diamond ~5s
+    return base / (1 + level * 0.55);
+  }
+  function appraiseFee(level) { return Math.max(0.02, 0.12 - level * 0.0125); }
 
   /* ---------------------------------------------------------------- factory
      The refinery deck: machines sit on a grid, belts carry ore between them,
@@ -862,7 +1048,7 @@ window.PD = window.PD || {};
   }
 
   PD.data = { MAT, M, ENEMY, BODIES, UPGRADES, UPG, upgradeCost, recipe, COSMETICS, COS, TITLES, titleFor, bountyFor,
-    STRATA, MACHINES, METALS, GEMS, JUNK, goodOf, goodFromKey };
+    STRATA, MACHINES, METALS, GEMS, JUNK, goodOf, goodFromKey, NODES, appraiseSeconds, appraiseFee };
 })(window.PD);
 
 /* ===== src/art.js ===== */
@@ -1284,6 +1470,24 @@ window.PD = window.PD || {};
     return p;
   }
   reg('lance', [buildLance(false), buildLance(true)], 3, 6);
+
+  /* SPACE SCOOTER: a hover-bike, drawn heading right; the rider sits on top. */
+  function buildScooter(phase) {
+    const p = pix(30, 16);
+    const f = phase ? 1 : 0;
+    p.round(4, 6, 22, 7, 3, C.metD);                  // body
+    p.round(6, 4, 14, 4, 2, C.met);                    // saddle
+    p.round(20, 3, 8, 5, 2, C.suit);                   // nose cowl
+    p.rect(26, 5, 3, 2, C.cyan);                       // headlamp
+    p.round(0, 8, 7, 5, 2, C.metDD);                   // engine
+    p.rect(1, 9, 2, 3, f ? C.orange : C.orangeD);
+    p.rect(8, 13, 5, 2, C.metDD); p.rect(18, 13, 5, 2, C.metDD);   // skids
+    p.rect(12, 2, 2, 3, C.metDD); p.rect(11, 1, 4, 1, C.metD);       // handlebar
+    p.rect(9, 8, 10, 1, C.gold);
+    p.outline(C.ink);
+    return p;
+  }
+  reg('scooter', [buildScooter(0), buildScooter(1)], 15, 8);
 
   /* LOOT CRATE: precursor supply case. */
   function buildCrate(open) {
@@ -1886,6 +2090,232 @@ window.PD = window.PD || {};
   PD.artint = { P, S, room, buildMoon };
 })(window.PD);
 
+/* ===== src/galaxy.js ===== */
+/* Deep-space backdrop: a spiral arm of stars and dust, coloured nebulae, a sun
+   with a flare, ringed planets and moons, shooting stars. Everything heavy is
+   pre-rendered once into layer canvases and scrolled with parallax. */
+(function (PD) {
+  'use strict';
+  const U = PD.util;
+
+  const VW = 480, VH = 270;
+  let layers = null;
+
+  function shade(hex, f, alpha) {
+    const n = parseInt(hex.slice(1), 16);
+    const r = U.clamp(((n >> 16) & 255) * f, 0, 255) | 0, g = U.clamp(((n >> 8) & 255) * f, 0, 255) | 0, b = U.clamp((n & 255) * f, 0, 255) | 0;
+    return alpha === undefined ? 'rgb(' + r + ',' + g + ',' + b + ')' : 'rgba(' + r + ',' + g + ',' + b + ',' + alpha + ')';
+  }
+
+  function canvas(w, h) { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; }
+
+  /* The galactic band: thousands of tiny stars concentrated along a tilted
+     sine, with dust lanes drawn dark through them. */
+  function buildBand(seed) {
+    const W = 960, H = 540;
+    const cv = canvas(W, H), c = cv.getContext('2d');
+    const rnd = U.mulberry32(seed);
+    const grd = c.createLinearGradient(0, 0, W, H);
+    grd.addColorStop(0, 'rgba(40,20,80,0)');
+    grd.addColorStop(0.5, 'rgba(70,40,120,0.35)');
+    grd.addColorStop(1, 'rgba(30,15,60,0)');
+    c.fillStyle = grd;
+    c.save(); c.translate(W / 2, H / 2); c.rotate(-0.42); c.fillRect(-W, -90, W * 2, 180); c.restore();
+    for (let i = 0; i < 5200; i++) {
+      const t = rnd();
+      const along = (rnd() - 0.5) * W * 1.6;
+      const spread = (rnd() + rnd() + rnd() - 1.5) * 70;
+      const x = W / 2 + along * Math.cos(-0.42) - spread * Math.sin(-0.42);
+      const y = H / 2 + along * Math.sin(-0.42) + spread * Math.cos(-0.42);
+      if (x < 0 || y < 0 || x >= W || y >= H) continue;
+      const big = t > 0.985;
+      c.fillStyle = t > 0.93 ? '#ffe2b8' : (t > 0.86 ? '#b8d8ff' : '#ffffff');
+      c.globalAlpha = big ? 0.9 : 0.25 + rnd() * 0.45;
+      c.fillRect(x | 0, y | 0, big ? 2 : 1, big ? 2 : 1);
+    }
+    // dust lanes
+    c.globalAlpha = 1;
+    for (let i = 0; i < 14; i++) {
+      const along = (rnd() - 0.5) * W * 1.2, spread = (rnd() - 0.5) * 60;
+      const x = W / 2 + along * Math.cos(-0.42) - spread * Math.sin(-0.42);
+      const y = H / 2 + along * Math.sin(-0.42) + spread * Math.cos(-0.42);
+      const g2 = c.createRadialGradient(x, y, 2, x, y, 40 + rnd() * 60);
+      g2.addColorStop(0, 'rgba(6,3,14,0.8)');
+      g2.addColorStop(1, 'rgba(6,3,14,0)');
+      c.fillStyle = g2;
+      c.save(); c.translate(x, y); c.rotate(-0.42); c.scale(2.6, 0.7); c.translate(-x, -y);
+      c.fillRect(x - 160, y - 160, 320, 320); c.restore();
+    }
+    return cv;
+  }
+
+  function buildNebulae(seed) {
+    const W = 480, H = 270;
+    const cv = canvas(W, H), c = cv.getContext('2d');
+    const rnd = U.mulberry32(seed + 7);
+    const cols = ['#5a2a8a', '#2a4a8a', '#8a2a5a', '#2a7a6a', '#7a3a2a'];
+    for (let i = 0; i < 9; i++) {
+      const x = rnd() * W, y = rnd() * H, r = 50 + rnd() * 110;
+      const col = cols[i % cols.length];
+      const g = c.createRadialGradient(x, y, 0, x, y, r);
+      g.addColorStop(0, shade(col, 1, 0.22));
+      g.addColorStop(0.5, shade(col, 0.8, 0.1));
+      g.addColorStop(1, shade(col, 0.6, 0));
+      c.fillStyle = g;
+      c.save(); c.translate(x, y); c.rotate(rnd() * 3); c.scale(1 + rnd(), 0.6 + rnd() * 0.5); c.translate(-x, -y);
+      c.fillRect(x - r * 2, y - r * 2, r * 4, r * 4); c.restore();
+    }
+    // speckle so it reads as pixel art, not a soft blur
+    for (let i = 0; i < 2600; i++) {
+      c.fillStyle = 'rgba(255,255,255,' + (0.03 + rnd() * 0.08).toFixed(3) + ')';
+      c.fillRect((rnd() * W) | 0, (rnd() * H) | 0, 1, 1);
+    }
+    return cv;
+  }
+
+  /* A far planet: banded disc, optional rings, a moon, terminator shading. */
+  function buildPlanet(size, tint, seed, rings) {
+    const pad = rings ? size : size * 0.3;
+    const W = size + pad * 2;
+    const cv = canvas(W, W), c = cv.getContext('2d');
+    const rnd = U.mulberry32(seed);
+    const cx = W / 2, cy = W / 2, r = size / 2;
+    if (rings) {                                        // back half of the rings
+      c.save(); c.translate(cx, cy); c.rotate(-0.35); c.scale(1, 0.32);
+      for (let k = 0; k < 3; k++) {
+        c.strokeStyle = shade(tint, 1.2 - k * 0.2, 0.55 - k * 0.12); c.lineWidth = 3 + k;
+        c.beginPath(); c.arc(0, 0, r * (1.5 + k * 0.25), Math.PI, Math.PI * 2); c.stroke();
+      }
+      c.restore();
+    }
+    c.save(); c.beginPath(); c.arc(cx, cy, r, 0, U.TAU); c.clip();
+    c.fillStyle = shade(tint, 0.85); c.fillRect(0, 0, W, W);
+    for (let y = -r; y < r; y += 2 + rnd() * 3) {          // bands
+      c.fillStyle = shade(tint, 0.6 + rnd() * 0.7, 0.5);
+      c.fillRect(cx - r, cy + y, r * 2, 1 + rnd() * 3);
+    }
+    for (let i = 0; i < 6; i++) {                          // storms
+      c.fillStyle = shade(tint, 1.3, 0.35);
+      c.beginPath(); c.ellipse(cx + (rnd() - 0.5) * r * 1.4, cy + (rnd() - 0.5) * r * 1.4, 2 + rnd() * r * 0.2, 1 + rnd() * r * 0.08, 0, 0, U.TAU); c.fill();
+    }
+    const term = c.createLinearGradient(cx - r, 0, cx + r, 0);
+    term.addColorStop(0, 'rgba(255,255,255,0.12)'); term.addColorStop(0.55, 'rgba(0,0,0,0)'); term.addColorStop(1, 'rgba(4,2,12,0.9)');
+    c.fillStyle = term; c.fillRect(0, 0, W, W);
+    c.restore();
+    c.strokeStyle = shade(tint, 1.5, 0.6); c.lineWidth = 1;
+    c.beginPath(); c.arc(cx, cy, r - 0.5, Math.PI * 0.8, Math.PI * 1.6); c.stroke();
+    if (rings) {                                        // front half
+      c.save(); c.translate(cx, cy); c.rotate(-0.35); c.scale(1, 0.32);
+      for (let k = 0; k < 3; k++) {
+        c.strokeStyle = shade(tint, 1.3 - k * 0.2, 0.7 - k * 0.15); c.lineWidth = 3 + k;
+        c.beginPath(); c.arc(0, 0, r * (1.5 + k * 0.25), 0, Math.PI); c.stroke();
+      }
+      c.restore();
+    }
+    // a moon
+    c.fillStyle = shade(tint, 0.5);
+    c.beginPath(); c.arc(cx + r * 1.25, cy - r * 0.9, Math.max(2, r * 0.14), 0, U.TAU); c.fill();
+    return cv;
+  }
+
+  function buildSun(size, col) {
+    const W = size * 3;
+    const cv = canvas(W, W), c = cv.getContext('2d');
+    const cx = W / 2, cy = W / 2;
+    const g = c.createRadialGradient(cx, cy, size * 0.3, cx, cy, W / 2);
+    g.addColorStop(0, shade(col, 1.4, 0.9)); g.addColorStop(0.25, shade(col, 1, 0.45)); g.addColorStop(1, shade(col, 0.8, 0));
+    c.fillStyle = g; c.fillRect(0, 0, W, W);
+    for (let i = 0; i < 8; i++) {                       // rays
+      c.save(); c.translate(cx, cy); c.rotate(i * Math.PI / 4);
+      const rg = c.createLinearGradient(0, 0, W / 2, 0);
+      rg.addColorStop(0, shade(col, 1.3, 0.35)); rg.addColorStop(1, shade(col, 1, 0));
+      c.fillStyle = rg; c.fillRect(0, -1, W / 2, 2); c.restore();
+    }
+    c.fillStyle = '#fff8e0';
+    c.beginPath(); c.arc(cx, cy, size * 0.42, 0, U.TAU); c.fill();
+    return cv;
+  }
+
+  function ensure(seed) {
+    if (layers && layers.seed === seed) return layers;
+    const rnd = U.mulberry32(seed + 99);
+    layers = {
+      seed,
+      band: buildBand(seed),
+      nebulae: buildNebulae(seed),
+      sun: { cv: buildSun(20 + rnd() * 14, U.pick(['#ffd27a', '#ffb07a', '#b8e0ff'])), x: 0.12 + rnd() * 0.5, y: 0.08 + rnd() * 0.25, p: 0.02 },
+      planets: [],
+      stars: [],
+      shooters: []
+    };
+    const tints = ['#8a5a9a', '#5a8a9a', '#9a7a4a', '#4a7a5a', '#9a4a4a', '#6a6a9a'];
+    for (let i = 0; i < 4; i++) {
+      const size = 22 + rnd() * 50;
+      layers.planets.push({ cv: buildPlanet(size, tints[(i + Math.floor(seed)) % tints.length], seed * 3 + i, i % 2 === 0),
+        x: rnd() * 1.3, y: rnd() * 0.9, p: 0.03 + i * 0.015 });
+    }
+    for (let l = 0; l < 3; l++) {
+      const arr = [];
+      for (let i = 0; i < 110 - l * 25; i++) arr.push({ x: rnd() * 1.5, y: rnd() * 1.5, s: l === 2 && rnd() > 0.7 ? 2 : 1, tw: rnd() * 6.28, c: rnd() > 0.88 ? '#ffd9a0' : (rnd() > 0.72 ? '#a9d8ff' : '#ffffff') });
+      layers.stars.push(arr);
+    }
+    return layers;
+  }
+
+  /* Draw the whole sky. `cam` in world px; `skyTint` is the world's own hue. */
+  function draw(ctx, cam, time, seed, skyTint, opts) {
+    opts = opts || {};
+    const L = ensure(seed);
+    const g = ctx.createLinearGradient(0, 0, 0, VH);
+    g.addColorStop(0, skyTint || '#0b0720');
+    g.addColorStop(1, '#04030d');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, VW, VH);
+
+    // galactic band, slow parallax, tiled horizontally
+    const bx = -((cam.x * 0.012) % 960), by = -60 - (cam.y * 0.008) % 40;
+    ctx.globalAlpha = 0.9;
+    ctx.drawImage(L.band, bx, by, 960, 540);
+    ctx.drawImage(L.band, bx + 960, by, 960, 540);
+    ctx.globalAlpha = 0.85;
+    ctx.drawImage(L.nebulae, -((cam.x * 0.02) % VW) - 2, -((cam.y * 0.015) % 60) - 2, VW + 4, VH + 64);
+    ctx.globalAlpha = 1;
+
+    for (let l = 0; l < L.stars.length; l++) {
+      const par = 0.03 + l * 0.05;
+      for (const st of L.stars[l]) {
+        const x = ((st.x * VW * 1.5 - cam.x * par) % (VW * 1.5) + VW * 1.5) % (VW * 1.5);
+        const y = ((st.y * VH * 1.5 - cam.y * par * 0.7) % (VH * 1.5) + VH * 1.5) % (VH * 1.5);
+        if (x > VW || y > VH) continue;
+        ctx.globalAlpha = (0.55 + 0.45 * Math.sin(time * 2 + st.tw)) * (0.4 + l * 0.25);
+        ctx.fillStyle = st.c;
+        ctx.fillRect(x | 0, y | 0, st.s, st.s);
+      }
+    }
+    ctx.globalAlpha = 1;
+
+    const sun = L.sun;
+    ctx.drawImage(sun.cv, (sun.x * VW - cam.x * sun.p - sun.cv.width / 2) | 0, (sun.y * VH - cam.y * sun.p * 0.7 - sun.cv.height / 2) | 0);
+
+    for (const pl of L.planets) {
+      const x = ((pl.x * VW * 1.3 - cam.x * pl.p) % (VW * 1.3) + VW * 1.3) % (VW * 1.3) - pl.cv.width / 2;
+      const y = pl.y * VH - cam.y * pl.p * 0.6 - pl.cv.height / 2;
+      ctx.drawImage(pl.cv, x | 0, y | 0);
+    }
+
+    // shooting stars, occasionally
+    if (Math.random() < 0.004 && L.shooters.length < 2) L.shooters.push({ x: Math.random() * VW, y: Math.random() * VH * 0.5, vx: 260 + Math.random() * 200, vy: 90 + Math.random() * 80, life: 0.6 });
+    for (let i = L.shooters.length - 1; i >= 0; i--) {
+      const s = L.shooters[i];
+      s.life -= 1 / 60; s.x += s.vx / 60; s.y += s.vy / 60;
+      if (s.life <= 0) { L.shooters.splice(i, 1); continue; }
+      ctx.strokeStyle = 'rgba(255,255,255,' + (s.life).toFixed(2) + ')'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(s.x - s.vx * 0.06, s.y - s.vy * 0.06); ctx.stroke();
+    }
+  }
+
+  PD.galaxy = { draw, ensure, buildPlanet, buildSun };
+})(window.PD);
+
 /* ===== src/font.js ===== */
 /* A 5x7 bitmap font, drawn pixel by pixel and cached per colour so the HUD
    stays as crunchy as the rest of the game. */
@@ -2373,25 +2803,28 @@ window.PD = window.PD || {};
 })(window.PD);
 
 /* ===== src/touch.js ===== */
-/* Touch controls, drawn into the low-res canvas so they look like part of the
-   suit's HUD: a thumbstick for the jets, drag-to-aim that also drills, and a
-   cluster of action keys. Haptics where the browser allows. */
+/* Touch controls, no circles: a hexagonal pad for the jets, hex action keys,
+   drag-to-aim that also drills, tap-to-fly in the field, tap-through in menus. */
 (function (PD) {
   'use strict';
   const U = PD.util;
-  const F = PD.font;
+  const G = PD.glyph;
 
   const VW = 480, VH = 270;
 
   const cfg = {
-    stick: { x: 62, y: VH - 60, r: 36, knob: 16 },
-    keys: {
-      fire: { x: VW - 38, y: VH - 46, r: 22, label: 'FIRE', col: '#7ef9ff', key: null },
-      dash: { x: VW - 86, y: VH - 30, r: 16, label: 'DASH', col: '#ffd34d', key: 'shift' },
-      swap: { x: VW - 90, y: VH - 72, r: 13, label: 'SWAP', col: '#ff8ad8', key: 'KeyQ' },
-      scan: { x: VW - 40, y: VH - 96, r: 13, label: 'SCAN', col: '#8affa0', key: 'Tab' },
-      use:  { x: VW - 130, y: VH - 54, r: 13, label: 'E',    col: '#ffb03d', key: 'KeyE' },
-      beam: { x: VW - 130, y: VH - 22, r: 11, label: 'R',    col: '#ff5a4d', key: 'KeyR', hold: true }
+    stick: { x: 62, y: VH - 60, r: 36, knob: 15 },
+    play: {
+      fire: { x: VW - 38, y: VH - 46, r: 22, glyph: 'gun',  col: '#7ef9ff', key: null },
+      dash: { x: VW - 86, y: VH - 30, r: 16, glyph: 'dash', col: '#ffd34d', key: 'shift' },
+      swap: { x: VW - 90, y: VH - 72, r: 13, glyph: 'scatter', col: '#ff8ad8', key: 'KeyQ' },
+      scan: { x: VW - 40, y: VH - 96, r: 13, glyph: 'scan', col: '#8affa0', key: 'Tab' },
+      use:  { x: VW - 130, y: VH - 54, r: 13, glyph: 'hand', col: '#ffb03d', key: 'KeyE' },
+      beam: { x: VW - 130, y: VH - 22, r: 11, glyph: 'home', col: '#ff5a4d', key: 'KeyR', hold: true }
+    },
+    space: {
+      fire: { x: VW - 38, y: VH - 46, r: 22, glyph: 'gun',  col: '#7ef9ff', key: null },
+      hole: { x: VW - 86, y: VH - 30, r: 18, glyph: 'hole', col: '#d8bcff', key: 'KeyE' }
     }
   };
 
@@ -2399,48 +2832,44 @@ window.PD = window.PD || {};
     enabled: false, forced: null,
     stickId: null, sx: 0, sy: 0, dx: 0, dy: 0,
     aimId: null, ax: 0, ay: 0, aiming: false,
-    down: {}, edge: {},                 // per key: held, pressed-this-frame
-    mode: 'play', tapX: 0, tapY: 0, tapPress: false, tapHold: false,
-    pressAnim: {}
+    down: {}, edge: {}, pressAnim: {},
+    mode: 'play', tapX: 0, tapY: 0, tapPress: false, tapHold: false
   };
 
   function autoDetect() {
     const coarse = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
     return coarse || ('ontouchstart' in window && navigator.maxTouchPoints > 0);
   }
-
-  function buzz(ms) {
-    if (!state.enabled) return;
-    try { if (navigator.vibrate) navigator.vibrate(ms); } catch (e) { /* not allowed */ }
-  }
+  function buzz(ms) { if (!state.enabled) return; try { if (navigator.vibrate) navigator.vibrate(ms); } catch (e) {} }
 
   let toScreen = null;
+  function keysFor(mode) { return cfg[mode] || null; }
 
   function attach(canvas, mapper) {
     toScreen = mapper;
     state.enabled = state.forced === null ? autoDetect() : state.forced;
     const hit = (p, c) => U.dist(p.x, p.y, c.x, c.y) <= c.r + 7;
     const pos = tch => { const r = canvas.getBoundingClientRect(); return toScreen(tch.clientX - r.left, tch.clientY - r.top); };
-    const keyOwner = {};   // touch id -> key name
+    const owner = {};
 
     canvas.addEventListener('touchstart', e => {
       state.enabled = state.forced === null ? true : state.forced;
       for (const tch of e.changedTouches) {
         const p = pos(tch);
         state.tapX = p.x; state.tapY = p.y;
-        if (state.mode !== 'play') { state.tapPress = true; state.tapHold = true; continue; }
+        const keys = keysFor(state.mode);
         let took = false;
-        for (const k in cfg.keys) {
-          if (hit(p, cfg.keys[k])) {
-            state.down[k] = true; state.edge[k] = true; state.pressAnim[k] = 1;
-            keyOwner[tch.identifier] = k; took = true; buzz(8); break;
-          }
+        if (keys) for (const k in keys) {
+          if (hit(p, keys[k])) { state.down[k] = true; state.edge[k] = true; state.pressAnim[k] = 1; owner[tch.identifier] = k; took = true; buzz(8); break; }
         }
         if (took) continue;
-        if (p.x < VW * 0.42) {
-          state.stickId = tch.identifier; state.sx = p.x; state.sy = p.y; state.dx = 0; state.dy = 0;
+        if (state.mode === 'play') {
+          if (p.x < VW * 0.42) { state.stickId = tch.identifier; state.sx = p.x; state.sy = p.y; state.dx = state.dy = 0; }
+          else { state.aimId = tch.identifier; state.ax = p.x; state.ay = p.y; state.aiming = true; }
         } else {
+          // field and menus: a held touch is a pointer, a tap is a click
           state.aimId = tch.identifier; state.ax = p.x; state.ay = p.y; state.aiming = true;
+          state.tapPress = true; state.tapHold = true;
         }
       }
       e.preventDefault();
@@ -2451,9 +2880,7 @@ window.PD = window.PD || {};
         const p = pos(tch);
         state.tapX = p.x; state.tapY = p.y;
         if (tch.identifier === state.stickId) {
-          const dx = p.x - state.sx, dy = p.y - state.sy;
-          const d = Math.hypot(dx, dy) || 1;
-          const k = Math.min(1, d / cfg.stick.r);
+          const dx = p.x - state.sx, dy = p.y - state.sy, d = Math.hypot(dx, dy) || 1, k = Math.min(1, d / cfg.stick.r);
           state.dx = dx / d * k; state.dy = dy / d * k;
         } else if (tch.identifier === state.aimId) { state.ax = p.x; state.ay = p.y; }
       }
@@ -2464,8 +2891,8 @@ window.PD = window.PD || {};
       for (const tch of e.changedTouches) {
         if (tch.identifier === state.stickId) { state.stickId = null; state.dx = state.dy = 0; }
         if (tch.identifier === state.aimId) { state.aimId = null; state.aiming = false; }
-        const k = keyOwner[tch.identifier];
-        if (k) { state.down[k] = false; delete keyOwner[tch.identifier]; }
+        const k = owner[tch.identifier];
+        if (k) { state.down[k] = false; delete owner[tch.identifier]; }
       }
       if (!e.touches.length) { for (const k in state.down) state.down[k] = false; state.tapHold = false; }
       e.preventDefault();
@@ -2474,11 +2901,17 @@ window.PD = window.PD || {};
     canvas.addEventListener('touchcancel', end, { passive: false });
   }
 
-  /* Push touch state into the shared input object before the game reads it. */
   function apply(mode) {
     state.mode = mode;
     if (!state.enabled) return;
     const IN = PD.input;
+    const keys = keysFor(mode);
+    if (keys) for (const k in keys) {
+      const key = keys[k].key;
+      if (!key) continue;
+      if (keys[k].hold) IN.keys[key] = !!state.down[k];
+      else if (state.edge[k]) { IN.keys[key] = true; IN.pressedSet(key); state.edge[k] = false; }
+    }
     if (mode === 'play') {
       const dz = 0.26;
       IN.keys.left = state.dx < -dz; IN.keys.right = state.dx > dz;
@@ -2486,108 +2919,62 @@ window.PD = window.PD || {};
       if (state.aiming) { IN.mouse.x = state.ax; IN.mouse.y = state.ay; IN.mouse.inside = true; IN.mouse.left = true; }
       else IN.mouse.left = false;
       IN.mouse.right = !!state.down.fire;
-      IN.keys.KeyR = !!state.down.beam;
-      for (const k in cfg.keys) {
-        const key = cfg.keys[k].key;
-        if (!key || cfg.keys[k].hold) continue;
-        if (state.edge[k]) { IN.keys[key] = true; IN.pressedSet(key); state.edge[k] = false; }
-      }
+    } else if (mode === 'space') {
+      if (state.aiming) { IN.mouse.x = state.ax; IN.mouse.y = state.ay; IN.mouse.inside = true; IN.mouse.left = true; }
+      else IN.mouse.left = false;
+      IN.mouse.right = !!state.down.fire;
+      state.tapPress = false;
     } else {
       IN.mouse.x = state.tapX; IN.mouse.y = state.tapY; IN.mouse.inside = true;
       IN.mouse.left = state.tapHold;
       if (state.tapPress) { IN.mouse.leftPressed = true; state.tapPress = false; }
-      // E still works as a tap-through in menus and on deck
-      if (state.edge.use) { IN.pressedSet('KeyE'); state.edge.use = false; }
     }
   }
 
   function clearEdges() {
     if (!state.enabled) return;
     const IN = PD.input;
-    for (const k in cfg.keys) {
-      const key = cfg.keys[k].key;
-      if (key && !cfg.keys[k].hold) IN.keys[key] = false;
-    }
+    for (const m of ['play', 'space']) for (const k in cfg[m]) { const key = cfg[m][k].key; if (key && !cfg[m][k].hold) IN.keys[key] = false; }
   }
 
-  /* --------------------------------------------------------------- drawing */
-  function hexPath(ctx, x, y, r) {
-    ctx.beginPath();
-    for (let i = 0; i < 6; i++) {
-      const a = Math.PI / 6 + i * Math.PI / 3;
-      const px = x + Math.cos(a) * r, py = y + Math.sin(a) * r;
-      if (i) ctx.lineTo(px, py); else ctx.moveTo(px, py);
-    }
-    ctx.closePath();
-  }
-
-  function padKey(ctx, k, c, t) {
+  function padKey(ctx, k, c) {
     const pressed = !!state.down[k];
     state.pressAnim[k] = U.damp(state.pressAnim[k] || 0, pressed ? 1 : 0, 0.3, 1 / 60);
     const a = state.pressAnim[k];
     const r = c.r * (1 + a * 0.1);
-    ctx.fillStyle = 'rgba(8,4,18,0.72)';
-    hexPath(ctx, c.x, c.y, r + 2); ctx.fill();
-    ctx.fillStyle = c.col; ctx.globalAlpha = 0.18 + a * 0.5;
-    hexPath(ctx, c.x, c.y, r); ctx.fill();
-    ctx.globalAlpha = 0.9;
-    ctx.strokeStyle = c.col; ctx.lineWidth = pressed ? 2 : 1;
-    hexPath(ctx, c.x, c.y, r); ctx.stroke();
-    ctx.globalAlpha = 0.35;
-    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.arc(c.x, c.y, r * 0.55, Math.PI * 1.1, Math.PI * 1.6); ctx.stroke();
-    ctx.globalAlpha = 1;
-    F.draw(ctx, c.label, c.x, c.y - 3, '#ffffff', { center: true, shadow: false, scale: c.r > 18 ? 1 : 1 });
+    G.hex(ctx, c.x, c.y, r + 2, 'rgba(8,4,18,0.72)', null);
+    ctx.globalAlpha = 0.18 + a * 0.5; G.hex(ctx, c.x, c.y, r, c.col, null); ctx.globalAlpha = 1;
+    G.hex(ctx, c.x, c.y, r, null, c.col, pressed ? 2 : 1);
+    G.draw(ctx, c.glyph, c.x - 7, c.y - 7, '#ffffff', c.col);
   }
 
   function draw(ctx, mode, g) {
-    if (!state.enabled || mode !== 'play') return;
+    if (!state.enabled || mode === 'ui') return;
     const t = g ? g.time : 0;
-    const s = cfg.stick;
-    // stick well
-    ctx.fillStyle = 'rgba(8,4,18,0.55)';
-    ctx.beginPath(); ctx.arc(s.x, s.y, s.r + 4, 0, U.TAU); ctx.fill();
-    ctx.strokeStyle = '#7ef9ff'; ctx.globalAlpha = 0.5; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, U.TAU); ctx.stroke();
-    ctx.globalAlpha = 0.25;
-    for (let i = 0; i < 4; i++) {
-      const a = i * Math.PI / 2;
-      F.draw(ctx, ['>', 'V', '<', '^'][i], s.x + Math.cos(a) * (s.r - 8), s.y + Math.sin(a) * (s.r - 8) - 3, '#7ef9ff', { center: true, shadow: false });
-    }
-    ctx.globalAlpha = 1;
-    const kx = s.x + state.dx * (s.r - s.knob), ky = s.y + state.dy * (s.r - s.knob);
-    ctx.fillStyle = '#7ef9ff'; ctx.globalAlpha = state.stickId !== null ? 0.6 : 0.35;
-    ctx.beginPath(); ctx.arc(kx, ky, s.knob, 0, U.TAU); ctx.fill();
-    ctx.globalAlpha = 1;
-    ctx.strokeStyle = '#eafcff'; ctx.beginPath(); ctx.arc(kx, ky, s.knob, 0, U.TAU); ctx.stroke();
-
-    for (const k in cfg.keys) padKey(ctx, k, cfg.keys[k], t);
-
-    // cooldown arcs on dash / scan
-    if (g && g.player) {
-      const p = g.player;
-      const arc = (c, frac, col) => {
-        if (frac <= 0) return;
-        ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.globalAlpha = 0.85;
-        ctx.beginPath(); ctx.arc(c.x, c.y, c.r + 4, -Math.PI / 2, -Math.PI / 2 + U.TAU * frac); ctx.stroke();
-        ctx.globalAlpha = 1;
-      };
-      arc(cfg.keys.dash, p.dashCool / Math.max(0.1, p.stat('dash')), '#ffd34d');
-      arc(cfg.keys.scan, p.scanCool / 4, '#8affa0');
-    }
-
-    if (state.aiming) {
-      ctx.strokeStyle = '#ffd34d'; ctx.globalAlpha = 0.9;
-      ctx.beginPath(); ctx.arc(state.ax, state.ay, 9, 0, U.TAU); ctx.stroke();
-      ctx.beginPath(); ctx.arc(state.ax, state.ay, 3, 0, U.TAU); ctx.stroke();
+    if (mode === 'play') {
+      const s = cfg.stick;
+      G.hex(ctx, s.x, s.y, s.r + 4, 'rgba(8,4,18,0.55)', null);
+      G.hex(ctx, s.x, s.y, s.r, null, '#7ef9ff', 1);
+      ctx.globalAlpha = 0.3;
+      for (let i = 0; i < 6; i++) { const a = i * Math.PI / 3 - Math.PI / 2; G.hex(ctx, s.x + Math.cos(a) * (s.r - 7), s.y + Math.sin(a) * (s.r - 7), 2, '#7ef9ff', null); }
       ctx.globalAlpha = 1;
-    } else if (g && g.time < 30) {
-      F.draw(ctx, 'DRAG THE RIGHT SIDE TO AIM AND DRILL', VW / 2, VH - 130, 'rgba(255,255,255,0.4)', { center: true, shadow: false });
+      const kx = s.x + state.dx * (s.r - s.knob), ky = s.y + state.dy * (s.r - s.knob);
+      G.hex(ctx, kx, ky, s.knob, 'rgba(126,249,255,' + (state.stickId !== null ? 0.6 : 0.35) + ')', '#eafcff', 1);
+    }
+    const keys = keysFor(mode);
+    for (const k in keys) padKey(ctx, k, keys[k]);
+    if (g && g.player && mode === 'play') {
+      const p = g.player;
+      G.hexProgress(ctx, cfg.play.dash.x, cfg.play.dash.y, cfg.play.dash.r + 4, 1 - p.dashCool / Math.max(0.1, p.stat('dash')), '#ffd34d');
+      G.hexProgress(ctx, cfg.play.scan.x, cfg.play.scan.y, cfg.play.scan.r + 4, 1 - p.scanCool / 4, '#8affa0');
+    }
+    if (state.aiming && mode === 'play') {
+      G.hex(ctx, state.ax, state.ay, 9, null, '#ffd34d', 1);
+      G.hex(ctx, state.ax, state.ay, 3, null, '#ffffff', 1);
     }
   }
 
   function setEnabled(on) { state.forced = on; state.enabled = on; }
-
   PD.touch = { attach, apply, clearEdges, draw, setEnabled, buzz, cfg, state, get enabled() { return state.enabled; } };
 })(window.PD);
 
@@ -3452,8 +3839,9 @@ window.PD = window.PD || {};
   };
 
   /* ---------------------------------------------------------------- drawing */
-  World.prototype.drawSky = function (ctx, cam, vw, vh, time, hideMoon) {
+  World.prototype.drawSky = function (ctx, cam, vw, vh, time, hideMoon, skipBase) {
     const b = this.body;
+    if (skipBase) { this.drawMoon(ctx, cam, vw, vh); return; }
     const g = ctx.createLinearGradient(0, 0, 0, vh);
     g.addColorStop(0, b.sky);
     g.addColorStop(1, '#05030f');
@@ -3490,7 +3878,11 @@ window.PD = window.PD || {};
       ctx.globalAlpha = 1;
     }
 
-    if (this.moon && !hideMoon) {
+    if (!hideMoon) this.drawMoon(ctx, cam, vw, vh);
+  };
+
+  World.prototype.drawMoon = function (ctx, cam, vw, vh) {
+    if (this.moon) {
       const m = this.moon;
       const x = m.x * vw - cam.x * m.p;
       const y = m.y * vh - cam.y * m.p * 0.8;
@@ -4797,122 +5189,135 @@ window.PD = window.PD || {};
   }
 
   /* -------------------------------------------------------------------- HUD */
-  function hud(ctx, g) {
+  const Gd = () => PD.glyph;
+
+  /* Glyph toasts stack up from the bottom; a toast is [glyphs..., number?]. */
+  function toasts(ctx, g) {
+    let ty = VH - 62;
+    for (let i = g.toasts.length - 1; i >= 0; i--) {
+      const t = g.toasts[i];
+      const arr = Array.isArray(t.msg) ? t.msg : null;
+      const w = arr ? arr.length * 16 + 12 + (t.num !== undefined ? F.width(String(t.num), 1) + 6 : 0) : F.width(t.msg, 1) + 12;
+      ctx.globalAlpha = U.clamp(t.life, 0, 1);
+      ctx.fillStyle = 'rgba(18,10,36,0.85)';
+      ctx.fillRect(VW / 2 - w / 2, ty - 3, w, 18);
+      ctx.strokeStyle = t.color || COL.line;
+      ctx.strokeRect(VW / 2 - w / 2 + 0.5, ty - 2.5, w - 1, 17);
+      if (arr) {
+        let gx = VW / 2 - w / 2 + 6;
+        for (const gname of arr) { Gd().draw(ctx, gname, gx, ty - 1, t.color || COL.text, COL.line); gx += 16; }
+        if (t.num !== undefined) F.draw(ctx, t.num, gx + 2, ty + 3, t.color || COL.text);
+      } else F.draw(ctx, t.msg, VW / 2, ty + 3, t.color || COL.text, { center: true });
+      ctx.globalAlpha = 1;
+      ty -= 21;
+    }
+  }
+
+  function hintStrip(ctx, g, y) {
+    if (g.hintT <= 0 || !g.hintGlyphs) return;
+    const arr = g.hintGlyphs;
+    const w = arr.length * 18 + 10;
+    ctx.globalAlpha = U.clamp(g.hintT, 0, 1);
+    ctx.fillStyle = 'rgba(8,4,18,0.7)';
+    ctx.fillRect(VW / 2 - w / 2, y - 3, w, 20);
+    for (let i = 0; i < arr.length; i++) Gd().draw(ctx, arr[i], VW / 2 - w / 2 + 5 + i * 18, y, '#ffffff', '#ffd34d');
+    ctx.globalAlpha = 1;
+  }
+
+  function meters(ctx, g) {
     const p = g.player;
     const maxO2 = p.stat('oxygen'), maxHull = p.stat('hull'), cap = p.capacity();
-
-    // meters
-    const bx = 26, bw = 76;
-    icon(ctx, 'tank', 6, 5);
-    bar(ctx, bx, 8, bw, 7, p.o2 / maxO2, p.o2 / maxO2 < 0.25 ? (Math.sin(g.time * 12) > 0 ? '#ff6b8a' : COL.o2) : COL.o2,
-      { right: Math.ceil(p.o2) + '' });
-    icon(ctx, 'hull', 6, 21);
+    const bx = 24, bw = 70;
+    Gd().draw(ctx, 'o2', 4, 5, COL.o2, '#2b9fc4');
+    bar(ctx, bx, 8, bw, 7, p.o2 / maxO2, p.o2 / maxO2 < 0.25 ? (Math.sin(g.time * 12) > 0 ? '#ff6b8a' : COL.o2) : COL.o2, { right: Math.ceil(p.o2) + '' });
+    Gd().draw(ctx, 'hull', 4, 21, COL.hull, '#b32b2f');
     bar(ctx, bx, 24, bw, 7, p.hull / maxHull, COL.hull, { right: Math.ceil(p.hull) + '' });
-    icon(ctx, 'pod', 6, 37);
-    bar(ctx, bx, 40, bw, 7, p.cargoKg / cap, p.cargoFull() ? '#ff6b8a' : COL.cargo,
-      { right: U.fmtKg(p.cargoKg) });
+    Gd().draw(ctx, 'cargo', 4, 37, COL.cargo, '#c25c14');
+    bar(ctx, bx, 40, bw, 7, p.cargoKg / cap, p.cargoFull() ? '#ff6b8a' : COL.cargo, { right: Math.round(p.cargoKg) + '' });
+    if (p.cargoFull() && Math.sin(g.time * 9) > 0) Gd().draw(ctx, 'bang', bx + bw + 4, 37, '#ff6b8a', '#8a2a3a');
 
-    if (p.cargoFull()) {
-      F.draw(ctx, 'HOLD FULL', bx + bw / 2, 50, Math.sin(g.time * 9) > 0 ? '#ffe37a' : '#ff6b8a', { center: true });
-    }
-
-    // cargo manifest
+    // manifest: swatch + count
     const entries = Object.keys(p.cargo).sort((a, b) => D.MAT[b].cr - D.MAT[a].cr).slice(0, 6);
-    let my = 58;
+    let my = 56;
     for (const k of entries) {
       const m = D.MAT[k];
-      ctx.fillStyle = m.c[1];
-      ctx.fillRect(8, my + 1, 5, 5);
-      ctx.fillStyle = m.c[0];
-      ctx.fillRect(8, my + 1, 5, 2);
-      F.draw(ctx, m.name.slice(0, 12) + ' ' + p.cargo[k], 17, my, COL.dim);
+      ctx.fillStyle = m.c[1]; ctx.fillRect(8, my + 1, 6, 6);
+      ctx.fillStyle = m.c[0]; ctx.fillRect(8, my + 1, 6, 2);
+      F.draw(ctx, p.cargo[k], 18, my, COL.dim);
       my += 9;
     }
-    if (p.cargoValue() > 0) F.draw(ctx, '$' + U.fmt(p.cargoValue()), 8, my + 1, COL.gold);
+    if (p.cargoValue() > 0) Gd().stat(ctx, 'coin', U.fmt(p.cargoValue()), 6, my + 1, COL.gold, '#b8860b', COL.gold);
 
-    // credits + income
-    F.draw(ctx, '$' + U.fmt(g.save.credits), VW - 8, 8, COL.gold, { right: true, scale: 2 });
+    // top right: credits, galaxy
+    F.draw(ctx, U.fmt(g.save.credits), VW - 8, 8, COL.gold, { right: true, scale: 2 });
+    Gd().draw(ctx, 'coin', VW - 24 - F.width(U.fmt(g.save.credits), 2), 8, COL.gold, '#b8860b');
+    Gd().stat(ctx, 'galaxy', g.save.dominion.toFixed(1) + '%', VW - 78, 26, COL.lineHi, '#3a2a5e', COL.lineHi);
     const dps = g.droneIncome();
-    if (dps > 0) F.draw(ctx, '+' + U.fmt(dps) + '/S DRONES', VW - 8, 26, COL.good, { right: true });
-    F.draw(ctx, 'GALAXY ' + g.save.dominion.toFixed(1) + '%', VW - 8, 36, COL.lineHi, { right: true });
-    F.draw(ctx, D.titleFor(g.save.dominion), VW - 8, 46, '#ff8ad8', { right: true });
+    if (dps > 0) Gd().stat(ctx, 'drone', '+' + U.fmt(dps), VW - 78, 40, COL.good, '#3fb85a', COL.good);
+  }
 
-    // body + depth
-    F.draw(ctx, g.world.body.name, 8, VH - 20, COL.text);
-    const depth = g.world.depthMeters(p.y);
-    F.draw(ctx, depth > 0 ? 'DEPTH ' + depth + 'M' : 'IN ORBIT', 8, VH - 11, COL.dim);
+  function hud(ctx, g) {
+    const p = g.player;
+    meters(ctx, g);
 
-    // core integrity: only once the player has actually hit it
+    // depth
+    Gd().stat(ctx, 'depth', g.world.depthMeters(p.y), 6, VH - 18, COL.dim, '#2a1c4a', COL.text);
+
+    // weapon, dash, scan
+    const wg = { pistol: 'gun', scatter: 'scatter', lance: 'lance' }[p.weapon];
+    Gd().draw(ctx, wg, 6, VH - 66, '#ffffff', '#7ef9ff');
+    if (p.weapons().length > 1) Gd().draw(ctx, 'arrowR', 20, VH - 66, COL.dim, COL.line);
+    Gd().draw(ctx, 'dash', 6, VH - 50, p.dashCool > 0 ? COL.dim : COL.gold, '#2a1c4a');
+    bar(ctx, 22, VH - 46, 36, 3, 1 - p.dashCool / Math.max(0.1, p.stat('dash')), p.dashCool > 0 ? '#9c8ec4' : COL.gold, {});
+    Gd().draw(ctx, 'scan', 6, VH - 36, p.scanCool > 0 ? COL.dim : COL.good, '#2a1c4a');
+    bar(ctx, 22, VH - 32, 36, 3, 1 - p.scanCool / 4, p.scanCool > 0 ? '#9c8ec4' : COL.good, {});
+
+    // core integrity
     if (g.world.coreHp < g.world.coreMax) {
-      const cw = 150;
-      const cx = VW / 2 - cw / 2;
-      F.draw(ctx, 'CORE INTEGRITY', VW / 2, 8, COL.core, { center: true });
-      bar(ctx, cx, 18, cw, 8, g.world.coreHp / g.world.coreMax, COL.core,
-        { right: Math.ceil(g.world.coreHp / g.world.coreMax * 100) + '%' });
+      const cw = 140, cx = VW / 2 - cw / 2;
+      Gd().draw(ctx, 'star', cx - 16, 12, COL.core, '#c93b1c');
+      bar(ctx, cx, 16, cw, 8, g.world.coreHp / g.world.coreMax, COL.core, { right: Math.ceil(g.world.coreHp / g.world.coreMax * 100) + '%' });
     }
-
-    // recall charge
     if (p.recall > 0.1) {
-      F.draw(ctx, 'TRACTOR BEAM', VW / 2, VH - 46, COL.o2, { center: true });
-      bar(ctx, VW / 2 - 40, VH - 36, 80, 6, p.recall / 1.4, COL.o2, {});
+      Gd().draw(ctx, 'hole', VW / 2 - 48, VH - 40, COL.o2, '#2b9fc4');
+      bar(ctx, VW / 2 - 30, VH - 36, 60, 6, p.recall / 1.4, COL.o2, {});
     }
-
-    // weapon, dash and scanner readouts under the meters
-    const wy = 100 + Object.keys(p.cargo).length * 0;
-    const wname = { pistol: 'PISTOL', scatter: 'SCATTER', lance: 'LANCE' }[p.weapon];
-    const wsp = PD.art.sprites[p.weapon === 'pistol' ? 'gun' : p.weapon];
-    ctx.drawImage(wsp.frames[0], 6, VH - 62);
-    F.draw(ctx, wname + (p.weapons().length > 1 ? '  [Q]' : ''), 30, VH - 60, COL.text);
-    const dashF = p.dashCool / Math.max(0.1, p.stat('dash'));
-    bar(ctx, 30, VH - 49, 40, 3, 1 - dashF, dashF > 0 ? '#9c8ec4' : COL.gold, {});
-    F.draw(ctx, 'DASH', 74, VH - 51, COL.dim);
-    bar(ctx, 30, VH - 39, 40, 3, 1 - p.scanCool / 4, p.scanCool > 0 ? '#9c8ec4' : COL.good, {});
-    F.draw(ctx, 'SCAN', 74, VH - 41, COL.dim);
-
-    // kill combo
     if (g.combo.n >= 3) {
-      const pulse = 1 + 0.08 * Math.sin(g.time * 14);
       F.draw(ctx, 'x' + g.combo.mult.toFixed(1), VW / 2, 34, '#ff8ad8', { center: true, scale: 2 });
-      F.draw(ctx, g.combo.n + ' KILL CHAIN', VW / 2, 52, COL.text, { center: true });
-      bar(ctx, VW / 2 - 30, 62, 60, 3, g.combo.t / 2.6, '#ff8ad8', {});
+      Gd().stat(ctx, 'skull', g.combo.n, VW / 2 - 16, 52, '#ff8ad8', '#8a2a56', COL.text);
+      bar(ctx, VW / 2 - 30, 68, 60, 3, g.combo.t / 2.6, '#ff8ad8', {});
     }
 
     minimap(ctx, g);
 
-    // stratum banner
+    // stratum banner: band swatch + depth number
     if (g.banner) {
       const a = U.clamp(Math.min(g.banner.t * 2, (3.2 - g.banner.t) * 2), 0, 1);
+      const si = g.world.stratumAt(p.x, p.y);
+      const tint = si >= 0 ? g.world.strata[si].tint : '#2a1c4a';
       ctx.globalAlpha = a;
-      ctx.fillStyle = 'rgba(8,4,18,0.6)';
-      ctx.fillRect(VW / 2 - 120, 86, 240, 22);
-      ctx.fillStyle = COL.gold; ctx.fillRect(VW / 2 - 120, 86, 240, 1); ctx.fillRect(VW / 2 - 120, 107, 240, 1);
-      F.draw(ctx, '- ' + g.banner.text + ' -', VW / 2, 92, COL.gold, { center: true, scale: 1 });
-      const d = g.world.depthMeters(p.y);
-      F.draw(ctx, 'DEPTH ' + d + 'M', VW / 2, 101, COL.dim, { center: true });
+      ctx.fillStyle = 'rgba(8,4,18,0.6)'; ctx.fillRect(VW / 2 - 60, 86, 120, 22);
+      ctx.fillStyle = COL.gold; ctx.fillRect(VW / 2 - 60, 86, 120, 1); ctx.fillRect(VW / 2 - 60, 107, 120, 1);
+      for (let i = 0; i < 5; i++) { ctx.fillStyle = tint; ctx.globalAlpha = a * (0.5 + i * 0.1); ctx.fillRect(VW / 2 - 52 + i * 10, 91, 8, 12); }
+      ctx.globalAlpha = a;
+      Gd().stat(ctx, 'depth', g.world.depthMeters(p.y), VW / 2 + 4, 90, COL.gold, '#b8860b', COL.text);
       ctx.globalAlpha = 1;
     }
 
-    // hints
-    if (g.hintT > 0) {
-      ctx.globalAlpha = U.clamp(g.hintT, 0, 1);
-      F.draw(ctx, g.hint, VW / 2, VH - 30, '#ffffff', { center: true });
-      ctx.globalAlpha = 1;
-    }
+    hintStrip(ctx, g, VH - 34);
+    toasts(ctx, g);
+  }
 
-    // toasts stack upward from the bottom so they never sit on the ship
-    let ty = VH - 58;
-    for (let i = g.toasts.length - 1; i >= 0; i--) {
-      const t = g.toasts[i];
-      ctx.globalAlpha = U.clamp(t.life, 0, 1);
-      const tw = F.width(t.msg, 1) + 12;
-      ctx.fillStyle = 'rgba(18,10,36,0.85)';
-      ctx.fillRect(VW / 2 - tw / 2, ty - 3, tw, 13);
-      ctx.strokeStyle = t.color || COL.line;
-      ctx.strokeRect(VW / 2 - tw / 2 + 0.5, ty - 2.5, tw - 1, 12);
-      F.draw(ctx, t.msg, VW / 2, ty, t.color || COL.text, { center: true });
-      ctx.globalAlpha = 1;
-      ty -= 16;
-    }
+  /* Scooter field HUD: the same meters, plus the field's own readouts. */
+  function hudField(ctx, g) {
+    meters(ctx, g);
+    const p = g.player;
+    Gd().stat(ctx, 'speed', Math.round(Math.hypot(p.vx, p.vy)), 6, VH - 18, COL.dim, '#2a1c4a', COL.text);
+    Gd().draw(ctx, 'hole', 6, VH - 50, PD.space.S.hole ? '#d8bcff' : COL.dim, '#6b3fb5');
+    Gd().draw(ctx, 'hand', 22, VH - 50, COL.dim, COL.line);
+    Gd().draw(ctx, 'gun', 6, VH - 34, '#ffffff', '#7ef9ff');
+    hintStrip(ctx, g, VH - 34);
+    toasts(ctx, g);
   }
 
   /* ---------------------------------------------------------------- minimap
@@ -4964,7 +5369,7 @@ window.PD = window.PD || {};
     const px = ox + g.player.x / 10 * sc, py = oy + g.player.y / 10 * sc;
     ctx.fillStyle = Math.sin(g.time * 10) > 0 ? '#ffffff' : '#ff5fa8';
     ctx.fillRect(px - 1, py - 1, 3, 3);
-    F.draw(ctx, 'MAP  [TAB] SCAN', x0 + MW / 2, y0 + MH + 4, COL.dim, { center: true });
+    PD.glyph.draw(ctx, 'scan', x0 + MW / 2 - 7, y0 + MH + 3, COL.dim, COL.line);
   }
 
   /* ------------------------------------------------------------------- shop */
@@ -5196,29 +5601,38 @@ window.PD = window.PD || {};
   function title(ctx, g, t) {
     const cx = 168;
     const bob = Math.sin(t * 1.6) * 2;
-
     titleArt(ctx, t);
+    F.draw(ctx, 'PLANET', cx, 40 + bob, '#ffd34d', { center: true, scale: 5, shadow: '#7a2a10' });
+    F.draw(ctx, 'DESTROYER', cx, 80 + bob, '#ff5fa8', { center: true, scale: 4, shadow: '#3a0c30' });
 
-    F.draw(ctx, 'PLANET', cx, 26 + bob, '#ffd34d', { center: true, scale: 5, shadow: '#7a2a10' });
-    F.draw(ctx, 'DESTROYER', cx, 66 + bob, '#ff5fa8', { center: true, scale: 4, shadow: '#3a0c30' });
-    F.draw(ctx, 'A GREEDY LITTLE ALIEN', cx, 104, COL.dim, { center: true });
-    F.draw(ctx, 'MINING SIMULATOR', cx, 114, COL.dim, { center: true });
-    if (g.save.totalEarned > 0) {
-      F.draw(ctx, 'KNOWN AS ' + D.titleFor(g.save.dominion), cx, 172, '#ff8ad8', { center: true });
-    }
+    // the play key: one big hex
+    const m = PD.input.mouse;
+    const px = cx, py = 160;
+    const hot = m.inside && U.dist(m.x, m.y, px, py) < 26;
+    PD.glyph.hex(ctx, px, py, 26 + (hot ? 2 : 0), hot ? '#3f9a5a' : '#2f7a4a', '#8affa0', 2);
+    ctx.save(); ctx.translate(px + 2, py); ctx.rotate(-Math.PI / 2);
+    PD.glyph.draw(ctx, 'play', -7, -7, '#ffffff', '#8affa0', 1);
+    ctx.restore();
+    const start = hot && m.leftPressed;
+    if (start) PD.audio.sfx.click();
 
-    const start = button(ctx, cx - 62, 130, 124, 18, g.save.totalEarned > 0 ? 'CONTINUE' : 'START DRILLING',
-      { accent: '#2f7a4a' });
     let wipe = false;
-    if (g.save.totalEarned > 0) wipe = button(ctx, cx - 62, 152, 124, 13, 'NEW GAME', { accent: '#8a2f4a' });
-
-    F.draw(ctx, 'GET RICH.  BREAK WORLDS.', 12, 182, COL.gold);
-    F.draw(ctx, 'OWN THE GALAXY.', 12, 192, COL.gold);
-    F.draw(ctx, 'WASD / ARROWS   THRUSTERS', 12, 210, COL.text);
-    F.draw(ctx, 'LEFT MOUSE      DRILL', 12, 220, COL.text);
-    F.draw(ctx, 'RIGHT / SPACE   PISTOL', 12, 230, COL.text);
-    F.draw(ctx, 'E DOCK   R BEAM HOME', 12, 240, COL.text);
-    F.draw(ctx, 'CLICK ONCE TO ENABLE SOUND', 12, 254, COL.dim);
+    if (g.save.totalEarned > 0) {
+      const wx = cx + 60, wy = 160;
+      const hot2 = m.inside && U.dist(m.x, m.y, wx, wy) < 13;
+      PD.glyph.hex(ctx, wx, wy, 13, hot2 ? '#a83a5a' : '#8a2f4a', '#ff8ab0', 1);
+      PD.glyph.draw(ctx, 'cross', wx - 7, wy - 7, '#ffffff', '#ff8ab0');
+      wipe = hot2 && m.leftPressed;
+      PD.glyph.stat(ctx, 'coin', U.fmt(g.save.credits), cx - 60, 196, COL.gold, '#b8860b', COL.gold);
+      PD.glyph.stat(ctx, 'galaxy', g.save.dominion.toFixed(1) + '%', cx - 60, 212, '#ff8ad8', '#b0459a', COL.text);
+    }
+    // control legend as glyph pairs
+    const legend = [['hand', 'speed'], ['hand', 'drill'], ['gun', 'skull'], ['hole', 'home']];
+    for (let i = 0; i < legend.length; i++) {
+      PD.glyph.draw(ctx, legend[i][0], 12 + i * 44, 244, COL.text, COL.line);
+      PD.glyph.draw(ctx, 'arrowR', 26 + i * 44, 244, COL.dim, COL.line);
+      PD.glyph.draw(ctx, legend[i][1], 40 + i * 44, 244, COL.gold, '#b8860b');
+    }
     return { start, wipe };
   }
 
@@ -5226,13 +5640,27 @@ window.PD = window.PD || {};
   function pause(ctx, g) {
     ctx.fillStyle = 'rgba(8,4,18,0.7)';
     ctx.fillRect(0, 0, VW, VH);
-    panel(ctx, VW / 2 - 80, 80, 160, 110, 'PAUSED');
-    let r = { resume: false, ship: false };
-    r.resume = button(ctx, VW / 2 - 64, 96, 128, 16, 'RESUME  [ESC]');
-    if (button(ctx, VW / 2 - 64, 118, 128, 14, 'SOUND ' + (A.state.sfx ? 'ON' : 'OFF'))) A.toggleSfx(!A.state.sfx);
-    if (button(ctx, VW / 2 - 64, 136, 128, 14, 'MUSIC ' + (A.state.music ? 'ON' : 'OFF'))) A.toggleMusic(!A.state.music);
-    if (button(ctx, VW / 2 - 64, 154, 128, 14, 'SAVE GAME')) { g.saveGame(); g.toast('PROGRESS SAVED', COL.good); }
-    r.ship = button(ctx, VW / 2 - 64, 172, 128, 14, 'RECALL TO SHIP', { accent: '#3f6ea8' });
+    const m = PD.input.mouse;
+    const keys = [
+      { g: 'play', x: VW / 2 - 78, col: '#2f7a4a', id: 'resume' },
+      { g: A.state.sfx ? 'check' : 'cross', x: VW / 2 - 26, col: '#3f6ea8', id: 'sfx' },
+      { g: 'star', x: VW / 2 + 26, col: A.state.music ? '#6b3fb5' : '#2a1c4a', id: 'music' },
+      { g: 'home', x: VW / 2 + 78, col: '#8a2f4a', id: 'ship' }
+    ];
+    const r = { resume: false, ship: false };
+    for (const k of keys) {
+      const hot = m.inside && U.dist(m.x, m.y, k.x, VH / 2) < 20;
+      PD.glyph.hex(ctx, k.x, VH / 2, 20 + (hot ? 2 : 0), k.col, hot ? '#ffffff' : COL.lineHi, 1.5);
+      if (k.g === 'play') { ctx.save(); ctx.translate(k.x + 2, VH / 2); ctx.rotate(-Math.PI / 2); PD.glyph.draw(ctx, 'play', -7, -7, '#ffffff', k.col); ctx.restore(); }
+      else PD.glyph.draw(ctx, k.g, k.x - 7, VH / 2 - 7, '#ffffff', k.col);
+      if (hot && m.leftPressed) {
+        A.sfx.click();
+        if (k.id === 'resume') r.resume = true;
+        if (k.id === 'sfx') A.toggleSfx(!A.state.sfx);
+        if (k.id === 'music') A.toggleMusic(!A.state.music);
+        if (k.id === 'ship') r.ship = true;
+      }
+    }
     return r;
   }
 
@@ -5254,17 +5682,13 @@ window.PD = window.PD || {};
       const a = U.clamp((t - 0.7) / 0.4, 0, 1);
       ctx.globalAlpha = a;
       panel(ctx, VW / 2 - 100, 122, 200, 78);
-      F.draw(ctx, v.name, VW / 2, 128, COL.text, { center: true });
-      F.draw(ctx, 'CORE BOUNTY', VW / 2 - 92, 144, COL.dim);
-      F.draw(ctx, '$' + U.fmt(v.reward), VW / 2 + 92, 144, COL.gold, { right: true });
-      F.draw(ctx, 'GALAXY CONTROL', VW / 2 - 92, 156, COL.dim);
-      F.draw(ctx, '+' + v.dominion.toFixed(1) + '%', VW / 2 + 92, 156, COL.good, { right: true });
-      F.draw(ctx, 'PERMANENT VALUE BONUS', VW / 2 - 92, 168, COL.dim);
-      F.draw(ctx, '+' + v.bonus + '%', VW / 2 + 92, 168, COL.lineHi, { right: true });
-      if (v.unlocked) F.draw(ctx, 'UNLOCKED: ' + v.unlocked, VW / 2, 182, COL.gold, { center: true });
+      PD.glyph.stat(ctx, 'star', U.fmt(v.reward), VW / 2 - 40, 130, COL.gold, '#b8860b', COL.gold);
+      PD.glyph.stat(ctx, 'galaxy', '+' + v.dominion.toFixed(1) + '%', VW / 2 - 40, 146, COL.good, '#3fb85a', COL.good);
+      PD.glyph.stat(ctx, 'coin', '+' + v.bonus + '%', VW / 2 - 40, 162, COL.lineHi, '#3a2a5e', COL.lineHi);
+      if (v.unlocked) { PD.glyph.draw(ctx, 'planet', VW / 2 - 16, 178, COL.gold, '#b8860b'); PD.glyph.draw(ctx, 'check', VW / 2 + 2, 178, COL.good, '#3fb85a'); }
       ctx.globalAlpha = 1;
       if (t > 1.0) {
-        return { ok: button(ctx, VW / 2 - 66, 208, 132, 16, 'BACK TO THE SHIP  [E]', { accent: '#2f7a4a' }) };
+        return { ok: button(ctx, VW / 2 - 20, 206, 40, 18, '', { accent: '#2f7a4a' }) && true, _g: PD.glyph.draw(ctx, 'home', VW / 2 - 7, 208, '#ffffff', '#8affa0') };
       }
     }
     return null;
@@ -5284,7 +5708,7 @@ window.PD = window.PD || {};
   }
 
   PD.ui = {
-    VW, VH, COL, panel, bar, button, icon, hud, shop, title, pause, victory,
+    VW, VH, COL, panel, bar, button, icon, hud, hudField, shop, title, pause, victory,
     sellSplash, ending, endFrame
   };
 })(window.PD);
@@ -5303,11 +5727,11 @@ window.PD = window.PD || {};
 
   /* Who can talk, and what their comms channel looks like. */
   const CAST = {
-    nix:   { name: 'NIX',      sub: 'SHIP INTELLIGENCE', spr: 'nix',   col: '#7ef9ff', bg: '#0a2430', voice: 900 },
-    bolt:  { name: 'BOLT',     sub: 'FABRICATION UNIT',  spr: 'bolt',  col: '#ffb03d', bg: '#2a1c08', voice: 340 },
-    gloop: { name: 'GLOOP',    sub: 'SHIP PET',          spr: 'gloop', col: '#c8ff5a', bg: '#16280a', voice: 1400 },
-    you:   { name: 'YOU',      sub: 'FUTURE TYRANT',     spr: 'you',   col: '#ff5fa8', bg: '#2a0a1e', voice: 700 },
-    sys:   { name: 'RUSTMAW',  sub: 'AUTOMATED',         spr: null,    col: '#39ffa6', bg: '#062018', voice: 1100 }
+    nix:   { name: 'NIX',      sub: 'SHIP INTELLIGENCE', spr: 'nix',   col: '#7ef9ff', bg: '#0a2430', voice: 900, glyph: 'eye' },
+    bolt:  { name: 'BOLT',     sub: 'FABRICATION UNIT',  spr: 'bolt',  col: '#ffb03d', bg: '#2a1c08', voice: 340, glyph: 'build' },
+    gloop: { name: 'GLOOP',    sub: 'SHIP PET',          spr: 'gloop', col: '#c8ff5a', bg: '#16280a', voice: 1400, glyph: 'star' },
+    you:   { name: 'YOU',      sub: 'FUTURE TYRANT',     spr: 'you',   col: '#ff5fa8', bg: '#2a0a1e', voice: 700, glyph: 'skull' },
+    sys:   { name: 'RUSTMAW',  sub: 'AUTOMATED',         spr: null,    col: '#39ffa6', bg: '#062018', voice: 1100, glyph: 'home' }
   };
 
   const q = [];          // pending lines
@@ -5332,7 +5756,7 @@ window.PD = window.PD || {};
   function update(dt) {
     if (!cur) return;
     if (!done) {
-      chars += dt * 46;
+      chars += dt * (Array.isArray(cur.text) ? 6 : 46);
       blipT -= dt;
       if (blipT <= 0) {
         blipT = 0.045;
@@ -5400,17 +5824,25 @@ window.PD = window.PD || {};
     ctx.globalAlpha = 1;
     ctx.restore();
 
-    // name plate
+    // name plate: a coloured tab with the speaker's glyph
     ctx.fillStyle = c.col;
-    ctx.fillRect(PX, Y - 5, PW + 74, 9);
-    F.draw(ctx, c.name, PX + 3, Y - 4, '#0a0614', { shadow: false });
-    F.draw(ctx, c.sub, PX + 3 + F.width(c.name, 1) + 8, Y - 4, 'rgba(10,6,20,0.7)', { shadow: false });
+    ctx.fillRect(PX, Y - 6, PW, 10);
+    PD.glyph.draw(ctx, c.glyph || 'crew', PX + PW / 2 - 7, Y - 9, '#0a0614', c.col);
 
-    // typed body text
-    const shown = cur.text.slice(0, Math.floor(chars));
-    const lines = wrap(shown, 62);
-    for (let i = 0; i < Math.min(lines.length, 4); i++) {
-      F.draw(ctx, lines[i], PX + PW + 8, Y + 10 + i * 11, '#f2e9ff', { shadow: false });
+    if (Array.isArray(cur.text)) {
+      // pictograph strip, one glyph per "character"
+      const n = Math.min(cur.text.length, Math.floor(chars));
+      for (let i = 0; i < n; i++) {
+        PD.glyph.draw(ctx, cur.text[i], PX + PW + 10 + i * 22, Y + 18, '#f2e9ff', c.col, 1);
+      }
+      // hex frames behind the strip
+      for (let i = 0; i < cur.text.length; i++) PD.glyph.hex(ctx, PX + PW + 17 + i * 22, Y + 25, 11, null, i < n ? c.col : 'rgba(255,255,255,0.15)', 1);
+    } else {
+      const shown = cur.text.slice(0, Math.floor(chars));
+      const lines = wrap(shown, 62);
+      for (let i = 0; i < Math.min(lines.length, 4); i++) {
+        F.draw(ctx, lines[i], PX + PW + 8, Y + 10 + i * 11, '#f2e9ff', { shadow: false });
+      }
     }
     if (done && Math.sin(t * 6) > 0) {
       F.draw(ctx, q.length ? '>>' : '>', X + W - 14, Y + H - 12, c.col, { shadow: false });
@@ -5435,12 +5867,13 @@ window.PD = window.PD || {};
 
   /* Each app gets its own phosphor colour so you know where you are. */
   const THEME = {
-    market: { hi: '#39ffa6', mid: '#1e9e68', lo: '#0d3d2a', bg: '#04140f', name: 'CARGO EXCHANGE' },
-    fab:    { hi: '#ffb03d', mid: '#c07a20', lo: '#3d2a0d', bg: '#140f04', name: 'FABRICATOR' },
-    bay:    { hi: '#58e8ff', mid: '#2b8fae', lo: '#0d2f3d', bg: '#041014', name: 'DRONE BAY' },
-    vanity: { hi: '#ff8ad8', mid: '#b0459a', lo: '#3d0d2f', bg: '#140418', name: 'IDENTITY SUITE' },
-    nav:    { hi: '#9ab4ff', mid: '#4f66c0', lo: '#161d3d', bg: '#060818', name: 'NAV COMPUTER' },
-    refinery: { hi: '#ffd34d', mid: '#b58a1e', lo: '#3a2c0a', bg: '#120e04', name: 'REFINERY DECK' }
+    market: { hi: '#39ffa6', mid: '#1e9e68', lo: '#0d3d2a', bg: '#04140f', name: 'CARGO EXCHANGE', glyph: 'sell' },
+    fab:    { hi: '#ffb03d', mid: '#c07a20', lo: '#3d2a0d', bg: '#140f04', name: 'FABRICATOR', glyph: 'build' },
+    skills: { hi: '#ffb03d', mid: '#c07a20', lo: '#3d2a0d', bg: '#140f04', name: 'SKILL LATTICE', glyph: 'hex' },
+    bay:    { hi: '#58e8ff', mid: '#2b8fae', lo: '#0d2f3d', bg: '#041014', name: 'DRONE BAY', glyph: 'drone' },
+    vanity: { hi: '#ff8ad8', mid: '#b0459a', lo: '#3d0d2f', bg: '#140418', name: 'IDENTITY SUITE', glyph: 'crew' },
+    nav:    { hi: '#9ab4ff', mid: '#4f66c0', lo: '#161d3d', bg: '#060818', name: 'NAV COMPUTER', glyph: 'planet' },
+    refinery: { hi: '#ffd34d', mid: '#b58a1e', lo: '#3a2c0a', bg: '#120e04', name: 'REFINERY DECK', glyph: 'machine' }
   };
 
   const state = {
@@ -5454,7 +5887,8 @@ window.PD = window.PD || {};
     bay: ['RUSTMAW OS 4.21', 'DRONE SWARM HANDSHAKE...', 'ALL UNITS NOMINAL', 'THEY NEVER SLEEP.'],
     vanity: ['RUSTMAW OS 4.21', 'IDENTITY SUITE LOADED', 'GENE VAT: WARM', 'LOOK THE PART.'],
     nav: ['RUSTMAW OS 4.21', 'STELLAR CARTOGRAPHY ONLINE', 'PLOTTING VICTIMS...', 'SELECT A TARGET.'],
-    refinery: ['RUSTMAW OS 4.21', 'REFINERY GRID POWER: ON', 'BELT MOTORS SPUN UP', 'ROCK IN. MONEY OUT.']
+    refinery: ['RUSTMAW OS 4.21', 'REFINERY GRID POWER: ON', 'BELT MOTORS SPUN UP', 'ROCK IN. MONEY OUT.'],
+    skills: ['RUSTMAW OS 4.21', 'LATTICE ONLINE', 'NODES INDEXED', 'GROW.']
   };
 
   function open(app) {
@@ -5468,7 +5902,7 @@ window.PD = window.PD || {};
     state.app = null;
     A.sfx.tone(700, { type: 'square', to: 140, dur: 0.16, vol: 0.09 });
   }
-  function say(msg, col) { state.msg = msg; state.msgT = 2.6; state.msgCol = col; A.sfx.click(); }
+  function say(msg, col, num) { state.msg = msg; state.msgNum = num; state.msgT = 2.6; state.msgCol = col; A.sfx.click(); }
 
   /* --------------------------------------------------------------- chrome */
   const SX = 14, SY = 10, SW = VW - 28, SH = VH - 20;
@@ -5496,7 +5930,8 @@ window.PD = window.PD || {};
     ctx.fillRect(SX, SY, SW, 14);
     ctx.fillStyle = th.mid;
     ctx.fillRect(SX, SY + 14, SW, 1);
-    F.draw(ctx, 'RUSTMAW OS // ' + title, SX + 6, SY + 4, th.hi, { shadow: false });
+    PD.glyph.draw(ctx, th.glyph || 'hex', SX + 4, SY, th.hi, th.mid);
+    for (let i = 0; i < 6; i++) { ctx.fillStyle = i % 2 ? th.mid : th.lo; ctx.fillRect(SX + 24 + i * 5, SY + 5, 3, 4); }
     if (sub) F.draw(ctx, sub, SX + SW - 6, SY + 4, th.mid, { right: true, shadow: false });
 
     // footer rail
@@ -5582,70 +6017,85 @@ window.PD = window.PD || {};
   /* ---------------------------------------------------------------- market */
   function appMarket(ctx, g, th, t) {
     state.view = state.view || 'raw';
-    if (key(ctx, IX, IY - 2, 70, 12, 'RAW ORE', th, { enabled: state.view !== 'raw' })) state.view = 'raw';
-    if (key(ctx, IX + 74, IY - 2, 96, 12, 'REFINED GOODS', th, { enabled: state.view !== 'goods' })) state.view = 'goods';
-
-    const isRaw = state.view === 'raw';
-    const src = isRaw ? g.save.vault : (g.save.goods || {});
-    const entry = k => {
-      if (isRaw) { const m = D.MAT[k]; return { name: m.name, cr: m.cr, c: m.c, kg: m.kg }; }
-      if (k.indexOf('raw:') === 0) { const m = D.MAT[+k.slice(4)]; return { name: m.name + ' (pass-thru)', cr: m.cr, c: m.c, kg: m.kg }; }
-      const gd = D.goodFromKey(k); return gd ? { name: gd.name, cr: gd.cr, c: gd.c, kg: 0 } : null;
+    const Gd = PD.glyph;
+    // two tabs: raw ore / refined goods, as glyph keys
+    const tabKey = (x, glyph, id) => {
+      const on = state.view === id;
+      const hot = PD.input.mouse.inside && PD.input.mouse.x >= x && PD.input.mouse.x < x + 30 && PD.input.mouse.y >= IY - 4 && PD.input.mouse.y < IY + 12;
+      ctx.fillStyle = on ? th.mid : (hot ? th.lo : '#000'); ctx.fillRect(x, IY - 4, 30, 16);
+      ctx.strokeStyle = on ? th.hi : th.mid; ctx.strokeRect(x + 0.5, IY - 3.5, 29, 15);
+      Gd.draw(ctx, glyph, x + 8, IY - 3, '#ffffff', th.hi);
+      if (hot && PD.input.mouse.leftPressed) { state.view = id; A.sfx.click(); }
     };
-    const keys = Object.keys(src).filter(k => src[k] > 0 && entry(k)).sort((a, b) => entry(b).cr - entry(a).cr);
+    tabKey(IX, 'ore', 'raw'); tabKey(IX + 34, 'machine', 'goods');
+    const isRaw = state.view === 'raw';
 
-    F.draw(ctx, 'LOT                QTY    UNIT      VALUE', IX, IY + 14, th.mid, { shadow: false });
-    ctx.fillStyle = th.lo; ctx.fillRect(IX, IY + 23, IW, 1);
+    // fee and broker shown as glyph + number
+    const fee = Math.round(D.appraiseFee(g.save.upg.appraise || 0) * 100);
+    Gd.stat(ctx, 'clock', '-' + fee + '%', IX + 90, IY - 3, '#ffb03d', '#c07a20', th.mid);
+    Gd.stat(ctx, 'crew', '+' + Math.round((D.UPG.crew.value(g.save.upg.crew || 0) - 1) * 100) + '%', IX + 150, IY - 3, th.hi, th.mid, th.mid);
 
-    if (!keys.length) {
-      F.draw(ctx, isRaw ? 'FEEDSTOCK BIN EMPTY.' : 'NO REFINED GOODS YET.', IX, IY + 34, th.mid, { shadow: false });
-      F.draw(ctx, isRaw ? 'GO BREAK SOMETHING.' : 'BUILD A LINE ON THE REFINERY DECK.', IX, IY + 46, th.hi, { shadow: false });
-    }
+    const entry = k => {
+      if (isRaw) { const m = D.MAT[k]; return { cr: m.cr, c: m.c }; }
+      if (k.indexOf('raw:') === 0) { const m = D.MAT[+k.slice(4)]; return { cr: m.cr, c: m.c }; }
+      const gd = D.goodFromKey(k); return gd ? { cr: gd.cr, c: gd.c } : null;
+    };
+    let keys;
+    if (isRaw) {
+      const set = {};
+      for (const k in g.save.vault) if (g.save.vault[k] > 0) set[k] = 1;
+      for (const k in g.save.appr) if (g.save.appr[k] > 0) set[k] = 1;
+      keys = Object.keys(set).sort((a, b) => D.MAT[b].cr - D.MAT[a].cr);
+    } else keys = Object.keys(g.save.goods || {}).filter(k => g.save.goods[k] > 0 && entry(k)).sort((a, b) => entry(b).cr - entry(a).cr);
+
+    // column glyphs
+    const hy = IY + 16;
+    Gd.draw(ctx, isRaw ? 'ore' : 'machine', IX, hy, th.mid, th.lo);
+    if (isRaw) { Gd.draw(ctx, 'clock', IX + 120, hy, th.mid, th.lo); Gd.draw(ctx, 'check', IX + 170, hy, th.mid, th.lo); }
+    else Gd.draw(ctx, 'check', IX + 170, hy, th.mid, th.lo);
+    Gd.draw(ctx, 'coin', IX + 226, hy, th.mid, th.lo);
+    ctx.fillStyle = th.lo; ctx.fillRect(IX, hy + 16, IW, 1);
+
+    if (!keys.length) Gd.draw(ctx, isRaw ? 'ore' : 'machine', IX + IW / 2 - 7, IY + 70, th.lo, th.lo, 2);
 
     let total = 0;
     const maxRows = 8;
+    const appMat = g.appraising();
     for (let i = 0; i < Math.min(keys.length, maxRows); i++) {
-      const k = keys[i], e = entry(k), n = src[k];
-      const unit = Math.round(e.cr * g.valueMult());
-      const val = unit * n;
+      const k = keys[i], e = entry(k);
+      const ready = isRaw ? (g.save.appr[k] || 0) : g.save.goods[k];
+      const raw = isRaw ? (g.save.vault[k] || 0) : 0;
+      const unit = Math.round(e.cr * (isRaw ? g.saleMult() : g.valueMult()));
+      const val = unit * ready;
       total += val;
-      const y = IY + 28 + i * 13;
-      const r = row(ctx, IX, y, IW, 12, th);
-      ctx.fillStyle = e.c[1]; ctx.fillRect(IX + 2, y + 3, 6, 6);
-      ctx.fillStyle = e.c[0]; ctx.fillRect(IX + 2, y + 3, 6, 2);
-      if (!isRaw) { ctx.fillStyle = '#ffffff'; ctx.fillRect(IX + 4, y + 5, 2, 2); }
-      F.draw(ctx, e.name.slice(0, 18), IX + 12, y + 3, th.hi, { shadow: false });
-      F.draw(ctx, String(n), IX + 128, y + 3, th.hi, { shadow: false });
-      F.draw(ctx, '$' + U.fmt(unit), IX + 176, y + 3, th.mid, { shadow: false });
-      F.draw(ctx, '$' + U.fmt(val), IX + 262, y + 3, th.hi, { shadow: false });
-      if (key(ctx, IX + IW - 96, y, 44, 12, 'SELL', th)) (isRaw ? g.sellFromVault(+k, n) : g.sellGood(k, n));
-      if (key(ctx, IX + IW - 48, y, 46, 12, 'SELL 1', th)) (isRaw ? g.sellFromVault(+k, 1) : g.sellGood(k, 1));
-      if (r.hover) state.tip = e.name.toUpperCase() + (isRaw ? ' -- ' + e.kg + 'KG PER UNIT, ' : ' -- REFINED, ') + '$' + U.fmt(unit) + ' EACH';
+      const y = IY + 36 + i * 15;
+      const r = row(ctx, IX, y, IW, 14, th);
+      ctx.fillStyle = e.c[1]; ctx.fillRect(IX + 3, y + 3, 8, 8); ctx.fillStyle = e.c[0]; ctx.fillRect(IX + 3, y + 3, 8, 3);
+      if (!isRaw) { ctx.fillStyle = '#ffffff'; ctx.fillRect(IX + 6, y + 6, 2, 2); }
+      if (isRaw) {
+        // raw count + the appraisal bar for the lot being valued
+        F.draw(ctx, String(raw), IX + 120, y + 4, raw ? '#ffb03d' : th.lo, { shadow: false });
+        if (+k === appMat) { ctx.fillStyle = th.lo; ctx.fillRect(IX + 138, y + 5, 26, 4); ctx.fillStyle = '#ffb03d'; ctx.fillRect(IX + 138, y + 5, Math.round(26 * g.apprFrac()), 4); }
+      }
+      F.draw(ctx, String(ready), IX + 170, y + 4, ready ? th.hi : th.lo, { shadow: false });
+      F.draw(ctx, U.fmt(unit), IX + 226, y + 4, th.mid, { shadow: false });
+      F.draw(ctx, U.fmt(val), IX + 282, y + 4, ready ? th.hi : th.lo, { shadow: false });
+      // sell keys: one / all, as glyphs
+      const sx = IX + IW - 66;
+      if (key(ctx, sx, y, 30, 14, '', th, { enabled: ready > 0 })) (isRaw ? g.sellFromVault(+k, 1) : g.sellGood(k, 1));
+      Gd.draw(ctx, 'coin', sx + 8, y, ready ? '#ffd34d' : '#3a3030', ready ? '#b8860b' : '#2a2020');
+      if (key(ctx, sx + 34, y, 30, 14, '', th, { enabled: ready > 0 })) (isRaw ? g.sellFromVault(+k, ready) : g.sellGood(k, ready));
+      Gd.draw(ctx, 'sell', sx + 42, y, ready ? '#ffffff' : '#3a3030', ready ? th.hi : '#2a2020');
+      if (r.hover) state.tip = [isRaw ? 'ore' : 'machine', 'arrowR', 'coin'];
     }
-    if (keys.length > maxRows) F.draw(ctx, '+' + (keys.length - maxRows) + ' MORE LOTS BELOW THE FOLD', IX, IY + 28 + maxRows * 13, th.mid, { shadow: false });
-    for (let i = maxRows; i < keys.length; i++) total += Math.round(entry(keys[i]).cr * g.valueMult()) * src[keys[i]];
+    for (let i = maxRows; i < keys.length; i++) total += Math.round(entry(keys[i]).cr * (isRaw ? g.saleMult() : g.valueMult())) * (isRaw ? (g.save.appr[keys[i]] || 0) : g.save.goods[keys[i]]);
 
-    ctx.fillStyle = th.lo; ctx.fillRect(IX, IY + IH - 22, IW, 1);
-    F.draw(ctx, isRaw ? 'BIN TOTAL' : 'GOODS TOTAL', IX, IY + IH - 16, th.mid, { shadow: false });
-    F.draw(ctx, '$' + U.fmt(total), IX + 90, IY + IH - 16, th.hi, { shadow: false });
-    if (key(ctx, IX + IW - 132, IY + IH - 19, 130, 14, isRaw ? 'LIQUIDATE ENTIRE BIN' : 'SELL ALL GOODS', th, { enabled: total > 0 })) {
-      if (isRaw) g.sellAll(); else g.sellAllGoods();
-    }
-
-    // scrolling relay chatter, so the tube always has something alive on it
-    const feed = [
-      'GEM PRICES UP ON GRIEF FROM THE INNER WORLDS',
-      'REFINED ALLOY FETCHES A PREMIUM: NOBODY ASKS WHERE THE ORE CAME FROM',
-      'BUYER SEEKS CORE FRAGMENTS. DISCRETION GUARANTEED',
-      'INSURERS DECLINE TO COVER "ACTS OF YOU"',
-      'RELAY 7 ASKS THAT YOU STOP SELLING PEOPLE THEIR OWN PLANET'
-    ];
-    const line = feed.join('   ///   ') + '   ///   ';
-    const shift = Math.floor((t * 14) % line.length);
-    const scroll = (line.slice(shift) + line.slice(0, shift)).slice(0, 66);
-    ctx.fillStyle = th.lo;
-    ctx.fillRect(IX, IY + IH - 44, IW, 11);
-    F.draw(ctx, scroll, IX + 2, IY + IH - 42, th.hi, { shadow: false });
+    ctx.fillStyle = th.lo; ctx.fillRect(IX, IY + IH - 24, IW, 1);
+    Gd.stat(ctx, 'coin', U.fmt(total), IX, IY + IH - 18, '#ffd34d', '#b8860b', th.hi);
+    if (key(ctx, IX + IW - 72, IY + IH - 20, 70, 16, '', th, { enabled: total > 0 })) { if (isRaw) g.sellAll(); else g.sellAllGoods(); }
+    Gd.draw(ctx, 'sell', IX + IW - 62, IY + IH - 19, total ? '#ffffff' : '#3a3030', total ? th.hi : '#2a2020');
+    Gd.draw(ctx, 'sell', IX + IW - 46, IY + IH - 19, total ? '#ffffff' : '#3a3030', total ? th.hi : '#2a2020');
+    Gd.draw(ctx, 'sell', IX + IW - 30, IY + IH - 19, total ? '#ffffff' : '#3a3030', total ? th.hi : '#2a2020');
   }
 
   /* ------------------------------------------------------------ fabricator */
@@ -5817,7 +6267,7 @@ window.PD = window.PD || {};
 
   /* ------------------------------------------------------------------- nav */
   function appNav(ctx, g, th, t) {
-    F.draw(ctx, 'TARGET                  CLASS      G     STATUS', IX, IY, th.mid, { shadow: false });
+    PD.glyph.draw(ctx, 'planet', IX, IY - 3, th.mid, th.lo); PD.glyph.draw(ctx, 'weight', IX + 226, IY - 3, th.mid, th.lo); PD.glyph.draw(ctx, 'coin', IX + 254, IY - 3, th.mid, th.lo);
     ctx.fillStyle = th.lo; ctx.fillRect(IX, IY + 9, IW, 1);
     for (let i = 0; i < D.BODIES.length; i++) {
       const b = D.BODIES[i];
@@ -5832,13 +6282,16 @@ window.PD = window.PD || {};
       if (unlocked && moon) ctx.drawImage(moon, 0, 0, moon.width, moon.height, IX + 2, y + 1, 11, 11);
       else { ctx.fillStyle = th.lo; ctx.fillRect(IX + 3, y + 3, 9, 9); }
 
-      F.draw(ctx, unlocked ? b.name : '[ENCRYPTED]', IX + 16, y + 4, unlocked ? (done ? th.mid : th.hi) : th.lo, { shadow: false });
-      F.draw(ctx, unlocked ? b.kind.slice(0, 12) : '---', IX + 148, y + 4, th.mid, { shadow: false });
+      F.draw(ctx, unlocked ? b.name : '???', IX + 16, y + 4, unlocked ? (done ? th.mid : th.hi) : th.lo, { shadow: false });
       F.draw(ctx, unlocked ? String(b.gravity) : '--', IX + 226, y + 4, th.mid, { shadow: false });
-      F.draw(ctx, done ? 'RUBBLE' : (unlocked ? 'INTACT  $' + U.fmt(b.reward) : 'LOCKED'), IX + 254, y + 4,
-        done ? th.mid : (unlocked ? th.hi : th.lo), { shadow: false });
-      if (here) F.draw(ctx, 'IN ORBIT', IX + IW - 4, y + 4, '#ffffff', { right: true, shadow: false });
-      else if (unlocked && key(ctx, IX + IW - 68, y, 66, 13, 'SET COURSE', th)) g.travelTo(i);
+      if (done) PD.glyph.draw(ctx, 'check', IX + 254, y - 1, th.mid, th.lo);
+      else if (unlocked) F.draw(ctx, U.fmt(b.reward), IX + 254, y + 4, th.hi, { shadow: false });
+      else PD.glyph.draw(ctx, 'lock', IX + 254, y - 1, th.lo, th.lo);
+      if (here) PD.glyph.draw(ctx, 'home', IX + IW - 24, y - 1, '#ffffff', th.hi);
+      else if (unlocked) {
+        if (key(ctx, IX + IW - 40, y, 38, 13, '', th)) g.travelTo(i);
+        PD.glyph.draw(ctx, 'drill', IX + IW - 28, y - 1, '#ffffff', th.hi);
+      }
       if (r.hover && unlocked) { state.tip = b.blurb.toUpperCase(); state.sel = i; }
     }
 
@@ -5846,10 +6299,12 @@ window.PD = window.PD || {};
     const sel = D.BODIES[U.clamp(state.sel, 0, g.save.unlocked)];
     const py = IY + 14 + D.BODIES.length * 14 + 4;
     ctx.fillStyle = th.lo; ctx.fillRect(IX, py, IW, 1);
-    F.draw(ctx, 'SURVEY // ' + sel.name, IX, py + 4, th.hi, { shadow: false });
-    F.draw(ctx, 'RADIUS ' + sel.radius + '   GRAVITY ' + sel.gravity +
-      '   HOSTILES ' + Math.round(sel.enemyRate * 100) + '%   BOUNTY $' + U.fmt(sel.reward),
-      IX + 120, py + 4, th.mid, { shadow: false });
+    F.draw(ctx, sel.name, IX, py + 4, th.hi, { shadow: false });
+    let sx2 = IX + 150;
+    sx2 += PD.glyph.stat(ctx, 'planet', sel.radius, sx2, py, th.mid, th.lo) + 10;
+    sx2 += PD.glyph.stat(ctx, 'weight', sel.gravity, sx2, py, th.mid, th.lo) + 10;
+    sx2 += PD.glyph.stat(ctx, 'skull', Math.round(sel.enemyRate * 100) + '%', sx2, py, th.mid, th.lo) + 10;
+    PD.glyph.stat(ctx, 'star', U.fmt(sel.reward), sx2, py, '#ffd34d', '#b8860b');
     // one stacked bar for the ore signature, with a legend underneath
     const tw = sel.ores.reduce((n, o) => n + o[1], 0);
     const sorted = sel.ores.slice().sort((a, b) => b[1] - a[1]);
@@ -5867,12 +6322,13 @@ window.PD = window.PD || {};
       const lx = IX + i * 62;
       ctx.fillStyle = m.c[1];
       ctx.fillRect(lx, py + 25, 5, 5);
-      F.draw(ctx, m.name.slice(0, 8), lx + 8, py + 24, th.mid, { shadow: false });
+      F.draw(ctx, Math.round(sorted[i][1] / tw * 100) + '%', lx + 8, py + 24, th.mid, { shadow: false });
     }
   }
 
   const APPS = { market: appMarket, fab: appFab, bay: appBay, vanity: appVanity, nav: appNav,
-    refinery: (ctx, g, th, t) => PD.factory.app(ctx, g, th, t) };
+    refinery: (ctx, g, th, t) => PD.factory.app(ctx, g, th, t),
+    skills: (ctx, g, th, t) => PD.skilltree.app(ctx, g, th, t) };
 
   /* ------------------------------------------------------------------ draw */
   function draw(ctx, g, dt) {
@@ -5884,7 +6340,7 @@ window.PD = window.PD || {};
     const t = state.t;
     state.tip = '';
 
-    chrome(ctx, th, th.name, '$' + U.fmt(g.save.credits) + '  //  ' + g.world.body.name);
+    chrome(ctx, th, th.name, '$' + U.fmt(g.save.credits));
 
     if (state.boot < 1) {
       // boot sequence types itself in before the app appears
@@ -5902,15 +6358,21 @@ window.PD = window.PD || {};
 
     // status line + disconnect
     if (state.tip) {
-      F.draw(ctx, state.tip, SX + 6, SY + SH - 11, th.mid, { shadow: false });
+      if (Array.isArray(state.tip)) { let gx = SX + 6; for (const gname of state.tip) { PD.glyph.draw(ctx, gname, gx, SY + SH - 14, th.hi, th.mid); gx += 16; } }
+      else F.draw(ctx, state.tip, SX + 6, SY + SH - 11, th.mid, { shadow: false });
     } else if (state.msgT > 0) {
       ctx.globalAlpha = U.clamp(state.msgT, 0, 1);
-      F.draw(ctx, state.msg, SX + 6, SY + SH - 11, state.msgCol || th.hi, { shadow: false });
+      if (Array.isArray(state.msg)) {
+        let gx = SX + 6;
+        for (const gname of state.msg) { PD.glyph.draw(ctx, gname, gx, SY + SH - 14, state.msgCol || th.hi, th.mid); gx += 16; }
+        if (state.msgNum !== undefined) F.draw(ctx, state.msgNum, gx + 2, SY + SH - 11, state.msgCol || th.hi, { shadow: false });
+      } else F.draw(ctx, state.msg, SX + 6, SY + SH - 11, state.msgCol || th.hi, { shadow: false });
       ctx.globalAlpha = 1;
     } else {
-      F.draw(ctx, 'SESSION ' + (Math.floor(t * 3) % 1000 + 100) + '  //  LINK STABLE', SX + 6, SY + SH - 11, th.mid, { shadow: false });
+      for (let i = 0; i < 9; i++) { ctx.fillStyle = ((Math.floor(t * 4) + i) % 5) ? th.lo : th.mid; ctx.fillRect(SX + 6 + i * 6, SY + SH - 9, 4, 4); }
     }
-    if (key(ctx, SX + SW - 110, SY + SH - 13, 106, 11, 'DISCONNECT  [ESC]', th)) close();
+    if (key(ctx, SX + SW - 34, SY + SH - 13, 30, 11, '', th)) close();
+    PD.glyph.draw(ctx, 'cross', SX + SW - 26, SY + SH - 15, th.hi, th.mid);
 
     glassOver(ctx, th, t);
   }
@@ -6225,6 +6687,451 @@ window.PD = window.PD || {};
   PD.factory = { ensure, tick, app, place, COLS, ROWS, state };
 })(window.PD);
 
+/* ===== src/skilltree.js ===== */
+/* The skill tree: a hex lattice of upgrades. Every node is one upgrade line
+   with levels; a node opens once any neighbour has a level. Costs are shown
+   as glyphs and numbers, never as sentences. */
+(function (PD) {
+  'use strict';
+  const U = PD.util;
+  const D = PD.data;
+  const F = PD.font;
+  const A = PD.audio;
+  const G = PD.glyph;
+
+  const R = 20;                       // hex radius on screen
+  const state = { sel: null, pan: 0 };
+
+  /* axial -> pixel */
+  function pos(q, r, cx, cy) {
+    return { x: cx + R * 1.75 * (q + r / 2), y: cy + R * 1.52 * r };
+  }
+  function neighbours(n) {
+    const dirs = [[1, 0], [1, -1], [0, -1], [-1, 0], [-1, 1], [0, 1]];
+    return D.NODES.filter(o => dirs.some(d => o.q === n.q + d[0] && o.r === n.r + d[1]));
+  }
+  function available(g, n) {
+    if (n.root) return true;
+    return neighbours(n).some(o => (g.save.upg[o.id] || 0) > 0);
+  }
+
+  function app(ctx, g, th, t) {
+    const Rc = PD.term.rect;
+    const cx = Rc.IX + 152, cy = Rc.IY + 92;
+    const m = PD.input.mouse;
+
+    // lattice edges first
+    ctx.lineWidth = 1;
+    for (const n of D.NODES) {
+      const a = pos(n.q, n.r, cx, cy);
+      for (const o of neighbours(n)) {
+        if (o.q < n.q || (o.q === n.q && o.r < n.r)) continue;
+        const b = pos(o.q, o.r, cx, cy);
+        const lit = (g.save.upg[n.id] || 0) > 0 && (g.save.upg[o.id] || 0) > 0;
+        ctx.strokeStyle = lit ? th.hi : th.lo;
+        ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+      }
+    }
+
+    let hover = null;
+    for (const n of D.NODES) {
+      const p = pos(n.q, n.r, cx, cy);
+      const u = D.UPG[n.id];
+      const lvl = g.save.upg[n.id] || 0;
+      const open = available(g, n);
+      const maxed = lvl >= u.max;
+      const isHover = m.inside && U.dist(m.x, m.y, p.x, p.y) < R;
+      if (isHover) hover = n;
+      const sel = state.sel === n.id;
+      const fill = maxed ? th.mid : (lvl > 0 ? th.lo : (open ? '#1a1410' : '#0c0a08'));
+      G.hex(ctx, p.x, p.y, R - 1, fill, sel ? '#ffffff' : (isHover ? th.hi : (open ? th.mid : '#2a2420')), sel ? 2 : 1);
+      if (lvl > 0) G.hexProgress(ctx, p.x, p.y, R - 4, lvl / u.max, th.hi);
+      G.draw(ctx, n.glyph, p.x - 7, p.y - 9, open ? '#f2e9ff' : '#4a4040', open ? th.hi : '#2a2420');
+      if (!open) G.draw(ctx, 'lock', p.x - 3, p.y + 1, '#8a7a6a', '#5a4a3a');
+      else F.draw(ctx, String(lvl), p.x, p.y + 5, maxed ? '#ffffff' : th.hi, { center: true, shadow: false });
+      if (isHover && m.leftPressed) { state.sel = n.id; A.sfx.click(); }
+    }
+
+    // detail card for the selected node: glyphs, pips, costs, one build key
+    const selNode = D.NODES.find(n => n.id === state.sel) || D.NODES[0];
+    const u = D.UPG[selNode.id];
+    const lvl = g.save.upg[selNode.id] || 0;
+    const open = available(g, selNode);
+    const maxed = lvl >= u.max;
+    const px = Rc.IX + 306, py = Rc.IY + 4, pw = Rc.IW - 306;
+    ctx.fillStyle = th.lo; ctx.fillRect(px, py, pw, Rc.IH - 8);
+    ctx.strokeStyle = th.mid; ctx.strokeRect(px + 0.5, py + 0.5, pw - 1, Rc.IH - 9);
+    G.draw(ctx, selNode.glyph, px + 6, py + 6, '#ffffff', th.hi, 2);
+    F.draw(ctx, u.show(lvl), px + 40, py + 10, th.hi, { shadow: false });
+    // level pips as small hexes
+    for (let k = 0; k < Math.min(u.max, 14); k++) {
+      const on = lvl > Math.floor(k * u.max / Math.min(u.max, 14));
+      G.hex(ctx, px + 10 + k * 8, py + 40, 3, on ? th.hi : '#000', th.mid, 1);
+    }
+    if (maxed) {
+      G.draw(ctx, 'check', px + pw / 2 - 7, py + 60, th.hi, th.hi);
+    } else if (!open) {
+      G.draw(ctx, 'lock', px + pw / 2 - 7, py + 60, '#ff5a4d', '#8a2a2a');
+    } else {
+      const cost = D.upgradeCost(u, lvl);
+      const rec = D.recipe(u, lvl);
+      let yy = py + 52;
+      const okC = g.save.credits >= cost;
+      G.stat(ctx, 'coin', U.fmt(cost), px + 8, yy, '#ffd34d', '#b8860b', okC ? th.hi : '#ff5a4d');
+      yy += 16;
+      let all = okC;
+      for (const r of rec) {
+        const have = g.save.vault[r.mat] || 0;
+        const ok = have >= r.qty;
+        all = all && ok;
+        const mc = D.MAT[r.mat].c;
+        ctx.fillStyle = mc[1]; ctx.fillRect(px + 10, yy + 3, 8, 8); ctx.fillStyle = mc[0]; ctx.fillRect(px + 10, yy + 3, 8, 3);
+        F.draw(ctx, have + '/' + r.qty, px + 25, yy + 4, ok ? th.hi : '#ff5a4d', { shadow: false });
+        yy += 14;
+      }
+      // the build key: a big hex
+      const bx = px + pw / 2, by = py + Rc.IH - 34;
+      const hot = m.inside && U.dist(m.x, m.y, bx, by) < 16;
+      G.hex(ctx, bx, by, 16, all ? (hot ? th.hi : th.mid) : '#1a1410', all ? '#ffffff' : '#3a3030', 1.5);
+      G.draw(ctx, 'build', bx - 7, by - 7, all ? '#ffffff' : '#4a4040', all ? th.lo : '#2a2420');
+      if (hot && m.leftPressed && all) g.fabricate(selNode.id);
+    }
+    if (hover) PD.term.state.tip = D.UPG[hover.id].blurb.toUpperCase();
+  }
+
+  PD.skilltree = { app, state, available };
+})(window.PD);
+
+/* ===== src/space.js ===== */
+/* The scooter field. Where you start: an open reach of space littered with
+   drifting ore and small rocks. Ride the scooter, hoover up what floats, shoot
+   what does not, and when the hold is heavy open a time hole home. */
+(function (PD) {
+  'use strict';
+  const U = PD.util;
+  const D = PD.data;
+  const FX = PD.fx;
+  const A = PD.audio;
+  const G = PD.glyph;
+
+  const VW = 480, VH = 270;
+  const FIELD_W = 2400, FIELD_H = 1400;
+
+  const S = {
+    chunks: [], rocks: [], mites: [],
+    cam: { x: 0, y: 0 },
+    hole: null,                       // { x, y, t, open }
+    tapTarget: null,
+    scoot: { x: 0, y: 0, vx: 0, vy: 0, ang: 0, thrust: 0 },
+    t: 0, seed: 1
+  };
+
+  function chunkFor(body) {
+    // chunks carry the surface ores of whichever world you are orbiting
+    const strata = D.STRATA[body.type] || D.STRATA.rock;
+    const table = strata[0].ores.concat(strata[1] ? strata[1].ores : []);
+    return D.M[U.weighted(table)];
+  }
+
+  function enter(g) {
+    const body = g.world.body;
+    S.seed = 400 + g.bodyIndex * 31;
+    const rnd = U.mulberry32(S.seed + Math.floor(g.time));
+    S.chunks.length = 0; S.rocks.length = 0; S.mites.length = 0;
+    S.hole = null; S.tapTarget = null;
+    S.scoot.x = FIELD_W / 2; S.scoot.y = FIELD_H / 2; S.scoot.vx = S.scoot.vy = 0;
+    for (let i = 0; i < 70; i++) {
+      S.chunks.push({ x: rnd() * FIELD_W, y: rnd() * FIELD_H, vx: (rnd() - 0.5) * 12, vy: (rnd() - 0.5) * 12,
+        mat: chunkFor(body), rot: rnd() * 6.28, spin: (rnd() - 0.5) * 2 });
+    }
+    for (let i = 0; i < 26; i++) {
+      const r = 8 + rnd() * 14;
+      S.rocks.push({ x: rnd() * FIELD_W, y: rnd() * FIELD_H, vx: (rnd() - 0.5) * 6, vy: (rnd() - 0.5) * 6,
+        r, hp: r * 3, rot: rnd() * 6.28, spin: (rnd() - 0.5) * 0.6, seed: rnd() * 1000, mat: chunkFor(body) });
+    }
+    for (let i = 0; i < 6 + g.bodyIndex * 2; i++) S.mites.push({ x: rnd() * FIELD_W, y: rnd() * FIELD_H, vx: 0, vy: 0, hp: 6, t: rnd() * 6 });
+    S.cam.x = S.scoot.x - VW / 2; S.cam.y = S.scoot.y - VH / 2;
+    g.player.x = S.scoot.x; g.player.y = S.scoot.y;
+  }
+
+  /* Player thrust: keys, or steer toward the held touch/tap point. */
+  function update(dt, g) {
+    const IN = PD.input;
+    const p = g.player;
+    const sc = S.scoot;
+    S.t += dt;
+
+    let ix = 0, iy = 0;
+    if (IN.down('left')) ix -= 1; if (IN.down('right')) ix += 1;
+    if (IN.down('up')) iy -= 1; if (IN.down('down')) iy += 1;
+    if (IN.mouse.left && !g.uiBlocking) {
+      // hold anywhere: fly toward the pointer
+      const dx = IN.mouse.wx - sc.x, dy = IN.mouse.wy - sc.y;
+      const d = Math.hypot(dx, dy);
+      if (d > 14) { ix = dx / d; iy = dy / d; }
+    }
+    const thrust = p.stat('thruster') * 1.35 * (1 - p.loadFactor() * 0.4);
+    sc.vx += ix * thrust * dt; sc.vy += iy * thrust * dt;
+    sc.thrust = Math.hypot(ix, iy);
+    if (sc.thrust > 0.1) sc.ang = U.lerp(sc.ang, Math.atan2(iy, ix), 0.2);
+    sc.vx *= Math.pow(0.985, dt * 60); sc.vy *= Math.pow(0.985, dt * 60);
+    const sp = Math.hypot(sc.vx, sc.vy), maxSp = 210 - p.loadFactor() * 60;
+    if (sp > maxSp) { sc.vx *= maxSp / sp; sc.vy *= maxSp / sp; }
+    sc.x = U.clamp(sc.x + sc.vx * dt, 20, FIELD_W - 20);
+    sc.y = U.clamp(sc.y + sc.vy * dt, 20, FIELD_H - 20);
+    p.x = sc.x; p.y = sc.y; p.vx = sc.vx; p.vy = sc.vy;
+    p.aim = sc.ang;
+    A.thrust(sc.thrust > 0.1 ? 0.6 : 0);
+    if (sc.thrust > 0.1 && U.chance(dt * 40)) {
+      FX.spawn({ x: sc.x - Math.cos(sc.ang) * 12, y: sc.y - Math.sin(sc.ang) * 12 + 4, vx: -Math.cos(sc.ang) * 90 + U.rand(-15, 15), vy: -Math.sin(sc.ang) * 90 + U.rand(-15, 15),
+        life: U.rand(0.2, 0.5), size: U.rand(1.5, 3), color: U.pick(['#ffd34d', '#ff9b3d', '#fff3c0']), grav: 0, drag: 0.9, glow: 1 });
+    }
+
+    // air still matters out here
+    p.o2 -= (0.35 + p.loadFactor() * 0.3) * dt;
+    if (p.o2 <= 0) { p.o2 = 0; p.hull -= 5 * dt; if (p.hull <= 0) { p.hull = 0; g.onPlayerDown(); return; } }
+
+    // shooting: space to fire toward the aim
+    if ((IN.mouse.right || IN.down('space')) && p.gunCool <= 0 && !g.uiBlocking) {
+      p.gunCool = 0.28;
+      g.bullets.push(new PD.ent.Bullet(sc.x + Math.cos(sc.ang) * 12, sc.y + Math.sin(sc.ang) * 12, Math.cos(sc.ang) * 340, Math.sin(sc.ang) * 340, p.stat('pistol'), true));
+      A.sfx.shoot();
+    }
+    p.gunCool = Math.max(0, p.gunCool - dt);
+    for (let i = g.bullets.length - 1; i >= 0; i--) {
+      const b = g.bullets[i];
+      b.life -= dt; b.x += b.vx * dt; b.y += b.vy * dt;
+      let hit = false;
+      for (const r of S.rocks) {
+        if (r.dead || U.dist(b.x, b.y, r.x, r.y) > r.r) continue;
+        r.hp -= b.dmg; hit = true;
+        FX.sparks(b.x, b.y, Math.atan2(b.vy, b.vx), D.MAT[r.mat], 4);
+        A.sfx.hitMob();
+        if (r.hp <= 0) breakRock(r, g);
+        break;
+      }
+      for (const m of S.mites) {
+        if (m.dead || hit || U.dist(b.x, b.y, m.x, m.y) > 6) continue;
+        m.hp -= b.dmg; hit = true;
+        if (m.hp <= 0) { m.dead = true; g.save.credits += 9; FX.burst(m.x, m.y, 8, ['#c8ff5a', '#fff'], 90); A.sfx.killMob(); }
+      }
+      if (hit || b.life <= 0) g.bullets.splice(i, 1);
+    }
+
+    // drifting things
+    const pull = p.stat('magnet') + 14;
+    for (let i = S.chunks.length - 1; i >= 0; i--) {
+      const c = S.chunks[i];
+      c.rot += c.spin * dt;
+      const d = U.dist(c.x, c.y, sc.x, sc.y);
+      if (d < pull && !p.cargoFull()) {
+        const a = Math.atan2(sc.y - c.y, sc.x - c.x);
+        c.vx = U.damp(c.vx, Math.cos(a) * 220, 0.2, dt); c.vy = U.damp(c.vy, Math.sin(a) * 220, 0.2, dt);
+      }
+      c.x += c.vx * dt; c.y += c.vy * dt;
+      if (d < 10 && g.collect(c.mat, c.x, c.y)) { S.chunks.splice(i, 1); PD.touch.buzz(6); }
+    }
+    for (const r of S.rocks) { if (r.dead) continue; r.rot += r.spin * dt; r.x += r.vx * dt; r.y += r.vy * dt;
+      if (U.dist(r.x, r.y, sc.x, sc.y) < r.r + 6) { sc.vx -= (r.x - sc.x) * 3; sc.vy -= (r.y - sc.y) * 3; p.hurt(4, g, Math.sign(sc.x - r.x)); } }
+    for (const m of S.mites) {
+      if (m.dead) continue;
+      m.t += dt;
+      const d = U.dist(m.x, m.y, sc.x, sc.y);
+      const chase = d < 220;
+      const tx = chase ? sc.x + Math.cos(m.t * 2) * 30 : m.x + Math.cos(m.t) * 20;
+      const ty = chase ? sc.y + Math.sin(m.t * 2.6) * 24 : m.y + Math.sin(m.t * 0.7) * 20;
+      m.vx = U.damp(m.vx, U.clamp((tx - m.x) * 3, -120, 120), 0.1, dt); m.vy = U.damp(m.vy, U.clamp((ty - m.y) * 3, -120, 120), 0.1, dt);
+      m.x += m.vx * dt; m.y += m.vy * dt;
+      if (d < 9) p.hurt(4, g, Math.sign(sc.x - m.x));
+    }
+    // the field slowly replenishes
+    if (S.chunks.length < 40 && U.chance(dt * 0.6)) {
+      S.chunks.push({ x: sc.x + U.rand(-VW, VW) * 1.4, y: sc.y + U.rand(-VH, VH) * 1.4, vx: U.rand(-8, 8), vy: U.rand(-8, 8), mat: chunkFor(g.world.body), rot: 0, spin: U.rand(-1, 1) });
+    }
+
+    // time hole: E / tap the hole key; opens beside you, fly in
+    if (IN.hit('KeyE') && !S.hole) openHole(g);
+    if (S.hole) {
+      S.hole.t += dt;
+      S.hole.open = Math.min(1, S.hole.t / 1.2);
+      if (S.hole.open >= 1 && U.dist(sc.x, sc.y, S.hole.x, S.hole.y) < 22) { g.throughHole(); return; }
+      if (U.chance(dt * 30)) {
+        const a = U.rand(0, U.TAU), r = 26 * S.hole.open;
+        FX.spawn({ x: S.hole.x + Math.cos(a) * r, y: S.hole.y + Math.sin(a) * r, vx: -Math.cos(a) * 40, vy: -Math.sin(a) * 40, life: 0.5, size: 1.5, color: U.pick(['#7ef9ff', '#d8bcff', '#ffffff']), grav: 0, drag: 0.9, glow: 1 });
+      }
+    }
+
+    S.cam.x = U.damp(S.cam.x, U.clamp(sc.x - VW / 2 + sc.vx * 0.25, 0, FIELD_W - VW), 0.12, dt);
+    S.cam.y = U.damp(S.cam.y, U.clamp(sc.y - VH / 2 + sc.vy * 0.25, 0, FIELD_H - VH), 0.12, dt);
+    FX.update(dt, null);
+  }
+
+  function openHole(g) {
+    const sc = S.scoot;
+    S.hole = { x: sc.x + Math.cos(sc.ang + Math.PI) * 70, y: sc.y + Math.sin(sc.ang + Math.PI) * 70, t: 0, open: 0 };
+    A.sfx.warp();
+    FX.ring(S.hole.x, S.hole.y, 2, 60, 0.9, '#7ef9ff', 2);
+    FX.shake(3);
+  }
+
+  function breakRock(r, g) {
+    r.dead = true;
+    A.sfx.boom(0.5); FX.shake(3);
+    FX.burst(r.x, r.y, 20, D.MAT[r.mat].c, 120);
+    const n = 3 + Math.round(r.r / 5);
+    for (let i = 0; i < n; i++) {
+      const a = U.rand(0, U.TAU);
+      S.chunks.push({ x: r.x, y: r.y, vx: Math.cos(a) * U.rand(30, 90), vy: Math.sin(a) * U.rand(30, 90), mat: U.chance(0.3) ? D.M.stone : r.mat, rot: 0, spin: U.rand(-3, 3) });
+    }
+    if (U.chance(0.15)) S.chunks.push({ x: r.x, y: r.y, vx: 0, vy: 0, mat: D.M.gold, rot: 0, spin: 1 });
+  }
+
+  /* ----------------------------------------------------------------- drawing */
+  function drawRock(ctx, r, cam) {
+    const x = r.x - cam.x, y = r.y - cam.y;
+    ctx.save(); ctx.translate(x | 0, y | 0); ctx.rotate(Math.round(r.rot / (Math.PI / 8)) * (Math.PI / 8));
+    ctx.fillStyle = '#4e4658';
+    ctx.beginPath();
+    for (let i = 0; i < 9; i++) {
+      const a = i / 9 * U.TAU, rr = r.r * (0.78 + U.hash2(r.seed + i, 3) * 0.4);
+      const px = Math.cos(a) * rr, py = Math.sin(a) * rr;
+      if (i) ctx.lineTo(px, py); else ctx.moveTo(px, py);
+    }
+    ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = '#1a1030'; ctx.lineWidth = 1; ctx.stroke();
+    ctx.fillStyle = '#6a6278'; ctx.fillRect(-r.r * 0.4, -r.r * 0.5, r.r * 0.5, r.r * 0.3);
+    const mc = D.MAT[r.mat].c;
+    ctx.fillStyle = mc[0]; ctx.fillRect(r.r * 0.1, r.r * 0.1, 3, 3); ctx.fillRect(-r.r * 0.5, r.r * 0.2, 2, 2);
+    ctx.restore();
+  }
+
+  function draw(ctx, g, t) {
+    const cam = { x: Math.round(S.cam.x), y: Math.round(S.cam.y) };
+    PD.galaxy.draw(ctx, cam, t, S.seed, g.world.body.sky);
+    // the world you are orbiting, huge and slow at the bottom
+    const moon = g.world.moon && g.world.moon.cv;
+    if (moon) {
+      const mx = VW * 0.65 - cam.x * 0.05, my = VH * 0.75 - cam.y * 0.05;
+      ctx.drawImage(moon, 0, 0, moon.width, moon.height, mx | 0, my | 0, moon.width * 2.2, moon.height * 2.2);
+    }
+
+    for (const r of S.rocks) if (!r.dead) drawRock(ctx, r, cam);
+    for (const c of S.chunks) {
+      const spr = PD.art.gemFor(c.mat);
+      PD.ent.drawSprite(ctx, spr, 0, c.x - cam.x, c.y - cam.y + Math.sin(t * 2 + c.rot) * 1.5, false, false);
+    }
+    FX.drawWorld(ctx, cam);
+    for (const m of S.mites) if (!m.dead) PD.ent.drawSprite(ctx, PD.art.sprites.mite, Math.floor(t * 8) % 2, m.x - cam.x, m.y - cam.y, m.vx < 0, false);
+    for (const b of g.bullets) b.draw(ctx, cam);
+
+    if (S.hole) {
+      const hx = S.hole.x - cam.x, hy = S.hole.y - cam.y, o = S.hole.open;
+      const rr = 24 * o;
+      const grd = ctx.createRadialGradient(hx, hy, 1, hx, hy, rr + 10);
+      grd.addColorStop(0, 'rgba(255,255,255,0.9)'); grd.addColorStop(0.4, 'rgba(126,249,255,0.7)'); grd.addColorStop(1, 'rgba(120,80,220,0)');
+      ctx.fillStyle = grd; ctx.fillRect(hx - rr - 10, hy - rr - 10, rr * 2 + 20, rr * 2 + 20);
+      for (let k = 0; k < 3; k++) {
+        ctx.save(); ctx.translate(hx, hy); ctx.rotate(t * (1.5 + k) * (k % 2 ? -1 : 1));
+        G.hex(ctx, 0, 0, rr * (1 - k * 0.22), null, k ? '#d8bcff' : '#ffffff', 1.5);
+        ctx.restore();
+      }
+    }
+
+    // the scooter: alien riding a hover-bike, drawn along its heading
+    const sc = S.scoot;
+    const skin = PD.art.skinFor(g.save.cos);
+    const bike = PD.art.sprites.scooter;
+    const flip = Math.cos(sc.ang) < 0;
+    const bob = Math.sin(t * 5) * 1.2;
+    ctx.save();
+    ctx.translate((sc.x - cam.x) | 0, (sc.y - cam.y + bob) | 0);
+    ctx.rotate(flip ? Math.PI - sc.ang : sc.ang);
+    if (flip) ctx.scale(-1, 1);
+    ctx.drawImage(bike.frames[Math.floor(t * 10) % 2], -bike.ox, -bike.oy);
+    ctx.restore();
+    PD.ent.drawSprite(ctx, skin.alien, 0, sc.x - cam.x, sc.y - cam.y + bob - 9, flip, g.player.hurtT > 0.15);
+
+    // where a held touch is steering to
+    if (PD.input.mouse.left && !g.uiBlocking) {
+      const mx = PD.input.mouse.wx - cam.x, my = PD.input.mouse.wy - cam.y;
+      G.hex(ctx, mx, my, 6 + Math.sin(t * 8) * 1.5, null, '#ffd34d', 1);
+    }
+  }
+
+  PD.space = { enter, update, draw, openHole, S, FIELD_W, FIELD_H };
+})(window.PD);
+
+/* ===== src/tutorial.js ===== */
+/* Pictographic tutorial: a strip of glyph sentences that advance as you do
+   the thing they show. No words. */
+(function (PD) {
+  'use strict';
+  const U = PD.util;
+  const G = PD.glyph;
+  const F = PD.font;
+
+  const VW = 480, VH = 270;
+
+  /* Each step: which scene it belongs to, the glyph sentence, and a predicate
+     that marks it done. */
+  const STEPS = [
+    { scene: 'space', say: ['hand', 'arrowR', 'speed'],       done: g => Math.hypot(PD.space.S.scoot.vx, PD.space.S.scoot.vy) > 60 },
+    { scene: 'space', say: ['speed', 'arrowR', 'ore', 'cargo'], done: g => g.player.cargoKg > 3 },
+    { scene: 'space', say: ['gun', 'arrowR', 'rock'],           done: g => PD.space.S.rocks.some(r => r.dead) },
+    { scene: 'space', say: ['cargo', 'arrowR', 'hole', 'home'], done: g => !!PD.space.S.hole },
+    { scene: 'interior', say: ['hand', 'arrowR', 'sell', 'coin'],   done: g => g.save.totalEarned > 0 },
+    { scene: 'interior', say: ['coin', 'arrowR', 'hex', 'up'],      done: g => Object.keys(g.save.upg).some(k => g.save.upg[k] > 0) },
+    { scene: 'interior', say: ['planet', 'arrowR', 'drill'],        done: g => g.state === 'play' },
+    { scene: 'play', say: ['hand', 'arrowD', 'drill', 'ore'],       done: g => g.save.totalMined > 8 },
+    { scene: 'play', say: ['o2', 'arrowD', 'bang', 'arrowU', 'hole'], done: g => g.player.docked }
+  ];
+
+  const st = { i: 0, flash: 0, doneT: 0 };
+
+  function current(g) {
+    if (!g.save.tut) g.save.tut = { i: 0 };
+    return STEPS[g.save.tut.i] || null;
+  }
+
+  function update(dt, g, scene) {
+    const s = current(g);
+    if (!s) return;
+    st.flash += dt;
+    if (st.doneT > 0) {
+      st.doneT -= dt;
+      if (st.doneT <= 0) { g.save.tut.i++; g.saveGame(); }
+      return;
+    }
+    if (s.scene === scene && s.done(g)) {
+      st.doneT = 0.9;
+      PD.audio.sfx.tone(900, { type: 'triangle', to: 1400, dur: 0.2, vol: 0.12 });
+    }
+  }
+
+  function draw(ctx, g, scene) {
+    const s = current(g);
+    if (!s || s.scene !== scene) return;
+    const w = s.say.length * 20 + 16;
+    const x = VW / 2 - w / 2, y = 8;
+    const done = st.doneT > 0;
+    ctx.fillStyle = 'rgba(8,4,18,0.85)';
+    ctx.fillRect(x, y, w, 24);
+    ctx.strokeStyle = done ? '#8affa0' : '#ffd34d';
+    ctx.strokeRect(x + 0.5, y + 0.5, w - 1, 23);
+    for (let i = 0; i < s.say.length; i++) {
+      const bump = (!done && i === s.say.length - 1) ? Math.sin(st.flash * 6) * 1.5 : 0;
+      G.draw(ctx, s.say[i], x + 8 + i * 20, y + 5 + bump, done ? '#8affa0' : '#ffffff', done ? '#3fb85a' : '#ffd34d');
+    }
+    if (done) G.draw(ctx, 'check', x + w - 14, y - 6, '#8affa0', '#3fb85a');
+    // step counter as hex pips
+    for (let i = 0; i < STEPS.length; i++) {
+      G.hex(ctx, x + 6 + i * 6, y + 30, 2, i < g.save.tut.i ? '#8affa0' : (i === g.save.tut.i ? '#ffd34d' : '#2a1c4a'), null);
+    }
+  }
+
+  PD.tutorial = { update, draw, STEPS, current, state: st };
+})(window.PD);
+
 /* ===== src/cutscene.js ===== */
 /* Cold open. Establishes the ship, the crew, and the fact that you are the
    villain of this story. Skippable, and only shown on a fresh save. */
@@ -6239,16 +7146,13 @@ window.PD = window.PD || {};
 
   let t = 0, beat = 0, done = true, moon = null, stars = null, letter = 0, shipX = -120, card = null;
 
+  /* Cards carry glyph sentences; lines are glyph strips from the crew. */
   const BEATS = [
-    { dur: 4.2, card: ['THE OUTER DARK', 'SOMEWHERE EXPENSIVE'] },
-    { dur: 0, say: ['sys', 'RUSTMAW SALVAGE BARGE // WAKING OCCUPANT ONE OF ONE.'] },
-    { dur: 0, say: ['nix', 'Good morning. Your balance is zero credits. Your debt is not zero credits.'] },
-    { dur: 0, say: ['nix', 'The bank has sent a very polite drone to collect your organs.'] },
-    { dur: 0, say: ['you', 'Then we take the money out of the rocks. Every rock. All of them.'] },
-    { dur: 0, say: ['nix', 'Ah. The tyrant plan. I have a folder for that. It is already quite thick.'] },
-    { dur: 0, say: ['bolt', 'Drill is warm. Bin is empty. Go and be a problem, boss.'] },
-    { dur: 0, say: ['gloop', 'GLOOP presses against the tank glass and chirps encouragingly.'] },
-    { dur: 3.6, card: ['OBJECTIVE', 'GET RICH.  BREAK WORLDS.  OWN THE GALAXY.'] }
+    { dur: 3.4, card: ['galaxy', 'planet', 'planet', 'planet'] },
+    { dur: 0, say: ['nix', ['coin', 'cross', 'arrowR', 'skull']] },
+    { dur: 0, say: ['you', ['drill', 'planet', 'arrowR', 'coin', 'coin', 'coin']] },
+    { dur: 0, say: ['bolt', ['speed', 'arrowR', 'ore', 'arrowR', 'hole', 'home']] },
+    { dur: 3.0, card: ['coin', 'arrowR', 'galaxy'] }
   ];
 
   function start() {
@@ -6338,14 +7242,18 @@ window.PD = window.PD || {};
     if (card) {
       const a = U.clamp(Math.min(t * 1.6, (BEATS[beat].dur - t) * 1.6), 0, 1);
       ctx.globalAlpha = a;
-      F.draw(ctx, card[0], VW / 2, 96, '#ffd34d', { center: true, scale: 3, shadow: '#7a2a10' });
-      F.draw(ctx, card[1], VW / 2, 126, '#f2e9ff', { center: true, shadow: false });
+      const w = card.length * 34;
+      for (let i = 0; i < card.length; i++) {
+        const x = VW / 2 - w / 2 + i * 34 + 17;
+        PD.glyph.hex(ctx, x, 110, 15, 'rgba(8,4,18,0.7)', '#ffd34d', 1);
+        PD.glyph.draw(ctx, card[i], x - 7, 103, '#ffffff', '#ffd34d');
+      }
       ctx.globalAlpha = 1;
     }
 
     PD.dialog.draw(ctx, g, time, PD.art.skinFor(g.save.cos).alien);
 
-    F.draw(ctx, 'ESC  SKIP', VW - 6, VH - bar - 12, 'rgba(240,235,255,0.45)', { right: true, shadow: false });
+    PD.glyph.draw(ctx, 'cross', VW - 20, VH - bar - 18, 'rgba(240,235,255,0.5)', 'rgba(240,235,255,0.3)');
   }
 
   PD.cutscene = { start, update, draw, get done() { return done; } };
@@ -6362,6 +7270,7 @@ window.PD = window.PD || {};
   const A = PD.audio;
   const FX = PD.fx;
   const AI = PD.artint;
+  const D = PD.data;
 
   const VW = 480, VH = 270;
   const ROOM_W = 840, ROOM_H = 270;
@@ -6371,13 +7280,13 @@ window.PD = window.PD || {};
 
   /* Everything you can walk up to. `app` opens a terminal; `act` runs code. */
   const STATIONS = [
-    { id: 'airlock', x: 52,  spr: 'airlock',    label: 'AIRLOCK',        act: 'launch' },
-    { id: 'market',  x: 160, spr: 'console',    label: 'CARGO EXCHANGE', app: 'market' },
-    { id: 'fab',     x: 300, spr: 'fabricator', label: 'FABRICATOR',     app: 'fab' },
-    { id: 'bay',     x: 440, spr: 'dronebay',   label: 'DRONE BAY',      app: 'bay' },
-    { id: 'refinery', x: 580, spr: 'refinery',  label: 'REFINERY DECK',  app: 'refinery' },
-    { id: 'vanity',  x: 690, spr: 'wardrobe',   label: 'IDENTITY POD',   app: 'vanity' },
-    { id: 'nav',     x: 786, spr: 'navchart',   label: 'NAV COMPUTER',   app: 'nav' }
+    { id: 'airlock', x: 52,  spr: 'airlock',    label: 'AIRLOCK',        act: 'launch', glyph: 'speed' },
+    { id: 'market',  x: 160, spr: 'console',    label: 'CARGO EXCHANGE', app: 'market', glyph: 'sell' },
+    { id: 'fab',     x: 300, spr: 'fabricator', label: 'FABRICATOR',     app: 'skills', glyph: 'hex' },
+    { id: 'bay',     x: 440, spr: 'dronebay',   label: 'DRONE BAY',      app: 'bay', glyph: 'drone' },
+    { id: 'refinery', x: 580, spr: 'refinery',  label: 'REFINERY DECK',  app: 'refinery', glyph: 'machine' },
+    { id: 'vanity',  x: 690, spr: 'wardrobe',   label: 'IDENTITY POD',   app: 'vanity', glyph: 'crew' },
+    { id: 'nav',     x: 786, spr: 'navchart',   label: 'NAV COMPUTER',   app: 'nav', glyph: 'planet' }
   ];
 
   const CREW = [
@@ -6395,29 +7304,27 @@ window.PD = window.PD || {};
   /* Crew barks. They rotate, and they are all enabling you. */
   const LINES = {
     nix: [
-      'Balance updated. I have taken the liberty of rounding in our favour.',
-      'Three civilisations have filed complaints. I filed them in the reactor.',
-      'You look tired. Statistically, greed is a stimulant.',
-      'That world had a name once. Now it has a market price.',
-      'I calculate a 94% chance you enjoy this. The other 6% is modesty.'
+      ['coin', 'arrowU', 'galaxy'],
+      ['planet', 'arrowR', 'coin', 'coin'],
+      ['skull', 'check', 'star'],
+      ['eye', 'arrowR', 'planet', 'bang']
     ],
     bolt: [
-      'Bring me ore, not excuses. The bin does not fill itself.',
-      'I welded that seam twice. Do not make me do it a third time.',
-      'Every module you fabricate, I bleed a little coolant. You are welcome.',
-      'Rocks in. Machines out. That is the whole religion.',
-      'Feed the hoppers and the refinery runs itself. Ingots sell for triple. Alloys? Do not ask, just build it.'
+      ['ore', 'arrowR', 'machine', 'arrowR', 'coin'],
+      ['hex', 'arrowR', 'drill', 'up'],
+      ['belt', 'machine', 'belt', 'sell']
     ],
     gloop: [
-      'GLOOP chirps and headbutts the glass affectionately.',
-      'GLOOP is eating a rock you were going to sell. GLOOP is unrepentant.',
-      'GLOOP blinks all four eyes at slightly different times.'
+      ['ore', 'arrowR', 'crew', 'quest'],
+      ['eye', 'eye', 'eye', 'eye'],
+      ['star', 'arrowR', 'crew']
     ]
   };
   const barkIdx = { nix: 0, bolt: 0, gloop: 0 };
 
   const P = {
-    x: 100, y: FLOOR, vx: 0, vy: 0, face: 1, walk: 0, near: null, hop: 0
+    x: 100, y: FLOOR, vx: 0, vy: 0, face: 1, walk: 0, near: null, hop: 0,
+    target: null, autoUse: null
   };
 
   function enter(g, atStation) {
@@ -6464,6 +7371,29 @@ window.PD = window.PD || {};
       let ix = 0;
       if (IN.down('left')) ix -= 1;
       if (IN.down('right')) ix += 1;
+      // tap anywhere on the deck: walk there; tap a machine: walk there and use it
+      if (IN.mouse.leftPressed && IN.mouse.y > 20) {
+        const wx = IN.mouse.x + g.intCam;
+        let hitSt = null;
+        for (const st of STATIONS.concat(CREW)) if (Math.abs(st.x - wx) < 34) hitSt = st;
+        P.target = hitSt ? hitSt.x + (hitSt.x > P.x ? -18 : 18) : wx;
+        P.autoUse = hitSt;
+        A.sfx.click();
+      }
+      if (ix) { P.target = null; P.autoUse = null; }
+      if (P.target !== null) {
+        const d = P.target - P.x;
+        if (Math.abs(d) > 4) ix = Math.sign(d);
+        else {
+          P.target = null;
+          if (P.autoUse) {
+            const st = P.autoUse; P.autoUse = null;
+            if (st.app) PD.term.open(st.app);
+            else if (st.act === 'launch') { g.undock(); return; }
+            else talk(st.id);
+          }
+        }
+      }
       if (ix) P.face = ix;
       P.vx = U.damp(P.vx, ix * 78, 0.3, dt);
       P.x = U.clamp(P.x + P.vx * dt, 28, ROOM_W - 28);
@@ -6544,32 +7474,41 @@ window.PD = window.PD || {};
     ctx.fillRect((P.x - cam - 4) | 0, (P.y - 3) | 0, 8, 3);
     ctx.globalAlpha = 1;
 
-    // interaction prompt
+    // interaction prompt: a hand and the machine's glyph
     if (P.near && !PD.term.app && !PD.dialog.active()) {
       const x = P.near.x - cam;
-      const y = FLOOR - (P.near.spr === 'gloop' ? 40 : 66) + Math.sin(t * 5) * 2;
-      const w = F.width(P.near.label, 1) + 22;
-      ctx.fillStyle = 'rgba(8,4,18,0.85)';
-      ctx.fillRect(x - w / 2, y, w, 13);
-      ctx.strokeStyle = '#7ef9ff';
-      ctx.strokeRect(x - w / 2 + 0.5, y + 0.5, w - 1, 12);
-      F.draw(ctx, 'E', x - w / 2 + 4, y + 3, '#ffd34d', { shadow: false });
-      F.draw(ctx, P.near.label, x - w / 2 + 16, y + 3, '#ffffff', { shadow: false });
+      const y = FLOOR - (P.near.spr === 'gloop' ? 44 : 70) + Math.sin(t * 5) * 2;
+      PD.glyph.hex(ctx, x, y + 8, 14, 'rgba(8,4,18,0.85)', '#7ef9ff', 1);
+      PD.glyph.draw(ctx, P.near.glyph || 'crew', x - 7, y + 1, '#ffffff', '#7ef9ff');
+      PD.glyph.draw(ctx, 'hand', x + 8, y - 8, '#ffd34d', '#ff9b3d');
     }
+    // walk target marker
+    if (P.target !== null) PD.glyph.hex(ctx, P.target - cam, FLOOR + 6, 4 + Math.sin(t * 8), null, '#ffd34d', 1);
   }
 
   /* Slim diegetic status strip -- the deck's own readout, not a game HUD. */
   function drawStatus(ctx, g, t) {
     ctx.fillStyle = 'rgba(8,4,18,0.8)';
-    ctx.fillRect(0, 0, VW, 14);
+    ctx.fillRect(0, 0, VW, 16);
     ctx.fillStyle = '#39ffa6';
-    ctx.fillRect(0, 14, VW, 1);
-    F.draw(ctx, 'RUSTMAW // DECK A', 6, 4, '#39ffa6', { shadow: false });
-    F.draw(ctx, 'CR ' + U.fmt(g.save.credits), 148, 4, '#ffd34d', { shadow: false });
+    ctx.fillRect(0, 16, VW, 1);
+    const Gd = PD.glyph;
+    let x = 6;
+    x += Gd.stat(ctx, 'coin', U.fmt(g.save.credits), x, 1, '#ffd34d', '#b8860b') + 12;
     const bin = Object.keys(g.save.vault).reduce((n, k) => n + g.save.vault[k], 0);
-    F.draw(ctx, 'BIN ' + U.fmt(bin), 226, 4, '#7ef9ff', { shadow: false });
-    F.draw(ctx, 'DRONES ' + (g.save.upg.drones || 0), 296, 4, '#c8ff5a', { shadow: false });
-    F.draw(ctx, 'GALAXY ' + g.save.dominion.toFixed(1) + '%', VW - 6, 4, '#ff8ad8', { right: true, shadow: false });
+    const ok = Object.keys(g.save.appr).reduce((n, k) => n + g.save.appr[k], 0);
+    x += Gd.stat(ctx, 'clock', bin, x, 1, '#ffb03d', '#c07a20') + 12;
+    x += Gd.stat(ctx, 'sell', ok, x, 1, '#39ffa6', '#1e9e68') + 12;
+    x += Gd.stat(ctx, 'drone', g.save.upg.drones || 0, x, 1, '#c8ff5a', '#7cbb26') + 12;
+    Gd.stat(ctx, 'galaxy', g.save.dominion.toFixed(1) + '%', VW - 78, 1, '#ff8ad8', '#b0459a');
+    // appraisal in progress
+    const mat = g.appraising();
+    if (mat !== null) {
+      const f = g.apprFrac();
+      ctx.fillStyle = D.MAT[mat].c[1]; ctx.fillRect(VW / 2 - 30, 4, 8, 8);
+      ctx.fillStyle = '#2a1c4a'; ctx.fillRect(VW / 2 - 18, 6, 50, 4);
+      ctx.fillStyle = '#ffb03d'; ctx.fillRect(VW / 2 - 18, 6, Math.round(50 * f), 4);
+    }
   }
 
   PD.interior = { enter, update, draw, drawStatus, talk, STATIONS, CREW, P, ROOM_W, FLOOR };
@@ -6631,7 +7570,10 @@ window.PD = window.PD || {};
       owned: {},                                  // purchased cosmetics
       seenIntro: 0,
       goods: {},                                  // refined output from the refinery deck
-      factory: null                               // machine layout
+      factory: null,                              // machine layout
+      appr: {},                                   // appraised ore, ready to sell
+      apprT: 0,
+      tut: { i: 0 }
     };
   }
 
@@ -6656,6 +7598,8 @@ window.PD = window.PD || {};
       if (s.vault) for (const k in s.vault) { const n = +s.vault[k]; if (n > 0 && D.MAT[k]) base.vault[k] = n; }
       if (s.owned) base.owned = s.owned;
       if (s.goods) for (const k in s.goods) { const n = +s.goods[k]; if (n > 0) base.goods[k] = n; }
+      if (s.appr) for (const k in s.appr) { const n = +s.appr[k]; if (n > 0 && D.MAT[k]) base.appr[k] = n; }
+      if (s.tut) base.tut = { i: U.clamp(+s.tut.i || 0, 0, 99) };
       if (s.factory && Array.isArray(s.factory.cells)) base.factory = { cells: s.factory.cells, produced: +s.factory.produced || 0 };
       if (s.cos) for (const k in base.cos) if (s.cos[k]) base.cos[k] = s.cos[k];
       if (s.upg) for (const k in base.upg) base.upg[k] = U.clamp(+s.upg[k] || 0, 0, D.UPG[k].max);
@@ -6677,7 +7621,7 @@ window.PD = window.PD || {};
     startBody(0, true);
     g.state = 'cutscene';
     PD.cutscene.start();
-    toast('SAVE WIPED. BACK TO THE PEBBLE.', UI.COL.bad);
+    toast(['cross'], UI.COL.bad);
   }
 
   g.saveGame = saveGame;
@@ -6691,17 +7635,19 @@ window.PD = window.PD || {};
   };
 
   /* ------------------------------------------------------------------ toasts */
-  function toast(msg, color) {
-    g.toasts.push({ msg, color, life: 2.8 });
+  /* Toasts and hints are glyph strips: arrays of glyph names, optionally with
+     a number attached. Strings still work for the rare case that needs one. */
+  function toast(msg, color, num) {
+    g.toasts.push({ msg, color, life: 2.8, num });
     if (g.toasts.length > 4) g.toasts.shift();
   }
   g.toast = toast;
   g.hint = (k, m) => hint(k, m);
 
-  function hint(key, msg) {
+  function hint(key, glyphs) {
     if (g.hintKey === key) { g.hintT = Math.max(g.hintT, 1); return; }
     g.hintKey = key;
-    g.hint = msg;
+    g.hintGlyphs = Array.isArray(glyphs) ? glyphs : [glyphs];
     g.hintT = 5;
   }
 
@@ -6720,7 +7666,7 @@ window.PD = window.PD || {};
     g.cinematic = false;
 
     g.ship.x = g.world.cx * TILE;
-    g.ship.y = Math.max(30, g.world.bodyTopPx - 150);
+    g.ship.y = Math.max(30, g.world.bodyTopPx - 130);
 
     if (!g.player || freshPlayer) g.player = new PD.Player(g);
     g.player.clearCargo();
@@ -6732,10 +7678,9 @@ window.PD = window.PD || {};
     g.cam.y = g.player.y - VH / 2;
     if (!g.save.seen[index]) {
       g.save.seen[index] = 1;
-      toast(body.name.toUpperCase(), UI.COL.gold);
-      toast(body.blurb.toUpperCase(), UI.COL.text);
+      toast(['planet'], UI.COL.gold);
     }
-    hint('dive', 'FLY DOWN TO THE ROCK - HOLD LEFT MOUSE TO DRILL');
+    hint('dive', ['hand', 'arrowD', 'drill']);
   }
 
   function spawnMobs() {
@@ -6783,13 +7728,9 @@ window.PD = window.PD || {};
 
   g.travelTo = function (index) {
     if (index > g.save.unlocked) return;
-    A.sfx.warp();
-    FX.flash(0.9, '#a9d8ff');
     startBody(index, false);
-    g.state = 'play';
-    g.player.docked = false;
-    saveGame();
-    toast('ARRIVING AT ' + D.BODIES[index].name.toUpperCase(), UI.COL.o2);
+    g.dive(index);
+    toast(['hole', 'arrowR', 'planet'], UI.COL.o2);
   };
 
   /* --------------------------------------------------------------- economy */
@@ -6825,33 +7766,58 @@ window.PD = window.PD || {};
 
   g.vaultCount = function (mat) { return g.save.vault[mat] || 0; };
 
+  /* Appraisal: the house values one unit at a time, priciest lot first. It
+     runs in real time wherever you are, faster with appraiser staff. */
+  g.appraising = function () {
+    const keys = Object.keys(g.save.vault).filter(k => g.save.vault[k] > 0).sort((a, b) => D.MAT[b].cr - D.MAT[a].cr);
+    return keys.length ? +keys[0] : null;
+  };
+  function appraiseTick(dt) {
+    const mat = g.appraising();
+    if (mat === null) { g.save.apprT = 0; return; }
+    const need = D.appraiseSeconds(mat, g.save.upg.appraise || 0);
+    g.save.apprT += dt;
+    while (g.save.apprT >= need && (g.save.vault[mat] || 0) > 0) {
+      g.save.apprT -= need;
+      g.save.vault[mat]--;
+      if (g.save.vault[mat] <= 0) delete g.save.vault[mat];
+      g.save.appr[mat] = (g.save.appr[mat] || 0) + 1;
+    }
+  }
+  g.apprFrac = function () {
+    const mat = g.appraising();
+    if (mat === null) return 0;
+    return U.clamp(g.save.apprT / D.appraiseSeconds(mat, g.save.upg.appraise || 0), 0, 1);
+  };
+  g.saleMult = function () { return g.valueMult() * D.UPG.crew.value(g.save.upg.crew || 0) * (1 - D.appraiseFee(g.save.upg.appraise || 0)); };
+
   g.sellFromVault = function (mat, qty) {
-    const have = g.save.vault[mat] || 0;
+    const have = g.save.appr[mat] || 0;
     qty = Math.min(qty, have);
-    if (qty <= 0) return;
-    const value = Math.round(D.MAT[mat].cr * qty * g.valueMult());
-    g.save.vault[mat] = have - qty;
-    if (g.save.vault[mat] <= 0) delete g.save.vault[mat];
+    if (qty <= 0) { A.sfx.deny(); return; }
+    const value = Math.round(D.MAT[mat].cr * qty * g.saleMult());
+    g.save.appr[mat] = have - qty;
+    if (g.save.appr[mat] <= 0) delete g.save.appr[mat];
     g.save.credits += value;
     g.save.totalEarned += value;
     A.sfx.coin(qty % 6);
-    PD.term.say('SOLD ' + qty + ' x ' + D.MAT[mat].name.toUpperCase() + '  ->  $' + U.fmt(value), '#39ffa6');
+    PD.term.say(['coin'], '#39ffa6', '+' + U.fmt(value));
     saveGame();
   };
 
   g.sellAll = function () {
     let total = 0, lots = 0;
-    for (const k in g.save.vault) {
-      total += Math.round(D.MAT[k].cr * g.save.vault[k] * g.valueMult());
+    for (const k in g.save.appr) {
+      total += Math.round(D.MAT[k].cr * g.save.appr[k] * g.saleMult());
       lots++;
     }
     if (!total) { A.sfx.deny(); return; }
-    g.save.vault = {};
+    g.save.appr = {};
     g.save.credits += total;
     g.save.totalEarned += total;
     A.sfx.sell();
     for (let i = 0; i < 8; i++) setTimeout(() => A.sfx.coin(i), i * 55);
-    PD.term.say('BIN LIQUIDATED: ' + lots + ' LOTS  ->  $' + U.fmt(total), '#39ffa6');
+    PD.term.say(['coin', 'coin', 'coin'], '#39ffa6', '+' + U.fmt(total));
     saveGame();
   };
 
@@ -6866,7 +7832,7 @@ window.PD = window.PD || {};
     if (g.save.goods[key] <= 0) delete g.save.goods[key];
     g.save.credits += value; g.save.totalEarned += value;
     A.sfx.coin(qty % 6);
-    PD.term.say('SOLD ' + qty + ' x ' + gd.name.toUpperCase() + '  ->  $' + U.fmt(value), '#39ffa6');
+    PD.term.say(['coin'], '#39ffa6', '+' + U.fmt(value));
     saveGame();
   };
   g.sellAllGoods = function () {
@@ -6881,7 +7847,7 @@ window.PD = window.PD || {};
     g.save.credits += total; g.save.totalEarned += total;
     A.sfx.sell();
     for (let i = 0; i < 8; i++) setTimeout(() => A.sfx.coin(i), i * 55);
-    PD.term.say('GOODS SOLD: ' + lots + ' LOTS  ->  $' + U.fmt(total), '#39ffa6');
+    PD.term.say(['machine', 'arrowR', 'coin'], '#39ffa6', '+' + U.fmt(total));
     saveGame();
   };
 
@@ -6902,7 +7868,7 @@ window.PD = window.PD || {};
     FX.ring(x, y, 4, r * 0.6, 0.6, '#8affa0', 1);
     A.sfx.tone(600, { type: 'sine', to: 1400, dur: 0.5, vol: 0.12 });
     A.sfx.tone(1400, { type: 'sine', to: 700, dur: 0.4, vol: 0.06, delay: 0.3 });
-    toast(found ? 'SCAN: ' + found + ' DEPOSITS PAINTED' : 'SCAN: NOTHING WORTH DIGGING NEARBY', found ? '#8affa0' : UI.COL.dim);
+    toast(['scan', 'arrowR', 'ore'], found ? '#8affa0' : UI.COL.dim, String(found));
   };
 
   g.fabricate = function (id) {
@@ -6911,11 +7877,11 @@ window.PD = window.PD || {};
     if (lvl >= u.max) { A.sfx.deny(); return; }
     const cost = D.upgradeCost(u, lvl);
     const rec = D.recipe(u, lvl);
-    if (g.save.credits < cost) { A.sfx.deny(); PD.term.say('INSUFFICIENT CREDITS', '#ff5a4d'); return; }
+    if (g.save.credits < cost) { A.sfx.deny(); PD.term.say(['coin', 'cross'], '#ff5a4d'); return; }
     for (const r of rec) {
       if ((g.save.vault[r.mat] || 0) < r.qty) {
         A.sfx.deny();
-        PD.term.say('FEEDSTOCK SHORT: ' + D.MAT[r.mat].name.toUpperCase(), '#ff5a4d');
+        PD.term.say(['ore', 'cross'], '#ff5a4d');
         return;
       }
     }
@@ -6930,13 +7896,13 @@ window.PD = window.PD || {};
     A.sfx.buy();
     A.sfx.tone(140, { type: 'sawtooth', to: 70, dur: 0.3, vol: 0.12 });
     FX.flash(0.14, '#ffb03d');
-    PD.term.say(u.name.toUpperCase() + ' FABRICATED  ->  LV' + (lvl + 1), '#ffb03d');
+    PD.term.say(['build', 'check'], '#ffb03d', 'LV' + (lvl + 1));
     saveGame();
   };
 
   g.buyCosmetic = function (cat, id) {
     const o = PD.art.optOf(cat, id);
-    if (g.save.credits < o.cost) { A.sfx.deny(); PD.term.say('CANNOT AFFORD ' + o.name.toUpperCase(), '#ff5a4d'); return; }
+    if (g.save.credits < o.cost) { A.sfx.deny(); PD.term.say(['coin', 'cross'], '#ff5a4d'); return; }
     g.save.credits -= o.cost;
     g.save.owned[cat] = g.save.owned[cat] || {};
     g.save.owned[cat][id] = 1;
@@ -6948,7 +7914,7 @@ window.PD = window.PD || {};
   g.equipCosmetic = function (cat, id) {
     g.save.cos[cat] = id;
     A.sfx.tone(880, { type: 'triangle', dur: 0.12, vol: 0.1 });
-    PD.term.say('EQUIPPED ' + PD.art.optOf(cat, id).name.toUpperCase(), '#ff8ad8');
+    PD.term.say(['check'], '#ff8ad8');
     saveGame();
   };
 
@@ -6988,7 +7954,7 @@ window.PD = window.PD || {};
   g.collect = function (mat, x, y) {
     const p = g.player;
     if (!p.addOre(mat)) {
-      hint('full', 'HOLD FULL - FLY UP TO THE SHIP OR HOLD R');
+      hint('full', ['cargo', 'bang', 'arrowR', 'hole']);
       return false;
     }
     const m = D.MAT[mat];
@@ -7055,7 +8021,7 @@ window.PD = window.PD || {};
     FX.shake(m.def.kind === 'boss' ? 9 : 3.4);
     FX.hitStop(m.def.kind === 'boss' ? 0.12 : 0.04);
     A.sfx.killMob();
-    if (m.def.kind === 'boss') { A.sfx.boom(1.2); toast('CORE WARDEN DOWN', UI.COL.good); }
+    if (m.def.kind === 'boss') { A.sfx.boom(1.2); toast(['skull', 'check'], UI.COL.good); }
     // guts of the beast are worth something
     const drops = m.def.kind === 'boss' ? 7 : (U.chance(0.45) ? 1 : 0);
     for (let i = 0; i < drops; i++) {
@@ -7083,8 +8049,8 @@ window.PD = window.PD || {};
     FX.shake(12);
     FX.burst(p.x, p.y, 40, ['#ff5a4d', '#ffffff', '#ffd34d'], 200);
     A.sfx.boom(0.8);
-    toast('HULL BREACH - EMERGENCY RECALL', UI.COL.bad);
-    toast('LOST A THIRD OF THE HOLD', UI.COL.bad);
+    toast(['hull', 'cross', 'arrowR', 'home'], UI.COL.bad);
+    toast(['cargo', 'arrowD'], UI.COL.bad, '-33%');
     setTimeout(() => {
       dock(true);
       g.player.dead = false;
@@ -7104,7 +8070,7 @@ window.PD = window.PD || {};
     A.sfx.warp();
     FX.flash(0.6, '#7ef9ff');
     FX.ring(p.x, p.y, 2, 70, 0.6, '#7ef9ff', 3);
-    toast('TRACTOR BEAM - 10% OF HOLD LOST IN TRANSIT', UI.COL.o2);
+    toast(['hole', 'cargo', 'arrowD'], UI.COL.o2, '-10%');
     dock(true);
   };
 
@@ -7122,25 +8088,53 @@ window.PD = window.PD || {};
     PD.interior.enter(g, 'airlock');
     A.sfx.dock();
     A.drill(false); A.thrust(0);
-    if (n > 0) PD.dialog.push('bolt', 'Bin took ' + n + ' lumps of rock. Sell it or let me melt it. Your call, boss.');
+    if (n > 0) PD.dialog.push('bolt', ['ore', 'arrowR', 'clock', 'arrowR', 'coin']);
     else if (!g.save.seenTour) {
       g.save.seenTour = 1;
-      PD.dialog.push('nix', 'Deck A. Walk with A and D, press E at anything that glows. Try not to touch Gloop.');
+      PD.dialog.push('nix', ['hand', 'arrowR', 'sell', 'hex', 'machine']);
     }
     saveGame();
   }
 
+  /* The airlock opens on to the scooter field, not the planet: the planet is
+     a destination you choose at the nav computer. */
   g.undock = function () {
     g.player.docked = false;
-    g.player.x = g.ship.x;
-    g.player.y = g.ship.y + 46;
-    g.player.vx = 0;
-    g.player.vy = 30;
-    g.state = 'play';
     PD.term.close();
     PD.dialog.clear();
+    g.toField();
+  };
+
+  g.toField = function () {
+    g.state = 'space';
+    g.player.docked = false;
+    g.player.invuln = 1;
+    g.hintT = 0; g.hintKey = '';
+    PD.space.enter(g);
     A.sfx.tone(520, { type: 'triangle', dur: 0.2, vol: 0.12 });
     A.sfx.tone(300, { type: 'square', to: 700, dur: 0.25, vol: 0.08 });
+    saveGame();
+  };
+
+  /* Through the time hole: from anywhere, straight to Deck A. */
+  g.throughHole = function () {
+    A.sfx.warp();
+    FX.flash(0.9, '#d8bcff');
+    g.bullets.length = 0;
+    dock(true);
+  };
+
+  /* Nav computer: drop on to the chosen world for a dive. */
+  g.dive = function (index) {
+    if (index > g.save.unlocked) return;
+    if (index !== g.bodyIndex || !g.world) startBody(index, false);
+    else { g.player.reset(g.ship.x, g.ship.y + 34); g.player.clearCargo(); }
+    g.state = 'play';
+    g.player.docked = false;
+    PD.term.close(); PD.dialog.clear();
+    A.sfx.warp();
+    FX.flash(0.8, '#a9d8ff');
+    saveGame();
   };
 
   /* --------------------------------------------------- the money shot
@@ -7154,7 +8148,7 @@ window.PD = window.PD || {};
     A.setIntensity(1);
     FX.flash(0.45, '#fff3c0');
     FX.hitStop(0.16);
-    toast('CORE BREACH!', UI.COL.core);
+    toast(['star', 'bang'], UI.COL.core);
   }
 
   function updateDestruction(dt) {
@@ -7316,11 +8310,11 @@ window.PD = window.PD || {};
       }
     }
 
-    g.uiBlocking = g.state !== 'play';
+    g.uiBlocking = g.state !== 'play' && g.state !== 'space';
     handleStateKeys();
 
     // the refinery deck earns in every state where time passes
-    if (g.state !== 'title' && g.state !== 'cutscene' && g.state !== 'pause') PD.factory.tick(dt, g);
+    if (g.state !== 'title' && g.state !== 'cutscene' && g.state !== 'pause') { PD.factory.tick(dt, g); appraiseTick(dt); }
 
     if (g.state === 'cutscene') {
       PD.cutscene.update(dt, g);
@@ -7328,13 +8322,21 @@ window.PD = window.PD || {};
         g.save.seenIntro = 1;
         saveGame();
         startBody(g.save.bodyIndex || 0, false);
-        g.state = 'play';
+        g.toField();
       }
+      return;
+    }
+
+    if (g.state === 'space') {
+      PD.space.update(dt, g);
+      PD.tutorial.update(dt, g, 'space');
+      if (PD.input.hit('esc')) { g.pausedFrom = 'space'; g.state = 'pause'; A.thrust(0); }
       return;
     }
 
     if (g.state === 'interior') {
       PD.interior.update(dt, g);
+      PD.tutorial.update(dt, g, 'interior');
       FX.update(dt, g.world);
       return;
     }
@@ -7360,7 +8362,7 @@ window.PD = window.PD || {};
     const p = g.player;
     p.update(dt, g);
 
-    if (g.state === 'play' && !g.cinematic && nearShip()) hint('dock', 'PRESS E TO DOCK AND SELL');
+    if (g.state === 'play' && !g.cinematic && nearShip()) hint('dock', ['hand', 'arrowR', 'hole', 'home']);
 
     for (let i = g.mobs.length - 1; i >= 0; i--) {
       const m = g.mobs[i];
@@ -7412,10 +8414,11 @@ window.PD = window.PD || {};
     FX.update(dt, g.world);
     updateCamera(dt, false);
 
+    PD.tutorial.update(dt, g, 'play');
     // contextual nudges
     if (g.state === 'play' && !g.cinematic) {
-      if (g.world.coreHp < g.world.coreMax && g.world.coreHp > 0) hint('core', 'KEEP DRILLING THE CORE - BREAK THE WORLD');
-      else if (p.o2 < p.stat('oxygen') * 0.2) hint('air', 'AIR LOW - GET BACK TO THE SHIP OR HOLD R');
+      if (g.world.coreHp < g.world.coreMax && g.world.coreHp > 0) hint('core', ['drill', 'arrowR', 'star', 'bang']);
+      else if (p.o2 < p.stat('oxygen') * 0.2) hint('air', ['o2', 'bang', 'arrowR', 'hole']);
     }
 
     // music swells the deeper you go
@@ -7445,14 +8448,15 @@ window.PD = window.PD || {};
       case 'play':
         if (g.cinematic) break;
         if (e && nearShip()) dock(false);
-        else if (esc) { g.state = 'pause'; A.drill(false); A.thrust(0); }
+        else if (esc) { g.pausedFrom = 'play'; g.state = 'pause'; A.drill(false); A.thrust(0); }
         break;
       case 'interior':
         break;                                   // interior.update handles its own keys
       case 'cutscene':
+      case 'space':
         break;
       case 'pause':
-        if (esc) g.state = 'play';
+        if (esc) g.state = g.pausedFrom || 'play';
         break;
       case 'victory':
         if ((e || esc) && g.victory && g.victory.t > 1.0) closeVictory();
@@ -7521,42 +8525,30 @@ window.PD = window.PD || {};
     offY = Math.floor((h - VH * scale) / 2);
   }
 
+  /* Above the dig site hangs the time hole you came through. Fly into it to
+     go home. */
   function drawShip(ctx, cam) {
     const s = g.ship;
-    const spr = PD.art.skinFor(g.save.cos).ship;
-    const blink = Math.sin(g.time * 3) > 0;
-    const bob = Math.sin(g.time * 1.1) * 2;
-    const x = s.x - cam.x, y = s.y - cam.y + bob;
-
-    // tractor beam glow down to the surface
-    if (g.state === 'shop' || Math.abs(g.player.x - s.x) < 60) {
-      const grad = ctx.createLinearGradient(0, y + 20, 0, y + 100);
-      grad.addColorStop(0, 'rgba(150,250,255,0.38)');
-      grad.addColorStop(0.4, 'rgba(126,235,255,0.16)');
-      grad.addColorStop(1, 'rgba(126,249,255,0)');
-      ctx.fillStyle = grad;
-      ctx.beginPath();
-      ctx.moveTo(x - 10, y + 22); ctx.lineTo(x + 10, y + 22);
-      ctx.lineTo(x + 34, y + 92); ctx.lineTo(x - 34, y + 92);
-      ctx.closePath(); ctx.fill();
+    const t = g.time;
+    const x = s.x - cam.x, y = s.y - cam.y + 12;
+    const near = Math.abs(g.player.x - s.x) < s.w / 2 && g.player.y > s.y - 14 && g.player.y < s.y + 50;
+    const rr = 26 + Math.sin(t * 2) * 2 + (near ? 4 : 0);
+    const grd = ctx.createRadialGradient(x, y, 2, x, y, rr + 14);
+    grd.addColorStop(0, 'rgba(255,255,255,0.85)');
+    grd.addColorStop(0.35, 'rgba(126,249,255,0.55)');
+    grd.addColorStop(1, 'rgba(120,80,220,0)');
+    ctx.fillStyle = grd;
+    ctx.fillRect(x - rr - 14, y - rr - 14, rr * 2 + 28, rr * 2 + 28);
+    for (let k = 0; k < 3; k++) {
+      ctx.save(); ctx.translate(x, y); ctx.rotate(t * (1.2 + k * 0.7) * (k % 2 ? -1 : 1));
+      PD.glyph.hex(ctx, 0, 0, rr * (1 - k * 0.24), null, k ? '#d8bcff' : '#ffffff', 1.5);
+      ctx.restore();
     }
-
-    PD.ent.drawSprite(ctx, spr, blink ? 1 : 0, x, y, false, false);
-
-    // owned drones buzz around the hull
-    const n = Math.min(8, g.save.upg.drones || 0);
-    const dspr = PD.art.sprites.drone;
-    for (let i = 0; i < n; i++) {
-      const a = g.time * 0.8 + i * (U.TAU / Math.max(1, n));
-      const dx = x + Math.cos(a) * (52 + (i % 3) * 8);
-      const dy = y + Math.sin(a * 1.3) * 16 + 6;
-      PD.ent.drawSprite(ctx, dspr, (Math.floor(g.time * 12) + i) % 2, dx, dy, Math.cos(a) < 0, false);
+    if (U.chance(0.4)) {
+      const a = U.rand(0, U.TAU);
+      FX.spawn({ x: s.x + Math.cos(a) * rr, y: s.y + 12 + Math.sin(a) * rr, vx: -Math.cos(a) * 30, vy: -Math.sin(a) * 30, life: 0.5, size: 1.5, color: '#7ef9ff', grav: 0, drag: 0.9, glow: 1 });
     }
-
-    if (g.state === 'play' && Math.abs(g.player.x - s.x) < s.w / 2 &&
-        g.player.y > s.y - 10 && g.player.y < s.y + 46) {
-      F.draw(ctx, 'E  DOCK', x, y - 36 + Math.sin(g.time * 5) * 2, '#ffd34d', { center: true, scale: 2 });
-    }
+    if (g.state === 'play' && near) PD.glyph.draw(ctx, 'home', x - 7, y - rr - 24 + Math.sin(t * 5) * 2, '#ffd34d', '#ff9b3d');
   }
 
   function drawLighting(cam) {
@@ -7646,16 +8638,27 @@ window.PD = window.PD || {};
       return;
     }
 
+    if (g.state === 'space' || (g.state === 'pause' && g.pausedFrom === 'space')) {
+      PD.space.draw(ctx, g, g.time);
+      FX.drawOverlay(ctx, VW, VH);
+      FX.drawFloaters(ctx, { x: Math.round(PD.space.S.cam.x), y: Math.round(PD.space.S.cam.y) }, (c, s2, x, y, col, size) =>
+        F.draw(c, s2, x, y, col, { center: true, scale: size >= 2 ? 2 : 1 }));
+      UI.hudField(ctx, g);
+      PD.tutorial.draw(ctx, g, 'space');
+      if (g.state === 'pause') { const r = UI.pause(ctx, g); if (r.resume) g.state = 'space'; if (r.ship) { g.state = 'space'; g.throughHole(); } }
+      PD.touch.draw(ctx, g.state === 'space' ? 'space' : 'ui', g);
+      UI.endFrame();
+      blit();
+      return;
+    }
+
     if (g.state === 'interior') {
       PD.interior.draw(ctx, g, g.time);
       FX.drawWorld(ctx, { x: Math.round(g.intCam), y: 0 });
       PD.interior.drawStatus(ctx, g, g.time);
       PD.term.draw(ctx, g, g.dt || 1 / 60);
       PD.dialog.draw(ctx, g, g.time, PD.art.skinFor(g.save.cos).alien);
-      if (!PD.term.app && !PD.dialog.active()) {
-        F.draw(ctx, 'A D  WALK    E  USE    ESC  LAUNCH', VW / 2, VH - 12,
-          'rgba(240,235,255,0.45)', { center: true, shadow: false });
-      }
+      if (!PD.term.app && !PD.dialog.active()) PD.tutorial.draw(ctx, g, 'interior');
       UI.endFrame();
       blit();
       return;
@@ -7669,7 +8672,7 @@ window.PD = window.PD || {};
       if (r.start) {
         A.resume(); A.music(true);
         if (!g.save.seenIntro) { g.state = 'cutscene'; PD.cutscene.start(); }
-        else { startBody(g.save.bodyIndex || 0, false); g.state = 'play'; }
+        else { startBody(g.save.bodyIndex || 0, false); g.toField(); }
       }
       if (r.wipe) wipeSave();
       PD.touch.draw(ctx, 'ui');
@@ -7677,7 +8680,8 @@ window.PD = window.PD || {};
       return;
     }
 
-    g.world.drawSky(ctx, cam, VW, VH, g.time);
+    PD.galaxy.draw(ctx, cam, g.time, 400 + g.bodyIndex * 31, g.world.body.sky);
+    g.world.drawSky(ctx, cam, VW, VH, g.time, false, true);
     g.world.draw(ctx, cam, VW, VH, g.time);
     drawShip(ctx, cam);
 
@@ -7705,12 +8709,12 @@ window.PD = window.PD || {};
       ctx.fillRect(0, 0, VW, VH);
     }
 
-    if (g.state !== 'victory' && g.state !== 'ending') UI.hud(ctx, g);
+    if (g.state !== 'victory' && g.state !== 'ending') { UI.hud(ctx, g); PD.tutorial.draw(ctx, g, 'play'); }
     UI.sellSplash(ctx, g);
 
     if (g.state === 'pause') {
       const r = UI.pause(ctx, g);
-      if (r.resume) g.state = 'play';
+      if (r.resume) g.state = g.pausedFrom || 'play';
       if (r.ship) { g.state = 'play'; g.emergencyRecall(); }
     } else if (g.state === 'victory') {
       const r = UI.victory(ctx, g);
@@ -7757,8 +8761,9 @@ window.PD = window.PD || {};
     m.wy = m.y + g.cam.y;
 
     FX.tickFreeze(dt);
-    PD.touch.apply(g.state === 'play' ? 'play' : 'ui');
-    if (PD.touch.enabled) { m.wx = m.x + g.cam.x; m.wy = m.y + g.cam.y; }
+    PD.touch.apply(g.state === 'play' ? 'play' : (g.state === 'space' ? 'space' : 'ui'));
+    if (g.state === 'space') { m.wx = m.x + PD.space.S.cam.x; m.wy = m.y + PD.space.S.cam.y; }
+    else if (PD.touch.enabled) { m.wx = m.x + g.cam.x; m.wy = m.y + g.cam.y; }
 
     if (FX.freeze > 0) {
       // hit-stop: the world holds still but particles keep creeping

@@ -11,16 +11,13 @@
 
   let t = 0, beat = 0, done = true, moon = null, stars = null, letter = 0, shipX = -120, card = null;
 
+  /* Cards carry glyph sentences; lines are glyph strips from the crew. */
   const BEATS = [
-    { dur: 4.2, card: ['THE OUTER DARK', 'SOMEWHERE EXPENSIVE'] },
-    { dur: 0, say: ['sys', 'RUSTMAW SALVAGE BARGE // WAKING OCCUPANT ONE OF ONE.'] },
-    { dur: 0, say: ['nix', 'Good morning. Your balance is zero credits. Your debt is not zero credits.'] },
-    { dur: 0, say: ['nix', 'The bank has sent a very polite drone to collect your organs.'] },
-    { dur: 0, say: ['you', 'Then we take the money out of the rocks. Every rock. All of them.'] },
-    { dur: 0, say: ['nix', 'Ah. The tyrant plan. I have a folder for that. It is already quite thick.'] },
-    { dur: 0, say: ['bolt', 'Drill is warm. Bin is empty. Go and be a problem, boss.'] },
-    { dur: 0, say: ['gloop', 'GLOOP presses against the tank glass and chirps encouragingly.'] },
-    { dur: 3.6, card: ['OBJECTIVE', 'GET RICH.  BREAK WORLDS.  OWN THE GALAXY.'] }
+    { dur: 3.4, card: ['galaxy', 'planet', 'planet', 'planet'] },
+    { dur: 0, say: ['nix', ['coin', 'cross', 'arrowR', 'skull']] },
+    { dur: 0, say: ['you', ['drill', 'planet', 'arrowR', 'coin', 'coin', 'coin']] },
+    { dur: 0, say: ['bolt', ['speed', 'arrowR', 'ore', 'arrowR', 'hole', 'home']] },
+    { dur: 3.0, card: ['coin', 'arrowR', 'galaxy'] }
   ];
 
   function start() {
@@ -110,14 +107,18 @@
     if (card) {
       const a = U.clamp(Math.min(t * 1.6, (BEATS[beat].dur - t) * 1.6), 0, 1);
       ctx.globalAlpha = a;
-      F.draw(ctx, card[0], VW / 2, 96, '#ffd34d', { center: true, scale: 3, shadow: '#7a2a10' });
-      F.draw(ctx, card[1], VW / 2, 126, '#f2e9ff', { center: true, shadow: false });
+      const w = card.length * 34;
+      for (let i = 0; i < card.length; i++) {
+        const x = VW / 2 - w / 2 + i * 34 + 17;
+        PD.glyph.hex(ctx, x, 110, 15, 'rgba(8,4,18,0.7)', '#ffd34d', 1);
+        PD.glyph.draw(ctx, card[i], x - 7, 103, '#ffffff', '#ffd34d');
+      }
       ctx.globalAlpha = 1;
     }
 
     PD.dialog.draw(ctx, g, time, PD.art.skinFor(g.save.cos).alien);
 
-    F.draw(ctx, 'ESC  SKIP', VW - 6, VH - bar - 12, 'rgba(240,235,255,0.45)', { right: true, shadow: false });
+    PD.glyph.draw(ctx, 'cross', VW - 20, VH - bar - 18, 'rgba(240,235,255,0.5)', 'rgba(240,235,255,0.3)');
   }
 
   PD.cutscene = { start, update, draw, get done() { return done; } };

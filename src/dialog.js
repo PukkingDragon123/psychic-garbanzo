@@ -11,11 +11,11 @@
 
   /* Who can talk, and what their comms channel looks like. */
   const CAST = {
-    nix:   { name: 'NIX',      sub: 'SHIP INTELLIGENCE', spr: 'nix',   col: '#7ef9ff', bg: '#0a2430', voice: 900 },
-    bolt:  { name: 'BOLT',     sub: 'FABRICATION UNIT',  spr: 'bolt',  col: '#ffb03d', bg: '#2a1c08', voice: 340 },
-    gloop: { name: 'GLOOP',    sub: 'SHIP PET',          spr: 'gloop', col: '#c8ff5a', bg: '#16280a', voice: 1400 },
-    you:   { name: 'YOU',      sub: 'FUTURE TYRANT',     spr: 'you',   col: '#ff5fa8', bg: '#2a0a1e', voice: 700 },
-    sys:   { name: 'RUSTMAW',  sub: 'AUTOMATED',         spr: null,    col: '#39ffa6', bg: '#062018', voice: 1100 }
+    nix:   { name: 'NIX',      sub: 'SHIP INTELLIGENCE', spr: 'nix',   col: '#7ef9ff', bg: '#0a2430', voice: 900, glyph: 'eye' },
+    bolt:  { name: 'BOLT',     sub: 'FABRICATION UNIT',  spr: 'bolt',  col: '#ffb03d', bg: '#2a1c08', voice: 340, glyph: 'build' },
+    gloop: { name: 'GLOOP',    sub: 'SHIP PET',          spr: 'gloop', col: '#c8ff5a', bg: '#16280a', voice: 1400, glyph: 'star' },
+    you:   { name: 'YOU',      sub: 'FUTURE TYRANT',     spr: 'you',   col: '#ff5fa8', bg: '#2a0a1e', voice: 700, glyph: 'skull' },
+    sys:   { name: 'RUSTMAW',  sub: 'AUTOMATED',         spr: null,    col: '#39ffa6', bg: '#062018', voice: 1100, glyph: 'home' }
   };
 
   const q = [];          // pending lines
@@ -40,7 +40,7 @@
   function update(dt) {
     if (!cur) return;
     if (!done) {
-      chars += dt * 46;
+      chars += dt * (Array.isArray(cur.text) ? 6 : 46);
       blipT -= dt;
       if (blipT <= 0) {
         blipT = 0.045;
@@ -108,17 +108,25 @@
     ctx.globalAlpha = 1;
     ctx.restore();
 
-    // name plate
+    // name plate: a coloured tab with the speaker's glyph
     ctx.fillStyle = c.col;
-    ctx.fillRect(PX, Y - 5, PW + 74, 9);
-    F.draw(ctx, c.name, PX + 3, Y - 4, '#0a0614', { shadow: false });
-    F.draw(ctx, c.sub, PX + 3 + F.width(c.name, 1) + 8, Y - 4, 'rgba(10,6,20,0.7)', { shadow: false });
+    ctx.fillRect(PX, Y - 6, PW, 10);
+    PD.glyph.draw(ctx, c.glyph || 'crew', PX + PW / 2 - 7, Y - 9, '#0a0614', c.col);
 
-    // typed body text
-    const shown = cur.text.slice(0, Math.floor(chars));
-    const lines = wrap(shown, 62);
-    for (let i = 0; i < Math.min(lines.length, 4); i++) {
-      F.draw(ctx, lines[i], PX + PW + 8, Y + 10 + i * 11, '#f2e9ff', { shadow: false });
+    if (Array.isArray(cur.text)) {
+      // pictograph strip, one glyph per "character"
+      const n = Math.min(cur.text.length, Math.floor(chars));
+      for (let i = 0; i < n; i++) {
+        PD.glyph.draw(ctx, cur.text[i], PX + PW + 10 + i * 22, Y + 18, '#f2e9ff', c.col, 1);
+      }
+      // hex frames behind the strip
+      for (let i = 0; i < cur.text.length; i++) PD.glyph.hex(ctx, PX + PW + 17 + i * 22, Y + 25, 11, null, i < n ? c.col : 'rgba(255,255,255,0.15)', 1);
+    } else {
+      const shown = cur.text.slice(0, Math.floor(chars));
+      const lines = wrap(shown, 62);
+      for (let i = 0; i < Math.min(lines.length, 4); i++) {
+        F.draw(ctx, lines[i], PX + PW + 8, Y + 10 + i * 11, '#f2e9ff', { shadow: false });
+      }
     }
     if (done && Math.sin(t * 6) > 0) {
       F.draw(ctx, q.length ? '>>' : '>', X + W - 14, Y + H - 12, c.col, { shadow: false });

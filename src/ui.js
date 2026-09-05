@@ -107,122 +107,135 @@
   }
 
   /* -------------------------------------------------------------------- HUD */
-  function hud(ctx, g) {
+  const Gd = () => PD.glyph;
+
+  /* Glyph toasts stack up from the bottom; a toast is [glyphs..., number?]. */
+  function toasts(ctx, g) {
+    let ty = VH - 62;
+    for (let i = g.toasts.length - 1; i >= 0; i--) {
+      const t = g.toasts[i];
+      const arr = Array.isArray(t.msg) ? t.msg : null;
+      const w = arr ? arr.length * 16 + 12 + (t.num !== undefined ? F.width(String(t.num), 1) + 6 : 0) : F.width(t.msg, 1) + 12;
+      ctx.globalAlpha = U.clamp(t.life, 0, 1);
+      ctx.fillStyle = 'rgba(18,10,36,0.85)';
+      ctx.fillRect(VW / 2 - w / 2, ty - 3, w, 18);
+      ctx.strokeStyle = t.color || COL.line;
+      ctx.strokeRect(VW / 2 - w / 2 + 0.5, ty - 2.5, w - 1, 17);
+      if (arr) {
+        let gx = VW / 2 - w / 2 + 6;
+        for (const gname of arr) { Gd().draw(ctx, gname, gx, ty - 1, t.color || COL.text, COL.line); gx += 16; }
+        if (t.num !== undefined) F.draw(ctx, t.num, gx + 2, ty + 3, t.color || COL.text);
+      } else F.draw(ctx, t.msg, VW / 2, ty + 3, t.color || COL.text, { center: true });
+      ctx.globalAlpha = 1;
+      ty -= 21;
+    }
+  }
+
+  function hintStrip(ctx, g, y) {
+    if (g.hintT <= 0 || !g.hintGlyphs) return;
+    const arr = g.hintGlyphs;
+    const w = arr.length * 18 + 10;
+    ctx.globalAlpha = U.clamp(g.hintT, 0, 1);
+    ctx.fillStyle = 'rgba(8,4,18,0.7)';
+    ctx.fillRect(VW / 2 - w / 2, y - 3, w, 20);
+    for (let i = 0; i < arr.length; i++) Gd().draw(ctx, arr[i], VW / 2 - w / 2 + 5 + i * 18, y, '#ffffff', '#ffd34d');
+    ctx.globalAlpha = 1;
+  }
+
+  function meters(ctx, g) {
     const p = g.player;
     const maxO2 = p.stat('oxygen'), maxHull = p.stat('hull'), cap = p.capacity();
-
-    // meters
-    const bx = 26, bw = 76;
-    icon(ctx, 'tank', 6, 5);
-    bar(ctx, bx, 8, bw, 7, p.o2 / maxO2, p.o2 / maxO2 < 0.25 ? (Math.sin(g.time * 12) > 0 ? '#ff6b8a' : COL.o2) : COL.o2,
-      { right: Math.ceil(p.o2) + '' });
-    icon(ctx, 'hull', 6, 21);
+    const bx = 24, bw = 70;
+    Gd().draw(ctx, 'o2', 4, 5, COL.o2, '#2b9fc4');
+    bar(ctx, bx, 8, bw, 7, p.o2 / maxO2, p.o2 / maxO2 < 0.25 ? (Math.sin(g.time * 12) > 0 ? '#ff6b8a' : COL.o2) : COL.o2, { right: Math.ceil(p.o2) + '' });
+    Gd().draw(ctx, 'hull', 4, 21, COL.hull, '#b32b2f');
     bar(ctx, bx, 24, bw, 7, p.hull / maxHull, COL.hull, { right: Math.ceil(p.hull) + '' });
-    icon(ctx, 'pod', 6, 37);
-    bar(ctx, bx, 40, bw, 7, p.cargoKg / cap, p.cargoFull() ? '#ff6b8a' : COL.cargo,
-      { right: U.fmtKg(p.cargoKg) });
+    Gd().draw(ctx, 'cargo', 4, 37, COL.cargo, '#c25c14');
+    bar(ctx, bx, 40, bw, 7, p.cargoKg / cap, p.cargoFull() ? '#ff6b8a' : COL.cargo, { right: Math.round(p.cargoKg) + '' });
+    if (p.cargoFull() && Math.sin(g.time * 9) > 0) Gd().draw(ctx, 'bang', bx + bw + 4, 37, '#ff6b8a', '#8a2a3a');
 
-    if (p.cargoFull()) {
-      F.draw(ctx, 'HOLD FULL', bx + bw / 2, 50, Math.sin(g.time * 9) > 0 ? '#ffe37a' : '#ff6b8a', { center: true });
-    }
-
-    // cargo manifest
+    // manifest: swatch + count
     const entries = Object.keys(p.cargo).sort((a, b) => D.MAT[b].cr - D.MAT[a].cr).slice(0, 6);
-    let my = 58;
+    let my = 56;
     for (const k of entries) {
       const m = D.MAT[k];
-      ctx.fillStyle = m.c[1];
-      ctx.fillRect(8, my + 1, 5, 5);
-      ctx.fillStyle = m.c[0];
-      ctx.fillRect(8, my + 1, 5, 2);
-      F.draw(ctx, m.name.slice(0, 12) + ' ' + p.cargo[k], 17, my, COL.dim);
+      ctx.fillStyle = m.c[1]; ctx.fillRect(8, my + 1, 6, 6);
+      ctx.fillStyle = m.c[0]; ctx.fillRect(8, my + 1, 6, 2);
+      F.draw(ctx, p.cargo[k], 18, my, COL.dim);
       my += 9;
     }
-    if (p.cargoValue() > 0) F.draw(ctx, '$' + U.fmt(p.cargoValue()), 8, my + 1, COL.gold);
+    if (p.cargoValue() > 0) Gd().stat(ctx, 'coin', U.fmt(p.cargoValue()), 6, my + 1, COL.gold, '#b8860b', COL.gold);
 
-    // credits + income
-    F.draw(ctx, '$' + U.fmt(g.save.credits), VW - 8, 8, COL.gold, { right: true, scale: 2 });
+    // top right: credits, galaxy
+    F.draw(ctx, U.fmt(g.save.credits), VW - 8, 8, COL.gold, { right: true, scale: 2 });
+    Gd().draw(ctx, 'coin', VW - 24 - F.width(U.fmt(g.save.credits), 2), 8, COL.gold, '#b8860b');
+    Gd().stat(ctx, 'galaxy', g.save.dominion.toFixed(1) + '%', VW - 78, 26, COL.lineHi, '#3a2a5e', COL.lineHi);
     const dps = g.droneIncome();
-    if (dps > 0) F.draw(ctx, '+' + U.fmt(dps) + '/S DRONES', VW - 8, 26, COL.good, { right: true });
-    F.draw(ctx, 'GALAXY ' + g.save.dominion.toFixed(1) + '%', VW - 8, 36, COL.lineHi, { right: true });
-    F.draw(ctx, D.titleFor(g.save.dominion), VW - 8, 46, '#ff8ad8', { right: true });
+    if (dps > 0) Gd().stat(ctx, 'drone', '+' + U.fmt(dps), VW - 78, 40, COL.good, '#3fb85a', COL.good);
+  }
 
-    // body + depth
-    F.draw(ctx, g.world.body.name, 8, VH - 20, COL.text);
-    const depth = g.world.depthMeters(p.y);
-    F.draw(ctx, depth > 0 ? 'DEPTH ' + depth + 'M' : 'IN ORBIT', 8, VH - 11, COL.dim);
+  function hud(ctx, g) {
+    const p = g.player;
+    meters(ctx, g);
 
-    // core integrity: only once the player has actually hit it
+    // depth
+    Gd().stat(ctx, 'depth', g.world.depthMeters(p.y), 6, VH - 18, COL.dim, '#2a1c4a', COL.text);
+
+    // weapon, dash, scan
+    const wg = { pistol: 'gun', scatter: 'scatter', lance: 'lance' }[p.weapon];
+    Gd().draw(ctx, wg, 6, VH - 66, '#ffffff', '#7ef9ff');
+    if (p.weapons().length > 1) Gd().draw(ctx, 'arrowR', 20, VH - 66, COL.dim, COL.line);
+    Gd().draw(ctx, 'dash', 6, VH - 50, p.dashCool > 0 ? COL.dim : COL.gold, '#2a1c4a');
+    bar(ctx, 22, VH - 46, 36, 3, 1 - p.dashCool / Math.max(0.1, p.stat('dash')), p.dashCool > 0 ? '#9c8ec4' : COL.gold, {});
+    Gd().draw(ctx, 'scan', 6, VH - 36, p.scanCool > 0 ? COL.dim : COL.good, '#2a1c4a');
+    bar(ctx, 22, VH - 32, 36, 3, 1 - p.scanCool / 4, p.scanCool > 0 ? '#9c8ec4' : COL.good, {});
+
+    // core integrity
     if (g.world.coreHp < g.world.coreMax) {
-      const cw = 150;
-      const cx = VW / 2 - cw / 2;
-      F.draw(ctx, 'CORE INTEGRITY', VW / 2, 8, COL.core, { center: true });
-      bar(ctx, cx, 18, cw, 8, g.world.coreHp / g.world.coreMax, COL.core,
-        { right: Math.ceil(g.world.coreHp / g.world.coreMax * 100) + '%' });
+      const cw = 140, cx = VW / 2 - cw / 2;
+      Gd().draw(ctx, 'star', cx - 16, 12, COL.core, '#c93b1c');
+      bar(ctx, cx, 16, cw, 8, g.world.coreHp / g.world.coreMax, COL.core, { right: Math.ceil(g.world.coreHp / g.world.coreMax * 100) + '%' });
     }
-
-    // recall charge
     if (p.recall > 0.1) {
-      F.draw(ctx, 'TRACTOR BEAM', VW / 2, VH - 46, COL.o2, { center: true });
-      bar(ctx, VW / 2 - 40, VH - 36, 80, 6, p.recall / 1.4, COL.o2, {});
+      Gd().draw(ctx, 'hole', VW / 2 - 48, VH - 40, COL.o2, '#2b9fc4');
+      bar(ctx, VW / 2 - 30, VH - 36, 60, 6, p.recall / 1.4, COL.o2, {});
     }
-
-    // weapon, dash and scanner readouts under the meters
-    const wy = 100 + Object.keys(p.cargo).length * 0;
-    const wname = { pistol: 'PISTOL', scatter: 'SCATTER', lance: 'LANCE' }[p.weapon];
-    const wsp = PD.art.sprites[p.weapon === 'pistol' ? 'gun' : p.weapon];
-    ctx.drawImage(wsp.frames[0], 6, VH - 62);
-    F.draw(ctx, wname + (p.weapons().length > 1 ? '  [Q]' : ''), 30, VH - 60, COL.text);
-    const dashF = p.dashCool / Math.max(0.1, p.stat('dash'));
-    bar(ctx, 30, VH - 49, 40, 3, 1 - dashF, dashF > 0 ? '#9c8ec4' : COL.gold, {});
-    F.draw(ctx, 'DASH', 74, VH - 51, COL.dim);
-    bar(ctx, 30, VH - 39, 40, 3, 1 - p.scanCool / 4, p.scanCool > 0 ? '#9c8ec4' : COL.good, {});
-    F.draw(ctx, 'SCAN', 74, VH - 41, COL.dim);
-
-    // kill combo
     if (g.combo.n >= 3) {
-      const pulse = 1 + 0.08 * Math.sin(g.time * 14);
       F.draw(ctx, 'x' + g.combo.mult.toFixed(1), VW / 2, 34, '#ff8ad8', { center: true, scale: 2 });
-      F.draw(ctx, g.combo.n + ' KILL CHAIN', VW / 2, 52, COL.text, { center: true });
-      bar(ctx, VW / 2 - 30, 62, 60, 3, g.combo.t / 2.6, '#ff8ad8', {});
+      Gd().stat(ctx, 'skull', g.combo.n, VW / 2 - 16, 52, '#ff8ad8', '#8a2a56', COL.text);
+      bar(ctx, VW / 2 - 30, 68, 60, 3, g.combo.t / 2.6, '#ff8ad8', {});
     }
 
     minimap(ctx, g);
 
-    // stratum banner
+    // stratum banner: band swatch + depth number
     if (g.banner) {
       const a = U.clamp(Math.min(g.banner.t * 2, (3.2 - g.banner.t) * 2), 0, 1);
+      const si = g.world.stratumAt(p.x, p.y);
+      const tint = si >= 0 ? g.world.strata[si].tint : '#2a1c4a';
       ctx.globalAlpha = a;
-      ctx.fillStyle = 'rgba(8,4,18,0.6)';
-      ctx.fillRect(VW / 2 - 120, 86, 240, 22);
-      ctx.fillStyle = COL.gold; ctx.fillRect(VW / 2 - 120, 86, 240, 1); ctx.fillRect(VW / 2 - 120, 107, 240, 1);
-      F.draw(ctx, '- ' + g.banner.text + ' -', VW / 2, 92, COL.gold, { center: true, scale: 1 });
-      const d = g.world.depthMeters(p.y);
-      F.draw(ctx, 'DEPTH ' + d + 'M', VW / 2, 101, COL.dim, { center: true });
+      ctx.fillStyle = 'rgba(8,4,18,0.6)'; ctx.fillRect(VW / 2 - 60, 86, 120, 22);
+      ctx.fillStyle = COL.gold; ctx.fillRect(VW / 2 - 60, 86, 120, 1); ctx.fillRect(VW / 2 - 60, 107, 120, 1);
+      for (let i = 0; i < 5; i++) { ctx.fillStyle = tint; ctx.globalAlpha = a * (0.5 + i * 0.1); ctx.fillRect(VW / 2 - 52 + i * 10, 91, 8, 12); }
+      ctx.globalAlpha = a;
+      Gd().stat(ctx, 'depth', g.world.depthMeters(p.y), VW / 2 + 4, 90, COL.gold, '#b8860b', COL.text);
       ctx.globalAlpha = 1;
     }
 
-    // hints
-    if (g.hintT > 0) {
-      ctx.globalAlpha = U.clamp(g.hintT, 0, 1);
-      F.draw(ctx, g.hint, VW / 2, VH - 30, '#ffffff', { center: true });
-      ctx.globalAlpha = 1;
-    }
+    hintStrip(ctx, g, VH - 34);
+    toasts(ctx, g);
+  }
 
-    // toasts stack upward from the bottom so they never sit on the ship
-    let ty = VH - 58;
-    for (let i = g.toasts.length - 1; i >= 0; i--) {
-      const t = g.toasts[i];
-      ctx.globalAlpha = U.clamp(t.life, 0, 1);
-      const tw = F.width(t.msg, 1) + 12;
-      ctx.fillStyle = 'rgba(18,10,36,0.85)';
-      ctx.fillRect(VW / 2 - tw / 2, ty - 3, tw, 13);
-      ctx.strokeStyle = t.color || COL.line;
-      ctx.strokeRect(VW / 2 - tw / 2 + 0.5, ty - 2.5, tw - 1, 12);
-      F.draw(ctx, t.msg, VW / 2, ty, t.color || COL.text, { center: true });
-      ctx.globalAlpha = 1;
-      ty -= 16;
-    }
+  /* Scooter field HUD: the same meters, plus the field's own readouts. */
+  function hudField(ctx, g) {
+    meters(ctx, g);
+    const p = g.player;
+    Gd().stat(ctx, 'speed', Math.round(Math.hypot(p.vx, p.vy)), 6, VH - 18, COL.dim, '#2a1c4a', COL.text);
+    Gd().draw(ctx, 'hole', 6, VH - 50, PD.space.S.hole ? '#d8bcff' : COL.dim, '#6b3fb5');
+    Gd().draw(ctx, 'hand', 22, VH - 50, COL.dim, COL.line);
+    Gd().draw(ctx, 'gun', 6, VH - 34, '#ffffff', '#7ef9ff');
+    hintStrip(ctx, g, VH - 34);
+    toasts(ctx, g);
   }
 
   /* ---------------------------------------------------------------- minimap
@@ -274,7 +287,7 @@
     const px = ox + g.player.x / 10 * sc, py = oy + g.player.y / 10 * sc;
     ctx.fillStyle = Math.sin(g.time * 10) > 0 ? '#ffffff' : '#ff5fa8';
     ctx.fillRect(px - 1, py - 1, 3, 3);
-    F.draw(ctx, 'MAP  [TAB] SCAN', x0 + MW / 2, y0 + MH + 4, COL.dim, { center: true });
+    PD.glyph.draw(ctx, 'scan', x0 + MW / 2 - 7, y0 + MH + 3, COL.dim, COL.line);
   }
 
   /* ------------------------------------------------------------------- shop */
@@ -506,29 +519,38 @@
   function title(ctx, g, t) {
     const cx = 168;
     const bob = Math.sin(t * 1.6) * 2;
-
     titleArt(ctx, t);
+    F.draw(ctx, 'PLANET', cx, 40 + bob, '#ffd34d', { center: true, scale: 5, shadow: '#7a2a10' });
+    F.draw(ctx, 'DESTROYER', cx, 80 + bob, '#ff5fa8', { center: true, scale: 4, shadow: '#3a0c30' });
 
-    F.draw(ctx, 'PLANET', cx, 26 + bob, '#ffd34d', { center: true, scale: 5, shadow: '#7a2a10' });
-    F.draw(ctx, 'DESTROYER', cx, 66 + bob, '#ff5fa8', { center: true, scale: 4, shadow: '#3a0c30' });
-    F.draw(ctx, 'A GREEDY LITTLE ALIEN', cx, 104, COL.dim, { center: true });
-    F.draw(ctx, 'MINING SIMULATOR', cx, 114, COL.dim, { center: true });
-    if (g.save.totalEarned > 0) {
-      F.draw(ctx, 'KNOWN AS ' + D.titleFor(g.save.dominion), cx, 172, '#ff8ad8', { center: true });
-    }
+    // the play key: one big hex
+    const m = PD.input.mouse;
+    const px = cx, py = 160;
+    const hot = m.inside && U.dist(m.x, m.y, px, py) < 26;
+    PD.glyph.hex(ctx, px, py, 26 + (hot ? 2 : 0), hot ? '#3f9a5a' : '#2f7a4a', '#8affa0', 2);
+    ctx.save(); ctx.translate(px + 2, py); ctx.rotate(-Math.PI / 2);
+    PD.glyph.draw(ctx, 'play', -7, -7, '#ffffff', '#8affa0', 1);
+    ctx.restore();
+    const start = hot && m.leftPressed;
+    if (start) PD.audio.sfx.click();
 
-    const start = button(ctx, cx - 62, 130, 124, 18, g.save.totalEarned > 0 ? 'CONTINUE' : 'START DRILLING',
-      { accent: '#2f7a4a' });
     let wipe = false;
-    if (g.save.totalEarned > 0) wipe = button(ctx, cx - 62, 152, 124, 13, 'NEW GAME', { accent: '#8a2f4a' });
-
-    F.draw(ctx, 'GET RICH.  BREAK WORLDS.', 12, 182, COL.gold);
-    F.draw(ctx, 'OWN THE GALAXY.', 12, 192, COL.gold);
-    F.draw(ctx, 'WASD / ARROWS   THRUSTERS', 12, 210, COL.text);
-    F.draw(ctx, 'LEFT MOUSE      DRILL', 12, 220, COL.text);
-    F.draw(ctx, 'RIGHT / SPACE   PISTOL', 12, 230, COL.text);
-    F.draw(ctx, 'E DOCK   R BEAM HOME', 12, 240, COL.text);
-    F.draw(ctx, 'CLICK ONCE TO ENABLE SOUND', 12, 254, COL.dim);
+    if (g.save.totalEarned > 0) {
+      const wx = cx + 60, wy = 160;
+      const hot2 = m.inside && U.dist(m.x, m.y, wx, wy) < 13;
+      PD.glyph.hex(ctx, wx, wy, 13, hot2 ? '#a83a5a' : '#8a2f4a', '#ff8ab0', 1);
+      PD.glyph.draw(ctx, 'cross', wx - 7, wy - 7, '#ffffff', '#ff8ab0');
+      wipe = hot2 && m.leftPressed;
+      PD.glyph.stat(ctx, 'coin', U.fmt(g.save.credits), cx - 60, 196, COL.gold, '#b8860b', COL.gold);
+      PD.glyph.stat(ctx, 'galaxy', g.save.dominion.toFixed(1) + '%', cx - 60, 212, '#ff8ad8', '#b0459a', COL.text);
+    }
+    // control legend as glyph pairs
+    const legend = [['hand', 'speed'], ['hand', 'drill'], ['gun', 'skull'], ['hole', 'home']];
+    for (let i = 0; i < legend.length; i++) {
+      PD.glyph.draw(ctx, legend[i][0], 12 + i * 44, 244, COL.text, COL.line);
+      PD.glyph.draw(ctx, 'arrowR', 26 + i * 44, 244, COL.dim, COL.line);
+      PD.glyph.draw(ctx, legend[i][1], 40 + i * 44, 244, COL.gold, '#b8860b');
+    }
     return { start, wipe };
   }
 
@@ -536,13 +558,27 @@
   function pause(ctx, g) {
     ctx.fillStyle = 'rgba(8,4,18,0.7)';
     ctx.fillRect(0, 0, VW, VH);
-    panel(ctx, VW / 2 - 80, 80, 160, 110, 'PAUSED');
-    let r = { resume: false, ship: false };
-    r.resume = button(ctx, VW / 2 - 64, 96, 128, 16, 'RESUME  [ESC]');
-    if (button(ctx, VW / 2 - 64, 118, 128, 14, 'SOUND ' + (A.state.sfx ? 'ON' : 'OFF'))) A.toggleSfx(!A.state.sfx);
-    if (button(ctx, VW / 2 - 64, 136, 128, 14, 'MUSIC ' + (A.state.music ? 'ON' : 'OFF'))) A.toggleMusic(!A.state.music);
-    if (button(ctx, VW / 2 - 64, 154, 128, 14, 'SAVE GAME')) { g.saveGame(); g.toast('PROGRESS SAVED', COL.good); }
-    r.ship = button(ctx, VW / 2 - 64, 172, 128, 14, 'RECALL TO SHIP', { accent: '#3f6ea8' });
+    const m = PD.input.mouse;
+    const keys = [
+      { g: 'play', x: VW / 2 - 78, col: '#2f7a4a', id: 'resume' },
+      { g: A.state.sfx ? 'check' : 'cross', x: VW / 2 - 26, col: '#3f6ea8', id: 'sfx' },
+      { g: 'star', x: VW / 2 + 26, col: A.state.music ? '#6b3fb5' : '#2a1c4a', id: 'music' },
+      { g: 'home', x: VW / 2 + 78, col: '#8a2f4a', id: 'ship' }
+    ];
+    const r = { resume: false, ship: false };
+    for (const k of keys) {
+      const hot = m.inside && U.dist(m.x, m.y, k.x, VH / 2) < 20;
+      PD.glyph.hex(ctx, k.x, VH / 2, 20 + (hot ? 2 : 0), k.col, hot ? '#ffffff' : COL.lineHi, 1.5);
+      if (k.g === 'play') { ctx.save(); ctx.translate(k.x + 2, VH / 2); ctx.rotate(-Math.PI / 2); PD.glyph.draw(ctx, 'play', -7, -7, '#ffffff', k.col); ctx.restore(); }
+      else PD.glyph.draw(ctx, k.g, k.x - 7, VH / 2 - 7, '#ffffff', k.col);
+      if (hot && m.leftPressed) {
+        A.sfx.click();
+        if (k.id === 'resume') r.resume = true;
+        if (k.id === 'sfx') A.toggleSfx(!A.state.sfx);
+        if (k.id === 'music') A.toggleMusic(!A.state.music);
+        if (k.id === 'ship') r.ship = true;
+      }
+    }
     return r;
   }
 
@@ -564,17 +600,13 @@
       const a = U.clamp((t - 0.7) / 0.4, 0, 1);
       ctx.globalAlpha = a;
       panel(ctx, VW / 2 - 100, 122, 200, 78);
-      F.draw(ctx, v.name, VW / 2, 128, COL.text, { center: true });
-      F.draw(ctx, 'CORE BOUNTY', VW / 2 - 92, 144, COL.dim);
-      F.draw(ctx, '$' + U.fmt(v.reward), VW / 2 + 92, 144, COL.gold, { right: true });
-      F.draw(ctx, 'GALAXY CONTROL', VW / 2 - 92, 156, COL.dim);
-      F.draw(ctx, '+' + v.dominion.toFixed(1) + '%', VW / 2 + 92, 156, COL.good, { right: true });
-      F.draw(ctx, 'PERMANENT VALUE BONUS', VW / 2 - 92, 168, COL.dim);
-      F.draw(ctx, '+' + v.bonus + '%', VW / 2 + 92, 168, COL.lineHi, { right: true });
-      if (v.unlocked) F.draw(ctx, 'UNLOCKED: ' + v.unlocked, VW / 2, 182, COL.gold, { center: true });
+      PD.glyph.stat(ctx, 'star', U.fmt(v.reward), VW / 2 - 40, 130, COL.gold, '#b8860b', COL.gold);
+      PD.glyph.stat(ctx, 'galaxy', '+' + v.dominion.toFixed(1) + '%', VW / 2 - 40, 146, COL.good, '#3fb85a', COL.good);
+      PD.glyph.stat(ctx, 'coin', '+' + v.bonus + '%', VW / 2 - 40, 162, COL.lineHi, '#3a2a5e', COL.lineHi);
+      if (v.unlocked) { PD.glyph.draw(ctx, 'planet', VW / 2 - 16, 178, COL.gold, '#b8860b'); PD.glyph.draw(ctx, 'check', VW / 2 + 2, 178, COL.good, '#3fb85a'); }
       ctx.globalAlpha = 1;
       if (t > 1.0) {
-        return { ok: button(ctx, VW / 2 - 66, 208, 132, 16, 'BACK TO THE SHIP  [E]', { accent: '#2f7a4a' }) };
+        return { ok: button(ctx, VW / 2 - 20, 206, 40, 18, '', { accent: '#2f7a4a' }) && true, _g: PD.glyph.draw(ctx, 'home', VW / 2 - 7, 208, '#ffffff', '#8affa0') };
       }
     }
     return null;
@@ -594,7 +626,7 @@
   }
 
   PD.ui = {
-    VW, VH, COL, panel, bar, button, icon, hud, shop, title, pause, victory,
+    VW, VH, COL, panel, bar, button, icon, hud, hudField, shop, title, pause, victory,
     sellSplash, ending, endFrame
   };
 })(window.PD);

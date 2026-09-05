@@ -8,6 +8,7 @@
   const A = PD.audio;
   const FX = PD.fx;
   const AI = PD.artint;
+  const D = PD.data;
 
   const VW = 480, VH = 270;
   const ROOM_W = 840, ROOM_H = 270;
@@ -17,13 +18,13 @@
 
   /* Everything you can walk up to. `app` opens a terminal; `act` runs code. */
   const STATIONS = [
-    { id: 'airlock', x: 52,  spr: 'airlock',    label: 'AIRLOCK',        act: 'launch' },
-    { id: 'market',  x: 160, spr: 'console',    label: 'CARGO EXCHANGE', app: 'market' },
-    { id: 'fab',     x: 300, spr: 'fabricator', label: 'FABRICATOR',     app: 'fab' },
-    { id: 'bay',     x: 440, spr: 'dronebay',   label: 'DRONE BAY',      app: 'bay' },
-    { id: 'refinery', x: 580, spr: 'refinery',  label: 'REFINERY DECK',  app: 'refinery' },
-    { id: 'vanity',  x: 690, spr: 'wardrobe',   label: 'IDENTITY POD',   app: 'vanity' },
-    { id: 'nav',     x: 786, spr: 'navchart',   label: 'NAV COMPUTER',   app: 'nav' }
+    { id: 'airlock', x: 52,  spr: 'airlock',    label: 'AIRLOCK',        act: 'launch', glyph: 'speed' },
+    { id: 'market',  x: 160, spr: 'console',    label: 'CARGO EXCHANGE', app: 'market', glyph: 'sell' },
+    { id: 'fab',     x: 300, spr: 'fabricator', label: 'FABRICATOR',     app: 'skills', glyph: 'hex' },
+    { id: 'bay',     x: 440, spr: 'dronebay',   label: 'DRONE BAY',      app: 'bay', glyph: 'drone' },
+    { id: 'refinery', x: 580, spr: 'refinery',  label: 'REFINERY DECK',  app: 'refinery', glyph: 'machine' },
+    { id: 'vanity',  x: 690, spr: 'wardrobe',   label: 'IDENTITY POD',   app: 'vanity', glyph: 'crew' },
+    { id: 'nav',     x: 786, spr: 'navchart',   label: 'NAV COMPUTER',   app: 'nav', glyph: 'planet' }
   ];
 
   const CREW = [
@@ -41,29 +42,27 @@
   /* Crew barks. They rotate, and they are all enabling you. */
   const LINES = {
     nix: [
-      'Balance updated. I have taken the liberty of rounding in our favour.',
-      'Three civilisations have filed complaints. I filed them in the reactor.',
-      'You look tired. Statistically, greed is a stimulant.',
-      'That world had a name once. Now it has a market price.',
-      'I calculate a 94% chance you enjoy this. The other 6% is modesty.'
+      ['coin', 'arrowU', 'galaxy'],
+      ['planet', 'arrowR', 'coin', 'coin'],
+      ['skull', 'check', 'star'],
+      ['eye', 'arrowR', 'planet', 'bang']
     ],
     bolt: [
-      'Bring me ore, not excuses. The bin does not fill itself.',
-      'I welded that seam twice. Do not make me do it a third time.',
-      'Every module you fabricate, I bleed a little coolant. You are welcome.',
-      'Rocks in. Machines out. That is the whole religion.',
-      'Feed the hoppers and the refinery runs itself. Ingots sell for triple. Alloys? Do not ask, just build it.'
+      ['ore', 'arrowR', 'machine', 'arrowR', 'coin'],
+      ['hex', 'arrowR', 'drill', 'up'],
+      ['belt', 'machine', 'belt', 'sell']
     ],
     gloop: [
-      'GLOOP chirps and headbutts the glass affectionately.',
-      'GLOOP is eating a rock you were going to sell. GLOOP is unrepentant.',
-      'GLOOP blinks all four eyes at slightly different times.'
+      ['ore', 'arrowR', 'crew', 'quest'],
+      ['eye', 'eye', 'eye', 'eye'],
+      ['star', 'arrowR', 'crew']
     ]
   };
   const barkIdx = { nix: 0, bolt: 0, gloop: 0 };
 
   const P = {
-    x: 100, y: FLOOR, vx: 0, vy: 0, face: 1, walk: 0, near: null, hop: 0
+    x: 100, y: FLOOR, vx: 0, vy: 0, face: 1, walk: 0, near: null, hop: 0,
+    target: null, autoUse: null
   };
 
   function enter(g, atStation) {
@@ -110,6 +109,29 @@
       let ix = 0;
       if (IN.down('left')) ix -= 1;
       if (IN.down('right')) ix += 1;
+      // tap anywhere on the deck: walk there; tap a machine: walk there and use it
+      if (IN.mouse.leftPressed && IN.mouse.y > 20) {
+        const wx = IN.mouse.x + g.intCam;
+        let hitSt = null;
+        for (const st of STATIONS.concat(CREW)) if (Math.abs(st.x - wx) < 34) hitSt = st;
+        P.target = hitSt ? hitSt.x + (hitSt.x > P.x ? -18 : 18) : wx;
+        P.autoUse = hitSt;
+        A.sfx.click();
+      }
+      if (ix) { P.target = null; P.autoUse = null; }
+      if (P.target !== null) {
+        const d = P.target - P.x;
+        if (Math.abs(d) > 4) ix = Math.sign(d);
+        else {
+          P.target = null;
+          if (P.autoUse) {
+            const st = P.autoUse; P.autoUse = null;
+            if (st.app) PD.term.open(st.app);
+            else if (st.act === 'launch') { g.undock(); return; }
+            else talk(st.id);
+          }
+        }
+      }
       if (ix) P.face = ix;
       P.vx = U.damp(P.vx, ix * 78, 0.3, dt);
       P.x = U.clamp(P.x + P.vx * dt, 28, ROOM_W - 28);
@@ -190,32 +212,41 @@
     ctx.fillRect((P.x - cam - 4) | 0, (P.y - 3) | 0, 8, 3);
     ctx.globalAlpha = 1;
 
-    // interaction prompt
+    // interaction prompt: a hand and the machine's glyph
     if (P.near && !PD.term.app && !PD.dialog.active()) {
       const x = P.near.x - cam;
-      const y = FLOOR - (P.near.spr === 'gloop' ? 40 : 66) + Math.sin(t * 5) * 2;
-      const w = F.width(P.near.label, 1) + 22;
-      ctx.fillStyle = 'rgba(8,4,18,0.85)';
-      ctx.fillRect(x - w / 2, y, w, 13);
-      ctx.strokeStyle = '#7ef9ff';
-      ctx.strokeRect(x - w / 2 + 0.5, y + 0.5, w - 1, 12);
-      F.draw(ctx, 'E', x - w / 2 + 4, y + 3, '#ffd34d', { shadow: false });
-      F.draw(ctx, P.near.label, x - w / 2 + 16, y + 3, '#ffffff', { shadow: false });
+      const y = FLOOR - (P.near.spr === 'gloop' ? 44 : 70) + Math.sin(t * 5) * 2;
+      PD.glyph.hex(ctx, x, y + 8, 14, 'rgba(8,4,18,0.85)', '#7ef9ff', 1);
+      PD.glyph.draw(ctx, P.near.glyph || 'crew', x - 7, y + 1, '#ffffff', '#7ef9ff');
+      PD.glyph.draw(ctx, 'hand', x + 8, y - 8, '#ffd34d', '#ff9b3d');
     }
+    // walk target marker
+    if (P.target !== null) PD.glyph.hex(ctx, P.target - cam, FLOOR + 6, 4 + Math.sin(t * 8), null, '#ffd34d', 1);
   }
 
   /* Slim diegetic status strip -- the deck's own readout, not a game HUD. */
   function drawStatus(ctx, g, t) {
     ctx.fillStyle = 'rgba(8,4,18,0.8)';
-    ctx.fillRect(0, 0, VW, 14);
+    ctx.fillRect(0, 0, VW, 16);
     ctx.fillStyle = '#39ffa6';
-    ctx.fillRect(0, 14, VW, 1);
-    F.draw(ctx, 'RUSTMAW // DECK A', 6, 4, '#39ffa6', { shadow: false });
-    F.draw(ctx, 'CR ' + U.fmt(g.save.credits), 148, 4, '#ffd34d', { shadow: false });
+    ctx.fillRect(0, 16, VW, 1);
+    const Gd = PD.glyph;
+    let x = 6;
+    x += Gd.stat(ctx, 'coin', U.fmt(g.save.credits), x, 1, '#ffd34d', '#b8860b') + 12;
     const bin = Object.keys(g.save.vault).reduce((n, k) => n + g.save.vault[k], 0);
-    F.draw(ctx, 'BIN ' + U.fmt(bin), 226, 4, '#7ef9ff', { shadow: false });
-    F.draw(ctx, 'DRONES ' + (g.save.upg.drones || 0), 296, 4, '#c8ff5a', { shadow: false });
-    F.draw(ctx, 'GALAXY ' + g.save.dominion.toFixed(1) + '%', VW - 6, 4, '#ff8ad8', { right: true, shadow: false });
+    const ok = Object.keys(g.save.appr).reduce((n, k) => n + g.save.appr[k], 0);
+    x += Gd.stat(ctx, 'clock', bin, x, 1, '#ffb03d', '#c07a20') + 12;
+    x += Gd.stat(ctx, 'sell', ok, x, 1, '#39ffa6', '#1e9e68') + 12;
+    x += Gd.stat(ctx, 'drone', g.save.upg.drones || 0, x, 1, '#c8ff5a', '#7cbb26') + 12;
+    Gd.stat(ctx, 'galaxy', g.save.dominion.toFixed(1) + '%', VW - 78, 1, '#ff8ad8', '#b0459a');
+    // appraisal in progress
+    const mat = g.appraising();
+    if (mat !== null) {
+      const f = g.apprFrac();
+      ctx.fillStyle = D.MAT[mat].c[1]; ctx.fillRect(VW / 2 - 30, 4, 8, 8);
+      ctx.fillStyle = '#2a1c4a'; ctx.fillRect(VW / 2 - 18, 6, 50, 4);
+      ctx.fillStyle = '#ffb03d'; ctx.fillRect(VW / 2 - 18, 6, Math.round(50 * f), 4);
+    }
   }
 
   PD.interior = { enter, update, draw, drawStatus, talk, STATIONS, CREW, P, ROOM_W, FLOOR };

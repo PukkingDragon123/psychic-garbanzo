@@ -632,8 +632,9 @@
   };
 
   /* ---------------------------------------------------------------- drawing */
-  World.prototype.drawSky = function (ctx, cam, vw, vh, time, hideMoon) {
+  World.prototype.drawSky = function (ctx, cam, vw, vh, time, hideMoon, skipBase) {
     const b = this.body;
+    if (skipBase) { this.drawMoon(ctx, cam, vw, vh); return; }
     const g = ctx.createLinearGradient(0, 0, 0, vh);
     g.addColorStop(0, b.sky);
     g.addColorStop(1, '#05030f');
@@ -670,7 +671,11 @@
       ctx.globalAlpha = 1;
     }
 
-    if (this.moon && !hideMoon) {
+    if (!hideMoon) this.drawMoon(ctx, cam, vw, vh);
+  };
+
+  World.prototype.drawMoon = function (ctx, cam, vw, vh) {
+    if (this.moon) {
       const m = this.moon;
       const x = m.x * vw - cam.x * m.p;
       const y = m.y * vh - cam.y * m.p * 0.8;

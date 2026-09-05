@@ -297,6 +297,36 @@
       show: l => (26 + l * 11) + ' PX PULL'
     },
     {
+      id: 'appraise', name: 'Appraiser', icon: 'clock', max: 8, base: 260, growth: 1.6, mats: [['crust', 6], ['copper', 2]], late: ['silver', 3],
+      blurb: 'Staff: ore is appraised faster and the house takes a smaller cut.',
+      value: l => l,
+      show: l => Math.round(100 / (1 + l * 0.55)) + '% TIME  ' + Math.max(2, 12 - l * 1.25).toFixed(0) + '% FEE'
+    },
+    {
+      id: 'crew', name: 'Broker', icon: 'crew', max: 8, base: 700, growth: 1.7, mats: [['silver', 3], ['gold', 1]], late: ['emerald', 2],
+      blurb: 'Staff: a broker who squeezes buyers. +6% sale value per level.',
+      value: l => 1 + l * 0.06,
+      show: l => '+' + (l * 6) + '% SALES'
+    },
+    {
+      id: 'beltspeed', name: 'Belt Motors', icon: 'belt', max: 6, base: 900, growth: 1.7, mats: [['copper', 6], ['iron', 4]], late: ['titan', 1],
+      blurb: 'Machines: conveyors and hoppers run faster.',
+      value: l => 1 + l * 0.35,
+      show: l => 'x' + (1 + l * 0.35).toFixed(2) + ' BELT'
+    },
+    {
+      id: 'machspeed', name: 'Overclock', icon: 'machine', max: 6, base: 2400, growth: 1.75, mats: [['silver', 4], ['titan', 2]], late: ['void', 1],
+      blurb: 'Machines: smelters, cutters, crushers and forges work faster.',
+      value: l => 1 + l * 0.4,
+      show: l => 'x' + (1 + l * 0.4).toFixed(2) + ' MACHINES'
+    },
+    {
+      id: 'scooter', name: 'Scooter Engine', icon: 'speed', max: 8, base: 200, growth: 1.6, mats: [['crust', 4], ['iron', 2]], late: ['copper', 6],
+      blurb: 'Ship: the scooter accelerates harder out in the field.',
+      value: l => 1 + l * 0.22,
+      show: l => 'x' + (1 + l * 0.22).toFixed(2) + ' THRUST'
+    },
+    {
       id: 'drones', mats: [['copper', 6], ['gold', 3]], late: ['void', 2], name: 'Harvest Drones', icon: 'drone', max: 40, base: 500, growth: 1.28,
       blurb: 'Idle swarm that strips rubble for credits while you fly.',
       value: l => l,
@@ -329,6 +359,46 @@
     }
     return out;
   }
+
+  /* ------------------------------------------------------------ skill tree
+     Axial hex coordinates. Six branches from the drill at the centre:
+     guns (E), ship (NE), oxygen (NW), cargo (W), staff (SW), machines (SE). */
+  const NODES = [
+    { id: 'drill', q: 0, r: 0, glyph: 'drill', root: 1 },
+    { id: 'reach', q: 0, r: -1, glyph: 'drill' },
+    // guns, east
+    { id: 'pistol', q: 1, r: 0, glyph: 'gun' },
+    { id: 'trigger', q: 2, r: 0, glyph: 'gun' },
+    { id: 'scatter', q: 2, r: -1, glyph: 'scatter' },
+    { id: 'lance', q: 3, r: -1, glyph: 'lance' },
+    // ship, north-east
+    { id: 'thruster', q: 1, r: -1, glyph: 'speed' },
+    { id: 'dash', q: 1, r: -2, glyph: 'dash' },
+    { id: 'scooter', q: 2, r: -2, glyph: 'speed' },
+    { id: 'hull', q: 0, r: -2, glyph: 'hull' },
+    // oxygen and sight, north-west
+    { id: 'oxygen', q: -1, r: 0, glyph: 'o2' },
+    { id: 'lamp', q: -1, r: -1, glyph: 'eye' },
+    { id: 'scanner', q: -2, r: 0, glyph: 'scan' },
+    // cargo, west / south-west
+    { id: 'cargo', q: -1, r: 1, glyph: 'cargo' },
+    { id: 'magnet', q: -2, r: 1, glyph: 'weight' },
+    // staff, south-west
+    { id: 'appraise', q: -1, r: 2, glyph: 'clock' },
+    { id: 'crew', q: -2, r: 2, glyph: 'crew' },
+    // machines, south-east
+    { id: 'drones', q: 0, r: 1, glyph: 'drone' },
+    { id: 'droneyield', q: 1, r: 1, glyph: 'drone' },
+    { id: 'beltspeed', q: 0, r: 2, glyph: 'belt' },
+    { id: 'machspeed', q: 1, r: 2, glyph: 'machine' }
+  ];
+
+  /* Appraisal: raw ore waits to be valued before it can sell. */
+  function appraiseSeconds(mat, level) {
+    const base = 0.6 + Math.log2(1 + MAT[mat].cr / 10) * 0.5; // pricier lots take longer: crust ~1s, diamond ~5s
+    return base / (1 + level * 0.55);
+  }
+  function appraiseFee(level) { return Math.max(0.02, 0.12 - level * 0.0125); }
 
   /* ---------------------------------------------------------------- factory
      The refinery deck: machines sit on a grid, belts carry ore between them,
@@ -446,5 +516,5 @@
   }
 
   PD.data = { MAT, M, ENEMY, BODIES, UPGRADES, UPG, upgradeCost, recipe, COSMETICS, COS, TITLES, titleFor, bountyFor,
-    STRATA, MACHINES, METALS, GEMS, JUNK, goodOf, goodFromKey };
+    STRATA, MACHINES, METALS, GEMS, JUNK, goodOf, goodFromKey, NODES, appraiseSeconds, appraiseFee };
 })(window.PD);

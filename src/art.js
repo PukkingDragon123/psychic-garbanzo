@@ -417,6 +417,24 @@
   }
   reg('lance', [buildLance(false), buildLance(true)], 3, 6);
 
+  /* SPACE SCOOTER: a hover-bike, drawn heading right; the rider sits on top. */
+  function buildScooter(phase) {
+    const p = pix(30, 16);
+    const f = phase ? 1 : 0;
+    p.round(4, 6, 22, 7, 3, C.metD);                  // body
+    p.round(6, 4, 14, 4, 2, C.met);                    // saddle
+    p.round(20, 3, 8, 5, 2, C.suit);                   // nose cowl
+    p.rect(26, 5, 3, 2, C.cyan);                       // headlamp
+    p.round(0, 8, 7, 5, 2, C.metDD);                   // engine
+    p.rect(1, 9, 2, 3, f ? C.orange : C.orangeD);
+    p.rect(8, 13, 5, 2, C.metDD); p.rect(18, 13, 5, 2, C.metDD);   // skids
+    p.rect(12, 2, 2, 3, C.metDD); p.rect(11, 1, 4, 1, C.metD);       // handlebar
+    p.rect(9, 8, 10, 1, C.gold);
+    p.outline(C.ink);
+    return p;
+  }
+  reg('scooter', [buildScooter(0), buildScooter(1)], 15, 8);
+
   /* LOOT CRATE: precursor supply case. */
   function buildCrate(open) {
     const p = pix(16, 13);

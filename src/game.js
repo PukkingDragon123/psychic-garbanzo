@@ -53,7 +53,10 @@
       owned: {},                                  // purchased cosmetics
       seenIntro: 0,
       goods: {},                                  // refined output from the refinery deck
-      factory: null                               // machine layout
+      factory: null,                              // machine layout
+      appr: {},                                   // appraised ore, ready to sell
+      apprT: 0,
+      tut: { i: 0 }
     };
   }
 
@@ -78,6 +81,8 @@
       if (s.vault) for (const k in s.vault) { const n = +s.vault[k]; if (n > 0 && D.MAT[k]) base.vault[k] = n; }
       if (s.owned) base.owned = s.owned;
       if (s.goods) for (const k in s.goods) { const n = +s.goods[k]; if (n > 0) base.goods[k] = n; }
+      if (s.appr) for (const k in s.appr) { const n = +s.appr[k]; if (n > 0 && D.MAT[k]) base.appr[k] = n; }
+      if (s.tut) base.tut = { i: U.clamp(+s.tut.i || 0, 0, 99) };
       if (s.factory && Array.isArray(s.factory.cells)) base.factory = { cells: s.factory.cells, produced: +s.factory.produced || 0 };
       if (s.cos) for (const k in base.cos) if (s.cos[k]) base.cos[k] = s.cos[k];
       if (s.upg) for (const k in base.upg) base.upg[k] = U.clamp(+s.upg[k] || 0, 0, D.UPG[k].max);
@@ -99,7 +104,7 @@
     startBody(0, true);
     g.state = 'cutscene';
     PD.cutscene.start();
-    toast('SAVE WIPED. BACK TO THE PEBBLE.', UI.COL.bad);
+    toast(['cross'], UI.COL.bad);
   }
 
   g.saveGame = saveGame;
@@ -113,17 +118,19 @@
   };
 
   /* ------------------------------------------------------------------ toasts */
-  function toast(msg, color) {
-    g.toasts.push({ msg, color, life: 2.8 });
+  /* Toasts and hints are glyph strips: arrays of glyph names, optionally with
+     a number attached. Strings still work for the rare case that needs one. */
+  function toast(msg, color, num) {
+    g.toasts.push({ msg, color, life: 2.8, num });
     if (g.toasts.length > 4) g.toasts.shift();
   }
   g.toast = toast;
   g.hint = (k, m) => hint(k, m);
 
-  function hint(key, msg) {
+  function hint(key, glyphs) {
     if (g.hintKey === key) { g.hintT = Math.max(g.hintT, 1); return; }
     g.hintKey = key;
-    g.hint = msg;
+    g.hintGlyphs = Array.isArray(glyphs) ? glyphs : [glyphs];
     g.hintT = 5;
   }
 
@@ -142,7 +149,7 @@
     g.cinematic = false;
 
     g.ship.x = g.world.cx * TILE;
-    g.ship.y = Math.max(30, g.world.bodyTopPx - 150);
+    g.ship.y = Math.max(30, g.world.bodyTopPx - 130);
 
     if (!g.player || freshPlayer) g.player = new PD.Player(g);
     g.player.clearCargo();
@@ -154,10 +161,9 @@
     g.cam.y = g.player.y - VH / 2;
     if (!g.save.seen[index]) {
       g.save.seen[index] = 1;
-      toast(body.name.toUpperCase(), UI.COL.gold);
-      toast(body.blurb.toUpperCase(), UI.COL.text);
+      toast(['planet'], UI.COL.gold);
     }
-    hint('dive', 'FLY DOWN TO THE ROCK - HOLD LEFT MOUSE TO DRILL');
+    hint('dive', ['hand', 'arrowD', 'drill']);
   }
 
   function spawnMobs() {
@@ -205,13 +211,9 @@
 
   g.travelTo = function (index) {
     if (index > g.save.unlocked) return;
-    A.sfx.warp();
-    FX.flash(0.9, '#a9d8ff');
     startBody(index, false);
-    g.state = 'play';
-    g.player.docked = false;
-    saveGame();
-    toast('ARRIVING AT ' + D.BODIES[index].name.toUpperCase(), UI.COL.o2);
+    g.dive(index);
+    toast(['hole', 'arrowR', 'planet'], UI.COL.o2);
   };
 
   /* --------------------------------------------------------------- economy */
@@ -247,33 +249,58 @@
 
   g.vaultCount = function (mat) { return g.save.vault[mat] || 0; };
 
+  /* Appraisal: the house values one unit at a time, priciest lot first. It
+     runs in real time wherever you are, faster with appraiser staff. */
+  g.appraising = function () {
+    const keys = Object.keys(g.save.vault).filter(k => g.save.vault[k] > 0).sort((a, b) => D.MAT[b].cr - D.MAT[a].cr);
+    return keys.length ? +keys[0] : null;
+  };
+  function appraiseTick(dt) {
+    const mat = g.appraising();
+    if (mat === null) { g.save.apprT = 0; return; }
+    const need = D.appraiseSeconds(mat, g.save.upg.appraise || 0);
+    g.save.apprT += dt;
+    while (g.save.apprT >= need && (g.save.vault[mat] || 0) > 0) {
+      g.save.apprT -= need;
+      g.save.vault[mat]--;
+      if (g.save.vault[mat] <= 0) delete g.save.vault[mat];
+      g.save.appr[mat] = (g.save.appr[mat] || 0) + 1;
+    }
+  }
+  g.apprFrac = function () {
+    const mat = g.appraising();
+    if (mat === null) return 0;
+    return U.clamp(g.save.apprT / D.appraiseSeconds(mat, g.save.upg.appraise || 0), 0, 1);
+  };
+  g.saleMult = function () { return g.valueMult() * D.UPG.crew.value(g.save.upg.crew || 0) * (1 - D.appraiseFee(g.save.upg.appraise || 0)); };
+
   g.sellFromVault = function (mat, qty) {
-    const have = g.save.vault[mat] || 0;
+    const have = g.save.appr[mat] || 0;
     qty = Math.min(qty, have);
-    if (qty <= 0) return;
-    const value = Math.round(D.MAT[mat].cr * qty * g.valueMult());
-    g.save.vault[mat] = have - qty;
-    if (g.save.vault[mat] <= 0) delete g.save.vault[mat];
+    if (qty <= 0) { A.sfx.deny(); return; }
+    const value = Math.round(D.MAT[mat].cr * qty * g.saleMult());
+    g.save.appr[mat] = have - qty;
+    if (g.save.appr[mat] <= 0) delete g.save.appr[mat];
     g.save.credits += value;
     g.save.totalEarned += value;
     A.sfx.coin(qty % 6);
-    PD.term.say('SOLD ' + qty + ' x ' + D.MAT[mat].name.toUpperCase() + '  ->  $' + U.fmt(value), '#39ffa6');
+    PD.term.say(['coin'], '#39ffa6', '+' + U.fmt(value));
     saveGame();
   };
 
   g.sellAll = function () {
     let total = 0, lots = 0;
-    for (const k in g.save.vault) {
-      total += Math.round(D.MAT[k].cr * g.save.vault[k] * g.valueMult());
+    for (const k in g.save.appr) {
+      total += Math.round(D.MAT[k].cr * g.save.appr[k] * g.saleMult());
       lots++;
     }
     if (!total) { A.sfx.deny(); return; }
-    g.save.vault = {};
+    g.save.appr = {};
     g.save.credits += total;
     g.save.totalEarned += total;
     A.sfx.sell();
     for (let i = 0; i < 8; i++) setTimeout(() => A.sfx.coin(i), i * 55);
-    PD.term.say('BIN LIQUIDATED: ' + lots + ' LOTS  ->  $' + U.fmt(total), '#39ffa6');
+    PD.term.say(['coin', 'coin', 'coin'], '#39ffa6', '+' + U.fmt(total));
     saveGame();
   };
 
@@ -288,7 +315,7 @@
     if (g.save.goods[key] <= 0) delete g.save.goods[key];
     g.save.credits += value; g.save.totalEarned += value;
     A.sfx.coin(qty % 6);
-    PD.term.say('SOLD ' + qty + ' x ' + gd.name.toUpperCase() + '  ->  $' + U.fmt(value), '#39ffa6');
+    PD.term.say(['coin'], '#39ffa6', '+' + U.fmt(value));
     saveGame();
   };
   g.sellAllGoods = function () {
@@ -303,7 +330,7 @@
     g.save.credits += total; g.save.totalEarned += total;
     A.sfx.sell();
     for (let i = 0; i < 8; i++) setTimeout(() => A.sfx.coin(i), i * 55);
-    PD.term.say('GOODS SOLD: ' + lots + ' LOTS  ->  $' + U.fmt(total), '#39ffa6');
+    PD.term.say(['machine', 'arrowR', 'coin'], '#39ffa6', '+' + U.fmt(total));
     saveGame();
   };
 
@@ -324,7 +351,7 @@
     FX.ring(x, y, 4, r * 0.6, 0.6, '#8affa0', 1);
     A.sfx.tone(600, { type: 'sine', to: 1400, dur: 0.5, vol: 0.12 });
     A.sfx.tone(1400, { type: 'sine', to: 700, dur: 0.4, vol: 0.06, delay: 0.3 });
-    toast(found ? 'SCAN: ' + found + ' DEPOSITS PAINTED' : 'SCAN: NOTHING WORTH DIGGING NEARBY', found ? '#8affa0' : UI.COL.dim);
+    toast(['scan', 'arrowR', 'ore'], found ? '#8affa0' : UI.COL.dim, String(found));
   };
 
   g.fabricate = function (id) {
@@ -333,11 +360,11 @@
     if (lvl >= u.max) { A.sfx.deny(); return; }
     const cost = D.upgradeCost(u, lvl);
     const rec = D.recipe(u, lvl);
-    if (g.save.credits < cost) { A.sfx.deny(); PD.term.say('INSUFFICIENT CREDITS', '#ff5a4d'); return; }
+    if (g.save.credits < cost) { A.sfx.deny(); PD.term.say(['coin', 'cross'], '#ff5a4d'); return; }
     for (const r of rec) {
       if ((g.save.vault[r.mat] || 0) < r.qty) {
         A.sfx.deny();
-        PD.term.say('FEEDSTOCK SHORT: ' + D.MAT[r.mat].name.toUpperCase(), '#ff5a4d');
+        PD.term.say(['ore', 'cross'], '#ff5a4d');
         return;
       }
     }
@@ -352,13 +379,13 @@
     A.sfx.buy();
     A.sfx.tone(140, { type: 'sawtooth', to: 70, dur: 0.3, vol: 0.12 });
     FX.flash(0.14, '#ffb03d');
-    PD.term.say(u.name.toUpperCase() + ' FABRICATED  ->  LV' + (lvl + 1), '#ffb03d');
+    PD.term.say(['build', 'check'], '#ffb03d', 'LV' + (lvl + 1));
     saveGame();
   };
 
   g.buyCosmetic = function (cat, id) {
     const o = PD.art.optOf(cat, id);
-    if (g.save.credits < o.cost) { A.sfx.deny(); PD.term.say('CANNOT AFFORD ' + o.name.toUpperCase(), '#ff5a4d'); return; }
+    if (g.save.credits < o.cost) { A.sfx.deny(); PD.term.say(['coin', 'cross'], '#ff5a4d'); return; }
     g.save.credits -= o.cost;
     g.save.owned[cat] = g.save.owned[cat] || {};
     g.save.owned[cat][id] = 1;
@@ -370,7 +397,7 @@
   g.equipCosmetic = function (cat, id) {
     g.save.cos[cat] = id;
     A.sfx.tone(880, { type: 'triangle', dur: 0.12, vol: 0.1 });
-    PD.term.say('EQUIPPED ' + PD.art.optOf(cat, id).name.toUpperCase(), '#ff8ad8');
+    PD.term.say(['check'], '#ff8ad8');
     saveGame();
   };
 
@@ -410,7 +437,7 @@
   g.collect = function (mat, x, y) {
     const p = g.player;
     if (!p.addOre(mat)) {
-      hint('full', 'HOLD FULL - FLY UP TO THE SHIP OR HOLD R');
+      hint('full', ['cargo', 'bang', 'arrowR', 'hole']);
       return false;
     }
     const m = D.MAT[mat];
@@ -477,7 +504,7 @@
     FX.shake(m.def.kind === 'boss' ? 9 : 3.4);
     FX.hitStop(m.def.kind === 'boss' ? 0.12 : 0.04);
     A.sfx.killMob();
-    if (m.def.kind === 'boss') { A.sfx.boom(1.2); toast('CORE WARDEN DOWN', UI.COL.good); }
+    if (m.def.kind === 'boss') { A.sfx.boom(1.2); toast(['skull', 'check'], UI.COL.good); }
     // guts of the beast are worth something
     const drops = m.def.kind === 'boss' ? 7 : (U.chance(0.45) ? 1 : 0);
     for (let i = 0; i < drops; i++) {
@@ -505,8 +532,8 @@
     FX.shake(12);
     FX.burst(p.x, p.y, 40, ['#ff5a4d', '#ffffff', '#ffd34d'], 200);
     A.sfx.boom(0.8);
-    toast('HULL BREACH - EMERGENCY RECALL', UI.COL.bad);
-    toast('LOST A THIRD OF THE HOLD', UI.COL.bad);
+    toast(['hull', 'cross', 'arrowR', 'home'], UI.COL.bad);
+    toast(['cargo', 'arrowD'], UI.COL.bad, '-33%');
     setTimeout(() => {
       dock(true);
       g.player.dead = false;
@@ -526,7 +553,7 @@
     A.sfx.warp();
     FX.flash(0.6, '#7ef9ff');
     FX.ring(p.x, p.y, 2, 70, 0.6, '#7ef9ff', 3);
-    toast('TRACTOR BEAM - 10% OF HOLD LOST IN TRANSIT', UI.COL.o2);
+    toast(['hole', 'cargo', 'arrowD'], UI.COL.o2, '-10%');
     dock(true);
   };
 
@@ -544,25 +571,53 @@
     PD.interior.enter(g, 'airlock');
     A.sfx.dock();
     A.drill(false); A.thrust(0);
-    if (n > 0) PD.dialog.push('bolt', 'Bin took ' + n + ' lumps of rock. Sell it or let me melt it. Your call, boss.');
+    if (n > 0) PD.dialog.push('bolt', ['ore', 'arrowR', 'clock', 'arrowR', 'coin']);
     else if (!g.save.seenTour) {
       g.save.seenTour = 1;
-      PD.dialog.push('nix', 'Deck A. Walk with A and D, press E at anything that glows. Try not to touch Gloop.');
+      PD.dialog.push('nix', ['hand', 'arrowR', 'sell', 'hex', 'machine']);
     }
     saveGame();
   }
 
+  /* The airlock opens on to the scooter field, not the planet: the planet is
+     a destination you choose at the nav computer. */
   g.undock = function () {
     g.player.docked = false;
-    g.player.x = g.ship.x;
-    g.player.y = g.ship.y + 46;
-    g.player.vx = 0;
-    g.player.vy = 30;
-    g.state = 'play';
     PD.term.close();
     PD.dialog.clear();
+    g.toField();
+  };
+
+  g.toField = function () {
+    g.state = 'space';
+    g.player.docked = false;
+    g.player.invuln = 1;
+    g.hintT = 0; g.hintKey = '';
+    PD.space.enter(g);
     A.sfx.tone(520, { type: 'triangle', dur: 0.2, vol: 0.12 });
     A.sfx.tone(300, { type: 'square', to: 700, dur: 0.25, vol: 0.08 });
+    saveGame();
+  };
+
+  /* Through the time hole: from anywhere, straight to Deck A. */
+  g.throughHole = function () {
+    A.sfx.warp();
+    FX.flash(0.9, '#d8bcff');
+    g.bullets.length = 0;
+    dock(true);
+  };
+
+  /* Nav computer: drop on to the chosen world for a dive. */
+  g.dive = function (index) {
+    if (index > g.save.unlocked) return;
+    if (index !== g.bodyIndex || !g.world) startBody(index, false);
+    else { g.player.reset(g.ship.x, g.ship.y + 34); g.player.clearCargo(); }
+    g.state = 'play';
+    g.player.docked = false;
+    PD.term.close(); PD.dialog.clear();
+    A.sfx.warp();
+    FX.flash(0.8, '#a9d8ff');
+    saveGame();
   };
 
   /* --------------------------------------------------- the money shot
@@ -576,7 +631,7 @@
     A.setIntensity(1);
     FX.flash(0.45, '#fff3c0');
     FX.hitStop(0.16);
-    toast('CORE BREACH!', UI.COL.core);
+    toast(['star', 'bang'], UI.COL.core);
   }
 
   function updateDestruction(dt) {
@@ -738,11 +793,11 @@
       }
     }
 
-    g.uiBlocking = g.state !== 'play';
+    g.uiBlocking = g.state !== 'play' && g.state !== 'space';
     handleStateKeys();
 
     // the refinery deck earns in every state where time passes
-    if (g.state !== 'title' && g.state !== 'cutscene' && g.state !== 'pause') PD.factory.tick(dt, g);
+    if (g.state !== 'title' && g.state !== 'cutscene' && g.state !== 'pause') { PD.factory.tick(dt, g); appraiseTick(dt); }
 
     if (g.state === 'cutscene') {
       PD.cutscene.update(dt, g);
@@ -750,13 +805,21 @@
         g.save.seenIntro = 1;
         saveGame();
         startBody(g.save.bodyIndex || 0, false);
-        g.state = 'play';
+        g.toField();
       }
+      return;
+    }
+
+    if (g.state === 'space') {
+      PD.space.update(dt, g);
+      PD.tutorial.update(dt, g, 'space');
+      if (PD.input.hit('esc')) { g.pausedFrom = 'space'; g.state = 'pause'; A.thrust(0); }
       return;
     }
 
     if (g.state === 'interior') {
       PD.interior.update(dt, g);
+      PD.tutorial.update(dt, g, 'interior');
       FX.update(dt, g.world);
       return;
     }
@@ -782,7 +845,7 @@
     const p = g.player;
     p.update(dt, g);
 
-    if (g.state === 'play' && !g.cinematic && nearShip()) hint('dock', 'PRESS E TO DOCK AND SELL');
+    if (g.state === 'play' && !g.cinematic && nearShip()) hint('dock', ['hand', 'arrowR', 'hole', 'home']);
 
     for (let i = g.mobs.length - 1; i >= 0; i--) {
       const m = g.mobs[i];
@@ -834,10 +897,11 @@
     FX.update(dt, g.world);
     updateCamera(dt, false);
 
+    PD.tutorial.update(dt, g, 'play');
     // contextual nudges
     if (g.state === 'play' && !g.cinematic) {
-      if (g.world.coreHp < g.world.coreMax && g.world.coreHp > 0) hint('core', 'KEEP DRILLING THE CORE - BREAK THE WORLD');
-      else if (p.o2 < p.stat('oxygen') * 0.2) hint('air', 'AIR LOW - GET BACK TO THE SHIP OR HOLD R');
+      if (g.world.coreHp < g.world.coreMax && g.world.coreHp > 0) hint('core', ['drill', 'arrowR', 'star', 'bang']);
+      else if (p.o2 < p.stat('oxygen') * 0.2) hint('air', ['o2', 'bang', 'arrowR', 'hole']);
     }
 
     // music swells the deeper you go
@@ -867,14 +931,15 @@
       case 'play':
         if (g.cinematic) break;
         if (e && nearShip()) dock(false);
-        else if (esc) { g.state = 'pause'; A.drill(false); A.thrust(0); }
+        else if (esc) { g.pausedFrom = 'play'; g.state = 'pause'; A.drill(false); A.thrust(0); }
         break;
       case 'interior':
         break;                                   // interior.update handles its own keys
       case 'cutscene':
+      case 'space':
         break;
       case 'pause':
-        if (esc) g.state = 'play';
+        if (esc) g.state = g.pausedFrom || 'play';
         break;
       case 'victory':
         if ((e || esc) && g.victory && g.victory.t > 1.0) closeVictory();
@@ -943,42 +1008,30 @@
     offY = Math.floor((h - VH * scale) / 2);
   }
 
+  /* Above the dig site hangs the time hole you came through. Fly into it to
+     go home. */
   function drawShip(ctx, cam) {
     const s = g.ship;
-    const spr = PD.art.skinFor(g.save.cos).ship;
-    const blink = Math.sin(g.time * 3) > 0;
-    const bob = Math.sin(g.time * 1.1) * 2;
-    const x = s.x - cam.x, y = s.y - cam.y + bob;
-
-    // tractor beam glow down to the surface
-    if (g.state === 'shop' || Math.abs(g.player.x - s.x) < 60) {
-      const grad = ctx.createLinearGradient(0, y + 20, 0, y + 100);
-      grad.addColorStop(0, 'rgba(150,250,255,0.38)');
-      grad.addColorStop(0.4, 'rgba(126,235,255,0.16)');
-      grad.addColorStop(1, 'rgba(126,249,255,0)');
-      ctx.fillStyle = grad;
-      ctx.beginPath();
-      ctx.moveTo(x - 10, y + 22); ctx.lineTo(x + 10, y + 22);
-      ctx.lineTo(x + 34, y + 92); ctx.lineTo(x - 34, y + 92);
-      ctx.closePath(); ctx.fill();
+    const t = g.time;
+    const x = s.x - cam.x, y = s.y - cam.y + 12;
+    const near = Math.abs(g.player.x - s.x) < s.w / 2 && g.player.y > s.y - 14 && g.player.y < s.y + 50;
+    const rr = 26 + Math.sin(t * 2) * 2 + (near ? 4 : 0);
+    const grd = ctx.createRadialGradient(x, y, 2, x, y, rr + 14);
+    grd.addColorStop(0, 'rgba(255,255,255,0.85)');
+    grd.addColorStop(0.35, 'rgba(126,249,255,0.55)');
+    grd.addColorStop(1, 'rgba(120,80,220,0)');
+    ctx.fillStyle = grd;
+    ctx.fillRect(x - rr - 14, y - rr - 14, rr * 2 + 28, rr * 2 + 28);
+    for (let k = 0; k < 3; k++) {
+      ctx.save(); ctx.translate(x, y); ctx.rotate(t * (1.2 + k * 0.7) * (k % 2 ? -1 : 1));
+      PD.glyph.hex(ctx, 0, 0, rr * (1 - k * 0.24), null, k ? '#d8bcff' : '#ffffff', 1.5);
+      ctx.restore();
     }
-
-    PD.ent.drawSprite(ctx, spr, blink ? 1 : 0, x, y, false, false);
-
-    // owned drones buzz around the hull
-    const n = Math.min(8, g.save.upg.drones || 0);
-    const dspr = PD.art.sprites.drone;
-    for (let i = 0; i < n; i++) {
-      const a = g.time * 0.8 + i * (U.TAU / Math.max(1, n));
-      const dx = x + Math.cos(a) * (52 + (i % 3) * 8);
-      const dy = y + Math.sin(a * 1.3) * 16 + 6;
-      PD.ent.drawSprite(ctx, dspr, (Math.floor(g.time * 12) + i) % 2, dx, dy, Math.cos(a) < 0, false);
+    if (U.chance(0.4)) {
+      const a = U.rand(0, U.TAU);
+      FX.spawn({ x: s.x + Math.cos(a) * rr, y: s.y + 12 + Math.sin(a) * rr, vx: -Math.cos(a) * 30, vy: -Math.sin(a) * 30, life: 0.5, size: 1.5, color: '#7ef9ff', grav: 0, drag: 0.9, glow: 1 });
     }
-
-    if (g.state === 'play' && Math.abs(g.player.x - s.x) < s.w / 2 &&
-        g.player.y > s.y - 10 && g.player.y < s.y + 46) {
-      F.draw(ctx, 'E  DOCK', x, y - 36 + Math.sin(g.time * 5) * 2, '#ffd34d', { center: true, scale: 2 });
-    }
+    if (g.state === 'play' && near) PD.glyph.draw(ctx, 'home', x - 7, y - rr - 24 + Math.sin(t * 5) * 2, '#ffd34d', '#ff9b3d');
   }
 
   function drawLighting(cam) {
@@ -1068,16 +1121,27 @@
       return;
     }
 
+    if (g.state === 'space' || (g.state === 'pause' && g.pausedFrom === 'space')) {
+      PD.space.draw(ctx, g, g.time);
+      FX.drawOverlay(ctx, VW, VH);
+      FX.drawFloaters(ctx, { x: Math.round(PD.space.S.cam.x), y: Math.round(PD.space.S.cam.y) }, (c, s2, x, y, col, size) =>
+        F.draw(c, s2, x, y, col, { center: true, scale: size >= 2 ? 2 : 1 }));
+      UI.hudField(ctx, g);
+      PD.tutorial.draw(ctx, g, 'space');
+      if (g.state === 'pause') { const r = UI.pause(ctx, g); if (r.resume) g.state = 'space'; if (r.ship) { g.state = 'space'; g.throughHole(); } }
+      PD.touch.draw(ctx, g.state === 'space' ? 'space' : 'ui', g);
+      UI.endFrame();
+      blit();
+      return;
+    }
+
     if (g.state === 'interior') {
       PD.interior.draw(ctx, g, g.time);
       FX.drawWorld(ctx, { x: Math.round(g.intCam), y: 0 });
       PD.interior.drawStatus(ctx, g, g.time);
       PD.term.draw(ctx, g, g.dt || 1 / 60);
       PD.dialog.draw(ctx, g, g.time, PD.art.skinFor(g.save.cos).alien);
-      if (!PD.term.app && !PD.dialog.active()) {
-        F.draw(ctx, 'A D  WALK    E  USE    ESC  LAUNCH', VW / 2, VH - 12,
-          'rgba(240,235,255,0.45)', { center: true, shadow: false });
-      }
+      if (!PD.term.app && !PD.dialog.active()) PD.tutorial.draw(ctx, g, 'interior');
       UI.endFrame();
       blit();
       return;
@@ -1091,7 +1155,7 @@
       if (r.start) {
         A.resume(); A.music(true);
         if (!g.save.seenIntro) { g.state = 'cutscene'; PD.cutscene.start(); }
-        else { startBody(g.save.bodyIndex || 0, false); g.state = 'play'; }
+        else { startBody(g.save.bodyIndex || 0, false); g.toField(); }
       }
       if (r.wipe) wipeSave();
       PD.touch.draw(ctx, 'ui');
@@ -1099,7 +1163,8 @@
       return;
     }
 
-    g.world.drawSky(ctx, cam, VW, VH, g.time);
+    PD.galaxy.draw(ctx, cam, g.time, 400 + g.bodyIndex * 31, g.world.body.sky);
+    g.world.drawSky(ctx, cam, VW, VH, g.time, false, true);
     g.world.draw(ctx, cam, VW, VH, g.time);
     drawShip(ctx, cam);
 
@@ -1127,12 +1192,12 @@
       ctx.fillRect(0, 0, VW, VH);
     }
 
-    if (g.state !== 'victory' && g.state !== 'ending') UI.hud(ctx, g);
+    if (g.state !== 'victory' && g.state !== 'ending') { UI.hud(ctx, g); PD.tutorial.draw(ctx, g, 'play'); }
     UI.sellSplash(ctx, g);
 
     if (g.state === 'pause') {
       const r = UI.pause(ctx, g);
-      if (r.resume) g.state = 'play';
+      if (r.resume) g.state = g.pausedFrom || 'play';
       if (r.ship) { g.state = 'play'; g.emergencyRecall(); }
     } else if (g.state === 'victory') {
       const r = UI.victory(ctx, g);
@@ -1179,8 +1244,9 @@
     m.wy = m.y + g.cam.y;
 
     FX.tickFreeze(dt);
-    PD.touch.apply(g.state === 'play' ? 'play' : 'ui');
-    if (PD.touch.enabled) { m.wx = m.x + g.cam.x; m.wy = m.y + g.cam.y; }
+    PD.touch.apply(g.state === 'play' ? 'play' : (g.state === 'space' ? 'space' : 'ui'));
+    if (g.state === 'space') { m.wx = m.x + PD.space.S.cam.x; m.wy = m.y + PD.space.S.cam.y; }
+    else if (PD.touch.enabled) { m.wx = m.x + g.cam.x; m.wy = m.y + g.cam.y; }
 
     if (FX.freeze > 0) {
       // hit-stop: the world holds still but particles keep creeping

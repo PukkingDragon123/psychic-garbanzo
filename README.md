@@ -20,6 +20,36 @@ python3 -m http.server 8000   # then visit http://localhost:8000
 node tools/build.js           # -> dist/planet-destroyer.html
 ```
 
+## Wordless
+
+The game has almost no text. A procedural **glyph language** (coin, ore, drill,
+hole, hand, arrows, lock, check…) carries the HUD, the terminals, the crew's
+speech and the tutorial: a bar plus a glyph plus a number is a sentence. The
+one shape the UI allows besides the rectangle is the **hexagon** — the skill
+lattice, the touch pad, the time hole, the tutorial pips.
+
+## You start on a scooter
+
+The run opens in an **asteroid field**. Ride the scooter (hold anywhere to fly
+toward the pointer; `Space`/`FIRE` shoots), hoover up drifting ore, shoot
+rocks to crack them open, then press `E` / the **hole** key to open a **time
+hole** and fly into it — that is how you get home. From Deck A the **nav
+computer** drops you on to a planet for a dive; the airlock returns you to the
+field. The dive's anchor is the time hole hanging over the dig site.
+
+## Appraisal
+
+Ore that lands in the bin is **unappraised**. The house values one unit at a
+time, priciest first (crust ~1s, a diamond ~5s), in real time wherever you
+are, and takes a cut. Only appraised lots sell. The **Appraiser** and **Broker**
+staff nodes speed it up, shrink the fee and lift prices.
+
+## Skill lattice
+
+The fabricator is a **hex skill tree**: the drill at the centre, six branches
+out — guns, ship, oxygen, cargo, staff, machines (belt motors, overclock). A
+node opens once any neighbour has a level; every level burns credits and ore.
+
 ## Controls
 
 | Input | Action |
@@ -35,9 +65,10 @@ node tools/build.js           # -> dist/planet-destroyer.html
 | Hold `R` | Emergency tractor beam home — costs 10% of your cargo |
 | `Esc` | Pause, or disconnect from a terminal |
 
-**On a phone or tablet** the controls switch to touch automatically: a thumbstick
-on the left for the jets, drag anywhere on the right to aim *and* drill, and
-`FIRE` / `E` / `R` keys in the corner.
+**On a phone or tablet** the controls switch to touch automatically: a
+hexagonal pad on the left for the jets, drag anywhere on the right to aim *and*
+drill, hex action keys in the corner. In the field a held touch flies you; on
+the deck you **tap where to walk** and tap a machine to use it.
 
 ## Worlds are layered
 
@@ -133,7 +164,12 @@ three talk to you, and all three are enabling you.
 | `src/factory.js` | The refinery deck: grid editor, belt/machine simulation at 10Hz, refined-goods output |
 | `src/interior.js` | Deck A: walking, stations, crew and their barks |
 | `src/cutscene.js` | The cold open |
-| `src/touch.js` | Thumbstick, drag-to-drill, hex action keys with cooldown arcs, haptics |
+| `src/glyph.js` | The wordless icon language and hex primitives |
+| `src/galaxy.js` | Spiral-arm star band, nebulae, sun, ringed planets, shooting stars |
+| `src/space.js` | The scooter field: drifting ore, rocks, mites, the time hole |
+| `src/skilltree.js` | Hex skill lattice with adjacency unlocks |
+| `src/tutorial.js` | Pictographic tutorial that advances as you do the thing |
+| `src/touch.js` | Hex pad, drag-to-drill, tap-to-fly, tap-to-walk, hex action keys, haptics |
 | `src/game.js` | Loop, camera, ship, lighting, the vault economy, save/load, and the world-destruction sequence |
 | `tools/build.js` | Inlines everything into one distributable HTML file |
 
