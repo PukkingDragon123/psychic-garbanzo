@@ -17,10 +17,6 @@
       use:  { x: VW - 130, y: VH - 54, r: 13, glyph: 'hand', col: '#ffb03d', key: 'KeyE' },
       beam: { x: VW - 130, y: VH - 22, r: 11, glyph: 'home', col: '#ff5a4d', key: 'KeyR', hold: true }
     },
-    space: {
-      fire: { x: VW - 38, y: VH - 46, r: 22, glyph: 'gun',  col: '#7ef9ff', key: null },
-      hole: { x: VW - 86, y: VH - 30, r: 18, glyph: 'hole', col: '#d8bcff', key: 'KeyE' }
-    }
   };
 
   const state = {
@@ -114,11 +110,6 @@
       if (state.aiming) { IN.mouse.x = state.ax; IN.mouse.y = state.ay; IN.mouse.inside = true; IN.mouse.left = true; }
       else IN.mouse.left = false;
       IN.mouse.right = !!state.down.fire;
-    } else if (mode === 'space') {
-      if (state.aiming) { IN.mouse.x = state.ax; IN.mouse.y = state.ay; IN.mouse.inside = true; IN.mouse.left = true; }
-      else IN.mouse.left = false;
-      IN.mouse.right = !!state.down.fire;
-      state.tapPress = false;
     } else {
       IN.mouse.x = state.tapX; IN.mouse.y = state.tapY; IN.mouse.inside = true;
       IN.mouse.left = state.tapHold;
@@ -129,7 +120,7 @@
   function clearEdges() {
     if (!state.enabled) return;
     const IN = PD.input;
-    for (const m of ['play', 'space']) for (const k in cfg[m]) { const key = cfg[m][k].key; if (key && !cfg[m][k].hold) IN.keys[key] = false; }
+    for (const m of ['play']) for (const k in cfg[m]) { const key = cfg[m][k].key; if (key && !cfg[m][k].hold) IN.keys[key] = false; }
   }
 
   function padKey(ctx, k, c) {

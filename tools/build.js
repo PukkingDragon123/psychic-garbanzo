@@ -12,8 +12,8 @@ const OUT = process.argv[2] || path.join(ROOT, 'dist', 'planet-destroyer.html');
 /* Load order matters: each module reads the ones above it at definition time. */
 const SOURCES = [
   'util', 'pix', 'glyph', 'data', 'art', 'artint', 'galaxy', 'font', 'audio', 'input', 'touch',
-  'fx', 'world', 'entities', 'player', 'ui', 'dialog', 'terminal', 'factory', 'skilltree', 'space', 'tutorial', 'cutscene',
-  'interior', 'game'
+  'fx', 'flora', 'world', 'entities', 'player', 'ui', 'dialog', 'terminal', 'skilltree', 'starmap',
+  'tutorial', 'cutscene', 'interior', 'game'
 ];
 
 function read(p) { return fs.readFileSync(path.join(ROOT, p), 'utf8'); }

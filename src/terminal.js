@@ -12,22 +12,13 @@
 
   /* Each app gets its own phosphor colour so you know where you are. */
   const THEME = {
-    market: { hi: '#39ffa6', mid: '#1e9e68', lo: '#0d3d2a', bg: '#04140f', name: 'CARGO EXCHANGE', glyph: 'sell' },
-    fab:    { hi: '#ffb03d', mid: '#c07a20', lo: '#3d2a0d', bg: '#140f04', name: 'FABRICATOR', glyph: 'build' },
-    skills: { hi: '#ffb03d', mid: '#c07a20', lo: '#3d2a0d', bg: '#140f04', name: 'SKILL LATTICE', glyph: 'hex' },
-    bay:    { hi: '#58e8ff', mid: '#2b8fae', lo: '#0d2f3d', bg: '#041014', name: 'DRONE BAY', glyph: 'drone' },
-    vanity: { hi: '#ff8ad8', mid: '#b0459a', lo: '#3d0d2f', bg: '#140418', name: 'IDENTITY SUITE', glyph: 'crew' },
-    nav:    { hi: '#9ab4ff', mid: '#4f66c0', lo: '#161d3d', bg: '#060818', name: 'NAV COMPUTER', glyph: 'planet' },
-    refinery: { hi: '#ffd34d', mid: '#b58a1e', lo: '#3a2c0a', bg: '#120e04', name: 'REFINERY DECK', glyph: 'machine' }
+    market: { hi: '#39ffa6', mid: '#1e9e68', lo: '#0d3d2a', bg: '#04140f', name: 'THE EXCHANGE', glyph: 'sell' },
+    skills: { hi: '#ffb03d', mid: '#c07a20', lo: '#3d2a0d', bg: '#140f04', name: 'THE LAB', glyph: 'hex' }
   };
 
   const FOOT = {
-    market: 'ZAZ APPRAISES ONE LOT AT A TIME. ONLY APPRAISED ORE SELLS.',
-    skills: 'CLICK A HEX. NEIGHBOURS OF A BUILT NODE UNLOCK.',
-    bay: 'DRONES EARN WHILE YOU FLY.',
-    vanity: 'CLICK TO BUY, CLICK AGAIN TO WEAR.',
-    nav: 'PICK A WORLD TO DIVE. THE AIRLOCK GOES BACK TO THE FIELD.',
-    refinery: 'HOPPER -> BELT -> MACHINE -> DEPOT. GOODS SELL FOR MORE.'
+    market: 'ONLY APPRAISED ORE SELLS. PRICES MOVE ON THEIR OWN.',
+    skills: 'CLICK A HEX. NEIGHBOURS OF A BUILT NODE UNLOCK.'
   };
 
   const state = {
@@ -37,11 +28,6 @@
 
   const BOOT = {
     market: ['RUSTMAW OS 4.21', 'LINKING BLACK-MARKET RELAY...', 'RELAY OK  [ENCRYPTED]', 'NO QUESTIONS ASKED.'],
-    fab: ['RUSTMAW OS 4.21', 'FABRICATOR ARM ONLINE', 'FEEDSTOCK BIN: READING...', 'BOLT SAYS HURRY UP.'],
-    bay: ['RUSTMAW OS 4.21', 'DRONE SWARM HANDSHAKE...', 'ALL UNITS NOMINAL', 'THEY NEVER SLEEP.'],
-    vanity: ['RUSTMAW OS 4.21', 'IDENTITY SUITE LOADED', 'GENE VAT: WARM', 'LOOK THE PART.'],
-    nav: ['RUSTMAW OS 4.21', 'STELLAR CARTOGRAPHY ONLINE', 'PLOTTING VICTIMS...', 'SELECT A TARGET.'],
-    refinery: ['RUSTMAW OS 4.21', 'REFINERY GRID POWER: ON', 'BELT MOTORS SPUN UP', 'ROCK IN. MONEY OUT.'],
     skills: ['RUSTMAW OS 4.21', 'LATTICE ONLINE', 'NODES INDEXED', 'GROW.']
   };
 
@@ -170,314 +156,125 @@
 
   /* ---------------------------------------------------------------- market */
   function appMarket(ctx, g, th, t) {
-    state.view = state.view || 'raw';
     const Gd = PD.glyph;
-    // two tabs: raw ore / refined goods, as glyph keys
-    const tabKey = (x, glyph, id) => {
-      const on = state.view === id;
-      const hot = PD.input.mouse.inside && PD.input.mouse.x >= x && PD.input.mouse.x < x + 30 && PD.input.mouse.y >= IY - 4 && PD.input.mouse.y < IY + 12;
-      ctx.fillStyle = on ? th.mid : (hot ? th.lo : '#000'); ctx.fillRect(x, IY - 4, 30, 16);
-      ctx.strokeStyle = on ? th.hi : th.mid; ctx.strokeRect(x + 0.5, IY - 3.5, 29, 15);
-      Gd.draw(ctx, glyph, x + 8, IY - 3, '#ffffff', th.hi);
-      if (hot && PD.input.mouse.leftPressed) { state.view = id; A.sfx.click(); }
-    };
-    tabKey(IX, 'ore', 'raw'); tabKey(IX + 34, 'machine', 'goods');
-    const isRaw = state.view === 'raw';
 
-    // fee and broker shown as glyph + number
+    /* ---- Zaz's appraisal lane runs across the top of the screen. */
+    const laneY = IY - 4, laneH = 26;
+    ctx.fillStyle = '#06251a'; ctx.fillRect(IX, laneY, IW, laneH);
+    ctx.strokeStyle = th.mid; ctx.strokeRect(IX + 0.5, laneY + 0.5, IW - 1, laneH - 1);
+    ctx.fillStyle = th.lo;
+    for (let x = 0; x < IW - 6; x += 8) ctx.fillRect(IX + 2 + ((x + Math.floor(t * 26)) % (IW - 8)), laneY + laneH - 5, 4, 2);
+
+    const appMat = g.appraising();
+    const waiting = Object.keys(g.save.vault).reduce((n, k) => n + g.save.vault[k], 0);
+    const readyN = Object.keys(g.save.appr).reduce((n, k) => n + g.save.appr[k], 0);
+    Gd.draw(ctx, 'clock', IX + 4, laneY + 6, '#ffffff', '#ffb03d');
+    F.draw(ctx, 'APPRAISAL', IX + 20, laneY + 4, th.mid, { shadow: false });
+    F.draw(ctx, waiting + ' IN QUEUE', IX + 20, laneY + 14, waiting ? '#ffb03d' : th.lo, { shadow: false });
+
+    const scanX = IX + IW - 150;                 // the scanner arch sits here
+    const nameX = IX + IW - 124;
+    if (appMat !== null) {
+      const m = D.MAT[appMat];
+      const f = g.apprFrac();
+      const lx = IX + 88 + f * (scanX - IX - 92);
+      ctx.fillStyle = m.c[1]; ctx.fillRect(lx, laneY + 10, 10, 10);
+      ctx.fillStyle = m.c[0]; ctx.fillRect(lx, laneY + 10, 10, 3);
+      ctx.strokeStyle = th.hi; ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(scanX, laneY + 22); ctx.lineTo(scanX, laneY + 5);
+      ctx.lineTo(scanX + 20, laneY + 5); ctx.lineTo(scanX + 20, laneY + 22);
+      ctx.stroke();
+      ctx.fillStyle = 'rgba(57,255,166,' + (0.25 + 0.2 * Math.sin(t * 9)).toFixed(2) + ')';
+      ctx.fillRect(scanX + 1, laneY + 6, 18, 16);
+      F.draw(ctx, m.name.toUpperCase().slice(0, 14), nameX, laneY + 4, th.hi, { shadow: false });
+      ctx.fillStyle = th.lo; ctx.fillRect(nameX, laneY + 15, 112, 5);
+      ctx.fillStyle = '#ffb03d'; ctx.fillRect(nameX, laneY + 15, Math.round(112 * f), 5);
+    } else {
+      F.draw(ctx, waiting ? 'SPINNING UP...' : 'NOTHING TO VALUE', nameX, laneY + 10, th.lo, { shadow: false });
+    }
+
+    // the three multipliers that decide what a rock is worth
     const fee = Math.round(D.appraiseFee(g.save.upg.appraise || 0) * 100);
-    F.draw(ctx, 'FEE -' + fee + '%   BROKER +' + Math.round((D.UPG.crew.value(g.save.upg.crew || 0) - 1) * 100) + '%', IX + 80, IY + 1, th.mid, { shadow: false });
+    const brk = Math.round((D.UPG.crew.value(g.save.upg.crew || 0) - 1) * 100);
+    const pur = Math.round((D.UPG.refine.value(g.save.upg.refine || 0) - 1) * 100);
+    F.draw(ctx, 'HOUSE FEE -' + fee + '%', IX, IY + 26, '#ff6b8a', { shadow: false });
+    F.draw(ctx, 'BROKER +' + brk + '%', IX + 96, IY + 26, th.hi, { shadow: false });
+    F.draw(ctx, 'PURIFIER +' + pur + '%', IX + 174, IY + 26, th.hi, { shadow: false });
+    F.draw(ctx, readyN + ' LOTS READY', IX + IW, IY + 26, th.mid, { right: true, shadow: false });
 
-    const entry = k => {
-      if (isRaw) { const m = D.MAT[k]; return { cr: m.cr, c: m.c }; }
-      if (k.indexOf('raw:') === 0) { const m = D.MAT[+k.slice(4)]; return { cr: m.cr, c: m.c }; }
-      const gd = D.goodFromKey(k); return gd ? { cr: gd.cr, c: gd.c } : null;
-    };
-    let keys;
-    if (isRaw) {
-      const set = {};
-      for (const k in g.save.vault) if (g.save.vault[k] > 0) set[k] = 1;
-      for (const k in g.save.appr) if (g.save.appr[k] > 0) set[k] = 1;
-      keys = Object.keys(set).sort((a, b) => D.MAT[b].cr - D.MAT[a].cr);
-    } else keys = Object.keys(g.save.goods || {}).filter(k => g.save.goods[k] > 0 && entry(k)).sort((a, b) => entry(b).cr - entry(a).cr);
+    /* ---- the ore book. */
+    const set = {};
+    for (const k in g.save.vault) if (g.save.vault[k] > 0) set[k] = 1;
+    for (const k in g.save.appr) if (g.save.appr[k] > 0) set[k] = 1;
+    const keys = Object.keys(set).sort((a, b) => D.MAT[b].cr - D.MAT[a].cr);
 
-    // column glyphs
-    const hy = IY + 16;
-    F.draw(ctx, isRaw ? 'ORE' : 'GOODS', IX, hy + 3, th.mid, { shadow: false });
-    if (isRaw) { F.draw(ctx, 'WAITING', IX + 100, hy + 3, th.mid, { shadow: false }); F.draw(ctx, 'READY', IX + 170, hy + 3, th.mid, { shadow: false }); }
-    else F.draw(ctx, 'READY', IX + 170, hy + 3, th.mid, { shadow: false });
-    F.draw(ctx, 'EACH', IX + 226, hy + 3, th.mid, { shadow: false }); F.draw(ctx, 'TOTAL', IX + 282, hy + 3, th.mid, { shadow: false });
-    ctx.fillStyle = th.lo; ctx.fillRect(IX, hy + 16, IW, 1);
+    const hy = IY + 38;
+    F.draw(ctx, 'ORE', IX, hy + 3, th.mid, { shadow: false });
+    F.draw(ctx, 'QUEUE', IX + 104, hy + 3, th.mid, { shadow: false });
+    F.draw(ctx, 'READY', IX + 150, hy + 3, th.mid, { shadow: false });
+    F.draw(ctx, 'MARKET', IX + 196, hy + 3, th.mid, { shadow: false });
+    F.draw(ctx, 'EACH', IX + 258, hy + 3, th.mid, { shadow: false });
+    F.draw(ctx, 'TOTAL', IX + 300, hy + 3, th.mid, { shadow: false });
+    ctx.fillStyle = th.lo; ctx.fillRect(IX, hy + 13, IW, 1);
 
-    if (!keys.length) Gd.draw(ctx, isRaw ? 'ore' : 'machine', IX + IW / 2 - 7, IY + 70, th.lo, th.lo, 2);
+    if (!keys.length) {
+      Gd.draw(ctx, 'ore', IX + IW / 2 - 14, IY + 92, th.lo, th.lo, 2);
+      F.draw(ctx, 'THE HOLD IS EMPTY. GO RUIN SOMETHING.', IX + IW / 2, IY + 122, th.lo, { center: true, shadow: false });
+    }
 
     let total = 0;
-    const maxRows = 8;
-    const appMat = g.appraising();
+    const maxRows = 7;
     for (let i = 0; i < Math.min(keys.length, maxRows); i++) {
-      const k = keys[i], e = entry(k);
-      const ready = isRaw ? (g.save.appr[k] || 0) : g.save.goods[k];
-      const raw = isRaw ? (g.save.vault[k] || 0) : 0;
-      const unit = Math.round(e.cr * (isRaw ? g.saleMult() : g.valueMult()));
+      const k = keys[i], m = D.MAT[k];
+      const ready = g.save.appr[k] || 0;
+      const queued = g.save.vault[k] || 0;
+      const unit = g.priceOf(+k);
       const val = unit * ready;
       total += val;
-      const y = IY + 36 + i * 15;
-      const r = row(ctx, IX, y, IW, 14, th);
-      ctx.fillStyle = e.c[1]; ctx.fillRect(IX + 3, y + 3, 8, 8); ctx.fillStyle = e.c[0]; ctx.fillRect(IX + 3, y + 3, 8, 3);
-      if (!isRaw) { ctx.fillStyle = '#ffffff'; ctx.fillRect(IX + 6, y + 6, 2, 2); }
-      F.draw(ctx, (isRaw ? D.MAT[k].name : (D.goodFromKey(k) || { name: D.MAT[+k.slice(4)].name }).name).toUpperCase().slice(0, 14), IX + 14, y + 4, th.hi, { shadow: false });
-      if (isRaw) {
-        // raw count + the appraisal bar for the lot being valued
-        F.draw(ctx, String(raw), IX + 120, y + 4, raw ? '#ffb03d' : th.lo, { shadow: false });
-        if (+k === appMat) { ctx.fillStyle = th.lo; ctx.fillRect(IX + 138, y + 5, 26, 4); ctx.fillStyle = '#ffb03d'; ctx.fillRect(IX + 138, y + 5, Math.round(26 * g.apprFrac()), 4); }
-      }
-      F.draw(ctx, String(ready), IX + 170, y + 4, ready ? th.hi : th.lo, { shadow: false });
-      F.draw(ctx, U.fmt(unit), IX + 226, y + 4, th.mid, { shadow: false });
-      F.draw(ctx, U.fmt(val), IX + 282, y + 4, ready ? th.hi : th.lo, { shadow: false });
-      // sell keys: one / all, as glyphs
-      const sx = IX + IW - 66;
-      if (key(ctx, sx, y, 30, 14, '1', th, { enabled: ready > 0 })) (isRaw ? g.sellFromVault(+k, 1) : g.sellGood(k, 1));
-      if (key(ctx, sx + 34, y, 30, 14, 'ALL', th, { enabled: ready > 0 })) (isRaw ? g.sellFromVault(+k, ready) : g.sellGood(k, ready));
-
+      const y = IY + 56 + i * 16;
+      row(ctx, IX, y, IW, 15, th);
+      ctx.fillStyle = m.c[1]; ctx.fillRect(IX + 3, y + 3, 9, 9);
+      ctx.fillStyle = m.c[0]; ctx.fillRect(IX + 3, y + 3, 9, 3);
+      ctx.fillStyle = '#0a0616'; ctx.fillRect(IX + 3, y + 11, 9, 1);
+      F.draw(ctx, m.name.toUpperCase().slice(0, 13), IX + 16, y + 5, th.hi, { shadow: false });
+      F.draw(ctx, queued ? String(queued) : '-', IX + 110, y + 5, queued ? '#ffb03d' : th.lo, { shadow: false });
+      F.draw(ctx, ready ? String(ready) : '-', IX + 156, y + 5, ready ? th.hi : th.lo, { shadow: false });
+      // demand: a little rising or falling bar with a percentage
+      const dm = g.demandFor(+k);
+      const up = (g.demandTrend && g.demandTrend[k] || 0) >= 0;
+      const pct = Math.round((dm - 1) * 100);
+      const col = pct >= 0 ? '#39ffa6' : '#ff6b8a';
+      ctx.fillStyle = th.lo; ctx.fillRect(IX + 196, y + 6, 30, 5);
+      ctx.fillStyle = col; ctx.fillRect(IX + 196, y + 6, Math.round(30 * U.clamp((dm - 0.78) / 0.5, 0.05, 1)), 5);
+      F.draw(ctx, (pct >= 0 ? '+' : '') + pct + '%', IX + 230, y + 5, col, { shadow: false });
+      Gd.draw(ctx, up ? 'arrowU' : 'arrowD', IX + 244, y + 2, col, 'rgba(0,0,0,0)');
+      F.draw(ctx, U.fmt(unit), IX + 258, y + 5, th.mid, { shadow: false });
+      F.draw(ctx, U.fmt(val), IX + 300, y + 5, ready ? th.hi : th.lo, { shadow: false });
+      const sx = IX + IW - 62;
+      if (key(ctx, sx, y, 26, 15, '1', th, { enabled: ready > 0 })) g.sellFromVault(+k, 1);
+      if (key(ctx, sx + 30, y, 30, 15, 'ALL', th, { enabled: ready > 0 })) g.sellFromVault(+k, ready);
     }
-    for (let i = maxRows; i < keys.length; i++) total += Math.round(entry(keys[i]).cr * (isRaw ? g.saleMult() : g.valueMult())) * (isRaw ? (g.save.appr[keys[i]] || 0) : g.save.goods[keys[i]]);
+    for (let i = maxRows; i < keys.length; i++) total += g.priceOf(+keys[i]) * (g.save.appr[keys[i]] || 0);
 
-    ctx.fillStyle = th.lo; ctx.fillRect(IX, IY + IH - 24, IW, 1);
-    Gd.stat(ctx, 'coin', U.fmt(total), IX, IY + IH - 18, '#ffd34d', '#b8860b', th.hi);
-    if (key(ctx, IX + IW - 72, IY + IH - 20, 70, 16, '', th, { enabled: total > 0 })) { if (isRaw) g.sellAll(); else g.sellAllGoods(); }
-    F.draw(ctx, 'SELL ALL', IX + IW - 37, IY + IH - 16, total ? '#ffffff' : '#3a3030', { center: true, shadow: false });
+    /* ---- the till. */
+    ctx.fillStyle = th.lo; ctx.fillRect(IX, IY + IH - 26, IW, 1);
+    Gd.draw(ctx, 'coin', IX, IY + IH - 21, '#ffd34d', '#b8860b');
+    F.draw(ctx, '$' + U.fmt(total), IX + 18, IY + IH - 22, total ? '#ffd34d' : th.lo, { shadow: false, scale: 2 });
+    const bw = 96, bx = IX + IW - bw, by = IY + IH - 24;
+    const hot = total > 0;
+    ctx.fillStyle = hot ? (Math.sin(t * 5) > 0 ? '#39ffa6' : '#2ad48a') : '#12281f';
+    ctx.fillRect(bx, by, bw, 20);
+    ctx.strokeStyle = hot ? '#d6ffe9' : th.lo;
+    ctx.strokeRect(bx + 0.5, by + 0.5, bw - 1, 19);
+    F.draw(ctx, 'SELL EVERYTHING', bx + bw / 2, by + 7, hot ? '#05170e' : '#2c4a3c', { center: true, shadow: false });
+    const mo = PD.input.mouse;
+    if (hot && mo.inside && mo.leftPressed && mo.x >= bx && mo.x < bx + bw && mo.y >= by && mo.y < by + 20) g.sellAll();
   }
+
 
   /* ------------------------------------------------------------ fabricator */
-  function appFab(ctx, g, th, t) {
-    const list = D.UPGRADES;
-    const perPage = 6;
-    const page = U.clamp(state.scroll, 0, Math.max(0, Math.ceil(list.length / perPage) - 1));
-    state.scroll = page;
-
-    F.draw(ctx, 'MODULE                     STATE        COST', IX, IY, th.mid, { shadow: false });
-    ctx.fillStyle = th.lo; ctx.fillRect(IX, IY + 9, IW, 1);
-
-    for (let i = 0; i < perPage; i++) {
-      const idx = page * perPage + i;
-      if (idx >= list.length) break;
-      const u = list[idx];
-      const lvl = g.save.upg[u.id] || 0;
-      const maxed = lvl >= u.max;
-      const cost = D.upgradeCost(u, lvl);
-      const rec = maxed ? [] : D.recipe(u, lvl);
-      const haveAll = rec.every(r => (g.save.vault[r.mat] || 0) >= r.qty);
-      const canAfford = g.save.credits >= cost && haveAll;
-      const y = IY + 14 + i * 26;
-
-      const r = row(ctx, IX, y, IW, 25, th, { active: state.sel === idx });
-      if (r.clicked) state.sel = idx;
-
-      ctx.drawImage(PD.art.ICON[u.icon], IX + 2, y + 4);
-      F.draw(ctx, u.name, IX + 20, y + 3, maxed ? th.mid : th.hi, { shadow: false });
-      F.draw(ctx, u.show(lvl), IX + 20, y + 14, th.mid, { shadow: false });
-      F.draw(ctx, 'LV' + lvl + '/' + u.max, IX + 150, y + 3, th.mid, { shadow: false });
-      bar(ctx, IX + 150, y + 14, 40, 4, lvl / u.max, th);
-
-      if (maxed) {
-        F.draw(ctx, 'MAXED', IX + 210, y + 8, th.hi, { shadow: false });
-      } else {
-        // requirement chips: credits then ore
-        F.draw(ctx, '$' + U.fmt(cost), IX + 206, y + 3,
-          g.save.credits >= cost ? th.hi : '#ff5a4d', { shadow: false });
-        let cxp = IX + 206;
-        for (const req of rec) {
-          const have = g.save.vault[req.mat] || 0;
-          const ok = have >= req.qty;
-          const m = D.MAT[req.mat];
-          ctx.fillStyle = m.c[1]; ctx.fillRect(cxp, y + 15, 5, 5);
-          F.draw(ctx, have + '/' + req.qty, cxp + 7, y + 14, ok ? th.hi : '#ff5a4d', { shadow: false });
-          cxp += 8 + F.width(have + '/' + req.qty, 1) + 6;
-        }
-        if (key(ctx, IX + IW - 62, y + 5, 60, 15, 'FABRICATE', th, { enabled: canAfford })) g.fabricate(u.id);
-      }
-      if (r.hover) state.tip = u.blurb.toUpperCase();
-    }
-
-    const pages = Math.ceil(list.length / perPage);
-    if (key(ctx, IX, IY + IH - 16, 46, 14, '< PREV', th, { enabled: page > 0 })) state.scroll--;
-    if (key(ctx, IX + 50, IY + IH - 16, 46, 14, 'NEXT >', th, { enabled: page < pages - 1 })) state.scroll++;
-    F.draw(ctx, 'PAGE ' + (page + 1) + '/' + pages, IX + 104, IY + IH - 13, th.mid, { shadow: false });
-  }
-
-  /* -------------------------------------------------------------- drone bay */
-  function appBay(ctx, g, th, t) {
-    const n = g.save.upg.drones || 0;
-    const yieldLv = g.save.upg.droneyield || 0;
-    F.draw(ctx, 'AUTONOMOUS SALVAGE SWARM', IX, IY, th.hi, { shadow: false });
-    F.draw(ctx, 'THEY STRIP THE RUBBLE WHILE YOU FLY.', IX, IY + 11, th.mid, { shadow: false });
-
-    // live swarm readout
-    const spr = PD.art.sprites.drone;
-    for (let i = 0; i < Math.min(n, 24); i++) {
-      const col = i % 12, rw = (i / 12) | 0;
-      const bob = Math.sin(t * 3 + i) * 2;
-      ctx.drawImage(spr.frames[(Math.floor(t * 10) + i) % 2],
-        IX + col * 17, IY + 26 + rw * 16 + bob | 0);
-    }
-    if (n === 0) F.draw(ctx, 'NO UNITS DEPLOYED.', IX, IY + 30, '#ff5a4d', { shadow: false });
-    if (n > 24) F.draw(ctx, '+' + (n - 24) + ' MORE IN THE RACKS', IX, IY + 58, th.mid, { shadow: false });
-
-    const boxY = IY + 74;
-    ctx.fillStyle = th.lo; ctx.fillRect(IX, boxY, IW, 1);
-    F.draw(ctx, 'UNITS', IX, boxY + 8, th.mid, { shadow: false });
-    F.draw(ctx, String(n), IX + 60, boxY + 8, th.hi, { shadow: false });
-    F.draw(ctx, 'YIELD', IX, boxY + 20, th.mid, { shadow: false });
-    F.draw(ctx, 'X' + (1 + yieldLv * 0.55).toFixed(2), IX + 60, boxY + 20, th.hi, { shadow: false });
-    F.draw(ctx, 'INCOME', IX, boxY + 32, th.mid, { shadow: false });
-    F.draw(ctx, '$' + U.fmt(g.droneIncome()) + ' /SEC', IX + 60, boxY + 32, th.hi, { shadow: false });
-    F.draw(ctx, '$' + U.fmt(g.droneIncome() * 60) + ' /MIN', IX + 150, boxY + 32, th.mid, { shadow: false });
-
-    const mk = (id, label, y) => {
-      const u = D.UPG[id];
-      const lvl = g.save.upg[id] || 0;
-      const cost = D.upgradeCost(u, lvl);
-      const rec = D.recipe(u, lvl);
-      const haveAll = rec.every(r => (g.save.vault[r.mat] || 0) >= r.qty);
-      const ok = lvl < u.max && g.save.credits >= cost && haveAll;
-      F.draw(ctx, label, IX + 200, y, th.mid, { shadow: false });
-      let cxp = IX + 200;
-      F.draw(ctx, '$' + U.fmt(cost), cxp, y + 10, g.save.credits >= cost ? th.hi : '#ff5a4d', { shadow: false });
-      cxp += F.width('$' + U.fmt(cost), 1) + 8;
-      for (const req of rec) {
-        const have = g.save.vault[req.mat] || 0;
-        ctx.fillStyle = D.MAT[req.mat].c[1]; ctx.fillRect(cxp, y + 11, 5, 5);
-        F.draw(ctx, have + '/' + req.qty, cxp + 7, y + 10, have >= req.qty ? th.hi : '#ff5a4d', { shadow: false });
-        cxp += 8 + F.width(have + '/' + req.qty, 1) + 5;
-      }
-      if (key(ctx, IX + IW - 62, y, 60, 15, lvl >= u.max ? 'MAXED' : 'BUILD', th, { enabled: ok })) g.fabricate(id);
-    };
-    mk('drones', 'ADD DRONE UNIT', boxY + 4);
-    mk('droneyield', 'UPGRADE CLAWS', boxY + 30);
-  }
-
-  /* ---------------------------------------------------------------- vanity */
-  function appVanity(ctx, g, th, t) {
-    const cats = D.COSMETICS;
-    state.cat = U.clamp(state.cat, 0, cats.length - 1);
-    for (let i = 0; i < cats.length; i++) {
-      if (key(ctx, IX + i * 86, IY, 82, 14, cats[i].name, th, { enabled: true })) { state.cat = i; A.sfx.click(); }
-      if (state.cat === i) { ctx.fillStyle = th.hi; ctx.fillRect(IX + i * 86, IY + 14, 82, 1); }
-    }
-    const cat = cats[state.cat];
-    F.draw(ctx, cat.blurb, IX, IY + 20, th.mid, { shadow: false });
-
-    for (let i = 0; i < cat.options.length; i++) {
-      const o = cat.options[i];
-      const y = IY + 30 + i * 14;
-      const owned = o.cost === 0 || (g.save.owned[cat.id] || {})[o.id];
-      const worn = (g.save.cos[cat.id] || cat.options[0].id) === o.id;
-      const r = row(ctx, IX, y, IW - 116, 13, th, { active: worn });
-      for (let k = 0; k < 3; k++) { ctx.fillStyle = o.c[k]; ctx.fillRect(IX + 2 + k * 7, y + 3, 6, 7); }
-      F.draw(ctx, o.name, IX + 26, y + 3, worn ? '#ffffff' : th.hi, { shadow: false });
-      if (worn) F.draw(ctx, 'WORN', IX + 158, y + 3, th.hi, { shadow: false });
-      else if (owned) F.draw(ctx, 'OWNED', IX + 158, y + 3, th.mid, { shadow: false });
-      else F.draw(ctx, '$' + U.fmt(o.cost), IX + 158, y + 3, g.save.credits >= o.cost ? th.hi : '#ff5a4d', { shadow: false });
-      if (r.clicked) {
-        if (owned) g.equipCosmetic(cat.id, o.id);
-        else g.buyCosmetic(cat.id, o.id);
-      }
-    }
-
-    // live mannequin
-    const skin = PD.art.skinFor(g.save.cos);
-    const bx = IX + IW - 50, by = IY + 88;
-    ctx.fillStyle = th.lo; ctx.fillRect(bx - 34, by - 68, 72, 104);
-    ctx.strokeStyle = th.mid; ctx.strokeRect(bx - 33.5, by - 67.5, 71, 103);
-    for (let i = 0; i < 6; i++) { ctx.fillStyle = th.mid; ctx.fillRect(bx - 32, by - 66 + i * 17, 68, 1); }
-    const al = skin.alien, dr = skin.drill;
-    ctx.save();
-    ctx.translate(bx, by + Math.sin(t * 2) * 2);
-    ctx.rotate(0.5);
-    ctx.drawImage(dr.frames[Math.floor(t * 10) % dr.frames.length], -dr.ox * 1.4 | 0, -dr.oy * 1.4 | 0, dr.w * 1.4, dr.h * 1.4);
-    ctx.restore();
-    ctx.drawImage(al.frames[0], 0, 0, al.w, al.h,
-      bx - al.ox * 1.6 | 0, by + Math.sin(t * 2) * 2 - al.oy * 1.6 | 0, al.w * 1.6, al.h * 1.6);
-    F.draw(ctx, 'PREVIEW', bx, by + 40, th.mid, { center: true, shadow: false });
-
-    // the dossier: who the galaxy thinks you are now
-    const dy = IY + 126;
-    ctx.fillStyle = th.lo; ctx.fillRect(IX, dy, IW - 108, 1);
-    F.draw(ctx, 'GALACTIC DOSSIER', IX, dy + 6, th.hi, { shadow: false });
-    F.draw(ctx, 'KNOWN AS', IX, dy + 20, th.mid, { shadow: false });
-    F.draw(ctx, D.titleFor(g.save.dominion), IX + 78, dy + 20, '#ffffff', { shadow: false });
-    F.draw(ctx, 'BOUNTY', IX, dy + 31, th.mid, { shadow: false });
-    F.draw(ctx, '$' + U.fmt(D.bountyFor(g.save)), IX + 78, dy + 31, '#ff5a4d', { shadow: false });
-    F.draw(ctx, 'WORLDS ENDED', IX, dy + 42, th.mid, { shadow: false });
-    F.draw(ctx, String(g.save.destroyed.filter(Boolean).length), IX + 78, dy + 42, th.hi, { shadow: false });
-    F.draw(ctx, 'GALAXY HELD', IX, dy + 53, th.mid, { shadow: false });
-    F.draw(ctx, g.save.dominion.toFixed(1) + '%', IX + 78, dy + 53, th.hi, { shadow: false });
-    bar(ctx, IX + 120, dy + 54, 96, 5, g.save.dominion / 100, th);
-  }
-
-  /* ------------------------------------------------------------------- nav */
-  function appNav(ctx, g, th, t) {
-    F.draw(ctx, 'WORLD', IX, IY, th.mid, { shadow: false }); F.draw(ctx, 'GRAV', IX + 222, IY, th.mid, { shadow: false }); F.draw(ctx, 'BOUNTY', IX + 254, IY, th.mid, { shadow: false }); F.draw(ctx, 'DIVE', IX + IW - 36, IY, th.mid, { shadow: false });
-    ctx.fillStyle = th.lo; ctx.fillRect(IX, IY + 9, IW, 1);
-    for (let i = 0; i < D.BODIES.length; i++) {
-      const b = D.BODIES[i];
-      const y = IY + 14 + i * 14;
-      const unlocked = i <= g.save.unlocked;
-      const done = g.save.destroyed[i];
-      const here = i === g.bodyIndex;
-      const r = row(ctx, IX, y, IW, 13, th, { active: here, enabled: unlocked });
-
-      // a tiny live rendering of the target
-      const moon = g.navIcon(i);
-      if (unlocked && moon) ctx.drawImage(moon, 0, 0, moon.width, moon.height, IX + 2, y + 1, 11, 11);
-      else { ctx.fillStyle = th.lo; ctx.fillRect(IX + 3, y + 3, 9, 9); }
-
-      F.draw(ctx, unlocked ? b.name : '???', IX + 16, y + 4, unlocked ? (done ? th.mid : th.hi) : th.lo, { shadow: false });
-      F.draw(ctx, unlocked ? String(b.gravity) : '--', IX + 226, y + 4, th.mid, { shadow: false });
-      if (done) PD.glyph.draw(ctx, 'check', IX + 254, y - 1, th.mid, th.lo);
-      else if (unlocked) F.draw(ctx, U.fmt(b.reward), IX + 254, y + 4, th.hi, { shadow: false });
-      else PD.glyph.draw(ctx, 'lock', IX + 254, y - 1, th.lo, th.lo);
-      if (here) F.draw(ctx, 'HERE', IX + IW - 24, y + 4, '#ffffff', { center: true, shadow: false });
-      else if (unlocked) {
-        if (key(ctx, IX + IW - 44, y, 42, 13, 'DIVE', th)) g.travelTo(i);
-      }
-      if (r.hover && unlocked) { state.tip = b.blurb.toUpperCase(); state.sel = i; }
-    }
-
-    // survey panel for whichever world is selected
-    const sel = D.BODIES[U.clamp(state.sel, 0, g.save.unlocked)];
-    const py = IY + 14 + D.BODIES.length * 14 + 4;
-    ctx.fillStyle = th.lo; ctx.fillRect(IX, py, IW, 1);
-    F.draw(ctx, sel.name, IX, py + 4, th.hi, { shadow: false });
-    let sx2 = IX + 150;
-    sx2 += PD.glyph.stat(ctx, 'planet', sel.radius, sx2, py, th.mid, th.lo) + 10;
-    sx2 += PD.glyph.stat(ctx, 'weight', sel.gravity, sx2, py, th.mid, th.lo) + 10;
-    sx2 += PD.glyph.stat(ctx, 'skull', Math.round(sel.enemyRate * 100) + '%', sx2, py, th.mid, th.lo) + 10;
-    PD.glyph.stat(ctx, 'star', U.fmt(sel.reward), sx2, py, '#ffd34d', '#b8860b');
-    // one stacked bar for the ore signature, with a legend underneath
-    const tw = sel.ores.reduce((n, o) => n + o[1], 0);
-    const sorted = sel.ores.slice().sort((a, b) => b[1] - a[1]);
-    let ox2 = IX;
-    for (const [mid, wt] of sorted) {
-      const wpx = Math.max(2, Math.round(wt / tw * IW));
-      ctx.fillStyle = D.MAT[mid].c[1];
-      ctx.fillRect(ox2, py + 14, wpx, 7);
-      ctx.fillStyle = D.MAT[mid].c[0];
-      ctx.fillRect(ox2, py + 14, wpx, 2);
-      ox2 += wpx;
-    }
-    for (let i = 0; i < Math.min(6, sorted.length); i++) {
-      const m = D.MAT[sorted[i][0]];
-      const lx = IX + i * 62;
-      ctx.fillStyle = m.c[1];
-      ctx.fillRect(lx, py + 25, 5, 5);
-      F.draw(ctx, Math.round(sorted[i][1] / tw * 100) + '%', lx + 8, py + 24, th.mid, { shadow: false });
-    }
-  }
-
-  const APPS = { market: appMarket, fab: appFab, bay: appBay, vanity: appVanity, nav: appNav,
-    refinery: (ctx, g, th, t) => PD.factory.app(ctx, g, th, t),
-    skills: (ctx, g, th, t) => PD.skilltree.app(ctx, g, th, t) };
+  const APPS = { market: appMarket, skills: (ctx, g, th, t) => PD.skilltree.app(ctx, g, th, t) };
 
   /* ------------------------------------------------------------------ draw */
   function draw(ctx, g, dt) {
@@ -508,17 +305,33 @@
     // status line + disconnect
     if (state.tip) {
       if (Array.isArray(state.tip)) { let gx = SX + 6; for (const gname of state.tip) { PD.glyph.draw(ctx, gname, gx, SY + SH - 14, th.hi, th.mid); gx += 16; } }
-      else F.draw(ctx, state.tip, SX + 6, SY + SH - 11, th.mid, { shadow: false });
+      else {
+        ctx.save();
+        ctx.beginPath(); ctx.rect(SX + 6, SY + SH - 14, SW - 88, 12); ctx.clip();
+        F.draw(ctx, state.tip, SX + 6, SY + SH - 11, th.mid, { shadow: false });
+        ctx.restore();
+      }
     } else if (state.msgT > 0) {
       ctx.globalAlpha = U.clamp(state.msgT, 0, 1);
       if (Array.isArray(state.msg)) {
         let gx = SX + 6;
         for (const gname of state.msg) { PD.glyph.draw(ctx, gname, gx, SY + SH - 14, state.msgCol || th.hi, th.mid); gx += 16; }
         if (state.msgNum !== undefined) F.draw(ctx, state.msgNum, gx + 2, SY + SH - 11, state.msgCol || th.hi, { shadow: false });
-      } else F.draw(ctx, state.msg, SX + 6, SY + SH - 11, state.msgCol || th.hi, { shadow: false });
+      } else {
+        ctx.save();
+        ctx.beginPath(); ctx.rect(SX + 6, SY + SH - 14, SW - 88, 12); ctx.clip();
+        F.draw(ctx, state.msg, SX + 6, SY + SH - 11, state.msgCol || th.hi, { shadow: false });
+        ctx.restore();
+      }
       ctx.globalAlpha = 1;
     } else {
+      // clipped so a long tip never runs under the CLOSE key
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(SX + 6, SY + SH - 14, SW - 88, 12);
+      ctx.clip();
       F.draw(ctx, FOOT[state.app] || 'LINK STABLE', SX + 6, SY + SH - 11, th.mid, { shadow: false });
+      ctx.restore();
     }
     if (key(ctx, SX + SW - 74, SY + SH - 13, 70, 11, 'CLOSE  [ESC]', th)) close();
 

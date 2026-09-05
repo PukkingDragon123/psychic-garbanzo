@@ -12,45 +12,128 @@
   const MARGIN = 14;         // tiles of space either side
 
   /* ------------------------------------------------------------ tile atlases */
-  const atlas = {};          // matId -> [canvas x4]
-  const edgeCache = {};      // matId -> highlight strip canvas
   let crackCv = null;
 
-  function buildAtlas() {
-    for (const m of D.MAT) {
-      if (m.id === 0) continue;
-      const variants = [];
-      for (let v = 0; v < 4; v++) {
-        const cv = document.createElement('canvas');
-        cv.width = TILE; cv.height = TILE;
-        const c = cv.getContext('2d');
-        c.fillStyle = m.c[1];
-        c.fillRect(0, 0, TILE, TILE);
-        // speckle the tile so large rock faces do not look flat
-        for (let i = 0; i < 7; i++) {
-          const h = U.hash2(v * 31 + i, m.id * 17 + i * 3);
-          const x = Math.floor(h * TILE);
-          const y = Math.floor(U.hash2(m.id + i * 7, v * 13 + 5) * TILE);
-          const s = h > 0.72 ? 2 : 1;
-          c.fillStyle = h > 0.5 ? m.c[0] : m.c[2];
-          c.globalAlpha = 0.55;
-          c.fillRect(x, y, s, s);
-        }
-        c.globalAlpha = 1;
-        variants.push(cv);
+  /* Rounded tile shapes. Every convex corner (both of its neighbours empty)
+     is cut with a real arc, so stair-stepped rock reads as a rolling blob
+     instead of graph paper. 16 neighbour masks x 2 speckle variants, built
+     on demand and cached. */
+  const shapeCache = new Map();
+  const R = 5;                 // corner radius on a 10px tile: a lone tile is a ball
+
+  function tilePath(c, mask, v) {
+    const up = mask & 1, rt = mask & 2, dn = mask & 4, lf = mask & 8;
+    // open faces bow in or out a touch, and neighbouring tiles pick different
+    // bows, so a long rock face stops being a ruler-straight line
+    const bow = ((v === undefined ? 0 : v) - 1.5) * 0.9;
+    const B = (open, x0, y0, x1, y1, nx, ny) => {
+      if (open) c.quadraticCurveTo((x0 + x1) / 2 + nx * bow, (y0 + y1) / 2 + ny * bow, x1, y1);
+      else c.lineTo(x1, y1);
+    };
+    const tl = (!up && !lf) ? R : 0;
+    const tr = (!up && !rt) ? R : 0;
+    const br = (!dn && !rt) ? R : 0;
+    const bl = (!dn && !lf) ? R : 0;
+    const T = TILE;
+    c.beginPath();
+    c.moveTo(tl, 0);
+    B(!up, tl, 0, T - tr, 0, 0, -1);
+    if (tr) c.arcTo(T, 0, T, tr, tr); else c.lineTo(T, 0);
+    B(!rt, T, tr, T, T - br, 1, 0);
+    if (br) c.arcTo(T, T, T - br, T, br); else c.lineTo(T, T);
+    B(!dn, T - br, T, bl, T, 0, 1);
+    if (bl) c.arcTo(0, T, 0, T - bl, bl); else c.lineTo(0, T);
+    B(!lf, 0, T - bl, 0, tl, -1, 0);
+    if (tl) c.arcTo(0, 0, tl, 0, tl); else c.lineTo(0, 0);
+    c.closePath();
+  }
+
+  /* Three cached layers make rock read as rock instead of a tile grid:
+       1. a base shell in the depth band's own colour, cut to the solid mask
+       2. the material's blob, cut to a mask of *same-material* neighbours, so
+          an iron seam is a rounded vein rather than a run of squares
+       3. lighting and the dark rim, drawn only on tiles that face open space */
+  function cut(key, mask, v, paint) {
+    let cv = shapeCache.get(key);
+    if (cv) return cv;
+    cv = document.createElement('canvas');
+    cv.width = TILE; cv.height = TILE;
+    const c = cv.getContext('2d');
+    tilePath(c, mask, v);
+    c.save();
+    c.clip();
+    paint(c);
+    c.restore();
+    shapeCache.set(key, cv);
+    return cv;
+  }
+
+  function baseShape(tint, mask, v) {
+    return cut('b' + tint + mask + v, mask, v, c => {
+      c.fillStyle = tint;
+      c.fillRect(0, 0, TILE, TILE);
+      c.fillStyle = 'rgba(255,255,255,0.05)';
+      c.fillRect(0, 0, TILE, 3);
+    });
+  }
+
+  function matShape(matId, mask, v) {
+    const m = D.MAT[matId];
+    return cut('m' + matId + '_' + mask + '_' + v, mask, v, c => {
+      c.fillStyle = m.c[1];
+      c.fillRect(0, 0, TILE, TILE);
+      for (let i = 0; i < 7; i++) {
+        const h = U.hash2(v * 31 + i, matId * 17 + i * 3);
+        const x = Math.floor(h * TILE);
+        const y = Math.floor(U.hash2(matId + i * 7, v * 13 + 5) * TILE);
+        c.fillStyle = h > 0.5 ? m.c[0] : m.c[2];
+        c.globalAlpha = 0.5;
+        c.fillRect(x, y, h > 0.72 ? 2 : 1, 1);
       }
-      atlas[m.id] = variants;
+      c.globalAlpha = 1;
+    });
+  }
 
-      const e = document.createElement('canvas');
-      e.width = TILE; e.height = 3;
-      const ec = e.getContext('2d');
-      ec.fillStyle = m.c[0];
-      ec.fillRect(0, 0, TILE, 2);
-      ec.globalAlpha = 0.5;
-      ec.fillRect(0, 2, TILE, 1);
-      edgeCache[m.id] = e;
+  /* Colour-free: works over any material underneath. */
+  function lightShape(mask, v) {
+    const key = 'l' + mask + '_' + v;
+    let cv = shapeCache.get(key);
+    if (cv) return cv;
+    cv = document.createElement('canvas');
+    cv.width = TILE; cv.height = TILE;
+    const c = cv.getContext('2d');
+    c.save();
+    tilePath(c, mask, v);
+    c.clip();
+    if (!(mask & 1)) { c.fillStyle = 'rgba(255,255,255,0.3)'; c.fillRect(0, 0, TILE, 2); c.fillStyle = 'rgba(255,255,255,0.13)'; c.fillRect(0, 2, TILE, 1); }
+    if (!(mask & 4)) { c.fillStyle = 'rgba(8,4,18,0.42)'; c.fillRect(0, TILE - 3, TILE, 3); }
+    if (!(mask & 8)) { c.fillStyle = 'rgba(255,255,255,0.14)'; c.fillRect(0, 0, 1, TILE); }
+    if (!(mask & 2)) { c.fillStyle = 'rgba(8,4,18,0.3)'; c.fillRect(TILE - 1, 0, 1, TILE); }
+    c.restore();
+    // dark cartoon rim, only along the sides that face open space
+    const sides = [
+      [!(mask & 1), 0, 0, TILE, 3],
+      [!(mask & 2), TILE - 3, 0, 3, TILE],
+      [!(mask & 4), 0, TILE - 3, TILE, 3],
+      [!(mask & 8), 0, 0, 3, TILE]
+    ];
+    for (const sd of sides) {
+      if (!sd[0]) continue;
+      c.save();
+      c.beginPath();
+      c.rect(sd[1], sd[2], sd[3], sd[4]);
+      c.clip();
+      c.strokeStyle = 'rgba(10,5,20,0.5)';
+      c.lineWidth = 2;
+      tilePath(c, mask, v);
+      c.stroke();
+      c.restore();
     }
+    shapeCache.set(key, cv);
+    return cv;
+  }
 
+  function buildAtlas() {
     crackCv = [];
     for (let stage = 0; stage < 3; stage++) {
       const cv = document.createElement('canvas');
@@ -618,7 +701,7 @@
         if (!m) continue;
         any = true;
         const v = (U.hash2(cx + i, cy + j) * 4) | 0;
-        c.drawImage(atlas[m][v], i * TILE, j * TILE);
+        c.drawImage(matShape(m, 15, v), i * TILE, j * TILE);
       }
     }
     if (!any) return null;
@@ -734,34 +817,36 @@
         if (m === PD.data.M.lava) { this.drawLavaTile(ctx, sx, sy, cx, cy, time); this.glows.push(sx + 5, sy + 5, 26, 0); continue; }
         if (D.MAT[m].glow && this.glows.length < 200) this.glows.push(sx + 5, sy + 5, D.MAT[m].glowR || 16, m);
 
-        const v = (U.hash2(cx, cy) * 4) | 0;
-        ctx.drawImage(atlas[m][v], sx, sy);
-
         const up = cy > 0 ? this.cells[i - this.w] : 1;
         const dn = cy < this.h - 1 ? this.cells[i + this.w] : 1;
         const lf = cx > 0 ? this.cells[i - 1] : 1;
         const rt = cx < this.w - 1 ? this.cells[i + 1] : 1;
-
-        // lit top face
-        if (!up) ctx.drawImage(edgeCache[m], sx, sy);
-        // shadowed underside
-        if (!dn) {
-          ctx.fillStyle = 'rgba(8,4,18,0.4)';
-          ctx.fillRect(sx, sy + TILE - 2, TILE, 2);
-        }
-        // rim light down exposed flanks gives the rock real thickness
+        const mask = (up ? 1 : 0) | (rt ? 2 : 0) | (dn ? 4 : 0) | (lf ? 8 : 0);
+        const v = (U.hash2(cx, cy) * 4) | 0;
         const mm2 = D.MAT[m];
-        if (!lf) { ctx.fillStyle = mm2.c[0]; ctx.globalAlpha = 0.5; ctx.fillRect(sx, sy, 1, TILE); ctx.globalAlpha = 1; }
-        if (!rt) { ctx.fillStyle = mm2.c[2]; ctx.globalAlpha = 0.7; ctx.fillRect(sx + TILE - 1, sy, 1, TILE); ctx.globalAlpha = 1; }
 
-        // chamfer convex corners so the terrain stops reading as graph paper
-        ctx.fillStyle = mm2.c[2];
-        ctx.globalAlpha = 0.85;
-        if (!up && !lf) { ctx.fillRect(sx, sy, 2, 1); ctx.fillRect(sx, sy + 1, 1, 1); }
-        if (!up && !rt) { ctx.fillRect(sx + TILE - 2, sy, 2, 1); ctx.fillRect(sx + TILE - 1, sy + 1, 1, 1); }
-        if (!dn && !lf) { ctx.fillRect(sx, sy + TILE - 1, 2, 1); ctx.fillRect(sx, sy + TILE - 2, 1, 1); }
-        if (!dn && !rt) { ctx.fillRect(sx + TILE - 2, sy + TILE - 1, 2, 1); ctx.fillRect(sx + TILE - 1, sy + TILE - 2, 1, 1); }
-        ctx.globalAlpha = 1;
+        // 1. the band's own rock, so cut corners never show through to space
+        ctx.drawImage(baseShape(this.strata[this.stratum[i]].tint, mask, v), sx, sy);
+        // 2. this material as a blob against its own kind
+        const mmask = (up === m ? 1 : 0) | (rt === m ? 2 : 0) | (dn === m ? 4 : 0) | (lf === m ? 8 : 0);
+        ctx.drawImage(matShape(m, mmask, v), sx, sy);
+        // 3. light and rim, only where the tile faces open space
+        if (mask !== 15) ctx.drawImage(lightShape(mask, v), sx, sy);
+
+        // rolling soil lip along any open surface: the ground line waves
+        if (!up) {
+          const hL = (U.hash2(cx, cy * 3) - 0.5) * 3.4;
+          const hR = (U.hash2(cx + 1, cy * 3) - 0.5) * 3.4;
+          const hM = (U.hash2(cx * 2 + 7, cy) - 0.5) * 5;
+          ctx.fillStyle = mm2.c[0];
+          ctx.beginPath();
+          ctx.moveTo(sx, sy + hL);
+          ctx.quadraticCurveTo(sx + TILE / 2, sy + hM - 1, sx + TILE, sy + hR);
+          ctx.lineTo(sx + TILE, sy + 3.5);
+          ctx.lineTo(sx, sy + 3.5);
+          ctx.closePath();
+          ctx.fill();
+        }
 
         const mm = mm2;
         if (mm.shine) {
@@ -800,6 +885,49 @@
   /* The core reads as one molten orb rather than a stack of flat tiles:
      each tile is shaded by its distance from the core centre. */
   /* Magma: a slow churn of bright cells on a dark crust, with a hot skin. */
+  /* Foliage pass. Plants are derived from the cell hash at draw time, so
+     mining a tile takes its garden with it and nothing has to be tracked. */
+  World.prototype.drawFlora = function (ctx, cam, vw, vh, time) {
+    const c0 = Math.max(1, Math.floor(cam.x / TILE));
+    const c1 = Math.min(this.w - 2, Math.ceil((cam.x + vw) / TILE));
+    const r0 = Math.max(1, Math.floor(cam.y / TILE));
+    const r1 = Math.min(this.h - 2, Math.ceil((cam.y + vh) / TILE));
+    const FL = PD.flora;
+    if (!FL) return;
+    for (let cy = r0; cy <= r1; cy++) {
+      for (let cx = c0; cx <= c1; cx++) {
+        const i = cy * this.w + cx;
+        if (this.cells[i]) continue;                 // plants live in open cells
+        const below = this.cells[i + this.w];
+        const above = this.cells[i - this.w];
+        if (!below && !above) continue;
+        const h = U.hash2(cx * 7 + 3, cy * 13 + 11);
+        if (h > 0.14) continue;                       // sparse: a garden, not a lawn
+        // keep neighbours apart so plants never merge into a carpet
+        if (U.hash2(cx * 5 + 1, cy) < 0.5 && this.cells[i + 1] === 0 && U.hash2((cx + 1) * 7 + 3, cy * 13 + 11) < 0.14) continue;
+        if (below && this.cells[i - this.w]) continue;  // needs headroom to grow into
+        const band = this.strata[this.stratum[i]];
+        const list = band && band.flora;
+        if (!list || !list.length) continue;
+        const sx = cx * TILE - cam.x;
+        const sy = cy * TILE - cam.y;
+        const seed = cx * 31 + cy * 17;
+        const kind = list[(U.hash2(cx + 5, cy + 9) * list.length) | 0];
+        const size = 6 + U.hash2(cx * 3, cy * 5) * 7;
+        const jitter = (U.hash2(cx * 11, cy * 2) - 0.5) * 4;
+        if (below) FL.draw(ctx, kind, sx + TILE / 2 + jitter, sy + TILE + 1, size, seed, time, 1);
+        else if (h < 0.07) FL.draw(ctx, hangKind(kind), sx + TILE / 2 + jitter, sy - 1, size * 0.9, seed + 5, time, -1);
+      }
+    }
+  };
+  function hangKind(k) {
+    if (k === 'grass' || k === 'fern' || k === 'frond') return 'vine';
+    if (k === 'shroom' || k === 'moss') return 'tendril';
+    if (k === 'ember' || k === 'coral') return k;
+    if (k === 'bone') return 'root';
+    return k === 'icespike' ? 'icespike' : (k === 'crystal' ? 'crystal' : 'root');
+  }
+
   World.prototype.drawLavaTile = function (ctx, sx, sy, cx, cy, time) {
     const swirl = Math.sin(time * 1.6 + cx * 0.9 + cy * 1.3) * 0.5 + 0.5;
     ctx.fillStyle = swirl > 0.55 ? '#ff7a2a' : '#e0521c';
@@ -839,5 +967,5 @@
     }
   };
 
-  PD.world = { World, TILE, SKY, buildAtlas, atlas };
+  PD.world = { World, TILE, SKY, buildAtlas, matShape };
 })(window.PD);

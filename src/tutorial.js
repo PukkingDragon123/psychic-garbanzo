@@ -11,15 +11,20 @@
   /* Each step: which scene it belongs to, the glyph sentence, and a predicate
      that marks it done. */
   const STEPS = [
-    { scene: 'space', text: 'HOLD TO FLY', say: ['hand', 'arrowR', 'speed'],       done: g => Math.hypot(PD.space.S.scoot.vx, PD.space.S.scoot.vy) > 60 },
-    { scene: 'space', text: 'FLY INTO ORE TO COLLECT IT', say: ['speed', 'arrowR', 'ore', 'cargo'], done: g => g.player.cargoKg > 3 },
-    { scene: 'space', text: 'SHOOT A ROCK  (SPACE)', say: ['gun', 'arrowR', 'rock'],           done: g => PD.space.S.rocks.some(r => r.dead) },
-    { scene: 'space', text: 'OPEN A TIME HOLE HOME  (E)', say: ['cargo', 'arrowR', 'hole', 'home'], done: g => !!PD.space.S.hole },
-    { scene: 'interior', text: 'SELL APPRAISED ORE AT THE EXCHANGE', say: ['hand', 'arrowR', 'sell', 'coin'],   done: g => g.save.totalEarned > 0 },
-    { scene: 'interior', text: 'BUILD A NODE ON THE SKILL LATTICE', say: ['coin', 'arrowR', 'hex', 'up'],      done: g => Object.keys(g.save.upg).some(k => g.save.upg[k] > 0) },
-    { scene: 'interior', text: 'PICK A WORLD AT THE NAV COMPUTER', say: ['planet', 'arrowR', 'drill'],        done: g => g.state === 'play' },
-    { scene: 'play', text: 'HOLD LEFT MOUSE TO DRILL', say: ['hand', 'arrowD', 'drill', 'ore'],       done: g => g.save.totalMined > 8 },
-    { scene: 'play', text: 'AIR LOW? FLY UP TO THE POD (E)', say: ['o2', 'arrowD', 'bang', 'arrowU', 'hole'], done: g => g.player.docked }
+    { scene: 'interior', text: 'WALK TO THE LAB AND BUILD A NODE', say: ['hand', 'arrowR', 'hex'],
+      done: g => Object.keys(g.save.upg).some(k => g.save.upg[k] > 0) },
+    { scene: 'interior', text: 'TAKE THE AIRLOCK TO THE STAR CHART', say: ['hand', 'arrowR', 'planet'],
+      done: g => g.state === 'starmap' },
+    { scene: 'starmap', text: 'PICK A SECTOR, THEN A WORLD, THEN DROP', say: ['planet', 'arrowD', 'drill'],
+      done: g => g.state === 'play' },
+    { scene: 'play', text: 'HOLD LEFT MOUSE TO DRILL THE ROCK', say: ['hand', 'arrowD', 'drill', 'ore'],
+      done: g => g.save.totalMined > 8 },
+    { scene: 'play', text: 'THE WIRE STOPS YOU STRAYING FROM THE POD', say: ['belt', 'arrowR', 'home'],
+      done: g => (g.player.tetherFrac || 0) > 0.55 },
+    { scene: 'play', text: 'HOLD FULL OR AIR LOW? BOARD THE POD  (E)', say: ['cargo', 'arrowR', 'home'],
+      done: g => g.player.docked },
+    { scene: 'interior', text: 'ZAZ VALUES ORE. SELL IT AT THE EXCHANGE', say: ['clock', 'arrowR', 'sell', 'coin'],
+      done: g => g.save.totalEarned > 0 }
   ];
 
   const st = { i: 0, flash: 0, doneT: 0 };
@@ -48,7 +53,7 @@
     const s = current(g);
     if (!s || s.scene !== scene) return;
     const w = Math.max(s.say.length * 20 + 16, F.width(s.text, 1) + 20);
-    const x = VW / 2 - w / 2, y = scene === 'interior' ? 42 : 24;
+    const x = VW / 2 - w / 2, y = scene === 'interior' ? 42 : (scene === 'starmap' ? 44 : 24);
     const done = st.doneT > 0;
     ctx.fillStyle = 'rgba(8,4,18,0.88)';
     ctx.fillRect(x, y, w, 40);

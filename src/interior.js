@@ -11,48 +11,44 @@
   const D = PD.data;
 
   const VW = 480, VH = 270;
-  const ROOM_W = 840, ROOM_H = 270;
+  const ROOM_W = 620, ROOM_H = 270;
   const FLOOR = ROOM_H - 22;
 
   let bg = null;
 
   /* Everything you can walk up to. `app` opens a terminal; `act` runs code. */
   const STATIONS = [
-    { id: 'airlock', x: 52,  spr: 'airlock',    label: 'AIRLOCK',        act: 'launch', glyph: 'speed' },
-    { id: 'market',  x: 160, spr: 'console',    label: 'CARGO EXCHANGE', app: 'market', glyph: 'sell' },
-    { id: 'fab',     x: 300, spr: 'fabricator', label: 'FABRICATOR',     app: 'skills', glyph: 'hex' },
-    { id: 'bay',     x: 440, spr: 'dronebay',   label: 'DRONE BAY',      app: 'bay', glyph: 'drone' },
-    { id: 'refinery', x: 580, spr: 'refinery',  label: 'REFINERY DECK',  app: 'refinery', glyph: 'machine' },
-    { id: 'vanity',  x: 690, spr: 'wardrobe',   label: 'IDENTITY POD',   app: 'vanity', glyph: 'crew' },
-    { id: 'nav',     x: 786, spr: 'navchart',   label: 'NAV COMPUTER',   app: 'nav', glyph: 'planet' }
+    { id: 'airlock',  x: 46,  spr: 'airlock',  label: 'AIRLOCK  -  STAR CHART', act: 'launch', glyph: 'planet' },
+    { id: 'lab',      x: 236, spr: 'labmach',  label: 'THE LAB',      app: 'skills', glyph: 'hex', big: 1 },
+    { id: 'exchange', x: 470, spr: 'exchange', label: 'THE EXCHANGE', app: 'market', glyph: 'sell', big: 1 }
   ];
 
   const CREW = [
-    { id: 'zaz',   x: 118, spr: 'zaz',   label: 'ZAZ',   glyph: 'clock' },
-    { id: 'nix',   x: 216, spr: 'nix',   label: 'NIX',   glyph: 'eye' },
-    { id: 'bolt',  x: 356, spr: 'bolt',  label: 'BOLT',  glyph: 'build' },
-    { id: 'gloop', x: 502, spr: 'gloop', label: 'GLOOP', glyph: 'star' }
+    { id: 'nix',   x: 120, spr: 'nix',   label: 'NIX',   glyph: 'eye' },
+    { id: 'bolt',  x: 320, spr: 'bolt',  label: 'BOLT',  glyph: 'build' },
+    { id: 'zaz',   x: 388, spr: 'zaz',   label: 'ZAZ',   glyph: 'clock' },
+    { id: 'gloop', x: 578, spr: 'gloop', label: 'GLOOP', glyph: 'star' }
   ];
 
   const DECOR = [
-    { x: 100, spr: 'crate', f: 0 }, { x: 396, spr: 'crate', f: 1 },
-    { x: 740, spr: 'plant', f: 0 }, { x: 640, spr: 'crate', f: 0 }, { x: 88, spr: 'plant', f: 0 },
-    { x: 250, spr: 'poster', f: 0, y: 124 }, { x: 470, spr: 'poster', f: 1, y: 122 }, { x: 830, spr: 'poster', f: 0, y: 126 },
-    { x: 160, spr: 'lights', f: 0, y: 108 }, { x: 420, spr: 'lights', f: 0, y: 108 }, { x: 690, spr: 'lights', f: 0, y: 108 }
+    { x: 90, spr: 'crate', f: 0 }, { x: 356, spr: 'crate', f: 1 }, { x: 546, spr: 'crate', f: 0 },
+    { x: 160, spr: 'plant', f: 0 }, { x: 600, spr: 'plant', f: 0 }, { x: 420, spr: 'plant', f: 0 },
+    { x: 150, spr: 'poster', f: 0, y: 124 }, { x: 352, spr: 'poster', f: 1, y: 118 }, { x: 610, spr: 'poster', f: 0, y: 126 },
+    { x: 100, spr: 'lights', f: 0, y: 106 }, { x: 300, spr: 'lights', f: 0, y: 106 }, { x: 500, spr: 'lights', f: 0, y: 106 }
   ];
-  const PET = { x: 600, dir: 1, t: 0 };
+  const PET = { x: 540, dir: 1, t: 0 };
 
   /* Crew barks. They rotate, and they are all enabling you. */
   const LINES = {
     nix: [
-      'Balance updated. I rounded in our favour again.',
+      'Two machines, one deck. I sold the rest for scrap. You are welcome.',
       'Three worlds filed complaints. I filed them in the reactor.',
-      'The wire keeps you close to the pod. Longer reels are on the lattice.',
+      'The chart is through the airlock. Sectors need drives. Drives need money.',
       'You look tired. Statistically, greed is a stimulant.'
     ],
     bolt: [
-      'Rocks in, machines out. That is the whole religion, boss.',
-      'Feed the hoppers and the refinery runs itself. Ingots sell triple.',
+      'The Lab eats ore and credits and spits out better gear. Feed it.',
+      'Purifier node makes every rock you sell worth more. Do that one early.',
       'Every node you build on the lattice, I weld another seam. You are welcome.',
       'Want to dig deeper? Buy wire. Simple as that.'
     ],
@@ -91,7 +87,7 @@
       const f = Math.abs(o.x - P.x) / reach;
       if (f < score) { score = f; best = o; }
     };
-    for (const s of STATIONS) test(s, 30);
+    for (const s of STATIONS) test(s, s.big ? 52 : 30);
     for (const c of CREW) test(c, 20);
     return best;
   }
@@ -123,8 +119,8 @@
       if (IN.mouse.leftPressed && IN.mouse.y > 20) {
         const wx = IN.mouse.x + g.intCam;
         let hitSt = null;
-        for (const st of STATIONS.concat(CREW)) if (Math.abs(st.x - wx) < 34) hitSt = st;
-        P.target = hitSt ? hitSt.x + (hitSt.x > P.x ? -18 : 18) : wx;
+        for (const st of STATIONS.concat(CREW)) if (Math.abs(st.x - wx) < (st.big ? 56 : 30)) hitSt = st;
+        P.target = hitSt ? hitSt.x + (hitSt.x > P.x ? -(hitSt.big ? 56 : 20) : (hitSt.big ? 56 : 20)) : wx;
         P.autoUse = hitSt;
         A.sfx.click();
       }
@@ -186,7 +182,7 @@
     // Sprout the space-cat pads up and down the deck
     PET.t += 1 / 60;
     PET.x += PET.dir * 12 / 60;
-    if (PET.x > 760 || PET.x < 560) PET.dir *= -1;
+    if (PET.x > 596 || PET.x < 420) PET.dir *= -1;
     ctx.save(); ctx.translate((PET.x - cam) | 0, FLOOR + 2); if (PET.dir < 0) ctx.scale(-1, 1);
     const ps = AI.S.sprout; ctx.drawImage(ps.frames[Math.floor(PET.t * 6) % 2], -ps.ox, -ps.oy); ctx.restore();
 
@@ -229,7 +225,7 @@
     // interaction prompt: a hand and the machine's glyph
     if (P.near && !PD.term.app && !PD.dialog.active()) {
       const x = P.near.x - cam;
-      const y = FLOOR - (P.near.spr === 'gloop' ? 44 : 70) + Math.sin(t * 5) * 2;
+      const y = FLOOR - (P.near.big ? 112 : (P.near.spr === 'gloop' ? 44 : 70)) + Math.sin(t * 5) * 2;
       const w = F.width(P.near.label, 1) + 34;
       ctx.fillStyle = 'rgba(8,4,18,0.88)'; ctx.fillRect(x - w / 2, y, w, 16);
       ctx.strokeStyle = '#7ef9ff'; ctx.strokeRect(x - w / 2 + 0.5, y + 0.5, w - 1, 15);

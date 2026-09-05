@@ -58,7 +58,7 @@
       if (lvl > 0) G.hexProgress(ctx, p.x, p.y, R - 4, lvl / u.max, th.hi);
       G.draw(ctx, n.glyph, p.x - 7, p.y - 9, open ? '#f2e9ff' : '#4a4040', open ? th.hi : '#2a2420');
       if (!open) G.draw(ctx, 'lock', p.x - 3, p.y + 1, '#8a7a6a', '#5a4a3a');
-      else F.draw(ctx, String(lvl), p.x, p.y + 5, maxed ? '#ffffff' : th.hi, { center: true, shadow: false });
+      else F.draw(ctx, String(lvl), p.x, p.y + 4, maxed ? '#ffffff' : th.hi, { center: true, shadow: false });
       if (isHover && m.leftPressed) { state.sel = n.id; A.sfx.click(); }
     }
 
@@ -72,20 +72,34 @@
     ctx.fillStyle = th.lo; ctx.fillRect(px, py, pw, Rc.IH - 8);
     ctx.strokeStyle = th.mid; ctx.strokeRect(px + 0.5, py + 0.5, pw - 1, Rc.IH - 9);
     G.draw(ctx, selNode.glyph, px + 6, py + 6, '#ffffff', th.hi, 2);
-    F.draw(ctx, u.show(lvl), px + 40, py + 10, th.hi, { shadow: false });
+    F.draw(ctx, u.name.toUpperCase(), px + 40, py + 6, '#ffffff', { shadow: false });
+    F.draw(ctx, 'LEVEL ' + lvl + ' / ' + u.max, px + 40, py + 18, th.hi, { shadow: false });
     // level pips as small hexes
     for (let k = 0; k < Math.min(u.max, 14); k++) {
       const on = lvl > Math.floor(k * u.max / Math.min(u.max, 14));
-      G.hex(ctx, px + 10 + k * 8, py + 40, 3, on ? th.hi : '#000', th.mid, 1);
+      G.hex(ctx, px + 10 + k * 8, py + 36, 3, on ? th.hi : '#000', th.mid, 1);
     }
+    F.draw(ctx, u.show(lvl), px + 8, py + 46, '#ffd34d', { shadow: false });
+    // what it actually does, wrapped
+    const words = u.blurb.toUpperCase().split(' ');
+    let line = '', ly = py + 58;
+    for (const w of words) {
+      if (F.width(line + ' ' + w, 1) > pw - 16) { F.draw(ctx, line, px + 8, ly, th.mid, { shadow: false }); line = w; ly += 10; }
+      else line = line ? line + ' ' + w : w;
+    }
+    if (line) F.draw(ctx, line, px + 8, ly, th.mid, { shadow: false });
+    const bodyY = ly + 16;
     if (maxed) {
-      G.draw(ctx, 'check', px + pw / 2 - 7, py + 60, th.hi, th.hi);
+      G.draw(ctx, 'check', px + pw / 2 - 7, bodyY + 10, th.hi, th.hi);
+      F.draw(ctx, 'FULLY BUILT', px + pw / 2, bodyY + 26, th.hi, { center: true, shadow: false });
     } else if (!open) {
-      G.draw(ctx, 'lock', px + pw / 2 - 7, py + 60, '#ff5a4d', '#8a2a2a');
+      G.draw(ctx, 'lock', px + pw / 2 - 7, bodyY + 10, '#ff5a4d', '#8a2a2a');
+      F.draw(ctx, 'BUILD A NEIGHBOUR', px + pw / 2, bodyY + 26, '#ff5a4d', { center: true, shadow: false });
+      F.draw(ctx, 'NODE FIRST', px + pw / 2, bodyY + 36, '#ff5a4d', { center: true, shadow: false });
     } else {
       const cost = D.upgradeCost(u, lvl);
       const rec = D.recipe(u, lvl);
-      let yy = py + 52;
+      let yy = bodyY;
       const okC = g.save.credits >= cost;
       G.stat(ctx, 'coin', U.fmt(cost), px + 8, yy, '#ffd34d', '#b8860b', okC ? th.hi : '#ff5a4d');
       yy += 16;
@@ -100,13 +114,17 @@
         yy += 14;
       }
       // the build key: a big hex
-      const bx = px + pw / 2, by = py + Rc.IH - 34;
-      const hot = m.inside && U.dist(m.x, m.y, bx, by) < 16;
-      G.hex(ctx, bx, by, 16, all ? (hot ? th.hi : th.mid) : '#1a1410', all ? '#ffffff' : '#3a3030', 1.5);
-      G.draw(ctx, 'build', bx - 7, by - 7, all ? '#ffffff' : '#4a4040', all ? th.lo : '#2a2420');
+      const bw = pw - 24, bx = px + 12, by = py + Rc.IH - 34;
+      const hot = m.inside && m.x >= bx && m.x < bx + bw && m.y >= by && m.y < by + 22;
+      ctx.fillStyle = all ? (hot ? th.hi : th.mid) : '#1a1410';
+      ctx.fillRect(bx, by, bw, 22);
+      ctx.strokeStyle = all ? '#ffffff' : '#3a3030';
+      ctx.strokeRect(bx + 0.5, by + 0.5, bw - 1, 21);
+      G.draw(ctx, 'build', bx + 6, by + 5, all ? '#ffffff' : '#4a4040', all ? th.lo : '#2a2420');
+      F.draw(ctx, lvl ? 'UPGRADE' : 'BUILD', bx + bw / 2 + 6, by + 8, all ? '#1a1004' : '#4a4040', { center: true, shadow: false });
       if (hot && m.leftPressed && all) g.fabricate(selNode.id);
     }
-    if (hover) PD.term.state.tip = D.UPG[hover.id].blurb.toUpperCase();
+    if (hover) PD.term.state.tip = D.UPG[hover.id].name.toUpperCase() + '  -  ' + D.UPG[hover.id].blurb.toUpperCase();
   }
 
   PD.skilltree = { app, state, available };

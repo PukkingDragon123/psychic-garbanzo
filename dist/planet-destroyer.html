@@ -656,11 +656,58 @@ window.PD = window.PD || {};
     ]
   };
 
+  /* Foliage: what grows on exposed rock in each band. The renderer draws these
+     as real curved shapes -- stems, caps, fronds -- not tiles. */
+  const FLORA = {
+    rock:     [['moss', 'grass'], ['root', 'moss'], ['crystal']],
+    ice:      [['icespike', 'frond'], ['crystal', 'icespike'], ['icespike', 'crystal']],
+    metal:    [['root'], ['root', 'ember'], ['ember', 'crystal']],
+    gem:      [['crystal', 'coral'], ['crystal', 'coral'], ['crystal']],
+    moon:     [['bone', 'moss'], ['bone', 'root'], ['tendril', 'bone']],
+    terra:    [['grass', 'fern', 'frond'], ['shroom', 'moss', 'tendril'], ['crystal', 'coral'], ['ember', 'root'], ['tendril']],
+    volcanic: [['ember', 'root'], ['ember', 'tendril'], ['ember', 'crystal']],
+    titan:    [['crystal', 'coral'], ['crystal', 'tendril'], ['crystal']],
+    core:     [['ember', 'bone'], ['ember', 'tendril'], ['tendril', 'crystal']]
+  };
+  for (const k in STRATA) {
+    const f = FLORA[k] || FLORA.rock;
+    STRATA[k].forEach((band, i) => { band.flora = f[Math.min(i, f.length - 1)]; });
+  }
+
+  /* -------------------------------------------------------------------- zones
+     The galaxy is four sectors. Each one past the first is locked behind a
+     drive you buy outright -- that is the only travel gate in the game. */
+  const ZONES = [
+    {
+      id: 'home', name: 'HOME REACH', sub: 'Cheap rocks, cheap thrills.',
+      star: '#ffd34d', tint: '#8a6a4f', x: 96, y: 178, bodies: [0, 1, 2], drive: null
+    },
+    {
+      id: 'ember', name: 'EMBER BELT', sub: 'Slag, iron and things with teeth.',
+      star: '#ff8a3d', tint: '#c67a3d', x: 196, y: 106, bodies: [3, 4],
+      drive: { name: 'ION SLED', cost: 26000, blurb: 'Burns hot enough to cross the belt.' }
+    },
+    {
+      id: 'rot', name: 'THE ROT', sub: 'Dead moons. Rude fossils.',
+      star: '#7ef9ff', tint: '#b3c4d8', x: 300, y: 182, bodies: [5, 6],
+      drive: { name: 'FOLD COIL', cost: 420000, blurb: 'Folds the gap to the dead worlds.' }
+    },
+    {
+      id: 'core', name: 'CORE DEEP', sub: 'Where the galaxy keeps the good stuff.',
+      star: '#ff5fa8', tint: '#ffc44d', x: 402, y: 96, bodies: [7, 8, 9],
+      drive: { name: 'VOID ANCHOR', cost: 5200000, blurb: 'Grips the throat of the galaxy and pulls.' }
+    }
+  ];
+  function zoneOf(bodyIndex) {
+    for (let i = 0; i < ZONES.length; i++) if (ZONES[i].bodies.indexOf(bodyIndex) >= 0) return i;
+    return 0;
+  }
+
   /* ------------------------------------------------------------------- bodies
      Each entry is one drillable world. Destroy its core to unlock the next. */
   const BODIES = [
     {
-      name: 'Pebble-7', kind: 'Asteroid', type: 'rock', radius: 20, poi: { geode: 1, fossil: 0, ruin: 0 }, gravity: 34, coreHp: 260,
+      name: 'Pebble-7', kind: 'Asteroid', type: 'rock', radius: 30, poi: { geode: 1, fossil: 0, ruin: 0 }, gravity: 34, coreHp: 260,
       reward: 1200, dominion: 0.4, caves: 0.30, enemyRate: 0.22, drillTier: 0,
       sky: '#0b0720', tint: '#8a6a4f',
       blurb: 'A crumb of rock. Warm up the drill.',
@@ -668,7 +715,7 @@ window.PD = window.PD || {};
       mobs: [['crawler', 6], ['floater', 3]]
     },
     {
-      name: 'Rustclod', kind: 'Asteroid', type: 'rock', radius: 27, poi: { geode: 1, fossil: 1, ruin: 0 }, gravity: 40, coreHp: 700,
+      name: 'Rustclod', kind: 'Asteroid', type: 'rock', radius: 40, poi: { geode: 1, fossil: 1, ruin: 0 }, gravity: 40, coreHp: 700,
       reward: 4200, dominion: 0.8, caves: 0.34, enemyRate: 0.3, drillTier: 1,
       sky: '#160a1c', tint: '#9c6a54',
       blurb: 'Iron-fat and full of grubs.',
@@ -676,7 +723,7 @@ window.PD = window.PD || {};
       mobs: [['crawler', 6], ['floater', 4], ['spitter', 2]]
     },
     {
-      name: 'Glacius Minor', kind: 'Ice Shard', type: 'ice', radius: 34, poi: { geode: 2, fossil: 1, ruin: 1 }, gravity: 44, coreHp: 1600,
+      name: 'Glacius Minor', kind: 'Ice Shard', type: 'ice', radius: 52, poi: { geode: 2, fossil: 1, ruin: 1 }, gravity: 44, coreHp: 1600,
       reward: 12000, dominion: 1.4, caves: 0.42, enemyRate: 0.34, drillTier: 2,
       sky: '#061423', tint: '#79c4de',
       blurb: 'Slick, hollow and humming with cold.',
@@ -684,7 +731,7 @@ window.PD = window.PD || {};
       mobs: [['floater', 6], ['crawler', 3], ['spitter', 3]]
     },
     {
-      name: 'Forge Husk', kind: 'Metal Rock', type: 'metal', radius: 42, poi: { geode: 1, fossil: 1, ruin: 1 }, gravity: 52, coreHp: 3600,
+      name: 'Forge Husk', kind: 'Metal Rock', type: 'metal', radius: 64, poi: { geode: 1, fossil: 1, ruin: 1 }, gravity: 52, coreHp: 3600,
       reward: 34000, dominion: 2.2, caves: 0.36, enemyRate: 0.4, drillTier: 3,
       sky: '#1c0d0a', tint: '#c67a3d',
       blurb: 'Somebody smelted this thing. Badly.',
@@ -692,7 +739,7 @@ window.PD = window.PD || {};
       mobs: [['crawler', 4], ['spitter', 5], ['gnasher', 3]]
     },
     {
-      name: 'Gemworld Shard', kind: 'Fragment', type: 'gem', radius: 50, poi: { geode: 4, fossil: 1, ruin: 1 }, gravity: 58, coreHp: 8000,
+      name: 'Gemworld Shard', kind: 'Fragment', type: 'gem', radius: 76, poi: { geode: 4, fossil: 1, ruin: 1 }, gravity: 58, coreHp: 8000,
       reward: 96000, dominion: 3.4, caves: 0.46, enemyRate: 0.44, drillTier: 4,
       sky: '#101a2e', tint: '#33c470',
       blurb: 'Every wall is a jewellery shop.',
@@ -700,7 +747,7 @@ window.PD = window.PD || {};
       mobs: [['spitter', 5], ['gnasher', 4], ['floater', 4], ['lurker', 1]]
     },
     {
-      name: 'Mourn, the Dead Moon', kind: 'Moon', type: 'moon', radius: 60, poi: { geode: 2, fossil: 4, ruin: 2 }, gravity: 70, coreHp: 20000,
+      name: 'Mourn, the Dead Moon', kind: 'Moon', type: 'moon', radius: 90, poi: { geode: 2, fossil: 4, ruin: 2 }, gravity: 70, coreHp: 20000,
       reward: 290000, dominion: 6.0, caves: 0.4, enemyRate: 0.5, drillTier: 5,
       sky: '#0a0e1d', tint: '#b3c4d8',
       blurb: 'Something used to live here. Rude of it.',
@@ -708,7 +755,7 @@ window.PD = window.PD || {};
       mobs: [['gnasher', 6], ['lurker', 3], ['spitter', 4], ['floater', 3]]
     },
     {
-      name: 'Terra Prime', kind: 'Planet', type: 'terra', radius: 72, poi: { geode: 3, fossil: 2, ruin: 3 }, gravity: 86, coreHp: 60000,
+      name: 'Terra Prime', kind: 'Planet', type: 'terra', radius: 104, poi: { geode: 3, fossil: 2, ruin: 3 }, gravity: 86, coreHp: 60000,
       reward: 950000, dominion: 12.0, caves: 0.44, enemyRate: 0.56, drillTier: 6,
       sky: '#04121a', tint: '#3fa84f',
       blurb: 'Inhabited! Well. Formerly inhabited.',
@@ -716,7 +763,7 @@ window.PD = window.PD || {};
       mobs: [['gnasher', 6], ['lurker', 6], ['spitter', 3], ['floater', 2]]
     },
     {
-      name: 'Cinder Majoris', kind: 'Volcanic', type: 'volcanic', radius: 84, poi: { geode: 2, fossil: 1, ruin: 2 }, gravity: 104, coreHp: 165000,
+      name: 'Cinder Majoris', kind: 'Volcanic', type: 'volcanic', radius: 118, poi: { geode: 2, fossil: 1, ruin: 2 }, gravity: 104, coreHp: 165000,
       reward: 3200000, dominion: 20.0, caves: 0.5, enemyRate: 0.62, drillTier: 7,
       sky: '#1e0708', tint: '#e8425f',
       blurb: 'Molten, screaming, extremely profitable.',
@@ -724,7 +771,7 @@ window.PD = window.PD || {};
       mobs: [['lurker', 8], ['gnasher', 6], ['spitter', 3]]
     },
     {
-      name: 'The Crystal Titan', kind: 'Superplanet', type: 'titan', radius: 98, poi: { geode: 6, fossil: 1, ruin: 3 }, gravity: 122, coreHp: 480000,
+      name: 'The Crystal Titan', kind: 'Superplanet', type: 'titan', radius: 132, poi: { geode: 6, fossil: 1, ruin: 3 }, gravity: 122, coreHp: 480000,
       reward: 12500000, dominion: 27.0, caves: 0.46, enemyRate: 0.68, drillTier: 8,
       sky: '#150a2b', tint: '#7d4fd6',
       blurb: 'A world-sized gem. Break it. Break it now.',
@@ -732,7 +779,7 @@ window.PD = window.PD || {};
       mobs: [['lurker', 9], ['gnasher', 5], ['floater', 3]]
     },
     {
-      name: 'Galactic Heart', kind: 'Core World', type: 'core', radius: 112, poi: { geode: 3, fossil: 2, ruin: 4 }, gravity: 140, coreHp: 1600000,
+      name: 'Galactic Heart', kind: 'Core World', type: 'core', radius: 150, poi: { geode: 3, fossil: 2, ruin: 4 }, gravity: 140, coreHp: 1600000,
       reward: 60000000, dominion: 26.8, caves: 0.4, enemyRate: 0.75, drillTier: 9,
       sky: '#2a0a16', tint: '#ffc44d',
       blurb: 'The galaxy keeps its savings here.',
@@ -759,14 +806,14 @@ window.PD = window.PD || {};
     {
       id: 'oxygen', mats: [['ice', 6], ['silver', 2]], late: ['sapphire', 2], name: 'O2 Tank', icon: 'tank', max: 14, base: 190, growth: 1.55,
       blurb: 'More air means deeper runs before the panic sets in.',
-      value: l => 110 + l * 30,
-      show: l => Math.round(110 + l * 30) + ' O2'
+      value: l => 66 + l * 26,
+      show: l => Math.round(66 + l * 26) + ' O2'
     },
     {
       id: 'cargo', mats: [['crust', 10], ['iron', 4]], late: ['shell', 4], name: 'Cargo Pod', icon: 'pod', max: 14, base: 240, growth: 1.6,
       blurb: 'Haul more loot per trip. Heavy pockets, heavy heart.',
-      value: l => 30 + l * 18,
-      show: l => Math.round(30 + l * 18) + ' kg'
+      value: l => 16 + l * 13,
+      show: l => Math.round(16 + l * 13) + ' kg'
     },
     {
       id: 'hull', mats: [['iron', 6], ['shell', 3]], late: ['star', 1], name: 'Hull Plate', icon: 'hull', max: 12, base: 260, growth: 1.6,
@@ -819,8 +866,8 @@ window.PD = window.PD || {};
     {
       id: 'lamp', mats: [['crust', 8], ['copper', 2]], late: ['emerald', 2], name: 'Headlamp', icon: 'lamp', max: 8, base: 160, growth: 1.55,
       blurb: 'See the thing that is about to eat you.',
-      value: l => 62 + l * 15,
-      show: l => (62 + l * 15) + ' PX LAMP'
+      value: l => 78 + l * 16,
+      show: l => (78 + l * 16) + ' PX LAMP'
     },
     {
       id: 'magnet', mats: [['iron', 5], ['silver', 3]], late: ['void', 1], name: 'Tractor Magnet', icon: 'magnet', max: 8, base: 300, growth: 1.6,
@@ -841,16 +888,16 @@ window.PD = window.PD || {};
       show: l => '+' + (l * 6) + '% SALES'
     },
     {
-      id: 'beltspeed', name: 'Belt Motors', icon: 'belt', max: 6, base: 900, growth: 1.7, mats: [['copper', 6], ['iron', 4]], late: ['titan', 1],
-      blurb: 'Machines: conveyors and hoppers run faster.',
-      value: l => 1 + l * 0.35,
-      show: l => 'x' + (1 + l * 0.35).toFixed(2) + ' BELT'
+      id: 'refine', name: 'Ore Purifier', icon: 'machine', max: 8, base: 1400, growth: 1.72, mats: [['copper', 6], ['silver', 3]], late: ['titan', 2],
+      blurb: 'Lab machine: scrubs raw ore clean so it sells for far more.',
+      value: l => 1 + l * 0.09,
+      show: l => '+' + (l * 9) + '% ORE PRICE'
     },
     {
-      id: 'machspeed', name: 'Overclock', icon: 'machine', max: 6, base: 2400, growth: 1.75, mats: [['silver', 4], ['titan', 2]], late: ['void', 1],
-      blurb: 'Machines: smelters, cutters, crushers and forges work faster.',
-      value: l => 1 + l * 0.4,
-      show: l => 'x' + (1 + l * 0.4).toFixed(2) + ' MACHINES'
+      id: 'kiln', name: 'Auto-Kiln', icon: 'belt', max: 6, base: 2200, growth: 1.75, mats: [['iron', 8], ['gold', 2]], late: ['void', 1],
+      blurb: 'Lab machine: bakes lots while Zaz works, cutting appraisal time.',
+      value: l => 1 + l * 0.5,
+      show: l => 'x' + (1 + l * 0.5).toFixed(2) + ' APPRAISAL'
     },
     {
       id: 'tether', name: 'Tether Reel', icon: 'belt', max: 12, base: 240, growth: 1.58, mats: [['crust', 6], ['iron', 3]], late: ['titan', 2],
@@ -928,14 +975,14 @@ window.PD = window.PD || {};
     // machines, south-east
     { id: 'drones', q: 0, r: 1, glyph: 'drone' },
     { id: 'droneyield', q: 1, r: 1, glyph: 'drone' },
-    { id: 'beltspeed', q: 0, r: 2, glyph: 'belt' },
-    { id: 'machspeed', q: 1, r: 2, glyph: 'machine' }
+    { id: 'refine', q: 0, r: 2, glyph: 'machine' },
+    { id: 'kiln', q: 1, r: 2, glyph: 'belt' }
   ];
 
   /* Appraisal: raw ore waits to be valued before it can sell. */
-  function appraiseSeconds(mat, level) {
+  function appraiseSeconds(mat, level, kiln) {
     const base = 0.6 + Math.log2(1 + MAT[mat].cr / 10) * 0.5; // pricier lots take longer: crust ~1s, diamond ~5s
-    return base / (1 + level * 0.55);
+    return base / (1 + level * 0.55) / (1 + (kiln || 0) * 0.5);
   }
   function appraiseFee(level) { return Math.max(0.02, 0.12 - level * 0.0125); }
 
@@ -1055,7 +1102,7 @@ window.PD = window.PD || {};
   }
 
   PD.data = { MAT, M, ENEMY, BODIES, UPGRADES, UPG, upgradeCost, recipe, COSMETICS, COS, TITLES, titleFor, bountyFor,
-    STRATA, MACHINES, METALS, GEMS, JUNK, goodOf, goodFromKey, NODES, appraiseSeconds, appraiseFee };
+    STRATA, ZONES, zoneOf, FLORA, MACHINES, METALS, GEMS, JUNK, goodOf, goodFromKey, NODES, appraiseSeconds, appraiseFee };
 })(window.PD);
 
 /* ===== src/art.js ===== */
@@ -1522,27 +1569,55 @@ window.PD = window.PD || {};
 
   /* THE POD: your own little fat ship. Round, stubby-winged, a dome up top
      and one big thruster. Heads right. */
+  /* The pod. Little, fat, and now properly built: riveted hull, bubble dome
+     with a visible cockpit, side pods, landing skids and a working exhaust. */
   function buildPod(phase, P) {
     P = P || { met: C.met, metD: C.metD, metDD: C.metDD };
-    const p = pix(40, 28);
+    const p = pix(46, 32);
     const f = phase ? 1 : 0;
-    p.round(4, 8, 32, 16, 8, P.met);                    // fat hull
+
+    // rear engine block and nacelles
+    p.round(0, 13, 12, 12, 4, P.metDD);
+    p.round(2, 15, 6, 8, 3, C.ink2);
+    p.rect(2, 17 + f, 4, 4, f ? C.orange : C.orangeD);
+    p.round(6, 6, 8, 6, 3, P.metD);                      // upper nacelle
+    p.round(6, 24, 8, 6, 3, P.metD);                     // lower nacelle
+    p.rect(6, 8, 2, 2, f ? C.cyan : C.metDD);
+    p.rect(6, 26, 2, 2, f ? C.cyan : C.metDD);
+
+    // fat hull
+    p.round(8, 9, 34, 18, 9, P.met);
     p.shade(P.met, P.metD, 0, 1);
-    p.round(6, 10, 28, 4, 2, C.white);                  // highlight
-    p.round(0, 12, 8, 9, 3, P.metDD);                   // thruster
-    p.rect(1, 14, 2, 5, f ? C.orange : C.orangeD);
-    p.round(30, 14, 10, 6, 3, C.suit);                  // nose cowl
-    p.rect(37, 15, 2, 3, C.cyan);
-    p.disc(19, 9, 7, C.glass);                          // dome
-    p.disc(19, 10, 5, C.ink2);
-    p.ellipse(17, 6, 2.6, 1.3, C.glassL);
-    p.round(8, 22, 10, 4, 2, P.metDD); p.round(22, 22, 10, 4, 2, P.metDD);   // stubby wings
-    p.round(14, 19, 12, 3, 1, C.gold);                 // belly stripe
-    p.disc(28, 12, 1.6, C.red); p.disc(11, 12, 1.6, C.lime);
+    p.round(11, 11, 27, 4, 2, C.white);                  // gloss
+    p.round(10, 21, 30, 5, 2, P.metD);                   // lower plate
+    p.round(15, 22, 20, 3, 1, C.gold);                   // belly stripe
+    for (let i = 0; i < 6; i++) p.set(13 + i * 5, 20, P.metDD);   // rivets
+
+    // bubble dome + pilot seat
+    p.disc(23, 10, 8, C.glass);
+    p.disc(23, 11, 6, C.ink2);
+    p.ellipse(20, 7, 3, 1.5, C.glassL);
+    p.round(19, 12, 8, 5, 2, P.metDD);                   // seat back
+
+    // nose cowl and headlight
+    p.round(38, 14, 8, 8, 3, C.suit);
+    p.rect(44, 16, 2, 4, C.cyan);
+    p.disc(41, 18, 2, f ? '#fff6c8' : C.gold);
+
+    // landing skids
+    p.rect(13, 28, 3, 4, P.metDD);
+    p.rect(31, 28, 3, 4, P.metDD);
+    p.round(10, 30, 10, 2, 1, P.metD);
+    p.round(28, 30, 10, 2, 1, P.metD);
+
+    // running lights
+    p.disc(33, 13, 1.6, C.red);
+    p.disc(14, 13, 1.6, C.lime);
     p.outline(C.ink);
     return p;
   }
-  reg('pod', [buildPod(0), buildPod(1)], 20, 16);
+
+  reg('pod', [buildPod(0), buildPod(1)], 23, 18);
 
   /* LOOT CRATE: precursor supply case. */
   function buildCrate(open) {
@@ -1650,7 +1725,7 @@ window.PD = window.PD || {};
       alienFly: mk(frames.fly, 12, 22),
       drill: mk([0, 1, 2, 3].map(i => buildDrill(i, DP)), 3, 6),
       ship: mk([buildShip(false, SP), buildShip(true, SP)], 42, 26),
-      pod: mk([buildPod(0, SP), buildPod(1, SP)], 20, 16),
+      pod: mk([buildPod(0, SP), buildPod(1, SP)], 23, 18),
       P: P
     };
     skinCache[key] = set;
@@ -2124,6 +2199,119 @@ window.PD = window.PD || {};
     return p;
   }
 
+  /* --------------------------------------------------------------- THE LAB
+     One enormous fabrication rig: hex holo-core, press arm, goo tanks and an
+     ore hopper. This is where every upgrade in the game gets built. */
+  function labMachine(on) {
+    const p = pix(122, 104);
+    // gantry frame
+    p.rect(0, 8, 122, 6, P.steelDD);
+    p.rect(0, 8, 122, 1, P.steel);
+    p.rect(2, 12, 8, 88, P.steelD);
+    p.rect(112, 12, 8, 88, P.steelD);
+    for (let y = 18; y < 96; y += 12) { p.rect(2, y, 8, 2, P.steelDD); p.rect(112, y, 8, 2, P.steelDD); }
+    // main body
+    p.round(10, 26, 102, 74, 5, P.steelD);
+    p.round(13, 29, 96, 62, 4, P.screenD);
+    // hex holo core
+    const cx = 61, cy = 58;
+    for (let ring = 3; ring >= 1; ring--) {
+      const r = ring * 8;
+      const col = ring === 1 ? (on ? '#d8fdff' : P.holoD) : (on ? P.holo : P.holoD);
+      for (let a = 0; a < 6; a++) {
+        const a0 = a * Math.PI / 3, a1 = (a + 1) * Math.PI / 3;
+        p.line(cx + Math.cos(a0) * r, cy + Math.sin(a0) * r * 0.92,
+               cx + Math.cos(a1) * r, cy + Math.sin(a1) * r * 0.92, col);
+      }
+    }
+    p.disc(cx, cy, 4, on ? '#ffffff' : P.holoD);
+    p.disc(cx, cy, 2, on ? P.gold : P.steelDD);
+    // scan sweep
+    if (on) for (let i = 0; i < 96; i += 3) p.set(13 + i, 34, 'rgba(126,249,255,0.5)');
+    // press arm on the left
+    p.round(16, 32, 16, 10, 2, P.steelDD);
+    p.rect(22, 42, 5, on ? 12 : 18, P.steel);
+    p.round(18, on ? 54 : 60, 13, 7, 2, P.steelDD);
+    // goo tanks on the right
+    for (let i = 0; i < 3; i++) {
+      const tx = 88 + i * 8;
+      p.round(tx, 36, 6, 30, 2, P.steelDD);
+      p.rect(tx + 1, 44 - (i * 3), 4, 20 + i * 3, i === 0 ? '#39ffa6' : (i === 1 ? '#ff8ad8' : P.amber));
+      p.rect(tx + 1, 44 - (i * 3), 4, 2, '#ffffff');
+    }
+    // ore hopper mouth, bottom left
+    p.round(14, 78, 30, 18, 3, P.steelDD);
+    p.rect(18, 82, 22, 3, P.rust);
+    for (let i = 0; i < 5; i++) p.set(20 + i * 4, 87 + (i % 2), P.gold);
+    // readout strip, bottom right
+    p.round(60, 78, 48, 18, 3, P.screenD);
+    for (let i = 0; i < 5; i++) {
+      const w = 6 + Math.floor(U.hash2(i, on ? 3 : 9) * 28);
+      p.rect(63, 81 + i * 3, w, 2, i % 2 ? P.screenL : P.holo);
+    }
+    // feet
+    p.rect(12, 100, 18, 4, P.steelDD);
+    p.rect(92, 100, 18, 4, P.steelDD);
+    // beacon
+    p.disc(61, 5, 4, on ? P.amber : P.rust);
+    p.outline(P.ink);
+    return p;
+  }
+
+  /* ---------------------------------------------------------- THE EXCHANGE
+     The other half of the ship: a trading floor. Price board, brass scales,
+     vault door, pneumatic cash tubes. */
+  function exchange(on) {
+    const p = pix(128, 106);
+    // big price board
+    p.round(4, 4, 120, 46, 4, P.steelDD);
+    p.round(8, 8, 112, 38, 3, '#07231b');
+    for (let r = 0; r < 5; r++) {
+      const y = 11 + r * 7;
+      p.rect(11, y, 3, 4, r % 2 ? P.gold : P.screenL);                 // ore chip
+      const w = 20 + Math.floor(U.hash2(r, on ? 5 : 11) * 40);
+      p.rect(17, y + 1, w, 2, P.screenL);
+      p.rect(96, y, 4 + (r % 3) * 3, 4, r % 3 === 0 ? P.red : P.screenL);
+      p.rect(104, y + 1, 12, 2, P.gold);
+    }
+    if (on) p.rect(8, 8 + (Math.floor(U.hash2(1, 2) * 30)), 112, 1, 'rgba(57,255,166,0.45)');
+    // counter
+    p.round(0, 62, 128, 22, 3, P.rust);
+    p.rect(2, 62, 124, 3, P.gold);
+    p.rect(0, 84, 128, 6, P.steelDD);
+    // brass scales on the counter
+    p.rect(30, 50, 2, 12, P.gold);
+    p.rect(20, 50, 22, 2, P.gold);
+    p.round(17, 52, 8, 4, 2, P.gold);
+    p.round(37, on ? 54 : 52, 8, 4, 2, P.gold);
+    p.set(31, 47, P.gold);
+    // coin stacks
+    for (let i = 0; i < 4; i++) {
+      const h = 3 + (i % 3) * 2;
+      for (let k = 0; k < h; k++) p.round(56 + i * 9, 58 - k * 2, 8, 3, 1, k % 2 ? P.gold : '#c99a1e');
+    }
+    // vault door, right
+    p.round(96, 44, 30, 20, 4, P.steelD);
+    p.disc(111, 54, 7, P.steelDD);
+    p.disc(111, 54, 3, P.gold);
+    for (let a = 0; a < 4; a++) {
+      const ang = a * Math.PI / 4 + (on ? 0.4 : 0);
+      p.line(111, 54, 111 + Math.cos(ang) * 8, 54 + Math.sin(ang) * 8, P.gold);
+    }
+    // pneumatic tube arcing over the counter
+    for (let i = 0; i < 26; i++) {
+      const x = 4 + i * 4;
+      p.set(x, 58 - Math.floor(Math.sin(i / 26 * Math.PI) * 6), P.steel);
+      p.set(x, 59 - Math.floor(Math.sin(i / 26 * Math.PI) * 6), P.steelDD);
+    }
+    if (on) p.disc(4 + 12 * 4, 56 - Math.floor(Math.sin(12 / 26 * Math.PI) * 6), 2, P.amber);
+    // legs
+    p.rect(8, 90, 12, 14, P.steelDD);
+    p.rect(108, 90, 12, 14, P.steelDD);
+    p.outline(P.ink);
+    return p;
+  }
+
   reg('airlock', [airlock()], 23, 62);
   reg('console', [console_(false), console_(true)], 29, 50);
   reg('fabricator', [fabricator(false), fabricator(true)], 35, 56);
@@ -2131,6 +2319,8 @@ window.PD = window.PD || {};
   reg('wardrobe', [wardrobe(false), wardrobe(true)], 22, 60);
   reg('navchart', [navChart(false), navChart(true)], 38, 50);
   reg('refinery', [refinery(false), refinery(true)], 36, 58);
+  reg('labmach', [labMachine(false), labMachine(true)], 61, 104);
+  reg('exchange', [exchange(false), exchange(true)], 64, 106);
   reg('crate', [crate(0), crate(1)], 11, 18);
   reg('plant', [plant()], 10, 26);
   reg('nix', [nix(0), nix(1)], 13, 34);
@@ -2948,10 +3138,6 @@ window.PD = window.PD || {};
       use:  { x: VW - 130, y: VH - 54, r: 13, glyph: 'hand', col: '#ffb03d', key: 'KeyE' },
       beam: { x: VW - 130, y: VH - 22, r: 11, glyph: 'home', col: '#ff5a4d', key: 'KeyR', hold: true }
     },
-    space: {
-      fire: { x: VW - 38, y: VH - 46, r: 22, glyph: 'gun',  col: '#7ef9ff', key: null },
-      hole: { x: VW - 86, y: VH - 30, r: 18, glyph: 'hole', col: '#d8bcff', key: 'KeyE' }
-    }
   };
 
   const state = {
@@ -3045,11 +3231,6 @@ window.PD = window.PD || {};
       if (state.aiming) { IN.mouse.x = state.ax; IN.mouse.y = state.ay; IN.mouse.inside = true; IN.mouse.left = true; }
       else IN.mouse.left = false;
       IN.mouse.right = !!state.down.fire;
-    } else if (mode === 'space') {
-      if (state.aiming) { IN.mouse.x = state.ax; IN.mouse.y = state.ay; IN.mouse.inside = true; IN.mouse.left = true; }
-      else IN.mouse.left = false;
-      IN.mouse.right = !!state.down.fire;
-      state.tapPress = false;
     } else {
       IN.mouse.x = state.tapX; IN.mouse.y = state.tapY; IN.mouse.inside = true;
       IN.mouse.left = state.tapHold;
@@ -3060,7 +3241,7 @@ window.PD = window.PD || {};
   function clearEdges() {
     if (!state.enabled) return;
     const IN = PD.input;
-    for (const m of ['play', 'space']) for (const k in cfg[m]) { const key = cfg[m][k].key; if (key && !cfg[m][k].hold) IN.keys[key] = false; }
+    for (const m of ['play']) for (const k in cfg[m]) { const key = cfg[m][k].key; if (key && !cfg[m][k].hold) IN.keys[key] = false; }
   }
 
   function padKey(ctx, k, c) {
@@ -3330,6 +3511,269 @@ window.PD = window.PD || {};
   };
 })(window.PD);
 
+/* ===== src/flora.js ===== */
+/* Foliage. Everything here is drawn with real curves -- stems that bend,
+   caps that bulge, fans that branch -- so the terrain surface stops reading
+   as a grid of squares. Each plant is deterministic from its cell hash and
+   sways on its own clock. */
+(function (PD) {
+  'use strict';
+  const U = PD.util;
+
+  /* Palettes keyed by plant kind. a = shadow, b = body, c = highlight. */
+  const PAL = {
+    grass:    { a: '#1d5a33', b: '#2f9350', c: '#63d67e' },
+    fern:     { a: '#17482c', b: '#2b8351', c: '#5ac47f' },
+    frond:    { a: '#1b5142', b: '#2d9077', c: '#5fd0ac' },
+    moss:     { a: '#1f4a2e', b: '#367a45', c: '#69b96a' },
+    shroom:   { a: '#4a1f5e', b: '#c44fa8', c: '#ffb6f0', glow: '#ff8ad8' },
+    tendril:  { a: '#3a1f5e', b: '#6b3fa8', c: '#b98af0', glow: '#a06bff' },
+    vine:     { a: '#1d4a3a', b: '#2f7a56', c: '#63c48a' },
+    root:     { a: '#3a2417', b: '#6b452a', c: '#a8734a' },
+    bone:     { a: '#6d6a58', b: '#c6c0a4', c: '#f2ecd2' },
+    coral:    { a: '#5e1f3a', b: '#c4426f', c: '#ff8ab0' },
+    crystal:  { a: '#1f3a6e', b: '#4f8ad6', c: '#b6e2ff', glow: '#7ec8ff' },
+    icespike: { a: '#2a5a75', b: '#69b6d6', c: '#d6f4ff' },
+    ember:    { a: '#6e2410', b: '#d4541c', c: '#ffb84d', glow: '#ff7a2a' }
+  };
+
+  function pal(kind) { return PAL[kind] || PAL.grass; }
+
+  /* Stroke a bending stem and return its tip, so caps and leaves can sit on it. */
+  function stem(ctx, x, y, h, bend, w, col) {
+    const tx = x + bend, ty = y - h;
+    ctx.strokeStyle = col;
+    ctx.lineWidth = w;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.quadraticCurveTo(x + bend * 0.2, y - h * 0.6, tx, ty);
+    ctx.stroke();
+    return [tx, ty];
+  }
+
+  function blob(ctx, x, y, rx, ry, col) {
+    ctx.fillStyle = col;
+    ctx.beginPath();
+    ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  const K = {
+    /* tufts of curved blades */
+    grass(ctx, x, y, s, r, sway, P) {
+      const n = 3 + ((r * 4) | 0);
+      for (let i = 0; i < n; i++) {
+        const o = (i - (n - 1) / 2) * (s * 0.22);
+        const h = s * (0.55 + U.hash2(r * 90 + i, 3) * 0.7);
+        stem(ctx, x + o, y, h, sway * (1 + i * 0.3) + o * 0.2, 1.4, i % 2 ? P.b : P.a);
+      }
+      stem(ctx, x, y, s * 0.9, sway * 1.4, 1, P.c);
+    },
+    /* a stem with leaflets stepping down both sides */
+    fern(ctx, x, y, s, r, sway, P) {
+      const h = s * 1.25;
+      const [tx, ty] = stem(ctx, x, y, h, sway * 1.2, 1.6, P.a);
+      ctx.strokeStyle = P.b; ctx.lineWidth = 1.4;
+      for (let i = 1; i <= 4; i++) {
+        const f = i / 5;
+        const px = x + (tx - x) * f * f, py = y - h * f;
+        const L = s * 0.42 * (1.1 - f);
+        for (const d of [-1, 1]) {
+          ctx.beginPath();
+          ctx.moveTo(px, py);
+          ctx.quadraticCurveTo(px + d * L, py - L * 0.1, px + d * L * 0.9, py - L * 0.7);
+          ctx.stroke();
+        }
+      }
+      blob(ctx, tx, ty, 1.4, 1.4, P.c);
+    },
+    /* broad drooping leaf blades */
+    frond(ctx, x, y, s, r, sway, P) {
+      for (let i = 0; i < 3; i++) {
+        const d = i === 1 ? 0 : (i === 0 ? -1 : 1);
+        const h = s * (0.9 + U.hash2(r * 31 + i, 9) * 0.5);
+        ctx.fillStyle = i % 2 ? P.b : P.a;
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.quadraticCurveTo(x + d * s * 0.7 + sway, y - h * 0.9, x + d * s * 1.1 + sway * 1.6, y - h * 0.35);
+        ctx.quadraticCurveTo(x + d * s * 0.45, y - h * 0.5, x, y);
+        ctx.fill();
+      }
+      ctx.fillStyle = P.c;
+      ctx.fillRect(x - 1, y - s * 0.5, 2, s * 0.5);
+    },
+    /* fuzzy cushions clinging to the rock */
+    moss(ctx, x, y, s, r, sway, P) {
+      for (let i = 0; i < 5; i++) {
+        const o = (i - 2) * s * 0.26;
+        const h = s * (0.18 + U.hash2(r + i * 13, 21) * 0.3);
+        blob(ctx, x + o, y - h * 0.4, s * 0.22, h, i % 2 ? P.b : P.a);
+      }
+      blob(ctx, x - s * 0.1, y - s * 0.28, s * 0.16, s * 0.13, P.c);
+    },
+    /* bent stalk, fat glowing cap, spots */
+    shroom(ctx, x, y, s, r, sway, P) {
+      const h = s * (0.8 + U.hash2(r, 5) * 0.6);
+      const [tx, ty] = stem(ctx, x, y, h, sway * 0.8, 2.2, P.a);
+      const cw = s * (0.55 + U.hash2(r, 11) * 0.3);
+      ctx.fillStyle = P.b;
+      ctx.beginPath();
+      ctx.moveTo(tx - cw, ty + 1);
+      ctx.quadraticCurveTo(tx, ty - cw * 1.5, tx + cw, ty + 1);
+      ctx.quadraticCurveTo(tx, ty + cw * 0.5, tx - cw, ty + 1);
+      ctx.fill();
+      ctx.fillStyle = P.c;
+      for (let i = 0; i < 3; i++) {
+        const a = -2.6 + i * 0.75;
+        blob(ctx, tx + Math.cos(a) * cw * 0.5, ty - cw * 0.45 + Math.sin(a) * 2, 1.2, 1, P.c);
+      }
+    },
+    /* hanging rope of light */
+    tendril(ctx, x, y, s, r, sway, P, dir) {
+      const h = s * 1.6 * dir;
+      ctx.strokeStyle = P.b; ctx.lineWidth = 1.6; ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.bezierCurveTo(x + sway * 2, y - h * 0.4, x - sway * 2, y - h * 0.75, x + sway * 3, y - h);
+      ctx.stroke();
+      blob(ctx, x + sway * 3, y - h, 2, 2.4, P.c);
+    },
+    vine(ctx, x, y, s, r, sway, P, dir) {
+      const h = s * 1.5 * dir;
+      ctx.strokeStyle = P.a; ctx.lineWidth = 1.8; ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.bezierCurveTo(x + sway * 2, y - h * 0.45, x - sway, y - h * 0.7, x + sway * 2, y - h);
+      ctx.stroke();
+      for (let i = 1; i <= 3; i++) {
+        const f = i / 4;
+        blob(ctx, x + sway * f * 2 + (i % 2 ? 2 : -2), y - h * f, 2.2, 1.5, i % 2 ? P.b : P.c);
+      }
+    },
+    /* woody forks reaching out of the ceiling */
+    root(ctx, x, y, s, r, sway, P, dir) {
+      const h = s * 1.2 * dir;
+      ctx.strokeStyle = P.b; ctx.lineWidth = 2.4; ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.quadraticCurveTo(x + sway, y - h * 0.6, x + sway * 1.4 - 2, y - h);
+      ctx.stroke();
+      ctx.lineWidth = 1.4; ctx.strokeStyle = P.a;
+      for (const d of [-1, 1]) {
+        ctx.beginPath();
+        ctx.moveTo(x + sway * 0.4, y - h * 0.45);
+        ctx.quadraticCurveTo(x + d * s * 0.5, y - h * 0.6, x + d * s * 0.7, y - h * 0.95);
+        ctx.stroke();
+      }
+    },
+    /* old ribs poking out of the strata */
+    bone(ctx, x, y, s, r, sway, P, dir) {
+      const h = s * 1.1 * dir;
+      ctx.strokeStyle = P.b; ctx.lineWidth = 2; ctx.lineCap = 'round';
+      for (let i = 0; i < 3; i++) {
+        const d = (i - 1) * 0.5;
+        ctx.beginPath();
+        ctx.moveTo(x + d * s * 0.4, y);
+        ctx.quadraticCurveTo(x + d * s + sway, y - h * 0.7, x + d * s * 0.6 + sway, y - h);
+        ctx.stroke();
+      }
+      blob(ctx, x, y - h * 0.05, s * 0.35, s * 0.16, P.a);
+    },
+    /* branching fan */
+    coral(ctx, x, y, s, r, sway, P, dir) {
+      ctx.strokeStyle = P.b; ctx.lineWidth = 2; ctx.lineCap = 'round';
+      const h = s * 1.1 * dir;
+      for (let i = -2; i <= 2; i++) {
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.quadraticCurveTo(x + i * s * 0.22, y - h * 0.5, x + i * s * 0.5 + sway, y - h * (0.7 + Math.abs(i) * -0.1));
+        ctx.stroke();
+      }
+      ctx.strokeStyle = P.c; ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.quadraticCurveTo(x, y - h * 0.6, x + sway, y - h * 0.95);
+      ctx.stroke();
+    },
+    /* angular shard cluster */
+    crystal(ctx, x, y, s, r, sway, P, dir) {
+      for (let i = 0; i < 3; i++) {
+        const o = (i - 1) * s * 0.3;
+        const h = s * (0.5 + U.hash2(r * 7 + i, 17) * 0.9) * dir;
+        const w = s * 0.16 + i * 0.4;
+        ctx.fillStyle = i === 1 ? P.b : P.a;
+        ctx.beginPath();
+        ctx.moveTo(x + o - w, y);
+        ctx.lineTo(x + o + w, y);
+        ctx.lineTo(x + o + w * 0.4 + o * 0.2, y - h);
+        ctx.closePath();
+        ctx.fill();
+      }
+      ctx.fillStyle = P.c;
+      ctx.fillRect(x - 0.5, y - s * 0.7 * dir, 1, s * 0.5 * dir);
+    },
+    icespike(ctx, x, y, s, r, sway, P, dir) {
+      K.crystal(ctx, x, y, s, r, sway * 0.2, P, dir);
+    },
+    /* licking flames */
+    ember(ctx, x, y, s, r, sway, P, dir) {
+      for (let i = 0; i < 2; i++) {
+        const o = (i - 0.5) * s * 0.35;
+        const h = s * (0.6 + U.hash2(r + i * 5, 23) * 0.6) * dir;
+        ctx.fillStyle = i ? P.b : P.a;
+        ctx.beginPath();
+        ctx.moveTo(x + o - s * 0.2, y);
+        ctx.quadraticCurveTo(x + o - s * 0.25 + sway, y - h * 0.6, x + o + sway * 2, y - h);
+        ctx.quadraticCurveTo(x + o + s * 0.3 + sway, y - h * 0.55, x + o + s * 0.2, y);
+        ctx.fill();
+      }
+      ctx.fillStyle = P.c;
+      blob(ctx, x + sway, y - s * 0.35 * dir, 1.4, s * 0.22, P.c);
+    }
+  };
+
+  /* Plants are expensive to path out every frame, so each one is baked into a
+     small cached canvas with its sway frozen at four phases. Drawing a whole
+     hillside of foliage then costs one drawImage per plant. */
+  const cache = new Map();
+  const PHASES = 4;
+
+  function sprite(kind, sizeBucket, variant, phase, dir) {
+    const key = kind + '|' + sizeBucket + '|' + variant + '|' + phase + '|' + dir;
+    let cv = cache.get(key);
+    if (cv) return cv;
+    const s = 5 + sizeBucket * 2.2;
+    const w = Math.ceil(s * 3), h = Math.ceil(s * 2.6);
+    cv = document.createElement('canvas');
+    cv.width = w; cv.height = h;
+    const c = cv.getContext('2d');
+    const P = pal(kind);
+    const fn = K[kind] || K.grass;
+    const seed = variant * 7 + 3;
+    const sway = Math.sin((phase / PHASES) * Math.PI * 2 + seed) * s * 0.16;
+    c.save();
+    if (dir < 0) { c.translate(0, h); c.scale(1, -1); }
+    if (P.glow) { c.shadowColor = P.glow; c.shadowBlur = 5; }
+    fn(c, w / 2, h - 1, s, seed, sway, P, 1);
+    c.restore();
+    cache.set(key, cv);
+    return cv;
+  }
+
+  /* Draw one plant. dir 1 grows up from the floor, -1 hangs from a ceiling. */
+  function draw(ctx, kind, x, y, s, seed, time, dir) {
+    const bucket = U.clamp(Math.round((s - 5) / 2.2), 0, 4);
+    const variant = seed % 5;
+    const phase = ((Math.floor(time * 2.4 + seed * 0.7) % PHASES) + PHASES) % PHASES;
+    const cv = sprite(kind, bucket, variant, phase, dir < 0 ? -1 : 1);
+    if (dir < 0) ctx.drawImage(cv, (x - cv.width / 2) | 0, y | 0);
+    else ctx.drawImage(cv, (x - cv.width / 2) | 0, (y - cv.height + 1) | 0);
+  }
+
+  PD.flora = { draw, sprite, PAL, kinds: Object.keys(K) };
+})(window.PD);
+
 /* ===== src/world.js ===== */
 /* The drillable world: one celestial body floating in space, stored as a tile
    grid. Space is simply empty tiles above/around the body, so flying out of
@@ -3345,45 +3789,128 @@ window.PD = window.PD || {};
   const MARGIN = 14;         // tiles of space either side
 
   /* ------------------------------------------------------------ tile atlases */
-  const atlas = {};          // matId -> [canvas x4]
-  const edgeCache = {};      // matId -> highlight strip canvas
   let crackCv = null;
 
-  function buildAtlas() {
-    for (const m of D.MAT) {
-      if (m.id === 0) continue;
-      const variants = [];
-      for (let v = 0; v < 4; v++) {
-        const cv = document.createElement('canvas');
-        cv.width = TILE; cv.height = TILE;
-        const c = cv.getContext('2d');
-        c.fillStyle = m.c[1];
-        c.fillRect(0, 0, TILE, TILE);
-        // speckle the tile so large rock faces do not look flat
-        for (let i = 0; i < 7; i++) {
-          const h = U.hash2(v * 31 + i, m.id * 17 + i * 3);
-          const x = Math.floor(h * TILE);
-          const y = Math.floor(U.hash2(m.id + i * 7, v * 13 + 5) * TILE);
-          const s = h > 0.72 ? 2 : 1;
-          c.fillStyle = h > 0.5 ? m.c[0] : m.c[2];
-          c.globalAlpha = 0.55;
-          c.fillRect(x, y, s, s);
-        }
-        c.globalAlpha = 1;
-        variants.push(cv);
+  /* Rounded tile shapes. Every convex corner (both of its neighbours empty)
+     is cut with a real arc, so stair-stepped rock reads as a rolling blob
+     instead of graph paper. 16 neighbour masks x 2 speckle variants, built
+     on demand and cached. */
+  const shapeCache = new Map();
+  const R = 5;                 // corner radius on a 10px tile: a lone tile is a ball
+
+  function tilePath(c, mask, v) {
+    const up = mask & 1, rt = mask & 2, dn = mask & 4, lf = mask & 8;
+    // open faces bow in or out a touch, and neighbouring tiles pick different
+    // bows, so a long rock face stops being a ruler-straight line
+    const bow = ((v === undefined ? 0 : v) - 1.5) * 0.9;
+    const B = (open, x0, y0, x1, y1, nx, ny) => {
+      if (open) c.quadraticCurveTo((x0 + x1) / 2 + nx * bow, (y0 + y1) / 2 + ny * bow, x1, y1);
+      else c.lineTo(x1, y1);
+    };
+    const tl = (!up && !lf) ? R : 0;
+    const tr = (!up && !rt) ? R : 0;
+    const br = (!dn && !rt) ? R : 0;
+    const bl = (!dn && !lf) ? R : 0;
+    const T = TILE;
+    c.beginPath();
+    c.moveTo(tl, 0);
+    B(!up, tl, 0, T - tr, 0, 0, -1);
+    if (tr) c.arcTo(T, 0, T, tr, tr); else c.lineTo(T, 0);
+    B(!rt, T, tr, T, T - br, 1, 0);
+    if (br) c.arcTo(T, T, T - br, T, br); else c.lineTo(T, T);
+    B(!dn, T - br, T, bl, T, 0, 1);
+    if (bl) c.arcTo(0, T, 0, T - bl, bl); else c.lineTo(0, T);
+    B(!lf, 0, T - bl, 0, tl, -1, 0);
+    if (tl) c.arcTo(0, 0, tl, 0, tl); else c.lineTo(0, 0);
+    c.closePath();
+  }
+
+  /* Three cached layers make rock read as rock instead of a tile grid:
+       1. a base shell in the depth band's own colour, cut to the solid mask
+       2. the material's blob, cut to a mask of *same-material* neighbours, so
+          an iron seam is a rounded vein rather than a run of squares
+       3. lighting and the dark rim, drawn only on tiles that face open space */
+  function cut(key, mask, v, paint) {
+    let cv = shapeCache.get(key);
+    if (cv) return cv;
+    cv = document.createElement('canvas');
+    cv.width = TILE; cv.height = TILE;
+    const c = cv.getContext('2d');
+    tilePath(c, mask, v);
+    c.save();
+    c.clip();
+    paint(c);
+    c.restore();
+    shapeCache.set(key, cv);
+    return cv;
+  }
+
+  function baseShape(tint, mask, v) {
+    return cut('b' + tint + mask + v, mask, v, c => {
+      c.fillStyle = tint;
+      c.fillRect(0, 0, TILE, TILE);
+      c.fillStyle = 'rgba(255,255,255,0.05)';
+      c.fillRect(0, 0, TILE, 3);
+    });
+  }
+
+  function matShape(matId, mask, v) {
+    const m = D.MAT[matId];
+    return cut('m' + matId + '_' + mask + '_' + v, mask, v, c => {
+      c.fillStyle = m.c[1];
+      c.fillRect(0, 0, TILE, TILE);
+      for (let i = 0; i < 7; i++) {
+        const h = U.hash2(v * 31 + i, matId * 17 + i * 3);
+        const x = Math.floor(h * TILE);
+        const y = Math.floor(U.hash2(matId + i * 7, v * 13 + 5) * TILE);
+        c.fillStyle = h > 0.5 ? m.c[0] : m.c[2];
+        c.globalAlpha = 0.5;
+        c.fillRect(x, y, h > 0.72 ? 2 : 1, 1);
       }
-      atlas[m.id] = variants;
+      c.globalAlpha = 1;
+    });
+  }
 
-      const e = document.createElement('canvas');
-      e.width = TILE; e.height = 3;
-      const ec = e.getContext('2d');
-      ec.fillStyle = m.c[0];
-      ec.fillRect(0, 0, TILE, 2);
-      ec.globalAlpha = 0.5;
-      ec.fillRect(0, 2, TILE, 1);
-      edgeCache[m.id] = e;
+  /* Colour-free: works over any material underneath. */
+  function lightShape(mask, v) {
+    const key = 'l' + mask + '_' + v;
+    let cv = shapeCache.get(key);
+    if (cv) return cv;
+    cv = document.createElement('canvas');
+    cv.width = TILE; cv.height = TILE;
+    const c = cv.getContext('2d');
+    c.save();
+    tilePath(c, mask, v);
+    c.clip();
+    if (!(mask & 1)) { c.fillStyle = 'rgba(255,255,255,0.3)'; c.fillRect(0, 0, TILE, 2); c.fillStyle = 'rgba(255,255,255,0.13)'; c.fillRect(0, 2, TILE, 1); }
+    if (!(mask & 4)) { c.fillStyle = 'rgba(8,4,18,0.42)'; c.fillRect(0, TILE - 3, TILE, 3); }
+    if (!(mask & 8)) { c.fillStyle = 'rgba(255,255,255,0.14)'; c.fillRect(0, 0, 1, TILE); }
+    if (!(mask & 2)) { c.fillStyle = 'rgba(8,4,18,0.3)'; c.fillRect(TILE - 1, 0, 1, TILE); }
+    c.restore();
+    // dark cartoon rim, only along the sides that face open space
+    const sides = [
+      [!(mask & 1), 0, 0, TILE, 3],
+      [!(mask & 2), TILE - 3, 0, 3, TILE],
+      [!(mask & 4), 0, TILE - 3, TILE, 3],
+      [!(mask & 8), 0, 0, 3, TILE]
+    ];
+    for (const sd of sides) {
+      if (!sd[0]) continue;
+      c.save();
+      c.beginPath();
+      c.rect(sd[1], sd[2], sd[3], sd[4]);
+      c.clip();
+      c.strokeStyle = 'rgba(10,5,20,0.5)';
+      c.lineWidth = 2;
+      tilePath(c, mask, v);
+      c.stroke();
+      c.restore();
     }
+    shapeCache.set(key, cv);
+    return cv;
+  }
 
+  function buildAtlas() {
     crackCv = [];
     for (let stage = 0; stage < 3; stage++) {
       const cv = document.createElement('canvas');
@@ -3951,7 +4478,7 @@ window.PD = window.PD || {};
         if (!m) continue;
         any = true;
         const v = (U.hash2(cx + i, cy + j) * 4) | 0;
-        c.drawImage(atlas[m][v], i * TILE, j * TILE);
+        c.drawImage(matShape(m, 15, v), i * TILE, j * TILE);
       }
     }
     if (!any) return null;
@@ -4067,34 +4594,36 @@ window.PD = window.PD || {};
         if (m === PD.data.M.lava) { this.drawLavaTile(ctx, sx, sy, cx, cy, time); this.glows.push(sx + 5, sy + 5, 26, 0); continue; }
         if (D.MAT[m].glow && this.glows.length < 200) this.glows.push(sx + 5, sy + 5, D.MAT[m].glowR || 16, m);
 
-        const v = (U.hash2(cx, cy) * 4) | 0;
-        ctx.drawImage(atlas[m][v], sx, sy);
-
         const up = cy > 0 ? this.cells[i - this.w] : 1;
         const dn = cy < this.h - 1 ? this.cells[i + this.w] : 1;
         const lf = cx > 0 ? this.cells[i - 1] : 1;
         const rt = cx < this.w - 1 ? this.cells[i + 1] : 1;
-
-        // lit top face
-        if (!up) ctx.drawImage(edgeCache[m], sx, sy);
-        // shadowed underside
-        if (!dn) {
-          ctx.fillStyle = 'rgba(8,4,18,0.4)';
-          ctx.fillRect(sx, sy + TILE - 2, TILE, 2);
-        }
-        // rim light down exposed flanks gives the rock real thickness
+        const mask = (up ? 1 : 0) | (rt ? 2 : 0) | (dn ? 4 : 0) | (lf ? 8 : 0);
+        const v = (U.hash2(cx, cy) * 4) | 0;
         const mm2 = D.MAT[m];
-        if (!lf) { ctx.fillStyle = mm2.c[0]; ctx.globalAlpha = 0.5; ctx.fillRect(sx, sy, 1, TILE); ctx.globalAlpha = 1; }
-        if (!rt) { ctx.fillStyle = mm2.c[2]; ctx.globalAlpha = 0.7; ctx.fillRect(sx + TILE - 1, sy, 1, TILE); ctx.globalAlpha = 1; }
 
-        // chamfer convex corners so the terrain stops reading as graph paper
-        ctx.fillStyle = mm2.c[2];
-        ctx.globalAlpha = 0.85;
-        if (!up && !lf) { ctx.fillRect(sx, sy, 2, 1); ctx.fillRect(sx, sy + 1, 1, 1); }
-        if (!up && !rt) { ctx.fillRect(sx + TILE - 2, sy, 2, 1); ctx.fillRect(sx + TILE - 1, sy + 1, 1, 1); }
-        if (!dn && !lf) { ctx.fillRect(sx, sy + TILE - 1, 2, 1); ctx.fillRect(sx, sy + TILE - 2, 1, 1); }
-        if (!dn && !rt) { ctx.fillRect(sx + TILE - 2, sy + TILE - 1, 2, 1); ctx.fillRect(sx + TILE - 1, sy + TILE - 2, 1, 1); }
-        ctx.globalAlpha = 1;
+        // 1. the band's own rock, so cut corners never show through to space
+        ctx.drawImage(baseShape(this.strata[this.stratum[i]].tint, mask, v), sx, sy);
+        // 2. this material as a blob against its own kind
+        const mmask = (up === m ? 1 : 0) | (rt === m ? 2 : 0) | (dn === m ? 4 : 0) | (lf === m ? 8 : 0);
+        ctx.drawImage(matShape(m, mmask, v), sx, sy);
+        // 3. light and rim, only where the tile faces open space
+        if (mask !== 15) ctx.drawImage(lightShape(mask, v), sx, sy);
+
+        // rolling soil lip along any open surface: the ground line waves
+        if (!up) {
+          const hL = (U.hash2(cx, cy * 3) - 0.5) * 3.4;
+          const hR = (U.hash2(cx + 1, cy * 3) - 0.5) * 3.4;
+          const hM = (U.hash2(cx * 2 + 7, cy) - 0.5) * 5;
+          ctx.fillStyle = mm2.c[0];
+          ctx.beginPath();
+          ctx.moveTo(sx, sy + hL);
+          ctx.quadraticCurveTo(sx + TILE / 2, sy + hM - 1, sx + TILE, sy + hR);
+          ctx.lineTo(sx + TILE, sy + 3.5);
+          ctx.lineTo(sx, sy + 3.5);
+          ctx.closePath();
+          ctx.fill();
+        }
 
         const mm = mm2;
         if (mm.shine) {
@@ -4133,6 +4662,49 @@ window.PD = window.PD || {};
   /* The core reads as one molten orb rather than a stack of flat tiles:
      each tile is shaded by its distance from the core centre. */
   /* Magma: a slow churn of bright cells on a dark crust, with a hot skin. */
+  /* Foliage pass. Plants are derived from the cell hash at draw time, so
+     mining a tile takes its garden with it and nothing has to be tracked. */
+  World.prototype.drawFlora = function (ctx, cam, vw, vh, time) {
+    const c0 = Math.max(1, Math.floor(cam.x / TILE));
+    const c1 = Math.min(this.w - 2, Math.ceil((cam.x + vw) / TILE));
+    const r0 = Math.max(1, Math.floor(cam.y / TILE));
+    const r1 = Math.min(this.h - 2, Math.ceil((cam.y + vh) / TILE));
+    const FL = PD.flora;
+    if (!FL) return;
+    for (let cy = r0; cy <= r1; cy++) {
+      for (let cx = c0; cx <= c1; cx++) {
+        const i = cy * this.w + cx;
+        if (this.cells[i]) continue;                 // plants live in open cells
+        const below = this.cells[i + this.w];
+        const above = this.cells[i - this.w];
+        if (!below && !above) continue;
+        const h = U.hash2(cx * 7 + 3, cy * 13 + 11);
+        if (h > 0.14) continue;                       // sparse: a garden, not a lawn
+        // keep neighbours apart so plants never merge into a carpet
+        if (U.hash2(cx * 5 + 1, cy) < 0.5 && this.cells[i + 1] === 0 && U.hash2((cx + 1) * 7 + 3, cy * 13 + 11) < 0.14) continue;
+        if (below && this.cells[i - this.w]) continue;  // needs headroom to grow into
+        const band = this.strata[this.stratum[i]];
+        const list = band && band.flora;
+        if (!list || !list.length) continue;
+        const sx = cx * TILE - cam.x;
+        const sy = cy * TILE - cam.y;
+        const seed = cx * 31 + cy * 17;
+        const kind = list[(U.hash2(cx + 5, cy + 9) * list.length) | 0];
+        const size = 6 + U.hash2(cx * 3, cy * 5) * 7;
+        const jitter = (U.hash2(cx * 11, cy * 2) - 0.5) * 4;
+        if (below) FL.draw(ctx, kind, sx + TILE / 2 + jitter, sy + TILE + 1, size, seed, time, 1);
+        else if (h < 0.07) FL.draw(ctx, hangKind(kind), sx + TILE / 2 + jitter, sy - 1, size * 0.9, seed + 5, time, -1);
+      }
+    }
+  };
+  function hangKind(k) {
+    if (k === 'grass' || k === 'fern' || k === 'frond') return 'vine';
+    if (k === 'shroom' || k === 'moss') return 'tendril';
+    if (k === 'ember' || k === 'coral') return k;
+    if (k === 'bone') return 'root';
+    return k === 'icespike' ? 'icespike' : (k === 'crystal' ? 'crystal' : 'root');
+  }
+
   World.prototype.drawLavaTile = function (ctx, sx, sy, cx, cy, time) {
     const swirl = Math.sin(time * 1.6 + cx * 0.9 + cy * 1.3) * 0.5 + 0.5;
     ctx.fillStyle = swirl > 0.55 ? '#ff7a2a' : '#e0521c';
@@ -4172,7 +4744,7 @@ window.PD = window.PD || {};
     }
   };
 
-  PD.world = { World, TILE, SKY, buildAtlas, atlas };
+  PD.world = { World, TILE, SKY, buildAtlas, matShape };
 })(window.PD);
 
 /* ===== src/entities.js ===== */
@@ -5392,40 +5964,121 @@ window.PD = window.PD || {};
     F.draw(ctx, text, gx + 6, y + 6, COL.text);
   }
 
-  function meters(ctx, g) {
+  /* ----------------------------------------------------------- vitals pod
+     Three readouts, no clutter: a glass air tank that empties, hull as a row
+     of hex chips that shatter, and the hold as a filling tube. */
+  function hexChip(ctx, x, y, r, fill, edge) {
+    ctx.beginPath();
+    for (let i = 0; i < 6; i++) {
+      const a = Math.PI / 180 * (60 * i - 30);
+      const px = x + Math.cos(a) * r, py = y + Math.sin(a) * r;
+      if (i) ctx.lineTo(px, py); else ctx.moveTo(px, py);
+    }
+    ctx.closePath();
+    if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+    if (edge) { ctx.strokeStyle = edge; ctx.lineWidth = 1; ctx.stroke(); }
+  }
+
+  function vitals(ctx, g) {
     const p = g.player;
     const maxO2 = p.stat('oxygen'), maxHull = p.stat('hull'), cap = p.capacity();
-    const bx = 24, bw = 84;
-    ctx.fillStyle = 'rgba(8,4,18,0.55)'; ctx.fillRect(0, 0, bx + bw + 40, 60);
-    Gd().draw(ctx, 'o2', 4, 6, COL.o2, '#2b9fc4');
-    bar(ctx, bx, 8, bw, 10, p.o2 / maxO2, p.o2 / maxO2 < 0.25 ? (Math.sin(g.time * 12) > 0 ? '#ff6b8a' : COL.o2) : COL.o2, { label: 'AIR' });
-    F.draw(ctx, Math.ceil(p.o2), bx + bw + 4, 6, COL.o2, { scale: 2 });
-    Gd().draw(ctx, 'hull', 4, 24, COL.hull, '#b32b2f');
-    bar(ctx, bx, 26, bw, 10, p.hull / maxHull, COL.hull, { label: 'HULL' });
-    F.draw(ctx, Math.ceil(p.hull), bx + bw + 4, 24, COL.hull, { scale: 2 });
-    Gd().draw(ctx, 'cargo', 4, 42, COL.cargo, '#c25c14');
-    bar(ctx, bx, 44, bw, 10, p.cargoKg / cap, p.cargoFull() ? '#ff6b8a' : COL.cargo, { label: 'HOLD' });
-    F.draw(ctx, Math.round(p.cargoKg) + '/' + Math.round(cap), bx + bw + 4, 44, p.cargoFull() ? '#ff6b8a' : COL.cargo, { scale: 2 });
+    const o2f = U.clamp(p.o2 / maxO2, 0, 1);
+    const t = g.time;
+    const PW = 172, PH = 62;
 
-    // manifest: swatch + count
-    const entries = Object.keys(p.cargo).sort((a, b) => D.MAT[b].cr - D.MAT[a].cr).slice(0, 6);
-    let my = 64;
+    ctx.fillStyle = 'rgba(8,4,18,0.62)';
+    ctx.fillRect(0, 0, PW, PH);
+    ctx.fillStyle = '#5b3f96';
+    ctx.fillRect(0, PH, PW, 1);
+    ctx.fillRect(PW, 0, 1, PH);
+
+    // --- air: a glass tank that empties
+    const tx = 5, ty = 4, tw = 14, th = 44;
+    const low = o2f < 0.25;
+    ctx.fillStyle = '#0d0720'; ctx.fillRect(tx - 1, ty - 1, tw + 2, th + 2);
+    ctx.fillStyle = '#161033'; ctx.fillRect(tx, ty, tw, th);
+    const fh = Math.round(th * o2f);
+    ctx.fillStyle = low ? (Math.sin(t * 14) > 0 ? '#ff6b8a' : '#58e8ff') : '#58e8ff';
+    ctx.fillRect(tx, ty + th - fh, tw, fh);
+    if (fh > 2) {
+      ctx.fillStyle = '#d6fbff';
+      ctx.fillRect(tx, ty + th - fh + Math.sin(t * 4) * 1.2, tw, 1);
+      for (let i = 0; i < 3; i++) {
+        const by = ty + th - ((t * 14 + i * 17) % Math.max(4, fh));
+        if (by > ty + th - fh) { ctx.fillStyle = 'rgba(255,255,255,0.5)'; ctx.fillRect(tx + 3 + i * 4, by, 1, 1); }
+      }
+    }
+    ctx.strokeStyle = '#7ef9ff'; ctx.strokeRect(tx + 0.5, ty + 0.5, tw - 1, th - 1);
+    ctx.fillStyle = 'rgba(255,255,255,0.22)'; ctx.fillRect(tx + 2, ty + 2, 3, th - 4);
+    for (let i = 1; i < 4; i++) { ctx.fillStyle = '#0d0720'; ctx.fillRect(tx, ty + (th / 4) * i, 4, 1); }
+    F.draw(ctx, 'AIR', tx + tw / 2, ty + th + 3, low ? '#ff6b8a' : '#7ef9ff', { center: true, shadow: false });
+
+    const CX = 26;                                  // right-hand column
+    F.draw(ctx, String(Math.ceil(p.o2)), CX, 4, low ? '#ff6b8a' : '#7ef9ff', { scale: 2, shadow: false });
+    F.draw(ctx, 'O2', CX + 42, 10, '#4d6f9c', { shadow: false });
+
+    // --- hull: hex chips that shatter
+    const cf = U.clamp(p.hull / maxHull, 0, 1);
+    F.draw(ctx, 'HULL', CX, 24, '#9c8ec4', { shadow: false });
+    for (let i = 0; i < 6; i++) {
+      const x = CX + 34 + i * 15, y = 27;
+      const f = U.clamp(cf * 6 - i, 0, 1);
+      hexChip(ctx, x, y, 6.5, '#2a1230', '#5b3f96');
+      if (f > 0) {
+        ctx.save();
+        ctx.beginPath(); ctx.rect(x - 7, y + 7 - 14 * f, 14, 14 * f); ctx.clip();
+        hexChip(ctx, x, y, 6.5, f < 0.35 ? '#ff8a3d' : '#ff5a4d', null);
+        ctx.restore();
+        hexChip(ctx, x, y, 6.5, null, '#ffb0a0');
+      } else {
+        ctx.strokeStyle = '#4a2a4a'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(x - 4, y - 3); ctx.lineTo(x + 3, y + 4); ctx.stroke();
+      }
+    }
+
+    // --- hold: a filling tube
+    const hx = CX + 28, hy = 42, hw = 84, hh = 9;
+    const load = U.clamp(p.cargoKg / cap, 0, 1);
+    F.draw(ctx, 'HOLD', CX, 43, '#9c8ec4', { shadow: false });
+    ctx.fillStyle = '#0d0720'; ctx.fillRect(hx - 1, hy - 1, hw + 2, hh + 2);
+    ctx.fillStyle = '#231640'; ctx.fillRect(hx, hy, hw, hh);
+    const segs = 10, sw = hw / segs;
+    for (let i = 0; i < segs; i++) {
+      const f = U.clamp(load * segs - i, 0, 1);
+      if (f <= 0) continue;
+      ctx.fillStyle = p.cargoFull() ? (Math.sin(t * 12) > 0 ? '#ff6b8a' : '#ffb03d') : '#ffb03d';
+      ctx.fillRect(hx + i * sw + 1, hy + 1, Math.max(1, (sw - 2) * f), hh - 2);
+      ctx.fillStyle = 'rgba(255,255,255,0.3)';
+      ctx.fillRect(hx + i * sw + 1, hy + 1, Math.max(1, (sw - 2) * f), 1);
+    }
+    F.draw(ctx, Math.round(p.cargoKg) + '/' + Math.round(cap), hx + hw / 2, hy + 2, load > 0.55 ? '#3a2408' : '#ffb03d', { center: true, shadow: false });
+
+    // --- manifest: top three ores, then the load's worth
+    const entries = Object.keys(p.cargo).sort((a, b) => D.MAT[b].cr - D.MAT[a].cr).slice(0, 3);
+    let my = PH + 6;
     for (const k of entries) {
       const m = D.MAT[k];
-      ctx.fillStyle = m.c[1]; ctx.fillRect(8, my + 1, 6, 6);
-      ctx.fillStyle = m.c[0]; ctx.fillRect(8, my + 1, 6, 2);
-      F.draw(ctx, m.name.toUpperCase().slice(0, 11) + ' ' + p.cargo[k], 18, my, COL.text);
-      my += 9;
+      ctx.fillStyle = 'rgba(8,4,18,0.5)'; ctx.fillRect(0, my - 1, 104, 10);
+      ctx.fillStyle = m.c[1]; ctx.fillRect(4, my + 1, 7, 7);
+      ctx.fillStyle = m.c[0]; ctx.fillRect(4, my + 1, 7, 2);
+      F.draw(ctx, m.name.toUpperCase().slice(0, 10), 15, my, COL.text, { shadow: false });
+      F.draw(ctx, String(p.cargo[k]), 100, my, COL.gold, { right: true, shadow: false });
+      my += 11;
     }
-    if (p.cargoValue() > 0) { Gd().draw(ctx, 'coin', 6, my, COL.gold, '#b8860b'); F.draw(ctx, U.fmt(p.cargoValue()), 22, my + 1, COL.gold, { scale: 2 }); }
+    if (p.cargoValue() > 0) {
+      ctx.fillStyle = 'rgba(8,4,18,0.5)'; ctx.fillRect(0, my - 1, 104, 16);
+      Gd().draw(ctx, 'coin', 3, my, COL.gold, '#b8860b');
+      F.draw(ctx, U.fmt(p.cargoValue()), 19, my + 1, COL.gold, { scale: 2, shadow: false });
+    }
 
-    // top right: credits, galaxy
-    ctx.fillStyle = 'rgba(8,4,18,0.55)'; ctx.fillRect(VW - 130, 0, 130, 46);
-    F.draw(ctx, '$' + U.fmt(g.save.credits), VW - 8, 6, COL.gold, { right: true, scale: 2 });
-    F.draw(ctx, 'GALAXY ' + g.save.dominion.toFixed(1) + '%', VW - 8, 24, COL.lineHi, { right: true });
-    const dps = g.droneIncome();
-    if (dps > 0) F.draw(ctx, '+$' + U.fmt(dps) + '/S DRONES', VW - 8, 34, COL.good, { right: true });
+    // top right: credits + galaxy
+    ctx.fillStyle = 'rgba(8,4,18,0.55)'; ctx.fillRect(VW - 130, 0, 130, 34);
+    F.draw(ctx, '$' + U.fmt(g.save.credits), VW - 8, 4, COL.gold, { right: true, scale: 2 });
+    F.draw(ctx, 'GALAXY ' + g.save.dominion.toFixed(1) + '%', VW - 8, 22, COL.lineHi, { right: true });
   }
+  const meters = vitals;
+
+
 
   function hud(ctx, g) {
     const p = g.player;
@@ -5437,26 +6090,32 @@ window.PD = window.PD || {};
     F.draw(ctx, g.world.depthMeters(p.y) + 'M', 22, VH - 16, COL.text, { scale: 2 });
     objective(ctx, g);
 
-    // weapon, dash, scan
+    // one compact action strip: weapon, dash, scan, wire
     const wg = { pistol: 'gun', scatter: 'scatter', lance: 'lance' }[p.weapon];
-    Gd().draw(ctx, wg, 6, VH - 84, '#ffffff', '#7ef9ff');
-    F.draw(ctx, p.weapon.toUpperCase() + (p.weapons().length > 1 ? '  Q' : ''), 22, VH - 81, COL.text);
-    Gd().draw(ctx, 'dash', 6, VH - 68, p.dashCool > 0 ? COL.dim : COL.gold, '#2a1c4a');
-    bar(ctx, 22, VH - 64, 40, 4, 1 - p.dashCool / Math.max(0.1, p.stat('dash')), p.dashCool > 0 ? '#9c8ec4' : COL.gold, {});
-    F.draw(ctx, 'DASH', 66, VH - 66, COL.dim);
-    Gd().draw(ctx, 'scan', 6, VH - 54, p.scanCool > 0 ? COL.dim : COL.good, '#2a1c4a');
-    bar(ctx, 22, VH - 50, 40, 4, 1 - p.scanCool / 4, p.scanCool > 0 ? '#9c8ec4' : COL.good, {});
-    F.draw(ctx, 'SCAN', 66, VH - 52, COL.dim);
-    // tether reel
-    Gd().draw(ctx, 'belt', 6, VH - 40, p.tetherFrac > 0.9 ? '#ff5a4d' : COL.o2, '#2a1c4a');
-    bar(ctx, 22, VH - 36, 40, 4, p.tetherFrac || 0, p.tetherFrac > 0.9 ? '#ff5a4d' : COL.o2, {});
-    F.draw(ctx, 'WIRE', 66, VH - 38, COL.dim);
+    const sy = VH - 86;
+    ctx.fillStyle = 'rgba(8,4,18,0.55)';
+    ctx.fillRect(0, sy - 4, 190, 16);
+    Gd().draw(ctx, wg, 4, sy - 2, '#ffffff', '#7ef9ff');
+    F.draw(ctx, p.weapon.toUpperCase() + (p.weapons().length > 1 ? ' Q' : ''), 20, sy + 1, COL.text, { shadow: false });
+    const pip = (x, glyph, frac, col) => {
+      Gd().draw(ctx, glyph, x, sy - 2, frac >= 1 ? col : COL.dim, '#2a1c4a');
+      ctx.fillStyle = '#2a1c4a'; ctx.fillRect(x, sy + 10, 12, 2);
+      ctx.fillStyle = frac >= 1 ? col : '#9c8ec4'; ctx.fillRect(x, sy + 10, Math.round(12 * U.clamp(frac, 0, 1)), 2);
+    };
+    pip(78, 'dash', 1 - p.dashCool / Math.max(0.1, p.stat('dash')), COL.gold);
+    pip(96, 'scan', 1 - p.scanCool / 4, COL.good);
+    // the wire is the one that matters, so it gets a real bar
+    const tf = U.clamp(p.tetherFrac || 0, 0, 1);
+    const tcol = tf > 0.9 ? '#ff5a4d' : (tf > 0.7 ? COL.gold : COL.o2);
+    Gd().draw(ctx, 'belt', 116, sy - 2, tcol, '#2a1c4a');
+    bar(ctx, 132, sy + 1, 52, 7, tf, tcol, {});
+    F.draw(ctx, 'WIRE', 132 + 26, sy + 2, tf > 0.6 ? '#0d0720' : COL.dim, { center: true, shadow: false });
 
     // core integrity
     if (g.world.coreHp < g.world.coreMax) {
-      const cw = 140, cx = VW / 2 - cw / 2;
-      F.draw(ctx, 'CORE', cx - 30, 28, COL.core);
-      bar(ctx, cx, 26, cw, 9, g.world.coreHp / g.world.coreMax, COL.core, { right: Math.ceil(g.world.coreHp / g.world.coreMax * 100) + '%' });
+      const cw = 128, cx = 214;
+      F.draw(ctx, 'CORE', 182, 40, COL.core);
+      bar(ctx, cx, 38, cw, 9, g.world.coreHp / g.world.coreMax, COL.core, { right: Math.ceil(g.world.coreHp / g.world.coreMax * 100) + '%' });
     }
     if (p.recall > 0.1) {
       Gd().draw(ctx, 'hole', VW / 2 - 48, VH - 40, COL.o2, '#2b9fc4');
@@ -5487,22 +6146,6 @@ window.PD = window.PD || {};
       ctx.globalAlpha = 1;
     }
 
-    hintStrip(ctx, g, VH - 44);
-    toasts(ctx, g);
-  }
-
-  /* Scooter field HUD: the same meters, plus the field's own readouts. */
-  function hudField(ctx, g) {
-    meters(ctx, g);
-    const p = g.player;
-    F.draw(ctx, g.world.body.name + ' ORBIT', 6, VH - 26, COL.text);
-    Gd().draw(ctx, 'speed', 6, VH - 16, COL.dim, '#2a1c4a');
-    F.draw(ctx, Math.round(Math.hypot(p.vx, p.vy)), 22, VH - 16, COL.text, { scale: 2 });
-    Gd().draw(ctx, 'hole', 6, VH - 68, PD.space.S.hole ? '#d8bcff' : COL.dim, '#6b3fb5');
-    F.draw(ctx, PD.space.S.hole ? 'FLY IN' : 'E  TIME HOLE', 22, VH - 65, PD.space.S.hole ? '#d8bcff' : COL.text);
-    Gd().draw(ctx, 'gun', 6, VH - 52, '#ffffff', '#7ef9ff');
-    F.draw(ctx, 'SPACE  FIRE', 22, VH - 49, COL.text);
-    objective(ctx, g);
     hintStrip(ctx, g, VH - 44);
     toasts(ctx, g);
   }
@@ -5889,7 +6532,7 @@ window.PD = window.PD || {};
   }
 
   PD.ui = {
-    VW, VH, COL, panel, bar, button, icon, hud, hudField, objective, shop, title, pause, victory,
+    VW, VH, COL, panel, bar, button, icon, hud, objective, shop, title, pause, victory,
     sellSplash, ending, endFrame
   };
 })(window.PD);
@@ -6051,22 +6694,13 @@ window.PD = window.PD || {};
 
   /* Each app gets its own phosphor colour so you know where you are. */
   const THEME = {
-    market: { hi: '#39ffa6', mid: '#1e9e68', lo: '#0d3d2a', bg: '#04140f', name: 'CARGO EXCHANGE', glyph: 'sell' },
-    fab:    { hi: '#ffb03d', mid: '#c07a20', lo: '#3d2a0d', bg: '#140f04', name: 'FABRICATOR', glyph: 'build' },
-    skills: { hi: '#ffb03d', mid: '#c07a20', lo: '#3d2a0d', bg: '#140f04', name: 'SKILL LATTICE', glyph: 'hex' },
-    bay:    { hi: '#58e8ff', mid: '#2b8fae', lo: '#0d2f3d', bg: '#041014', name: 'DRONE BAY', glyph: 'drone' },
-    vanity: { hi: '#ff8ad8', mid: '#b0459a', lo: '#3d0d2f', bg: '#140418', name: 'IDENTITY SUITE', glyph: 'crew' },
-    nav:    { hi: '#9ab4ff', mid: '#4f66c0', lo: '#161d3d', bg: '#060818', name: 'NAV COMPUTER', glyph: 'planet' },
-    refinery: { hi: '#ffd34d', mid: '#b58a1e', lo: '#3a2c0a', bg: '#120e04', name: 'REFINERY DECK', glyph: 'machine' }
+    market: { hi: '#39ffa6', mid: '#1e9e68', lo: '#0d3d2a', bg: '#04140f', name: 'THE EXCHANGE', glyph: 'sell' },
+    skills: { hi: '#ffb03d', mid: '#c07a20', lo: '#3d2a0d', bg: '#140f04', name: 'THE LAB', glyph: 'hex' }
   };
 
   const FOOT = {
-    market: 'ZAZ APPRAISES ONE LOT AT A TIME. ONLY APPRAISED ORE SELLS.',
-    skills: 'CLICK A HEX. NEIGHBOURS OF A BUILT NODE UNLOCK.',
-    bay: 'DRONES EARN WHILE YOU FLY.',
-    vanity: 'CLICK TO BUY, CLICK AGAIN TO WEAR.',
-    nav: 'PICK A WORLD TO DIVE. THE AIRLOCK GOES BACK TO THE FIELD.',
-    refinery: 'HOPPER -> BELT -> MACHINE -> DEPOT. GOODS SELL FOR MORE.'
+    market: 'ONLY APPRAISED ORE SELLS. PRICES MOVE ON THEIR OWN.',
+    skills: 'CLICK A HEX. NEIGHBOURS OF A BUILT NODE UNLOCK.'
   };
 
   const state = {
@@ -6076,11 +6710,6 @@ window.PD = window.PD || {};
 
   const BOOT = {
     market: ['RUSTMAW OS 4.21', 'LINKING BLACK-MARKET RELAY...', 'RELAY OK  [ENCRYPTED]', 'NO QUESTIONS ASKED.'],
-    fab: ['RUSTMAW OS 4.21', 'FABRICATOR ARM ONLINE', 'FEEDSTOCK BIN: READING...', 'BOLT SAYS HURRY UP.'],
-    bay: ['RUSTMAW OS 4.21', 'DRONE SWARM HANDSHAKE...', 'ALL UNITS NOMINAL', 'THEY NEVER SLEEP.'],
-    vanity: ['RUSTMAW OS 4.21', 'IDENTITY SUITE LOADED', 'GENE VAT: WARM', 'LOOK THE PART.'],
-    nav: ['RUSTMAW OS 4.21', 'STELLAR CARTOGRAPHY ONLINE', 'PLOTTING VICTIMS...', 'SELECT A TARGET.'],
-    refinery: ['RUSTMAW OS 4.21', 'REFINERY GRID POWER: ON', 'BELT MOTORS SPUN UP', 'ROCK IN. MONEY OUT.'],
     skills: ['RUSTMAW OS 4.21', 'LATTICE ONLINE', 'NODES INDEXED', 'GROW.']
   };
 
@@ -6209,314 +6838,125 @@ window.PD = window.PD || {};
 
   /* ---------------------------------------------------------------- market */
   function appMarket(ctx, g, th, t) {
-    state.view = state.view || 'raw';
     const Gd = PD.glyph;
-    // two tabs: raw ore / refined goods, as glyph keys
-    const tabKey = (x, glyph, id) => {
-      const on = state.view === id;
-      const hot = PD.input.mouse.inside && PD.input.mouse.x >= x && PD.input.mouse.x < x + 30 && PD.input.mouse.y >= IY - 4 && PD.input.mouse.y < IY + 12;
-      ctx.fillStyle = on ? th.mid : (hot ? th.lo : '#000'); ctx.fillRect(x, IY - 4, 30, 16);
-      ctx.strokeStyle = on ? th.hi : th.mid; ctx.strokeRect(x + 0.5, IY - 3.5, 29, 15);
-      Gd.draw(ctx, glyph, x + 8, IY - 3, '#ffffff', th.hi);
-      if (hot && PD.input.mouse.leftPressed) { state.view = id; A.sfx.click(); }
-    };
-    tabKey(IX, 'ore', 'raw'); tabKey(IX + 34, 'machine', 'goods');
-    const isRaw = state.view === 'raw';
 
-    // fee and broker shown as glyph + number
+    /* ---- Zaz's appraisal lane runs across the top of the screen. */
+    const laneY = IY - 4, laneH = 26;
+    ctx.fillStyle = '#06251a'; ctx.fillRect(IX, laneY, IW, laneH);
+    ctx.strokeStyle = th.mid; ctx.strokeRect(IX + 0.5, laneY + 0.5, IW - 1, laneH - 1);
+    ctx.fillStyle = th.lo;
+    for (let x = 0; x < IW - 6; x += 8) ctx.fillRect(IX + 2 + ((x + Math.floor(t * 26)) % (IW - 8)), laneY + laneH - 5, 4, 2);
+
+    const appMat = g.appraising();
+    const waiting = Object.keys(g.save.vault).reduce((n, k) => n + g.save.vault[k], 0);
+    const readyN = Object.keys(g.save.appr).reduce((n, k) => n + g.save.appr[k], 0);
+    Gd.draw(ctx, 'clock', IX + 4, laneY + 6, '#ffffff', '#ffb03d');
+    F.draw(ctx, 'APPRAISAL', IX + 20, laneY + 4, th.mid, { shadow: false });
+    F.draw(ctx, waiting + ' IN QUEUE', IX + 20, laneY + 14, waiting ? '#ffb03d' : th.lo, { shadow: false });
+
+    const scanX = IX + IW - 150;                 // the scanner arch sits here
+    const nameX = IX + IW - 124;
+    if (appMat !== null) {
+      const m = D.MAT[appMat];
+      const f = g.apprFrac();
+      const lx = IX + 88 + f * (scanX - IX - 92);
+      ctx.fillStyle = m.c[1]; ctx.fillRect(lx, laneY + 10, 10, 10);
+      ctx.fillStyle = m.c[0]; ctx.fillRect(lx, laneY + 10, 10, 3);
+      ctx.strokeStyle = th.hi; ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(scanX, laneY + 22); ctx.lineTo(scanX, laneY + 5);
+      ctx.lineTo(scanX + 20, laneY + 5); ctx.lineTo(scanX + 20, laneY + 22);
+      ctx.stroke();
+      ctx.fillStyle = 'rgba(57,255,166,' + (0.25 + 0.2 * Math.sin(t * 9)).toFixed(2) + ')';
+      ctx.fillRect(scanX + 1, laneY + 6, 18, 16);
+      F.draw(ctx, m.name.toUpperCase().slice(0, 14), nameX, laneY + 4, th.hi, { shadow: false });
+      ctx.fillStyle = th.lo; ctx.fillRect(nameX, laneY + 15, 112, 5);
+      ctx.fillStyle = '#ffb03d'; ctx.fillRect(nameX, laneY + 15, Math.round(112 * f), 5);
+    } else {
+      F.draw(ctx, waiting ? 'SPINNING UP...' : 'NOTHING TO VALUE', nameX, laneY + 10, th.lo, { shadow: false });
+    }
+
+    // the three multipliers that decide what a rock is worth
     const fee = Math.round(D.appraiseFee(g.save.upg.appraise || 0) * 100);
-    F.draw(ctx, 'FEE -' + fee + '%   BROKER +' + Math.round((D.UPG.crew.value(g.save.upg.crew || 0) - 1) * 100) + '%', IX + 80, IY + 1, th.mid, { shadow: false });
+    const brk = Math.round((D.UPG.crew.value(g.save.upg.crew || 0) - 1) * 100);
+    const pur = Math.round((D.UPG.refine.value(g.save.upg.refine || 0) - 1) * 100);
+    F.draw(ctx, 'HOUSE FEE -' + fee + '%', IX, IY + 26, '#ff6b8a', { shadow: false });
+    F.draw(ctx, 'BROKER +' + brk + '%', IX + 96, IY + 26, th.hi, { shadow: false });
+    F.draw(ctx, 'PURIFIER +' + pur + '%', IX + 174, IY + 26, th.hi, { shadow: false });
+    F.draw(ctx, readyN + ' LOTS READY', IX + IW, IY + 26, th.mid, { right: true, shadow: false });
 
-    const entry = k => {
-      if (isRaw) { const m = D.MAT[k]; return { cr: m.cr, c: m.c }; }
-      if (k.indexOf('raw:') === 0) { const m = D.MAT[+k.slice(4)]; return { cr: m.cr, c: m.c }; }
-      const gd = D.goodFromKey(k); return gd ? { cr: gd.cr, c: gd.c } : null;
-    };
-    let keys;
-    if (isRaw) {
-      const set = {};
-      for (const k in g.save.vault) if (g.save.vault[k] > 0) set[k] = 1;
-      for (const k in g.save.appr) if (g.save.appr[k] > 0) set[k] = 1;
-      keys = Object.keys(set).sort((a, b) => D.MAT[b].cr - D.MAT[a].cr);
-    } else keys = Object.keys(g.save.goods || {}).filter(k => g.save.goods[k] > 0 && entry(k)).sort((a, b) => entry(b).cr - entry(a).cr);
+    /* ---- the ore book. */
+    const set = {};
+    for (const k in g.save.vault) if (g.save.vault[k] > 0) set[k] = 1;
+    for (const k in g.save.appr) if (g.save.appr[k] > 0) set[k] = 1;
+    const keys = Object.keys(set).sort((a, b) => D.MAT[b].cr - D.MAT[a].cr);
 
-    // column glyphs
-    const hy = IY + 16;
-    F.draw(ctx, isRaw ? 'ORE' : 'GOODS', IX, hy + 3, th.mid, { shadow: false });
-    if (isRaw) { F.draw(ctx, 'WAITING', IX + 100, hy + 3, th.mid, { shadow: false }); F.draw(ctx, 'READY', IX + 170, hy + 3, th.mid, { shadow: false }); }
-    else F.draw(ctx, 'READY', IX + 170, hy + 3, th.mid, { shadow: false });
-    F.draw(ctx, 'EACH', IX + 226, hy + 3, th.mid, { shadow: false }); F.draw(ctx, 'TOTAL', IX + 282, hy + 3, th.mid, { shadow: false });
-    ctx.fillStyle = th.lo; ctx.fillRect(IX, hy + 16, IW, 1);
+    const hy = IY + 38;
+    F.draw(ctx, 'ORE', IX, hy + 3, th.mid, { shadow: false });
+    F.draw(ctx, 'QUEUE', IX + 104, hy + 3, th.mid, { shadow: false });
+    F.draw(ctx, 'READY', IX + 150, hy + 3, th.mid, { shadow: false });
+    F.draw(ctx, 'MARKET', IX + 196, hy + 3, th.mid, { shadow: false });
+    F.draw(ctx, 'EACH', IX + 258, hy + 3, th.mid, { shadow: false });
+    F.draw(ctx, 'TOTAL', IX + 300, hy + 3, th.mid, { shadow: false });
+    ctx.fillStyle = th.lo; ctx.fillRect(IX, hy + 13, IW, 1);
 
-    if (!keys.length) Gd.draw(ctx, isRaw ? 'ore' : 'machine', IX + IW / 2 - 7, IY + 70, th.lo, th.lo, 2);
+    if (!keys.length) {
+      Gd.draw(ctx, 'ore', IX + IW / 2 - 14, IY + 92, th.lo, th.lo, 2);
+      F.draw(ctx, 'THE HOLD IS EMPTY. GO RUIN SOMETHING.', IX + IW / 2, IY + 122, th.lo, { center: true, shadow: false });
+    }
 
     let total = 0;
-    const maxRows = 8;
-    const appMat = g.appraising();
+    const maxRows = 7;
     for (let i = 0; i < Math.min(keys.length, maxRows); i++) {
-      const k = keys[i], e = entry(k);
-      const ready = isRaw ? (g.save.appr[k] || 0) : g.save.goods[k];
-      const raw = isRaw ? (g.save.vault[k] || 0) : 0;
-      const unit = Math.round(e.cr * (isRaw ? g.saleMult() : g.valueMult()));
+      const k = keys[i], m = D.MAT[k];
+      const ready = g.save.appr[k] || 0;
+      const queued = g.save.vault[k] || 0;
+      const unit = g.priceOf(+k);
       const val = unit * ready;
       total += val;
-      const y = IY + 36 + i * 15;
-      const r = row(ctx, IX, y, IW, 14, th);
-      ctx.fillStyle = e.c[1]; ctx.fillRect(IX + 3, y + 3, 8, 8); ctx.fillStyle = e.c[0]; ctx.fillRect(IX + 3, y + 3, 8, 3);
-      if (!isRaw) { ctx.fillStyle = '#ffffff'; ctx.fillRect(IX + 6, y + 6, 2, 2); }
-      F.draw(ctx, (isRaw ? D.MAT[k].name : (D.goodFromKey(k) || { name: D.MAT[+k.slice(4)].name }).name).toUpperCase().slice(0, 14), IX + 14, y + 4, th.hi, { shadow: false });
-      if (isRaw) {
-        // raw count + the appraisal bar for the lot being valued
-        F.draw(ctx, String(raw), IX + 120, y + 4, raw ? '#ffb03d' : th.lo, { shadow: false });
-        if (+k === appMat) { ctx.fillStyle = th.lo; ctx.fillRect(IX + 138, y + 5, 26, 4); ctx.fillStyle = '#ffb03d'; ctx.fillRect(IX + 138, y + 5, Math.round(26 * g.apprFrac()), 4); }
-      }
-      F.draw(ctx, String(ready), IX + 170, y + 4, ready ? th.hi : th.lo, { shadow: false });
-      F.draw(ctx, U.fmt(unit), IX + 226, y + 4, th.mid, { shadow: false });
-      F.draw(ctx, U.fmt(val), IX + 282, y + 4, ready ? th.hi : th.lo, { shadow: false });
-      // sell keys: one / all, as glyphs
-      const sx = IX + IW - 66;
-      if (key(ctx, sx, y, 30, 14, '1', th, { enabled: ready > 0 })) (isRaw ? g.sellFromVault(+k, 1) : g.sellGood(k, 1));
-      if (key(ctx, sx + 34, y, 30, 14, 'ALL', th, { enabled: ready > 0 })) (isRaw ? g.sellFromVault(+k, ready) : g.sellGood(k, ready));
-
+      const y = IY + 56 + i * 16;
+      row(ctx, IX, y, IW, 15, th);
+      ctx.fillStyle = m.c[1]; ctx.fillRect(IX + 3, y + 3, 9, 9);
+      ctx.fillStyle = m.c[0]; ctx.fillRect(IX + 3, y + 3, 9, 3);
+      ctx.fillStyle = '#0a0616'; ctx.fillRect(IX + 3, y + 11, 9, 1);
+      F.draw(ctx, m.name.toUpperCase().slice(0, 13), IX + 16, y + 5, th.hi, { shadow: false });
+      F.draw(ctx, queued ? String(queued) : '-', IX + 110, y + 5, queued ? '#ffb03d' : th.lo, { shadow: false });
+      F.draw(ctx, ready ? String(ready) : '-', IX + 156, y + 5, ready ? th.hi : th.lo, { shadow: false });
+      // demand: a little rising or falling bar with a percentage
+      const dm = g.demandFor(+k);
+      const up = (g.demandTrend && g.demandTrend[k] || 0) >= 0;
+      const pct = Math.round((dm - 1) * 100);
+      const col = pct >= 0 ? '#39ffa6' : '#ff6b8a';
+      ctx.fillStyle = th.lo; ctx.fillRect(IX + 196, y + 6, 30, 5);
+      ctx.fillStyle = col; ctx.fillRect(IX + 196, y + 6, Math.round(30 * U.clamp((dm - 0.78) / 0.5, 0.05, 1)), 5);
+      F.draw(ctx, (pct >= 0 ? '+' : '') + pct + '%', IX + 230, y + 5, col, { shadow: false });
+      Gd.draw(ctx, up ? 'arrowU' : 'arrowD', IX + 244, y + 2, col, 'rgba(0,0,0,0)');
+      F.draw(ctx, U.fmt(unit), IX + 258, y + 5, th.mid, { shadow: false });
+      F.draw(ctx, U.fmt(val), IX + 300, y + 5, ready ? th.hi : th.lo, { shadow: false });
+      const sx = IX + IW - 62;
+      if (key(ctx, sx, y, 26, 15, '1', th, { enabled: ready > 0 })) g.sellFromVault(+k, 1);
+      if (key(ctx, sx + 30, y, 30, 15, 'ALL', th, { enabled: ready > 0 })) g.sellFromVault(+k, ready);
     }
-    for (let i = maxRows; i < keys.length; i++) total += Math.round(entry(keys[i]).cr * (isRaw ? g.saleMult() : g.valueMult())) * (isRaw ? (g.save.appr[keys[i]] || 0) : g.save.goods[keys[i]]);
+    for (let i = maxRows; i < keys.length; i++) total += g.priceOf(+keys[i]) * (g.save.appr[keys[i]] || 0);
 
-    ctx.fillStyle = th.lo; ctx.fillRect(IX, IY + IH - 24, IW, 1);
-    Gd.stat(ctx, 'coin', U.fmt(total), IX, IY + IH - 18, '#ffd34d', '#b8860b', th.hi);
-    if (key(ctx, IX + IW - 72, IY + IH - 20, 70, 16, '', th, { enabled: total > 0 })) { if (isRaw) g.sellAll(); else g.sellAllGoods(); }
-    F.draw(ctx, 'SELL ALL', IX + IW - 37, IY + IH - 16, total ? '#ffffff' : '#3a3030', { center: true, shadow: false });
+    /* ---- the till. */
+    ctx.fillStyle = th.lo; ctx.fillRect(IX, IY + IH - 26, IW, 1);
+    Gd.draw(ctx, 'coin', IX, IY + IH - 21, '#ffd34d', '#b8860b');
+    F.draw(ctx, '$' + U.fmt(total), IX + 18, IY + IH - 22, total ? '#ffd34d' : th.lo, { shadow: false, scale: 2 });
+    const bw = 96, bx = IX + IW - bw, by = IY + IH - 24;
+    const hot = total > 0;
+    ctx.fillStyle = hot ? (Math.sin(t * 5) > 0 ? '#39ffa6' : '#2ad48a') : '#12281f';
+    ctx.fillRect(bx, by, bw, 20);
+    ctx.strokeStyle = hot ? '#d6ffe9' : th.lo;
+    ctx.strokeRect(bx + 0.5, by + 0.5, bw - 1, 19);
+    F.draw(ctx, 'SELL EVERYTHING', bx + bw / 2, by + 7, hot ? '#05170e' : '#2c4a3c', { center: true, shadow: false });
+    const mo = PD.input.mouse;
+    if (hot && mo.inside && mo.leftPressed && mo.x >= bx && mo.x < bx + bw && mo.y >= by && mo.y < by + 20) g.sellAll();
   }
+
 
   /* ------------------------------------------------------------ fabricator */
-  function appFab(ctx, g, th, t) {
-    const list = D.UPGRADES;
-    const perPage = 6;
-    const page = U.clamp(state.scroll, 0, Math.max(0, Math.ceil(list.length / perPage) - 1));
-    state.scroll = page;
-
-    F.draw(ctx, 'MODULE                     STATE        COST', IX, IY, th.mid, { shadow: false });
-    ctx.fillStyle = th.lo; ctx.fillRect(IX, IY + 9, IW, 1);
-
-    for (let i = 0; i < perPage; i++) {
-      const idx = page * perPage + i;
-      if (idx >= list.length) break;
-      const u = list[idx];
-      const lvl = g.save.upg[u.id] || 0;
-      const maxed = lvl >= u.max;
-      const cost = D.upgradeCost(u, lvl);
-      const rec = maxed ? [] : D.recipe(u, lvl);
-      const haveAll = rec.every(r => (g.save.vault[r.mat] || 0) >= r.qty);
-      const canAfford = g.save.credits >= cost && haveAll;
-      const y = IY + 14 + i * 26;
-
-      const r = row(ctx, IX, y, IW, 25, th, { active: state.sel === idx });
-      if (r.clicked) state.sel = idx;
-
-      ctx.drawImage(PD.art.ICON[u.icon], IX + 2, y + 4);
-      F.draw(ctx, u.name, IX + 20, y + 3, maxed ? th.mid : th.hi, { shadow: false });
-      F.draw(ctx, u.show(lvl), IX + 20, y + 14, th.mid, { shadow: false });
-      F.draw(ctx, 'LV' + lvl + '/' + u.max, IX + 150, y + 3, th.mid, { shadow: false });
-      bar(ctx, IX + 150, y + 14, 40, 4, lvl / u.max, th);
-
-      if (maxed) {
-        F.draw(ctx, 'MAXED', IX + 210, y + 8, th.hi, { shadow: false });
-      } else {
-        // requirement chips: credits then ore
-        F.draw(ctx, '$' + U.fmt(cost), IX + 206, y + 3,
-          g.save.credits >= cost ? th.hi : '#ff5a4d', { shadow: false });
-        let cxp = IX + 206;
-        for (const req of rec) {
-          const have = g.save.vault[req.mat] || 0;
-          const ok = have >= req.qty;
-          const m = D.MAT[req.mat];
-          ctx.fillStyle = m.c[1]; ctx.fillRect(cxp, y + 15, 5, 5);
-          F.draw(ctx, have + '/' + req.qty, cxp + 7, y + 14, ok ? th.hi : '#ff5a4d', { shadow: false });
-          cxp += 8 + F.width(have + '/' + req.qty, 1) + 6;
-        }
-        if (key(ctx, IX + IW - 62, y + 5, 60, 15, 'FABRICATE', th, { enabled: canAfford })) g.fabricate(u.id);
-      }
-      if (r.hover) state.tip = u.blurb.toUpperCase();
-    }
-
-    const pages = Math.ceil(list.length / perPage);
-    if (key(ctx, IX, IY + IH - 16, 46, 14, '< PREV', th, { enabled: page > 0 })) state.scroll--;
-    if (key(ctx, IX + 50, IY + IH - 16, 46, 14, 'NEXT >', th, { enabled: page < pages - 1 })) state.scroll++;
-    F.draw(ctx, 'PAGE ' + (page + 1) + '/' + pages, IX + 104, IY + IH - 13, th.mid, { shadow: false });
-  }
-
-  /* -------------------------------------------------------------- drone bay */
-  function appBay(ctx, g, th, t) {
-    const n = g.save.upg.drones || 0;
-    const yieldLv = g.save.upg.droneyield || 0;
-    F.draw(ctx, 'AUTONOMOUS SALVAGE SWARM', IX, IY, th.hi, { shadow: false });
-    F.draw(ctx, 'THEY STRIP THE RUBBLE WHILE YOU FLY.', IX, IY + 11, th.mid, { shadow: false });
-
-    // live swarm readout
-    const spr = PD.art.sprites.drone;
-    for (let i = 0; i < Math.min(n, 24); i++) {
-      const col = i % 12, rw = (i / 12) | 0;
-      const bob = Math.sin(t * 3 + i) * 2;
-      ctx.drawImage(spr.frames[(Math.floor(t * 10) + i) % 2],
-        IX + col * 17, IY + 26 + rw * 16 + bob | 0);
-    }
-    if (n === 0) F.draw(ctx, 'NO UNITS DEPLOYED.', IX, IY + 30, '#ff5a4d', { shadow: false });
-    if (n > 24) F.draw(ctx, '+' + (n - 24) + ' MORE IN THE RACKS', IX, IY + 58, th.mid, { shadow: false });
-
-    const boxY = IY + 74;
-    ctx.fillStyle = th.lo; ctx.fillRect(IX, boxY, IW, 1);
-    F.draw(ctx, 'UNITS', IX, boxY + 8, th.mid, { shadow: false });
-    F.draw(ctx, String(n), IX + 60, boxY + 8, th.hi, { shadow: false });
-    F.draw(ctx, 'YIELD', IX, boxY + 20, th.mid, { shadow: false });
-    F.draw(ctx, 'X' + (1 + yieldLv * 0.55).toFixed(2), IX + 60, boxY + 20, th.hi, { shadow: false });
-    F.draw(ctx, 'INCOME', IX, boxY + 32, th.mid, { shadow: false });
-    F.draw(ctx, '$' + U.fmt(g.droneIncome()) + ' /SEC', IX + 60, boxY + 32, th.hi, { shadow: false });
-    F.draw(ctx, '$' + U.fmt(g.droneIncome() * 60) + ' /MIN', IX + 150, boxY + 32, th.mid, { shadow: false });
-
-    const mk = (id, label, y) => {
-      const u = D.UPG[id];
-      const lvl = g.save.upg[id] || 0;
-      const cost = D.upgradeCost(u, lvl);
-      const rec = D.recipe(u, lvl);
-      const haveAll = rec.every(r => (g.save.vault[r.mat] || 0) >= r.qty);
-      const ok = lvl < u.max && g.save.credits >= cost && haveAll;
-      F.draw(ctx, label, IX + 200, y, th.mid, { shadow: false });
-      let cxp = IX + 200;
-      F.draw(ctx, '$' + U.fmt(cost), cxp, y + 10, g.save.credits >= cost ? th.hi : '#ff5a4d', { shadow: false });
-      cxp += F.width('$' + U.fmt(cost), 1) + 8;
-      for (const req of rec) {
-        const have = g.save.vault[req.mat] || 0;
-        ctx.fillStyle = D.MAT[req.mat].c[1]; ctx.fillRect(cxp, y + 11, 5, 5);
-        F.draw(ctx, have + '/' + req.qty, cxp + 7, y + 10, have >= req.qty ? th.hi : '#ff5a4d', { shadow: false });
-        cxp += 8 + F.width(have + '/' + req.qty, 1) + 5;
-      }
-      if (key(ctx, IX + IW - 62, y, 60, 15, lvl >= u.max ? 'MAXED' : 'BUILD', th, { enabled: ok })) g.fabricate(id);
-    };
-    mk('drones', 'ADD DRONE UNIT', boxY + 4);
-    mk('droneyield', 'UPGRADE CLAWS', boxY + 30);
-  }
-
-  /* ---------------------------------------------------------------- vanity */
-  function appVanity(ctx, g, th, t) {
-    const cats = D.COSMETICS;
-    state.cat = U.clamp(state.cat, 0, cats.length - 1);
-    for (let i = 0; i < cats.length; i++) {
-      if (key(ctx, IX + i * 86, IY, 82, 14, cats[i].name, th, { enabled: true })) { state.cat = i; A.sfx.click(); }
-      if (state.cat === i) { ctx.fillStyle = th.hi; ctx.fillRect(IX + i * 86, IY + 14, 82, 1); }
-    }
-    const cat = cats[state.cat];
-    F.draw(ctx, cat.blurb, IX, IY + 20, th.mid, { shadow: false });
-
-    for (let i = 0; i < cat.options.length; i++) {
-      const o = cat.options[i];
-      const y = IY + 30 + i * 14;
-      const owned = o.cost === 0 || (g.save.owned[cat.id] || {})[o.id];
-      const worn = (g.save.cos[cat.id] || cat.options[0].id) === o.id;
-      const r = row(ctx, IX, y, IW - 116, 13, th, { active: worn });
-      for (let k = 0; k < 3; k++) { ctx.fillStyle = o.c[k]; ctx.fillRect(IX + 2 + k * 7, y + 3, 6, 7); }
-      F.draw(ctx, o.name, IX + 26, y + 3, worn ? '#ffffff' : th.hi, { shadow: false });
-      if (worn) F.draw(ctx, 'WORN', IX + 158, y + 3, th.hi, { shadow: false });
-      else if (owned) F.draw(ctx, 'OWNED', IX + 158, y + 3, th.mid, { shadow: false });
-      else F.draw(ctx, '$' + U.fmt(o.cost), IX + 158, y + 3, g.save.credits >= o.cost ? th.hi : '#ff5a4d', { shadow: false });
-      if (r.clicked) {
-        if (owned) g.equipCosmetic(cat.id, o.id);
-        else g.buyCosmetic(cat.id, o.id);
-      }
-    }
-
-    // live mannequin
-    const skin = PD.art.skinFor(g.save.cos);
-    const bx = IX + IW - 50, by = IY + 88;
-    ctx.fillStyle = th.lo; ctx.fillRect(bx - 34, by - 68, 72, 104);
-    ctx.strokeStyle = th.mid; ctx.strokeRect(bx - 33.5, by - 67.5, 71, 103);
-    for (let i = 0; i < 6; i++) { ctx.fillStyle = th.mid; ctx.fillRect(bx - 32, by - 66 + i * 17, 68, 1); }
-    const al = skin.alien, dr = skin.drill;
-    ctx.save();
-    ctx.translate(bx, by + Math.sin(t * 2) * 2);
-    ctx.rotate(0.5);
-    ctx.drawImage(dr.frames[Math.floor(t * 10) % dr.frames.length], -dr.ox * 1.4 | 0, -dr.oy * 1.4 | 0, dr.w * 1.4, dr.h * 1.4);
-    ctx.restore();
-    ctx.drawImage(al.frames[0], 0, 0, al.w, al.h,
-      bx - al.ox * 1.6 | 0, by + Math.sin(t * 2) * 2 - al.oy * 1.6 | 0, al.w * 1.6, al.h * 1.6);
-    F.draw(ctx, 'PREVIEW', bx, by + 40, th.mid, { center: true, shadow: false });
-
-    // the dossier: who the galaxy thinks you are now
-    const dy = IY + 126;
-    ctx.fillStyle = th.lo; ctx.fillRect(IX, dy, IW - 108, 1);
-    F.draw(ctx, 'GALACTIC DOSSIER', IX, dy + 6, th.hi, { shadow: false });
-    F.draw(ctx, 'KNOWN AS', IX, dy + 20, th.mid, { shadow: false });
-    F.draw(ctx, D.titleFor(g.save.dominion), IX + 78, dy + 20, '#ffffff', { shadow: false });
-    F.draw(ctx, 'BOUNTY', IX, dy + 31, th.mid, { shadow: false });
-    F.draw(ctx, '$' + U.fmt(D.bountyFor(g.save)), IX + 78, dy + 31, '#ff5a4d', { shadow: false });
-    F.draw(ctx, 'WORLDS ENDED', IX, dy + 42, th.mid, { shadow: false });
-    F.draw(ctx, String(g.save.destroyed.filter(Boolean).length), IX + 78, dy + 42, th.hi, { shadow: false });
-    F.draw(ctx, 'GALAXY HELD', IX, dy + 53, th.mid, { shadow: false });
-    F.draw(ctx, g.save.dominion.toFixed(1) + '%', IX + 78, dy + 53, th.hi, { shadow: false });
-    bar(ctx, IX + 120, dy + 54, 96, 5, g.save.dominion / 100, th);
-  }
-
-  /* ------------------------------------------------------------------- nav */
-  function appNav(ctx, g, th, t) {
-    F.draw(ctx, 'WORLD', IX, IY, th.mid, { shadow: false }); F.draw(ctx, 'GRAV', IX + 222, IY, th.mid, { shadow: false }); F.draw(ctx, 'BOUNTY', IX + 254, IY, th.mid, { shadow: false }); F.draw(ctx, 'DIVE', IX + IW - 36, IY, th.mid, { shadow: false });
-    ctx.fillStyle = th.lo; ctx.fillRect(IX, IY + 9, IW, 1);
-    for (let i = 0; i < D.BODIES.length; i++) {
-      const b = D.BODIES[i];
-      const y = IY + 14 + i * 14;
-      const unlocked = i <= g.save.unlocked;
-      const done = g.save.destroyed[i];
-      const here = i === g.bodyIndex;
-      const r = row(ctx, IX, y, IW, 13, th, { active: here, enabled: unlocked });
-
-      // a tiny live rendering of the target
-      const moon = g.navIcon(i);
-      if (unlocked && moon) ctx.drawImage(moon, 0, 0, moon.width, moon.height, IX + 2, y + 1, 11, 11);
-      else { ctx.fillStyle = th.lo; ctx.fillRect(IX + 3, y + 3, 9, 9); }
-
-      F.draw(ctx, unlocked ? b.name : '???', IX + 16, y + 4, unlocked ? (done ? th.mid : th.hi) : th.lo, { shadow: false });
-      F.draw(ctx, unlocked ? String(b.gravity) : '--', IX + 226, y + 4, th.mid, { shadow: false });
-      if (done) PD.glyph.draw(ctx, 'check', IX + 254, y - 1, th.mid, th.lo);
-      else if (unlocked) F.draw(ctx, U.fmt(b.reward), IX + 254, y + 4, th.hi, { shadow: false });
-      else PD.glyph.draw(ctx, 'lock', IX + 254, y - 1, th.lo, th.lo);
-      if (here) F.draw(ctx, 'HERE', IX + IW - 24, y + 4, '#ffffff', { center: true, shadow: false });
-      else if (unlocked) {
-        if (key(ctx, IX + IW - 44, y, 42, 13, 'DIVE', th)) g.travelTo(i);
-      }
-      if (r.hover && unlocked) { state.tip = b.blurb.toUpperCase(); state.sel = i; }
-    }
-
-    // survey panel for whichever world is selected
-    const sel = D.BODIES[U.clamp(state.sel, 0, g.save.unlocked)];
-    const py = IY + 14 + D.BODIES.length * 14 + 4;
-    ctx.fillStyle = th.lo; ctx.fillRect(IX, py, IW, 1);
-    F.draw(ctx, sel.name, IX, py + 4, th.hi, { shadow: false });
-    let sx2 = IX + 150;
-    sx2 += PD.glyph.stat(ctx, 'planet', sel.radius, sx2, py, th.mid, th.lo) + 10;
-    sx2 += PD.glyph.stat(ctx, 'weight', sel.gravity, sx2, py, th.mid, th.lo) + 10;
-    sx2 += PD.glyph.stat(ctx, 'skull', Math.round(sel.enemyRate * 100) + '%', sx2, py, th.mid, th.lo) + 10;
-    PD.glyph.stat(ctx, 'star', U.fmt(sel.reward), sx2, py, '#ffd34d', '#b8860b');
-    // one stacked bar for the ore signature, with a legend underneath
-    const tw = sel.ores.reduce((n, o) => n + o[1], 0);
-    const sorted = sel.ores.slice().sort((a, b) => b[1] - a[1]);
-    let ox2 = IX;
-    for (const [mid, wt] of sorted) {
-      const wpx = Math.max(2, Math.round(wt / tw * IW));
-      ctx.fillStyle = D.MAT[mid].c[1];
-      ctx.fillRect(ox2, py + 14, wpx, 7);
-      ctx.fillStyle = D.MAT[mid].c[0];
-      ctx.fillRect(ox2, py + 14, wpx, 2);
-      ox2 += wpx;
-    }
-    for (let i = 0; i < Math.min(6, sorted.length); i++) {
-      const m = D.MAT[sorted[i][0]];
-      const lx = IX + i * 62;
-      ctx.fillStyle = m.c[1];
-      ctx.fillRect(lx, py + 25, 5, 5);
-      F.draw(ctx, Math.round(sorted[i][1] / tw * 100) + '%', lx + 8, py + 24, th.mid, { shadow: false });
-    }
-  }
-
-  const APPS = { market: appMarket, fab: appFab, bay: appBay, vanity: appVanity, nav: appNav,
-    refinery: (ctx, g, th, t) => PD.factory.app(ctx, g, th, t),
-    skills: (ctx, g, th, t) => PD.skilltree.app(ctx, g, th, t) };
+  const APPS = { market: appMarket, skills: (ctx, g, th, t) => PD.skilltree.app(ctx, g, th, t) };
 
   /* ------------------------------------------------------------------ draw */
   function draw(ctx, g, dt) {
@@ -6547,17 +6987,33 @@ window.PD = window.PD || {};
     // status line + disconnect
     if (state.tip) {
       if (Array.isArray(state.tip)) { let gx = SX + 6; for (const gname of state.tip) { PD.glyph.draw(ctx, gname, gx, SY + SH - 14, th.hi, th.mid); gx += 16; } }
-      else F.draw(ctx, state.tip, SX + 6, SY + SH - 11, th.mid, { shadow: false });
+      else {
+        ctx.save();
+        ctx.beginPath(); ctx.rect(SX + 6, SY + SH - 14, SW - 88, 12); ctx.clip();
+        F.draw(ctx, state.tip, SX + 6, SY + SH - 11, th.mid, { shadow: false });
+        ctx.restore();
+      }
     } else if (state.msgT > 0) {
       ctx.globalAlpha = U.clamp(state.msgT, 0, 1);
       if (Array.isArray(state.msg)) {
         let gx = SX + 6;
         for (const gname of state.msg) { PD.glyph.draw(ctx, gname, gx, SY + SH - 14, state.msgCol || th.hi, th.mid); gx += 16; }
         if (state.msgNum !== undefined) F.draw(ctx, state.msgNum, gx + 2, SY + SH - 11, state.msgCol || th.hi, { shadow: false });
-      } else F.draw(ctx, state.msg, SX + 6, SY + SH - 11, state.msgCol || th.hi, { shadow: false });
+      } else {
+        ctx.save();
+        ctx.beginPath(); ctx.rect(SX + 6, SY + SH - 14, SW - 88, 12); ctx.clip();
+        F.draw(ctx, state.msg, SX + 6, SY + SH - 11, state.msgCol || th.hi, { shadow: false });
+        ctx.restore();
+      }
       ctx.globalAlpha = 1;
     } else {
+      // clipped so a long tip never runs under the CLOSE key
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(SX + 6, SY + SH - 14, SW - 88, 12);
+      ctx.clip();
       F.draw(ctx, FOOT[state.app] || 'LINK STABLE', SX + 6, SY + SH - 11, th.mid, { shadow: false });
+      ctx.restore();
     }
     if (key(ctx, SX + SW - 74, SY + SH - 13, 70, 11, 'CLOSE  [ESC]', th)) close();
 
@@ -6571,307 +7027,6 @@ window.PD = window.PD || {};
     get booting() { return state.boot < 1; },
     state
   };
-})(window.PD);
-
-/* ===== src/factory.js ===== */
-/* The refinery deck: a Factorio-flavoured grid aboard the ship.
-   Hoppers pull raw ore out of the bin, belts carry it, machines turn it into
-   goods worth multiples of the raw price, depots bank the result. It ticks in
-   real time whenever the game does, so it earns while you are down a hole. */
-(function (PD) {
-  'use strict';
-  const U = PD.util;
-  const D = PD.data;
-  const F = PD.font;
-  const A = PD.audio;
-
-  const COLS = 12, ROWS = 6, CELL = 26;
-  const BELT_TIME = 0.5;
-  const DIRS = [[1, 0], [0, 1], [-1, 0], [0, -1]];      // right, down, left, up
-  const ARROW = ['>', 'V', '<', '^'];
-
-  const state = { tool: 'belt', hover: -1, acc: 0, produced: 0, msgT: 0 };
-
-  function ensure(save) {
-    if (!save.factory) save.factory = { cells: new Array(COLS * ROWS).fill(null), produced: 0 };
-    if (!save.goods) save.goods = {};
-    // runtime item state lives beside the saved layout
-    if (!save.factory.rt) save.factory.rt = new Array(COLS * ROWS).fill(null).map(() => ({ item: null, prog: 0, buf: [], work: 0 }));
-    return save.factory;
-  }
-
-  const idx = (cx, cy) => cy * COLS + cx;
-  const inb = (cx, cy) => cx >= 0 && cy >= 0 && cx < COLS && cy < ROWS;
-
-  /* --------------------------------------------------------------- recipes */
-  function isMetal(mat) { return D.METALS.indexOf(D.MAT[mat].key) >= 0; }
-  function isGem(mat) { return D.GEMS.indexOf(D.MAT[mat].key) >= 0; }
-  function isJunk(mat) { return D.JUNK.indexOf(D.MAT[mat].key) >= 0; }
-
-  /* Can this machine take the item? Items are numbers (raw) or good keys. */
-  function accepts(cell, item) {
-    const kind = D.MACHINES[cell.t].kind;
-    if (kind === 'smelt') return typeof item === 'number' && isMetal(item);
-    if (kind === 'crush') return typeof item === 'number' && isJunk(item);
-    if (kind === 'cut') return typeof item === 'number' && isGem(item);
-    if (kind === 'alloy') return typeof item === 'string' && item.indexOf('ingot:') === 0;
-    return false;
-  }
-
-  function produce(cell, rt) {
-    const kind = D.MACHINES[cell.t].kind;
-    if (kind === 'smelt') return D.goodOf('ingot', rt.buf.shift()).key;
-    if (kind === 'crush') return D.goodOf('conc', rt.buf.shift()).key;
-    if (kind === 'cut') return D.goodOf('cut', rt.buf.shift()).key;
-    if (kind === 'alloy') {
-      const a = +rt.buf.shift().split(':')[1], b = +rt.buf.shift().split(':')[1];
-      return D.goodOf('alloy', a, b).key;
-    }
-    return null;
-  }
-
-  /* An alloy forge needs two different ingots waiting. */
-  function ready(cell, rt) {
-    const kind = D.MACHINES[cell.t].kind;
-    if (kind === 'alloy') return rt.buf.length >= 2 && rt.buf[0] !== rt.buf[1];
-    return rt.buf.length >= 1;
-  }
-
-  /* -------------------------------------------------------------------- sim */
-  function tryPush(f, save, from, item) {
-    const cell = f.cells[from];
-    const cx = from % COLS, cy = (from / COLS) | 0;
-    const [dx, dy] = DIRS[cell.d || 0];
-    const nx = cx + dx, ny = cy + dy;
-    if (!inb(nx, ny)) return false;
-    const to = idx(nx, ny);
-    const tc = f.cells[to];
-    if (!tc) return false;
-    const trt = f.rt[to];
-    if (tc.t === 'belt') {
-      if (trt.item !== null) return false;
-      trt.item = item; trt.prog = 0;
-      return true;
-    }
-    if (tc.t === 'depot') {
-      const key = typeof item === 'number' ? 'raw:' + item : item;
-      save.goods[key] = (save.goods[key] || 0) + 1;
-      f.produced = (f.produced || 0) + 1;
-      state.produced++;
-      return true;
-    }
-    if (tc.t === 'hopper') return false;
-    if (accepts(tc, item) && trt.buf.length < 3) { trt.buf.push(item); return true; }
-    return false;
-  }
-
-  function step(f, save, dt) {
-    // machines first, then belts from the far end so items flow without gaps
-    for (let i = 0; i < f.cells.length; i++) {
-      const c = f.cells[i]; if (!c) continue;
-      const rt = f.rt[i];
-      const def = D.MACHINES[c.t];
-      if (c.t === 'hopper') {
-        rt.work += dt;
-        if (rt.work >= 1.2 && c.filter !== undefined && (save.vault[c.filter] || 0) > 0) {
-          if (tryPush(f, save, i, c.filter)) {
-            save.vault[c.filter]--;
-            if (save.vault[c.filter] <= 0) delete save.vault[c.filter];
-            rt.work = 0;
-          }
-        }
-      } else if (def.kind) {
-        if (rt.item === null && ready(c, rt)) {
-          rt.work += dt;
-          if (rt.work >= def.time) { rt.item = produce(c, rt); rt.work = 0; }
-        }
-        if (rt.item !== null && tryPush(f, save, i, rt.item)) rt.item = null;
-      }
-    }
-    const order = [];
-    for (let i = 0; i < f.cells.length; i++) if (f.cells[i] && f.cells[i].t === 'belt' && f.rt[i].item !== null) order.push(i);
-    // belts whose target is free move first: two passes is enough for short lines
-    for (let pass = 0; pass < 2; pass++) {
-      for (const i of order) {
-        const rt = f.rt[i];
-        if (rt.item === null) continue;
-        rt.prog = Math.min(BELT_TIME, rt.prog + (pass === 0 ? dt : 0));
-        if (rt.prog >= BELT_TIME && tryPush(f, save, i, rt.item)) { rt.item = null; rt.prog = 0; }
-      }
-    }
-  }
-
-  function tick(dt, g) {
-    const f = ensure(g.save);
-    state.acc += dt;
-    while (state.acc >= 0.1) { step(f, g.save, 0.1); state.acc -= 0.1; }
-    state.msgT = Math.max(0, state.msgT - dt);
-  }
-
-  /* --------------------------------------------------------------- editing */
-  function place(g, cx, cy, tool) {
-    const f = ensure(g.save);
-    const i = idx(cx, cy);
-    const cur = f.cells[i];
-    if (tool === 'erase') {
-      if (!cur) return;
-      g.save.credits += Math.round(D.MACHINES[cur.t].cost * 0.5);
-      f.cells[i] = null; f.rt[i] = { item: null, prog: 0, buf: [], work: 0 };
-      A.sfx.click();
-      return;
-    }
-    if (cur && cur.t === tool) {
-      if (tool === 'belt') { cur.d = ((cur.d || 0) + 1) % 4; A.sfx.click(); return; }
-      if (tool === 'hopper') { cycleFilter(g, cur); return; }
-      if (D.MACHINES[tool].kind) { cur.d = ((cur.d || 0) + 1) % 4; A.sfx.click(); return; }
-      return;
-    }
-    const cost = D.MACHINES[tool].cost;
-    if (g.save.credits < cost) { A.sfx.deny(); PD.term.say('NEED $' + U.fmt(cost) + ' FOR ' + D.MACHINES[tool].name.toUpperCase(), '#ff5a4d'); return; }
-    if (cur) g.save.credits += Math.round(D.MACHINES[cur.t].cost * 0.5);
-    g.save.credits -= cost;
-    f.cells[i] = { t: tool, d: 0 };
-    f.rt[i] = { item: null, prog: 0, buf: [], work: 0 };
-    if (tool === 'hopper') cycleFilter(g, f.cells[i], true);
-    A.sfx.buy();
-  }
-
-  /* Hopper filter cycles through whatever is actually in the bin. */
-  function cycleFilter(g, cell, silent) {
-    const mats = Object.keys(g.save.vault).map(Number).filter(m => (g.save.vault[m] || 0) > 0).sort((a, b) => a - b);
-    if (!mats.length) { cell.filter = undefined; if (!silent) PD.term.say('BIN IS EMPTY -- NOTHING TO FEED', '#ff5a4d'); return; }
-    const i = mats.indexOf(cell.filter);
-    cell.filter = mats[(i + 1) % mats.length];
-    if (!silent) A.sfx.click();
-  }
-
-  /* ---------------------------------------------------------------- drawing */
-  function itemColor(item) {
-    if (typeof item === 'number') return D.MAT[item].c;
-    const gd = D.goodFromKey(item);
-    return gd ? gd.c : ['#fff', '#aaa', '#555'];
-  }
-
-  function drawItem(ctx, item, x, y) {
-    const c = itemColor(item);
-    const refined = typeof item === 'string';
-    ctx.fillStyle = c[1]; ctx.fillRect(x - 3, y - 3, 6, 6);
-    ctx.fillStyle = c[0]; ctx.fillRect(x - 3, y - 3, 6, 2);
-    if (refined) { ctx.fillStyle = '#ffffff'; ctx.fillRect(x - 1, y - 1, 2, 2); }
-  }
-
-  function app(ctx, g, th, t) {
-    const R = PD.term.rect;
-    const f = ensure(g.save);
-    const gx = R.IX, gy = R.IY + 12;
-
-    F.draw(ctx, 'REFINERY DECK  //  BIN -> BELTS -> MACHINES -> DEPOT', gx, R.IY, th.mid, { shadow: false });
-
-    // grid
-    ctx.fillStyle = '#0a0808';
-    ctx.fillRect(gx - 1, gy - 1, COLS * CELL + 2, ROWS * CELL + 2);
-    for (let cy = 0; cy < ROWS; cy++) for (let cx = 0; cx < COLS; cx++) {
-      const x = gx + cx * CELL, y = gy + cy * CELL;
-      ctx.fillStyle = (cx + cy) % 2 ? '#16110e' : '#1a1410';
-      ctx.fillRect(x, y, CELL, CELL);
-      ctx.fillStyle = th.lo; ctx.fillRect(x, y, CELL, 1); ctx.fillRect(x, y, 1, CELL);
-    }
-
-    const m = PD.input.mouse;
-    const hx = Math.floor((m.x - gx) / CELL), hy = Math.floor((m.y - gy) / CELL);
-    const hovering = m.inside && inb(hx, hy) && m.x >= gx && m.y >= gy;
-    state.hover = hovering ? idx(hx, hy) : -1;
-
-    // cells
-    for (let i = 0; i < f.cells.length; i++) {
-      const c = f.cells[i]; if (!c) continue;
-      const cx = i % COLS, cy = (i / COLS) | 0;
-      const x = gx + cx * CELL, y = gy + cy * CELL;
-      const def = D.MACHINES[c.t];
-      const rt = f.rt[i];
-      if (c.t === 'belt') {
-        ctx.fillStyle = '#2a2a36'; ctx.fillRect(x + 3, y + 3, CELL - 6, CELL - 6);
-        // moving chevrons
-        const [dx, dy] = DIRS[c.d || 0];
-        for (let k = 0; k < 3; k++) {
-          const ph = ((t * 2 + k / 3) % 1);
-          const px = x + CELL / 2 + dx * (ph - 0.5) * (CELL - 10), py = y + CELL / 2 + dy * (ph - 0.5) * (CELL - 10);
-          ctx.fillStyle = th.mid; ctx.globalAlpha = 0.7;
-          ctx.fillRect(px - 1, py - 1, 3, 3);
-        }
-        ctx.globalAlpha = 1;
-        if (rt.item !== null) {
-          const p2 = rt.prog / BELT_TIME;
-          drawItem(ctx, rt.item, x + CELL / 2 + dx * (p2 - 0.5) * (CELL - 8), y + CELL / 2 + dy * (p2 - 0.5) * (CELL - 8));
-        }
-      } else {
-        ctx.fillStyle = def.col; ctx.globalAlpha = 0.28; ctx.fillRect(x + 2, y + 2, CELL - 4, CELL - 4); ctx.globalAlpha = 1;
-        ctx.strokeStyle = def.col; ctx.strokeRect(x + 2.5, y + 2.5, CELL - 5, CELL - 5);
-        F.draw(ctx, def.name.slice(0, 3).toUpperCase(), x + CELL / 2, y + 5, def.col, { center: true, shadow: false });
-        if (c.t === 'hopper') {
-          if (c.filter !== undefined) drawItem(ctx, c.filter, x + CELL / 2, y + 16);
-          else F.draw(ctx, '?', x + CELL / 2, y + 14, '#ff5a4d', { center: true, shadow: false });
-        } else if (c.t === 'depot') {
-          ctx.fillStyle = th.hi; ctx.globalAlpha = 0.4 + 0.3 * Math.sin(t * 4 + i);
-          ctx.fillRect(x + 8, y + 15, CELL - 16, 4); ctx.globalAlpha = 1;
-        } else {
-          // progress + buffer dots
-          const frac = ready(c, rt) || rt.item !== null ? Math.min(1, rt.work / def.time) : 0;
-          ctx.fillStyle = '#000'; ctx.fillRect(x + 5, y + 19, CELL - 10, 3);
-          ctx.fillStyle = def.col; ctx.fillRect(x + 5, y + 19, Math.round((CELL - 10) * frac), 3);
-          for (let k = 0; k < rt.buf.length; k++) drawItem(ctx, rt.buf[k], x + 7 + k * 6, y + 14);
-          if (rt.item !== null) drawItem(ctx, rt.item, x + CELL - 6, y + 14);
-        }
-        if (c.t !== 'depot' && c.t !== 'belt') {
-          // output direction nub
-          const [dx, dy] = DIRS[c.d || 0];
-          ctx.fillStyle = def.col;
-          ctx.fillRect(x + CELL / 2 + dx * (CELL / 2 - 3) - 1, y + CELL / 2 + dy * (CELL / 2 - 3) - 1, 3, 3);
-        }
-      }
-    }
-
-    // hover + click
-    if (hovering) {
-      const x = gx + hx * CELL, y = gy + hy * CELL;
-      ctx.strokeStyle = state.tool === 'erase' ? '#ff5a4d' : '#ffffff';
-      ctx.strokeRect(x + 0.5, y + 0.5, CELL - 1, CELL - 1);
-      const cur = f.cells[idx(hx, hy)];
-      if (cur) PD.term.state.tip = D.MACHINES[cur.t].name.toUpperCase() + ' -- ' + D.MACHINES[cur.t].blurb.toUpperCase();
-      if (m.leftPressed) place(g, hx, hy, state.tool);
-      if (m.rightPressed) place(g, hx, hy, 'erase');
-    }
-
-    // palette
-    const px = gx + COLS * CELL + 10, tools = Object.keys(D.MACHINES).concat(['erase']);
-    for (let k = 0; k < tools.length; k++) {
-      const tname = tools[k];
-      const y = gy + k * 19;
-      const def = D.MACHINES[tname];
-      const on = state.tool === tname;
-      const r = PD.term.row(ctx, px, y, R.IX + R.IW - px, 18, th, { active: on });
-      ctx.fillStyle = def ? def.col : '#ff5a4d'; ctx.fillRect(px + 3, y + 5, 8, 8);
-      F.draw(ctx, def ? def.name : 'Eraser', px + 15, y + 2, on ? '#ffffff' : th.hi, { shadow: false });
-      F.draw(ctx, def ? '$' + U.fmt(def.cost) : 'REFUND 50%', px + 15, y + 10, th.mid, { shadow: false });
-      if (r.clicked) { state.tool = tname; A.sfx.click(); }
-      if (r.hover && def) PD.term.state.tip = def.blurb.toUpperCase();
-    }
-
-    // stats strip
-    const sy = gy + ROWS * CELL + 6;
-    const machines = f.cells.filter(c => c && c.t !== 'belt').length;
-    let goodsVal = 0, goodsN = 0;
-    for (const k in g.save.goods) {
-      const n = g.save.goods[k];
-      const gd = k.indexOf('raw:') === 0 ? { cr: D.MAT[+k.slice(4)].cr } : D.goodFromKey(k);
-      goodsVal += (gd ? gd.cr : 0) * n; goodsN += n;
-    }
-    F.draw(ctx, 'MACHINES ' + machines + '   PRODUCED ' + U.fmt(f.produced || 0) + '   GOODS IN VAULT ' + U.fmt(goodsN) +
-      '  ($' + U.fmt(Math.round(goodsVal * g.valueMult())) + ')', gx, sy, th.mid, { shadow: false });
-    F.draw(ctx, 'LEFT CLICK PLACE / ROTATE   RIGHT CLICK ERASE   HOPPER CLICK = NEXT ORE', gx, sy + 10, th.lo, { shadow: false });
-  }
-
-  PD.factory = { ensure, tick, app, place, COLS, ROWS, state };
 })(window.PD);
 
 /* ===== src/skilltree.js ===== */
@@ -6935,7 +7090,7 @@ window.PD = window.PD || {};
       if (lvl > 0) G.hexProgress(ctx, p.x, p.y, R - 4, lvl / u.max, th.hi);
       G.draw(ctx, n.glyph, p.x - 7, p.y - 9, open ? '#f2e9ff' : '#4a4040', open ? th.hi : '#2a2420');
       if (!open) G.draw(ctx, 'lock', p.x - 3, p.y + 1, '#8a7a6a', '#5a4a3a');
-      else F.draw(ctx, String(lvl), p.x, p.y + 5, maxed ? '#ffffff' : th.hi, { center: true, shadow: false });
+      else F.draw(ctx, String(lvl), p.x, p.y + 4, maxed ? '#ffffff' : th.hi, { center: true, shadow: false });
       if (isHover && m.leftPressed) { state.sel = n.id; A.sfx.click(); }
     }
 
@@ -6949,20 +7104,34 @@ window.PD = window.PD || {};
     ctx.fillStyle = th.lo; ctx.fillRect(px, py, pw, Rc.IH - 8);
     ctx.strokeStyle = th.mid; ctx.strokeRect(px + 0.5, py + 0.5, pw - 1, Rc.IH - 9);
     G.draw(ctx, selNode.glyph, px + 6, py + 6, '#ffffff', th.hi, 2);
-    F.draw(ctx, u.show(lvl), px + 40, py + 10, th.hi, { shadow: false });
+    F.draw(ctx, u.name.toUpperCase(), px + 40, py + 6, '#ffffff', { shadow: false });
+    F.draw(ctx, 'LEVEL ' + lvl + ' / ' + u.max, px + 40, py + 18, th.hi, { shadow: false });
     // level pips as small hexes
     for (let k = 0; k < Math.min(u.max, 14); k++) {
       const on = lvl > Math.floor(k * u.max / Math.min(u.max, 14));
-      G.hex(ctx, px + 10 + k * 8, py + 40, 3, on ? th.hi : '#000', th.mid, 1);
+      G.hex(ctx, px + 10 + k * 8, py + 36, 3, on ? th.hi : '#000', th.mid, 1);
     }
+    F.draw(ctx, u.show(lvl), px + 8, py + 46, '#ffd34d', { shadow: false });
+    // what it actually does, wrapped
+    const words = u.blurb.toUpperCase().split(' ');
+    let line = '', ly = py + 58;
+    for (const w of words) {
+      if (F.width(line + ' ' + w, 1) > pw - 16) { F.draw(ctx, line, px + 8, ly, th.mid, { shadow: false }); line = w; ly += 10; }
+      else line = line ? line + ' ' + w : w;
+    }
+    if (line) F.draw(ctx, line, px + 8, ly, th.mid, { shadow: false });
+    const bodyY = ly + 16;
     if (maxed) {
-      G.draw(ctx, 'check', px + pw / 2 - 7, py + 60, th.hi, th.hi);
+      G.draw(ctx, 'check', px + pw / 2 - 7, bodyY + 10, th.hi, th.hi);
+      F.draw(ctx, 'FULLY BUILT', px + pw / 2, bodyY + 26, th.hi, { center: true, shadow: false });
     } else if (!open) {
-      G.draw(ctx, 'lock', px + pw / 2 - 7, py + 60, '#ff5a4d', '#8a2a2a');
+      G.draw(ctx, 'lock', px + pw / 2 - 7, bodyY + 10, '#ff5a4d', '#8a2a2a');
+      F.draw(ctx, 'BUILD A NEIGHBOUR', px + pw / 2, bodyY + 26, '#ff5a4d', { center: true, shadow: false });
+      F.draw(ctx, 'NODE FIRST', px + pw / 2, bodyY + 36, '#ff5a4d', { center: true, shadow: false });
     } else {
       const cost = D.upgradeCost(u, lvl);
       const rec = D.recipe(u, lvl);
-      let yy = py + 52;
+      let yy = bodyY;
       const okC = g.save.credits >= cost;
       G.stat(ctx, 'coin', U.fmt(cost), px + 8, yy, '#ffd34d', '#b8860b', okC ? th.hi : '#ff5a4d');
       yy += 16;
@@ -6977,279 +7146,365 @@ window.PD = window.PD || {};
         yy += 14;
       }
       // the build key: a big hex
-      const bx = px + pw / 2, by = py + Rc.IH - 34;
-      const hot = m.inside && U.dist(m.x, m.y, bx, by) < 16;
-      G.hex(ctx, bx, by, 16, all ? (hot ? th.hi : th.mid) : '#1a1410', all ? '#ffffff' : '#3a3030', 1.5);
-      G.draw(ctx, 'build', bx - 7, by - 7, all ? '#ffffff' : '#4a4040', all ? th.lo : '#2a2420');
+      const bw = pw - 24, bx = px + 12, by = py + Rc.IH - 34;
+      const hot = m.inside && m.x >= bx && m.x < bx + bw && m.y >= by && m.y < by + 22;
+      ctx.fillStyle = all ? (hot ? th.hi : th.mid) : '#1a1410';
+      ctx.fillRect(bx, by, bw, 22);
+      ctx.strokeStyle = all ? '#ffffff' : '#3a3030';
+      ctx.strokeRect(bx + 0.5, by + 0.5, bw - 1, 21);
+      G.draw(ctx, 'build', bx + 6, by + 5, all ? '#ffffff' : '#4a4040', all ? th.lo : '#2a2420');
+      F.draw(ctx, lvl ? 'UPGRADE' : 'BUILD', bx + bw / 2 + 6, by + 8, all ? '#1a1004' : '#4a4040', { center: true, shadow: false });
       if (hot && m.leftPressed && all) g.fabricate(selNode.id);
     }
-    if (hover) PD.term.state.tip = D.UPG[hover.id].blurb.toUpperCase();
+    if (hover) PD.term.state.tip = D.UPG[hover.id].name.toUpperCase() + '  -  ' + D.UPG[hover.id].blurb.toUpperCase();
   }
 
   PD.skilltree = { app, state, available };
 })(window.PD);
 
-/* ===== src/space.js ===== */
-/* The scooter field. Where you start: an open reach of space littered with
-   drifting ore and small rocks. Ride the scooter, hoover up what floats, shoot
-   what does not, and when the hold is heavy open a time hole home. */
+/* ===== src/starmap.js ===== */
+/* The chart. Two views: the galaxy (four sectors, each one past the first
+   locked behind a drive you buy outright) and a solar system (the worlds in
+   one sector, orbiting their star, ready to be dropped on to). */
 (function (PD) {
   'use strict';
   const U = PD.util;
+  const F = PD.font;
   const D = PD.data;
-  const FX = PD.fx;
   const A = PD.audio;
-  const G = PD.glyph;
-
+  const G = PD.galaxy;
   const VW = 480, VH = 270;
-  const FIELD_W = 2400, FIELD_H = 1400;
 
   const S = {
-    chunks: [], rocks: [], mites: [],
-    cam: { x: 0, y: 0 },
-    hole: null,                       // { x, y, t, open }
-    tapTarget: null,
-    scoot: { x: 0, y: 0, vx: 0, vy: 0, ang: 0, thrust: 0 },
-    t: 0, seed: 1
+    view: 'galaxy',       // 'galaxy' | 'system'
+    zone: 0,              // zone being looked at in system view
+    selZone: 0,
+    selBody: 0,
+    t: 0,
+    zoom: 0,              // 0..1 transition into the system view
+    msg: '', msgT: 0
   };
 
-  function chunkFor(body) {
-    // chunks carry the surface ores of whichever world you are orbiting
-    const strata = D.STRATA[body.type] || D.STRATA.rock;
-    const table = strata[0].ores.concat(strata[1] ? strata[1].ores : []);
-    return D.M[U.weighted(table)];
+  const suns = {};
+  const planets = {};
+  function sun(zi) {
+    if (!suns[zi]) suns[zi] = G.buildSun(16, D.ZONES[zi].star);
+    return suns[zi];
   }
+  function planetArt(i, size) {
+    const k = i + ':' + size;
+    if (!planets[k]) planets[k] = G.buildPlanet(size, D.BODIES[i].tint, 1000 + i * 977, i % 3 === 2);
+    return planets[k];
+  }
+
+  function zoneOpen(g, zi) { return zi === 0 || (g.save.drives || 0) >= zi; }
+  function bodyOpen(g, i) { return i <= g.save.unlocked && zoneOpen(g, D.zoneOf(i)); }
 
   function enter(g) {
-    const body = g.world.body;
-    S.seed = 400 + g.bodyIndex * 31;
-    const rnd = U.mulberry32(S.seed + Math.floor(g.time));
-    S.chunks.length = 0; S.rocks.length = 0; S.mites.length = 0;
-    S.hole = null; S.tapTarget = null;
-    S.scoot.x = FIELD_W / 2; S.scoot.y = FIELD_H / 2; S.scoot.vx = S.scoot.vy = 0;
-    for (let i = 0; i < 70; i++) {
-      S.chunks.push({ x: rnd() * FIELD_W, y: rnd() * FIELD_H, vx: (rnd() - 0.5) * 12, vy: (rnd() - 0.5) * 12,
-        mat: chunkFor(body), rot: rnd() * 6.28, spin: (rnd() - 0.5) * 2 });
-    }
-    for (let i = 0; i < 26; i++) {
-      const r = 8 + rnd() * 14;
-      S.rocks.push({ x: rnd() * FIELD_W, y: rnd() * FIELD_H, vx: (rnd() - 0.5) * 6, vy: (rnd() - 0.5) * 6,
-        r, hp: r * 3, rot: rnd() * 6.28, spin: (rnd() - 0.5) * 0.6, seed: rnd() * 1000, mat: chunkFor(body) });
-    }
-    for (let i = 0; i < 6 + g.bodyIndex * 2; i++) S.mites.push({ x: rnd() * FIELD_W, y: rnd() * FIELD_H, vx: 0, vy: 0, hp: 6, t: rnd() * 6 });
-    S.cam.x = S.scoot.x - VW / 2; S.cam.y = S.scoot.y - VH / 2;
-    g.player.x = S.scoot.x; g.player.y = S.scoot.y;
+    S.view = 'galaxy';
+    S.t = 0; S.zoom = 0;
+    S.selZone = D.zoneOf(Math.min(g.save.unlocked, D.BODIES.length - 1));
+    S.selBody = Math.min(g.save.unlocked, D.BODIES.length - 1);
+    A.sfx.click();
   }
 
-  /* Player thrust: keys, or steer toward the held touch/tap point. */
+  function say(m) { S.msg = m; S.msgT = 2.6; }
+
+  function openZone(g, zi) {
+    if (!zoneOpen(g, zi)) {
+      const z = D.ZONES[zi];
+      if (!zoneOpen(g, zi - 1)) { say('BUY THE ' + D.ZONES[zi - 1].drive.name + ' FIRST.'); A.sfx.deny(); return; }
+      if (g.save.credits < z.drive.cost) { say('NEED $' + U.fmt(z.drive.cost) + ' FOR THE ' + z.drive.name + '.'); A.sfx.deny(); return; }
+      g.save.credits -= z.drive.cost;
+      g.save.drives = zi;
+      A.sfx.buy();
+      PD.fx.flash(0.5, z.star);
+      say(z.drive.name + ' INSTALLED. ' + z.name + ' IS OPEN.');
+      g.save.tut = g.save.tut || {};
+      return;
+    }
+    S.view = 'system';
+    S.zone = zi;
+    S.zoom = 0;
+    const list = D.ZONES[zi].bodies;
+    S.selBody = list.indexOf(g.save.unlocked) >= 0 ? g.save.unlocked : list[0];
+    A.sfx.click();
+  }
+
+  /* ---------------------------------------------------------------- update */
   function update(dt, g) {
     const IN = PD.input;
-    const p = g.player;
-    const sc = S.scoot;
     S.t += dt;
+    S.msgT = Math.max(0, S.msgT - dt);
+    S.zoom = Math.min(1, S.zoom + dt * 3.4);
+    const click = IN.mouse.leftPressed;
+    const mx = IN.mouse.x, my = IN.mouse.y;
 
-    let ix = 0, iy = 0;
-    if (IN.down('left')) ix -= 1; if (IN.down('right')) ix += 1;
-    if (IN.down('up')) iy -= 1; if (IN.down('down')) iy += 1;
-    if (IN.mouse.left && !g.uiBlocking) {
-      // hold anywhere: fly toward the pointer
-      const dx = IN.mouse.wx - sc.x, dy = IN.mouse.wy - sc.y;
-      const d = Math.hypot(dx, dy);
-      if (d > 14) { ix = dx / d; iy = dy / d; }
-    }
-    const thrust = p.stat('thruster') * 1.35 * p.stat('scooter') * (1 - p.loadFactor() * 0.4);
-    sc.vx += ix * thrust * dt; sc.vy += iy * thrust * dt;
-    sc.thrust = Math.hypot(ix, iy);
-    if (sc.thrust > 0.1) sc.ang = U.lerp(sc.ang, Math.atan2(iy, ix), 0.2);
-    sc.vx *= Math.pow(0.985, dt * 60); sc.vy *= Math.pow(0.985, dt * 60);
-    const sp = Math.hypot(sc.vx, sc.vy), maxSp = 210 - p.loadFactor() * 60;
-    if (sp > maxSp) { sc.vx *= maxSp / sp; sc.vy *= maxSp / sp; }
-    sc.x = U.clamp(sc.x + sc.vx * dt, 20, FIELD_W - 20);
-    sc.y = U.clamp(sc.y + sc.vy * dt, 20, FIELD_H - 20);
-    p.x = sc.x; p.y = sc.y; p.vx = sc.vx; p.vy = sc.vy;
-    p.aim = sc.ang;
-    A.thrust(sc.thrust > 0.1 ? 0.6 : 0);
-    if (sc.thrust > 0.1 && U.chance(dt * 40)) {
-      FX.spawn({ x: sc.x - Math.cos(sc.ang) * 12, y: sc.y - Math.sin(sc.ang) * 12 + 4, vx: -Math.cos(sc.ang) * 90 + U.rand(-15, 15), vy: -Math.sin(sc.ang) * 90 + U.rand(-15, 15),
-        life: U.rand(0.2, 0.5), size: U.rand(1.5, 3), color: U.pick(['#ffd34d', '#ff9b3d', '#fff3c0']), grav: 0, drag: 0.9, glow: 1 });
+    if (IN.hit('esc')) {
+      if (S.view === 'system') { S.view = 'galaxy'; S.zoom = 0; A.sfx.click(); }
+      else g.dock(true);
+      return;
     }
 
-    // air still matters out here
-    p.o2 -= (0.35 + p.loadFactor() * 0.3) * dt;
-    if (p.o2 <= 0) { p.o2 = 0; p.hull -= 5 * dt; if (p.hull <= 0) { p.hull = 0; g.onPlayerDown(); return; } }
-
-    // shooting: space to fire toward the aim
-    if ((IN.mouse.right || IN.down('space')) && p.gunCool <= 0 && !g.uiBlocking) {
-      p.gunCool = 0.28;
-      g.bullets.push(new PD.ent.Bullet(sc.x + Math.cos(sc.ang) * 12, sc.y + Math.sin(sc.ang) * 12, Math.cos(sc.ang) * 340, Math.sin(sc.ang) * 340, p.stat('pistol'), true));
-      A.sfx.shoot();
-    }
-    p.gunCool = Math.max(0, p.gunCool - dt);
-    for (let i = g.bullets.length - 1; i >= 0; i--) {
-      const b = g.bullets[i];
-      b.life -= dt; b.x += b.vx * dt; b.y += b.vy * dt;
-      let hit = false;
-      for (const r of S.rocks) {
-        if (r.dead || U.dist(b.x, b.y, r.x, r.y) > r.r) continue;
-        r.hp -= b.dmg; hit = true;
-        FX.sparks(b.x, b.y, Math.atan2(b.vy, b.vx), D.MAT[r.mat], 4);
-        A.sfx.hitMob();
-        if (r.hp <= 0) breakRock(r, g);
-        break;
+    if (S.view === 'galaxy') {
+      if (IN.hit('left')) S.selZone = U.clamp(S.selZone - 1, 0, D.ZONES.length - 1);
+      if (IN.hit('right')) S.selZone = U.clamp(S.selZone + 1, 0, D.ZONES.length - 1);
+      for (let i = 0; i < D.ZONES.length; i++) {
+        const z = D.ZONES[i];
+        if (Math.abs(mx - z.x) < 30 && Math.abs(my - z.y) < 30) {
+          S.selZone = i;
+          if (click) openZone(g, i);
+        }
       }
-      for (const m of S.mites) {
-        if (m.dead || hit || U.dist(b.x, b.y, m.x, m.y) > 6) continue;
-        m.hp -= b.dmg; hit = true;
-        if (m.hp <= 0) { m.dead = true; g.save.credits += 9; FX.burst(m.x, m.y, 8, ['#c8ff5a', '#fff'], 90); A.sfx.killMob(); }
-      }
-      if (hit || b.life <= 0) g.bullets.splice(i, 1);
+      if (IN.hit('KeyE') || IN.hit('space')) openZone(g, S.selZone);
+      // the whole bottom panel is a button on touch
+      if (click && my > VH - 44) openZone(g, S.selZone);
+      return;
     }
 
-    // drifting things
-    const pull = p.stat('magnet') + 14;
-    for (let i = S.chunks.length - 1; i >= 0; i--) {
-      const c = S.chunks[i];
-      c.rot += c.spin * dt;
-      const d = U.dist(c.x, c.y, sc.x, sc.y);
-      if (d < pull && !p.cargoFull()) {
-        const a = Math.atan2(sc.y - c.y, sc.x - c.x);
-        c.vx = U.damp(c.vx, Math.cos(a) * 220, 0.2, dt); c.vy = U.damp(c.vy, Math.sin(a) * 220, 0.2, dt);
-      }
-      c.x += c.vx * dt; c.y += c.vy * dt;
-      if (d < 10 && g.collect(c.mat, c.x, c.y)) { S.chunks.splice(i, 1); PD.touch.buzz(6); }
-    }
-    for (const r of S.rocks) { if (r.dead) continue; r.rot += r.spin * dt; r.x += r.vx * dt; r.y += r.vy * dt;
-      if (U.dist(r.x, r.y, sc.x, sc.y) < r.r + 6) { sc.vx -= (r.x - sc.x) * 3; sc.vy -= (r.y - sc.y) * 3; p.hurt(4, g, Math.sign(sc.x - r.x)); } }
-    for (const m of S.mites) {
-      if (m.dead) continue;
-      m.t += dt;
-      const d = U.dist(m.x, m.y, sc.x, sc.y);
-      const chase = d < 220;
-      const tx = chase ? sc.x + Math.cos(m.t * 2) * 30 : m.x + Math.cos(m.t) * 20;
-      const ty = chase ? sc.y + Math.sin(m.t * 2.6) * 24 : m.y + Math.sin(m.t * 0.7) * 20;
-      m.vx = U.damp(m.vx, U.clamp((tx - m.x) * 3, -120, 120), 0.1, dt); m.vy = U.damp(m.vy, U.clamp((ty - m.y) * 3, -120, 120), 0.1, dt);
-      m.x += m.vx * dt; m.y += m.vy * dt;
-      if (d < 9) p.hurt(4, g, Math.sign(sc.x - m.x));
-    }
-    // the field slowly replenishes
-    if (S.chunks.length < 40 && U.chance(dt * 0.6)) {
-      S.chunks.push({ x: sc.x + U.rand(-VW, VW) * 1.4, y: sc.y + U.rand(-VH, VH) * 1.4, vx: U.rand(-8, 8), vy: U.rand(-8, 8), mat: chunkFor(g.world.body), rot: 0, spin: U.rand(-1, 1) });
-    }
-
-    // time hole: E / tap the hole key; opens beside you, fly in
-    if (IN.hit('KeyE') && !S.hole) openHole(g);
-    if (S.hole) {
-      S.hole.t += dt;
-      S.hole.open = Math.min(1, S.hole.t / 1.2);
-      if (S.hole.open >= 1 && U.dist(sc.x, sc.y, S.hole.x, S.hole.y) < 22) { g.throughHole(); return; }
-      if (U.chance(dt * 30)) {
-        const a = U.rand(0, U.TAU), r = 26 * S.hole.open;
-        FX.spawn({ x: S.hole.x + Math.cos(a) * r, y: S.hole.y + Math.sin(a) * r, vx: -Math.cos(a) * 40, vy: -Math.sin(a) * 40, life: 0.5, size: 1.5, color: U.pick(['#7ef9ff', '#d8bcff', '#ffffff']), grav: 0, drag: 0.9, glow: 1 });
+    // ---- system view
+    const list = D.ZONES[S.zone].bodies;
+    const at = list.indexOf(S.selBody);
+    if (IN.hit('left')) S.selBody = list[U.clamp(at - 1, 0, list.length - 1)];
+    if (IN.hit('right')) S.selBody = list[U.clamp(at + 1, 0, list.length - 1)];
+    for (let k = 0; k < list.length; k++) {
+      const p = bodyPos(k, list.length);
+      if (Math.hypot(mx - p.x, my - p.y) < 26) {
+        S.selBody = list[k];
+        if (click) drop(g, list[k]);
       }
     }
-
-    S.cam.x = U.damp(S.cam.x, U.clamp(sc.x - VW / 2 + sc.vx * 0.25, 0, FIELD_W - VW), 0.12, dt);
-    S.cam.y = U.damp(S.cam.y, U.clamp(sc.y - VH / 2 + sc.vy * 0.25, 0, FIELD_H - VH), 0.12, dt);
-    FX.update(dt, null);
+    if (IN.hit('KeyE') || IN.hit('space')) drop(g, S.selBody);
+    if (click && my > VH - 40 && mx > VW - 130) drop(g, S.selBody);
   }
 
-  function openHole(g) {
-    const sc = S.scoot;
-    S.hole = { x: sc.x + Math.cos(sc.ang + Math.PI) * 70, y: sc.y + Math.sin(sc.ang + Math.PI) * 70, t: 0, open: 0 };
+  function drop(g, i) {
+    if (i > g.save.unlocked) { say('DESTROY ' + D.BODIES[g.save.unlocked].name.toUpperCase() + ' FIRST.'); A.sfx.deny(); return; }
+    if (!zoneOpen(g, D.zoneOf(i))) { A.sfx.deny(); return; }
     A.sfx.warp();
-    FX.ring(S.hole.x, S.hole.y, 2, 60, 0.9, '#7ef9ff', 2);
-    FX.shake(3);
+    g.dive(i);
   }
 
-  function breakRock(r, g) {
-    r.dead = true;
-    A.sfx.boom(0.5); FX.shake(3);
-    FX.burst(r.x, r.y, 20, D.MAT[r.mat].c, 120);
-    const n = 3 + Math.round(r.r / 5);
-    for (let i = 0; i < n; i++) {
-      const a = U.rand(0, U.TAU);
-      S.chunks.push({ x: r.x, y: r.y, vx: Math.cos(a) * U.rand(30, 90), vy: Math.sin(a) * U.rand(30, 90), mat: U.chance(0.3) ? D.M.stone : r.mat, rot: 0, spin: U.rand(-3, 3) });
-    }
-    if (U.chance(0.15)) S.chunks.push({ x: r.x, y: r.y, vx: 0, vy: 0, mat: D.M.gold, rot: 0, spin: 1 });
+  function bodyPos(k, n) {
+    const spread = Math.min(120, 330 / Math.max(1, n));
+    const x = 150 + k * spread;
+    const y = 132 + Math.sin(k * 1.1 + 0.6) * 26;
+    return { x, y };
   }
 
-  /* ----------------------------------------------------------------- drawing */
-  function drawRock(ctx, r, cam) {
-    const x = r.x - cam.x, y = r.y - cam.y;
-    ctx.save(); ctx.translate(x | 0, y | 0); ctx.rotate(Math.round(r.rot / (Math.PI / 8)) * (Math.PI / 8));
-    ctx.fillStyle = '#4e4658';
+  /* ------------------------------------------------------------------ draw */
+  function ring(ctx, x, y, r, col, alpha, dash) {
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.strokeStyle = col;
+    ctx.lineWidth = 1;
+    if (dash) ctx.setLineDash([3, 4]);
     ctx.beginPath();
-    for (let i = 0; i < 9; i++) {
-      const a = i / 9 * U.TAU, rr = r.r * (0.78 + U.hash2(r.seed + i, 3) * 0.4);
-      const px = Math.cos(a) * rr, py = Math.sin(a) * rr;
-      if (i) ctx.lineTo(px, py); else ctx.moveTo(px, py);
-    }
-    ctx.closePath(); ctx.fill();
-    ctx.strokeStyle = '#1a1030'; ctx.lineWidth = 1; ctx.stroke();
-    ctx.fillStyle = '#6a6278'; ctx.fillRect(-r.r * 0.4, -r.r * 0.5, r.r * 0.5, r.r * 0.3);
-    const mc = D.MAT[r.mat].c;
-    ctx.fillStyle = mc[0]; ctx.fillRect(r.r * 0.1, r.r * 0.1, 3, 3); ctx.fillRect(-r.r * 0.5, r.r * 0.2, 2, 2);
+    ctx.ellipse(x, y, r, r * 0.34, 0, 0, Math.PI * 2);
+    ctx.stroke();
     ctx.restore();
+  }
+
+  function panel(ctx, x, y, w, h, col) {
+    ctx.fillStyle = 'rgba(6,4,18,0.88)';
+    ctx.fillRect(x, y, w, h);
+    ctx.strokeStyle = col;
+    ctx.lineWidth = 1;
+    ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
+    ctx.fillStyle = col;
+    ctx.fillRect(x, y, 10, 1); ctx.fillRect(x, y, 1, 10);
+    ctx.fillRect(x + w - 10, y + h - 1, 10, 1); ctx.fillRect(x + w - 1, y + h - 10, 1, 10);
   }
 
   function draw(ctx, g, t) {
-    const cam = { x: Math.round(S.cam.x), y: Math.round(S.cam.y) };
-    PD.galaxy.draw(ctx, cam, t, S.seed, g.world.body.sky);
-    // the world you are orbiting, huge and slow at the bottom
-    const moon = g.world.moon && g.world.moon.cv;
-    if (moon) {
-      const mx = VW * 0.65 - cam.x * 0.05, my = VH * 0.75 - cam.y * 0.05;
-      ctx.drawImage(moon, 0, 0, moon.width, moon.height, mx | 0, my | 0, moon.width * 2.2, moon.height * 2.2);
+    G.draw(ctx, { x: S.view === 'galaxy' ? 0 : 600, y: 0 }, t, 7, '#05030f');
+    ctx.fillStyle = 'rgba(4,2,12,0.68)';
+    ctx.fillRect(0, 0, VW, VH);
+
+    if (S.view === 'galaxy') drawGalaxy(ctx, g, t);
+    else drawSystem(ctx, g, t);
+
+    // header
+    ctx.fillStyle = 'rgba(6,4,18,0.9)';
+    ctx.fillRect(0, 0, VW, 16);
+    ctx.fillStyle = '#7ef9ff'; ctx.fillRect(0, 16, VW, 1);
+    PD.glyph.draw(ctx, 'planet', 3, 2, '#ffffff', '#7ef9ff');
+    F.draw(ctx, S.view === 'galaxy' ? 'GALAXY CHART' : D.ZONES[S.zone].name, 20, 5, '#7ef9ff', { shadow: false });
+    F.draw(ctx, S.view === 'galaxy' ? 'ESC  BACK TO THE SHIP' : 'ESC  BACK TO THE CHART', 150, 5, '#5a4d80', { shadow: false });
+    F.draw(ctx, '$' + U.fmt(g.save.credits), VW - 6, 4, '#ffd34d', { right: true, shadow: false });
+
+    if (S.msgT > 0) {
+      const w = F.width(S.msg, 1) + 16;
+      ctx.globalAlpha = Math.min(1, S.msgT);
+      panel(ctx, VW / 2 - w / 2, 22, w, 16, '#ffb03d');
+      F.draw(ctx, S.msg, VW / 2, 27, '#ffd34d', { center: true, shadow: false });
+      ctx.globalAlpha = 1;
+    }
+    PD.touch.draw(ctx, 'ui');
+  }
+
+  function drawGalaxy(ctx, g, t) {
+    // travel lanes
+    for (let i = 1; i < D.ZONES.length; i++) {
+      const a = D.ZONES[i - 1], b = D.ZONES[i];
+      const open = zoneOpen(g, i);
+      ctx.save();
+      ctx.globalAlpha = open ? 0.55 : 0.25;
+      ctx.strokeStyle = open ? '#7ef9ff' : '#5a4d80';
+      ctx.lineWidth = 1;
+      if (!open) ctx.setLineDash([3, 5]);
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.y);
+      ctx.quadraticCurveTo((a.x + b.x) / 2, (a.y + b.y) / 2 - 30, b.x, b.y);
+      ctx.stroke();
+      ctx.restore();
     }
 
-    for (const r of S.rocks) if (!r.dead) drawRock(ctx, r, cam);
-    for (const c of S.chunks) {
-      const spr = PD.art.gemFor(c.mat);
-      PD.ent.drawSprite(ctx, spr, 0, c.x - cam.x, c.y - cam.y + Math.sin(t * 2 + c.rot) * 1.5, false, false);
-    }
-    FX.drawWorld(ctx, cam);
-    for (const m of S.mites) if (!m.dead) PD.ent.drawSprite(ctx, PD.art.sprites.mite, Math.floor(t * 8) % 2, m.x - cam.x, m.y - cam.y, m.vx < 0, false);
-    for (const b of g.bullets) b.draw(ctx, cam);
+    for (let i = 0; i < D.ZONES.length; i++) {
+      const z = D.ZONES[i];
+      const open = zoneOpen(g, i);
+      const sel = S.selZone === i;
+      ctx.save();
+      if (!open) ctx.globalAlpha = 0.45;
+      const sp = sun(i);
+      const pulse = 1 + Math.sin(t * 2 + i) * 0.04;
+      ctx.drawImage(sp, z.x - sp.width / 2 * pulse, z.y - sp.height / 2 * pulse, sp.width * pulse, sp.height * pulse);
+      // its worlds as little beads on an orbit
+      ring(ctx, z.x, z.y, 26, z.star, 0.35, !open);
+      for (let k = 0; k < z.bodies.length; k++) {
+        const a = t * (0.3 + k * 0.12) + k * 2.1;
+        const px = z.x + Math.cos(a) * 26, py = z.y + Math.sin(a) * 26 * 0.34;
+        const bi = z.bodies[k];
+        ctx.fillStyle = g.save.destroyed[bi] ? '#5a4d80' : D.BODIES[bi].tint;
+        ctx.beginPath(); ctx.arc(px, py, 2.6, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.restore();
 
-    if (S.hole) {
-      const hx = S.hole.x - cam.x, hy = S.hole.y - cam.y, o = S.hole.open;
-      const rr = 24 * o;
-      const grd = ctx.createRadialGradient(hx, hy, 1, hx, hy, rr + 10);
-      grd.addColorStop(0, 'rgba(255,255,255,0.9)'); grd.addColorStop(0.4, 'rgba(126,249,255,0.7)'); grd.addColorStop(1, 'rgba(120,80,220,0)');
-      ctx.fillStyle = grd; ctx.fillRect(hx - rr - 10, hy - rr - 10, rr * 2 + 20, rr * 2 + 20);
-      for (let k = 0; k < 3; k++) {
-        ctx.save(); ctx.translate(hx, hy); ctx.rotate(t * (1.5 + k) * (k % 2 ? -1 : 1));
-        G.hex(ctx, 0, 0, rr * (1 - k * 0.22), null, k ? '#d8bcff' : '#ffffff', 1.5);
-        ctx.restore();
+      if (!open) {
+        PD.glyph.draw(ctx, 'lock', z.x - 6, z.y - 8, '#ffffff', '#5a4d80');
+        F.draw(ctx, '$' + U.fmt(z.drive.cost), z.x, z.y + 42, g.save.credits >= z.drive.cost ? '#ffd34d' : '#ff6b8a', { center: true });
+      }
+      F.draw(ctx, z.name, z.x, z.y + 32, open ? '#f2e9ff' : '#9c8ec4', { center: true, shadow: true });
+      if (sel) {
+        const w = F.width(z.name, 1) + 14;
+        ctx.strokeStyle = '#ffd34d';
+        ctx.setLineDash([2, 3]);
+        ctx.strokeRect(z.x - w / 2 + 0.5, z.y - 34.5, w, 70);
+        ctx.setLineDash([]);
       }
     }
 
-    // your little fat pod, nose along its heading, alien visible in the dome
-    const sc = S.scoot;
-    const skin = PD.art.skinFor(g.save.cos);
-    const pod = skin.pod;
-    const flip = Math.cos(sc.ang) < 0;
-    const bob = Math.sin(t * 3) * 1.2;
-    const tilt = U.clamp(sc.vy * 0.0015, -0.35, 0.35) * (flip ? -1 : 1);
-    ctx.save();
-    ctx.translate((sc.x - cam.x) | 0, (sc.y - cam.y + bob) | 0);
-    ctx.rotate(tilt);
-    if (flip) ctx.scale(-1, 1);
-    ctx.drawImage(pod.frames[Math.floor(t * 10) % 2], -pod.ox, -pod.oy);
-    // the pilot peeking out of the dome
-    const al = skin.alien;
-    ctx.drawImage(al.frames[0], 4, 0, 16, 12, -8, -22, 16, 12);
-    ctx.restore();
-    if (g.player.hurtT > 0.15) { ctx.globalAlpha = 0.5; ctx.fillStyle = '#ff5a4d'; ctx.fillRect(sc.x - cam.x - 18, sc.y - cam.y - 14, 36, 28); ctx.globalAlpha = 1; }
-
-    // where a held touch is steering to
-    if (PD.input.mouse.left && !g.uiBlocking) {
-      const mx = PD.input.mouse.wx - cam.x, my = PD.input.mouse.wy - cam.y;
-      G.hex(ctx, mx, my, 6 + Math.sin(t * 8) * 1.5, null, '#ffd34d', 1);
+    // selection panel
+    const z = D.ZONES[S.selZone];
+    const open = zoneOpen(g, S.selZone);
+    panel(ctx, 8, VH - 44, VW - 16, 38, open ? '#7ef9ff' : '#ff8a3d');
+    F.draw(ctx, z.name, 16, VH - 38, z.star, { shadow: false });
+    F.draw(ctx, z.sub, 16, VH - 28, '#9c8ec4', { shadow: false });
+    let done = 0;
+    for (const b of z.bodies) if (g.save.destroyed[b]) done++;
+    F.draw(ctx, 'WORLDS ' + done + '/' + z.bodies.length, 16, VH - 18, '#f2e9ff', { shadow: false });
+    if (open) {
+      F.draw(ctx, 'E  ENTER SECTOR', VW - 16, VH - 26, '#39ffa6', { right: true, shadow: false });
+    } else {
+      F.draw(ctx, z.drive.name, VW - 16, VH - 38, '#ff8a3d', { right: true, shadow: false });
+      F.draw(ctx, z.drive.blurb, VW - 16, VH - 28, '#9c8ec4', { right: true, shadow: false });
+      const afford = g.save.credits >= z.drive.cost;
+      F.draw(ctx, 'E  BUY DRIVE  $' + U.fmt(z.drive.cost), VW - 16, VH - 18, afford ? '#ffd34d' : '#ff6b8a', { right: true, shadow: false });
     }
   }
 
-  PD.space = { enter, update, draw, openHole, S, FIELD_W, FIELD_H };
+  function drawSystem(ctx, g, t) {
+    const z = D.ZONES[S.zone];
+    const list = z.bodies;
+    const zo = U.clamp(S.zoom, 0, 1);
+    ctx.save();
+    ctx.globalAlpha = zo;
+
+    // the star, hard left, with orbit arcs sweeping out of it
+    const sp = sun(S.zone);
+    ctx.drawImage(sp, 34 - sp.width / 2, 132 - sp.height / 2);
+    for (let k = 0; k < list.length; k++) {
+      const p = bodyPos(k, list.length);
+      ctx.save();
+      ctx.globalAlpha = zo * 0.3;
+      ctx.strokeStyle = z.star;
+      ctx.setLineDash([2, 4]);
+      ctx.beginPath();
+      ctx.ellipse(34, 132, p.x - 34, (p.x - 34) * 0.42, 0, -0.7, 0.7);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    for (let k = 0; k < list.length; k++) {
+      const i = list[k];
+      const p = bodyPos(k, list.length);
+      const size = 22 + Math.min(3, k) * 5;
+      const art = planetArt(i, size);
+      const open = bodyOpen(g, i);
+      const sel = S.selBody === i;
+      const bob = Math.sin(t * 1.2 + k) * 2;
+      ctx.save();
+      if (!open) ctx.globalAlpha = zo * 0.4;
+      ctx.drawImage(art, p.x - art.width / 2, p.y + bob - art.height / 2);
+      ctx.restore();
+      if (g.save.destroyed[i]) {
+        ctx.strokeStyle = '#ff6b8a'; ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(p.x - 12, p.y + bob - 12); ctx.lineTo(p.x + 12, p.y + bob + 12);
+        ctx.moveTo(p.x + 12, p.y + bob - 12); ctx.lineTo(p.x - 12, p.y + bob + 12);
+        ctx.stroke();
+      } else if (!open) {
+        PD.glyph.draw(ctx, 'lock', p.x - 6, p.y + bob - 6, '#ffffff', '#5a4d80');
+      }
+      F.draw(ctx, D.BODIES[i].name.toUpperCase(), p.x, p.y + bob + size * 0.7 + 6, sel ? '#ffd34d' : '#9c8ec4', { center: true });
+      if (sel) {
+        const r = size * 0.62 + 6 + Math.sin(t * 4) * 1.5;
+        ctx.strokeStyle = '#ffd34d';
+        ctx.lineWidth = 1;
+        for (let a = 0; a < 4; a++) {
+          const ang = t * 0.6 + a * Math.PI / 2;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y + bob, r, ang, ang + 0.5);
+          ctx.stroke();
+        }
+      }
+    }
+    ctx.restore();
+
+    // dossier
+    const b = D.BODIES[S.selBody];
+    const open = bodyOpen(g, S.selBody);
+    panel(ctx, 8, VH - 72, VW - 16, 66, open ? '#7ef9ff' : '#5a4d80');
+    F.draw(ctx, b.name.toUpperCase(), 16, VH - 66, '#f2e9ff', { shadow: false, scale: 2 });
+    F.draw(ctx, b.kind.toUpperCase(), VW - 16, VH - 64, '#7ef9ff', { right: true, shadow: false });
+    F.draw(ctx, b.blurb, 16, VH - 48, '#9c8ec4', { shadow: false });
+    F.draw(ctx, 'DEPTH ' + b.radius * 10 + 'M', 16, VH - 36, '#7ef9ff', { shadow: false });
+    F.draw(ctx, 'GRAV ' + b.gravity, 106, VH - 36, '#7ef9ff', { shadow: false });
+    F.draw(ctx, 'CORE ' + U.fmt(b.coreHp), 166, VH - 36, '#ff6b8a', { shadow: false });
+    F.draw(ctx, 'BOUNTY $' + U.fmt(b.reward), 246, VH - 36, '#ffd34d', { shadow: false });
+    let ox = 16;
+    F.draw(ctx, 'ORE', ox, VH - 22, '#9c8ec4', { shadow: false });
+    ox += 24;
+    for (const pair of b.ores.slice(0, 8)) {
+      const m = D.MAT[pair[0]];
+      ctx.fillStyle = m.c[1]; ctx.fillRect(ox, VH - 23, 8, 8);
+      ctx.fillStyle = m.c[0]; ctx.fillRect(ox, VH - 23, 8, 2);
+      ctx.fillStyle = '#0a0616'; ctx.fillRect(ox, VH - 15, 8, 1);
+      ox += 11;
+    }
+    if (g.save.destroyed[S.selBody]) F.draw(ctx, 'ALREADY DESTROYED', ox + 10, VH - 22, '#ff6b8a', { shadow: false });
+    if (open) {
+      const bw = 110, bx = VW - bw - 12, by = VH - 30;
+      ctx.fillStyle = Math.sin(t * 4) > 0 ? '#39ffa6' : '#2ad48a';
+      ctx.fillRect(bx, by, bw, 20);
+      ctx.strokeStyle = '#d6ffe9'; ctx.strokeRect(bx + 0.5, by + 0.5, bw - 1, 19);
+      F.draw(ctx, 'E    DROP', bx + bw / 2, by + 7, '#05170e', { center: true, shadow: false });
+    } else {
+      F.draw(ctx, S.selBody > g.save.unlocked ? 'LOCKED - FINISH THE LAST WORLD' : 'NEEDS A DRIVE', VW - 14, VH - 22, '#ff6b8a', { right: true, shadow: false });
+    }
+  }
+
+  PD.starmap = { enter, update, draw, S };
 })(window.PD);
 
 /* ===== src/tutorial.js ===== */
@@ -7266,15 +7521,20 @@ window.PD = window.PD || {};
   /* Each step: which scene it belongs to, the glyph sentence, and a predicate
      that marks it done. */
   const STEPS = [
-    { scene: 'space', text: 'HOLD TO FLY', say: ['hand', 'arrowR', 'speed'],       done: g => Math.hypot(PD.space.S.scoot.vx, PD.space.S.scoot.vy) > 60 },
-    { scene: 'space', text: 'FLY INTO ORE TO COLLECT IT', say: ['speed', 'arrowR', 'ore', 'cargo'], done: g => g.player.cargoKg > 3 },
-    { scene: 'space', text: 'SHOOT A ROCK  (SPACE)', say: ['gun', 'arrowR', 'rock'],           done: g => PD.space.S.rocks.some(r => r.dead) },
-    { scene: 'space', text: 'OPEN A TIME HOLE HOME  (E)', say: ['cargo', 'arrowR', 'hole', 'home'], done: g => !!PD.space.S.hole },
-    { scene: 'interior', text: 'SELL APPRAISED ORE AT THE EXCHANGE', say: ['hand', 'arrowR', 'sell', 'coin'],   done: g => g.save.totalEarned > 0 },
-    { scene: 'interior', text: 'BUILD A NODE ON THE SKILL LATTICE', say: ['coin', 'arrowR', 'hex', 'up'],      done: g => Object.keys(g.save.upg).some(k => g.save.upg[k] > 0) },
-    { scene: 'interior', text: 'PICK A WORLD AT THE NAV COMPUTER', say: ['planet', 'arrowR', 'drill'],        done: g => g.state === 'play' },
-    { scene: 'play', text: 'HOLD LEFT MOUSE TO DRILL', say: ['hand', 'arrowD', 'drill', 'ore'],       done: g => g.save.totalMined > 8 },
-    { scene: 'play', text: 'AIR LOW? FLY UP TO THE POD (E)', say: ['o2', 'arrowD', 'bang', 'arrowU', 'hole'], done: g => g.player.docked }
+    { scene: 'interior', text: 'WALK TO THE LAB AND BUILD A NODE', say: ['hand', 'arrowR', 'hex'],
+      done: g => Object.keys(g.save.upg).some(k => g.save.upg[k] > 0) },
+    { scene: 'interior', text: 'TAKE THE AIRLOCK TO THE STAR CHART', say: ['hand', 'arrowR', 'planet'],
+      done: g => g.state === 'starmap' },
+    { scene: 'starmap', text: 'PICK A SECTOR, THEN A WORLD, THEN DROP', say: ['planet', 'arrowD', 'drill'],
+      done: g => g.state === 'play' },
+    { scene: 'play', text: 'HOLD LEFT MOUSE TO DRILL THE ROCK', say: ['hand', 'arrowD', 'drill', 'ore'],
+      done: g => g.save.totalMined > 8 },
+    { scene: 'play', text: 'THE WIRE STOPS YOU STRAYING FROM THE POD', say: ['belt', 'arrowR', 'home'],
+      done: g => (g.player.tetherFrac || 0) > 0.55 },
+    { scene: 'play', text: 'HOLD FULL OR AIR LOW? BOARD THE POD  (E)', say: ['cargo', 'arrowR', 'home'],
+      done: g => g.player.docked },
+    { scene: 'interior', text: 'ZAZ VALUES ORE. SELL IT AT THE EXCHANGE', say: ['clock', 'arrowR', 'sell', 'coin'],
+      done: g => g.save.totalEarned > 0 }
   ];
 
   const st = { i: 0, flash: 0, doneT: 0 };
@@ -7303,7 +7563,7 @@ window.PD = window.PD || {};
     const s = current(g);
     if (!s || s.scene !== scene) return;
     const w = Math.max(s.say.length * 20 + 16, F.width(s.text, 1) + 20);
-    const x = VW / 2 - w / 2, y = scene === 'interior' ? 42 : 24;
+    const x = VW / 2 - w / 2, y = scene === 'interior' ? 42 : (scene === 'starmap' ? 44 : 24);
     const done = st.doneT > 0;
     ctx.fillStyle = 'rgba(8,4,18,0.88)';
     ctx.fillRect(x, y, w, 40);
@@ -7469,48 +7729,44 @@ window.PD = window.PD || {};
   const D = PD.data;
 
   const VW = 480, VH = 270;
-  const ROOM_W = 840, ROOM_H = 270;
+  const ROOM_W = 620, ROOM_H = 270;
   const FLOOR = ROOM_H - 22;
 
   let bg = null;
 
   /* Everything you can walk up to. `app` opens a terminal; `act` runs code. */
   const STATIONS = [
-    { id: 'airlock', x: 52,  spr: 'airlock',    label: 'AIRLOCK',        act: 'launch', glyph: 'speed' },
-    { id: 'market',  x: 160, spr: 'console',    label: 'CARGO EXCHANGE', app: 'market', glyph: 'sell' },
-    { id: 'fab',     x: 300, spr: 'fabricator', label: 'FABRICATOR',     app: 'skills', glyph: 'hex' },
-    { id: 'bay',     x: 440, spr: 'dronebay',   label: 'DRONE BAY',      app: 'bay', glyph: 'drone' },
-    { id: 'refinery', x: 580, spr: 'refinery',  label: 'REFINERY DECK',  app: 'refinery', glyph: 'machine' },
-    { id: 'vanity',  x: 690, spr: 'wardrobe',   label: 'IDENTITY POD',   app: 'vanity', glyph: 'crew' },
-    { id: 'nav',     x: 786, spr: 'navchart',   label: 'NAV COMPUTER',   app: 'nav', glyph: 'planet' }
+    { id: 'airlock',  x: 46,  spr: 'airlock',  label: 'AIRLOCK  -  STAR CHART', act: 'launch', glyph: 'planet' },
+    { id: 'lab',      x: 236, spr: 'labmach',  label: 'THE LAB',      app: 'skills', glyph: 'hex', big: 1 },
+    { id: 'exchange', x: 470, spr: 'exchange', label: 'THE EXCHANGE', app: 'market', glyph: 'sell', big: 1 }
   ];
 
   const CREW = [
-    { id: 'zaz',   x: 118, spr: 'zaz',   label: 'ZAZ',   glyph: 'clock' },
-    { id: 'nix',   x: 216, spr: 'nix',   label: 'NIX',   glyph: 'eye' },
-    { id: 'bolt',  x: 356, spr: 'bolt',  label: 'BOLT',  glyph: 'build' },
-    { id: 'gloop', x: 502, spr: 'gloop', label: 'GLOOP', glyph: 'star' }
+    { id: 'nix',   x: 120, spr: 'nix',   label: 'NIX',   glyph: 'eye' },
+    { id: 'bolt',  x: 320, spr: 'bolt',  label: 'BOLT',  glyph: 'build' },
+    { id: 'zaz',   x: 388, spr: 'zaz',   label: 'ZAZ',   glyph: 'clock' },
+    { id: 'gloop', x: 578, spr: 'gloop', label: 'GLOOP', glyph: 'star' }
   ];
 
   const DECOR = [
-    { x: 100, spr: 'crate', f: 0 }, { x: 396, spr: 'crate', f: 1 },
-    { x: 740, spr: 'plant', f: 0 }, { x: 640, spr: 'crate', f: 0 }, { x: 88, spr: 'plant', f: 0 },
-    { x: 250, spr: 'poster', f: 0, y: 124 }, { x: 470, spr: 'poster', f: 1, y: 122 }, { x: 830, spr: 'poster', f: 0, y: 126 },
-    { x: 160, spr: 'lights', f: 0, y: 108 }, { x: 420, spr: 'lights', f: 0, y: 108 }, { x: 690, spr: 'lights', f: 0, y: 108 }
+    { x: 90, spr: 'crate', f: 0 }, { x: 356, spr: 'crate', f: 1 }, { x: 546, spr: 'crate', f: 0 },
+    { x: 160, spr: 'plant', f: 0 }, { x: 600, spr: 'plant', f: 0 }, { x: 420, spr: 'plant', f: 0 },
+    { x: 150, spr: 'poster', f: 0, y: 124 }, { x: 352, spr: 'poster', f: 1, y: 118 }, { x: 610, spr: 'poster', f: 0, y: 126 },
+    { x: 100, spr: 'lights', f: 0, y: 106 }, { x: 300, spr: 'lights', f: 0, y: 106 }, { x: 500, spr: 'lights', f: 0, y: 106 }
   ];
-  const PET = { x: 600, dir: 1, t: 0 };
+  const PET = { x: 540, dir: 1, t: 0 };
 
   /* Crew barks. They rotate, and they are all enabling you. */
   const LINES = {
     nix: [
-      'Balance updated. I rounded in our favour again.',
+      'Two machines, one deck. I sold the rest for scrap. You are welcome.',
       'Three worlds filed complaints. I filed them in the reactor.',
-      'The wire keeps you close to the pod. Longer reels are on the lattice.',
+      'The chart is through the airlock. Sectors need drives. Drives need money.',
       'You look tired. Statistically, greed is a stimulant.'
     ],
     bolt: [
-      'Rocks in, machines out. That is the whole religion, boss.',
-      'Feed the hoppers and the refinery runs itself. Ingots sell triple.',
+      'The Lab eats ore and credits and spits out better gear. Feed it.',
+      'Purifier node makes every rock you sell worth more. Do that one early.',
       'Every node you build on the lattice, I weld another seam. You are welcome.',
       'Want to dig deeper? Buy wire. Simple as that.'
     ],
@@ -7549,7 +7805,7 @@ window.PD = window.PD || {};
       const f = Math.abs(o.x - P.x) / reach;
       if (f < score) { score = f; best = o; }
     };
-    for (const s of STATIONS) test(s, 30);
+    for (const s of STATIONS) test(s, s.big ? 52 : 30);
     for (const c of CREW) test(c, 20);
     return best;
   }
@@ -7581,8 +7837,8 @@ window.PD = window.PD || {};
       if (IN.mouse.leftPressed && IN.mouse.y > 20) {
         const wx = IN.mouse.x + g.intCam;
         let hitSt = null;
-        for (const st of STATIONS.concat(CREW)) if (Math.abs(st.x - wx) < 34) hitSt = st;
-        P.target = hitSt ? hitSt.x + (hitSt.x > P.x ? -18 : 18) : wx;
+        for (const st of STATIONS.concat(CREW)) if (Math.abs(st.x - wx) < (st.big ? 56 : 30)) hitSt = st;
+        P.target = hitSt ? hitSt.x + (hitSt.x > P.x ? -(hitSt.big ? 56 : 20) : (hitSt.big ? 56 : 20)) : wx;
         P.autoUse = hitSt;
         A.sfx.click();
       }
@@ -7644,7 +7900,7 @@ window.PD = window.PD || {};
     // Sprout the space-cat pads up and down the deck
     PET.t += 1 / 60;
     PET.x += PET.dir * 12 / 60;
-    if (PET.x > 760 || PET.x < 560) PET.dir *= -1;
+    if (PET.x > 596 || PET.x < 420) PET.dir *= -1;
     ctx.save(); ctx.translate((PET.x - cam) | 0, FLOOR + 2); if (PET.dir < 0) ctx.scale(-1, 1);
     const ps = AI.S.sprout; ctx.drawImage(ps.frames[Math.floor(PET.t * 6) % 2], -ps.ox, -ps.oy); ctx.restore();
 
@@ -7687,7 +7943,7 @@ window.PD = window.PD || {};
     // interaction prompt: a hand and the machine's glyph
     if (P.near && !PD.term.app && !PD.dialog.active()) {
       const x = P.near.x - cam;
-      const y = FLOOR - (P.near.spr === 'gloop' ? 44 : 70) + Math.sin(t * 5) * 2;
+      const y = FLOOR - (P.near.big ? 112 : (P.near.spr === 'gloop' ? 44 : 70)) + Math.sin(t * 5) * 2;
       const w = F.width(P.near.label, 1) + 34;
       ctx.fillStyle = 'rgba(8,4,18,0.88)'; ctx.fillRect(x - w / 2, y, w, 16);
       ctx.strokeStyle = '#7ef9ff'; ctx.strokeRect(x - w / 2 + 0.5, y + 0.5, w - 1, 15);
@@ -7757,7 +8013,7 @@ window.PD = window.PD || {};
     mobs: [], bullets: [], pickups: [], boulders: [],
     cam: { x: 0, y: 0 },
     bodyIndex: 0,
-    ship: { x: 0, y: 0, w: 60, h: 34 },
+    ship: { x: 0, y: 0, w: 66, h: 38 },
     toasts: [],
     hint: '', hintT: 0, hintKey: '',
     shopTab: 0, shopTip: '',
@@ -7788,7 +8044,7 @@ window.PD = window.PD || {};
       owned: {},                                  // purchased cosmetics
       seenIntro: 0,
       goods: {},                                  // refined output from the refinery deck
-      factory: null,                              // machine layout
+      drives: 0,                                  // sectors unlocked by drive
       appr: {},                                   // appraised ore, ready to sell
       apprT: 0,
       tut: { i: 0 }
@@ -7818,7 +8074,6 @@ window.PD = window.PD || {};
       if (s.goods) for (const k in s.goods) { const n = +s.goods[k]; if (n > 0) base.goods[k] = n; }
       if (s.appr) for (const k in s.appr) { const n = +s.appr[k]; if (n > 0 && D.MAT[k]) base.appr[k] = n; }
       if (s.tut) base.tut = { i: U.clamp(+s.tut.i || 0, 0, 99) };
-      if (s.factory && Array.isArray(s.factory.cells)) base.factory = { cells: s.factory.cells, produced: +s.factory.produced || 0 };
       if (s.cos) for (const k in base.cos) if (s.cos[k]) base.cos[k] = s.cos[k];
       if (s.upg) for (const k in base.upg) base.upg[k] = U.clamp(+s.upg[k] || 0, 0, D.UPG[k].max);
     }
@@ -7827,8 +8082,7 @@ window.PD = window.PD || {};
 
   function saveGame() {
     try {
-      const f = g.save.factory;
-      const slim = Object.assign({}, g.save, { factory: f ? { cells: f.cells, produced: f.produced || 0 } : null });
+      const slim = Object.assign({}, g.save);
       localStorage.setItem(SAVE_KEY, JSON.stringify(slim));
     } catch (e) { /* private mode */ }
   }
@@ -7884,17 +8138,16 @@ window.PD = window.PD || {};
   g.objective = function () {
     const p = g.player;
     const tut = PD.tutorial.current(g);
-    if (g.state === 'space') {
-      if (p.cargoKg < p.capacity() * 0.5) return { g: ['ore', 'arrowR', 'cargo'], t: 'Collect drifting ore  (' + Math.round(p.cargoKg) + '/' + Math.round(p.capacity()) + ' kg)' };
-      return { g: ['hole', 'arrowR', 'home'], t: 'Hold is heavy. Press E to open a time hole home.' };
+    if (g.state === 'starmap') {
+      return { g: ['planet', 'arrowR', 'drill'], t: 'Pick a world and drop on it' };
     }
     if (g.state === 'interior') {
       const raw = Object.values(g.save.vault).reduce((a, c) => a + c, 0);
       const ok = Object.values(g.save.appr).reduce((a, c) => a + c, 0);
-      if (ok > 0) return { g: ['sell', 'arrowR', 'coin'], t: 'Sell appraised ore at the Cargo Exchange' };
+      if (ok > 0) return { g: ['sell', 'arrowR', 'coin'], t: 'Sell appraised ore at The Exchange' };
       if (raw > 0) return { g: ['clock'], t: 'Zaz is appraising your ore (' + raw + ' left)' };
-      if (!Object.keys(g.save.upg).some(k => g.save.upg[k] > 0)) return { g: ['coin', 'arrowR', 'hex'], t: 'Spend credits at the Skill Lattice' };
-      return { g: ['planet', 'arrowR', 'drill'], t: 'Pick a world at the Nav Computer, or take the airlock' };
+      if (!Object.keys(g.save.upg).some(k => g.save.upg[k] > 0)) return { g: ['coin', 'arrowR', 'hex'], t: 'Build an upgrade in the Lab' };
+      return { g: ['planet', 'arrowR', 'drill'], t: 'Take the airlock to the star chart and pick a world' };
     }
     if (g.state === 'play') {
       if (g.world.coreHp < g.world.coreMax) return { g: ['drill', 'arrowR', 'star'], t: 'Break the core!' };
@@ -8028,7 +8281,7 @@ window.PD = window.PD || {};
   function appraiseTick(dt) {
     const mat = g.appraising();
     if (mat === null) { g.save.apprT = 0; return; }
-    const need = D.appraiseSeconds(mat, g.save.upg.appraise || 0);
+    const need = D.appraiseSeconds(mat, g.save.upg.appraise || 0, g.save.upg.kiln || 0);
     g.save.apprT += dt;
     while (g.save.apprT >= need && (g.save.vault[mat] || 0) > 0) {
       g.save.apprT -= need;
@@ -8040,15 +8293,37 @@ window.PD = window.PD || {};
   g.apprFrac = function () {
     const mat = g.appraising();
     if (mat === null) return 0;
-    return U.clamp(g.save.apprT / D.appraiseSeconds(mat, g.save.upg.appraise || 0), 0, 1);
+    return U.clamp(g.save.apprT / D.appraiseSeconds(mat, g.save.upg.appraise || 0, g.save.upg.kiln || 0), 0, 1);
   };
-  g.saleMult = function () { return g.valueMult() * D.UPG.crew.value(g.save.upg.crew || 0) * (1 - D.appraiseFee(g.save.upg.appraise || 0)); };
+  /* The ore market moves. Every material carries a demand multiplier that
+     drifts slowly, so a lot you sat on can be worth a fifth more -- or less.
+     This is what makes the Exchange a screen worth reading. */
+  g.demand = {};
+  g.demandTrend = {};
+  function demandTick(dt) {
+    for (const m of D.MAT) {
+      if (!m.id) continue;
+      if (g.demand[m.id] === undefined) {
+        g.demand[m.id] = 0.9 + U.hash2(m.id * 13, 7) * 0.34;
+        g.demandTrend[m.id] = (U.hash2(m.id, 21) - 0.5) * 0.05;
+      }
+      let v = g.demand[m.id] + g.demandTrend[m.id] * dt;
+      if (v > 1.28) { v = 1.28; g.demandTrend[m.id] = -Math.abs(g.demandTrend[m.id]); }
+      if (v < 0.78) { v = 0.78; g.demandTrend[m.id] = Math.abs(g.demandTrend[m.id]); }
+      if (U.chance(dt * 0.08)) g.demandTrend[m.id] = (U.hash2(m.id + g.time * 100 | 0, 3) - 0.5) * 0.06;
+      g.demand[m.id] = v;
+    }
+  }
+  g.demandFor = function (mat) { return g.demand[mat] === undefined ? 1 : g.demand[mat]; };
+  g.priceOf = function (mat) { return Math.round(D.MAT[mat].cr * g.saleMult() * g.demandFor(mat)); };
+
+  g.saleMult = function () { return g.valueMult() * D.UPG.crew.value(g.save.upg.crew || 0) * D.UPG.refine.value(g.save.upg.refine || 0) * (1 - D.appraiseFee(g.save.upg.appraise || 0)); };
 
   g.sellFromVault = function (mat, qty) {
     const have = g.save.appr[mat] || 0;
     qty = Math.min(qty, have);
     if (qty <= 0) { A.sfx.deny(); return; }
-    const value = Math.round(D.MAT[mat].cr * qty * g.saleMult());
+    const value = g.priceOf(mat) * qty;
     g.save.appr[mat] = have - qty;
     if (g.save.appr[mat] <= 0) delete g.save.appr[mat];
     g.save.credits += value;
@@ -8061,7 +8336,7 @@ window.PD = window.PD || {};
   g.sellAll = function () {
     let total = 0, lots = 0;
     for (const k in g.save.appr) {
-      total += Math.round(D.MAT[k].cr * g.save.appr[k] * g.saleMult());
+      total += g.priceOf(+k) * g.save.appr[k];
       lots++;
     }
     if (!total) { A.sfx.deny(); return; }
@@ -8349,33 +8624,24 @@ window.PD = window.PD || {};
     saveGame();
   }
 
-  /* The airlock opens on to the scooter field, not the planet: the planet is
-     a destination you choose at the nav computer. */
+  /* The airlock opens on to the chart: pick a sector, pick a world, drop. */
   g.undock = function () {
     g.player.docked = false;
     PD.term.close();
     PD.dialog.clear();
-    g.toField();
+    g.openChart();
   };
 
-  g.toField = function () {
-    g.state = 'space';
-    g.player.docked = false;
-    g.player.invuln = 1;
+  g.openChart = function () {
+    g.state = 'starmap';
     g.hintT = 0; g.hintKey = '';
-    PD.space.enter(g);
+    PD.starmap.enter(g);
     A.sfx.tone(520, { type: 'triangle', dur: 0.2, vol: 0.12 });
     A.sfx.tone(300, { type: 'square', to: 700, dur: 0.25, vol: 0.08 });
     saveGame();
   };
 
-  /* Through the time hole: from anywhere, straight to Deck A. */
-  g.throughHole = function () {
-    A.sfx.warp();
-    FX.flash(0.9, '#d8bcff');
-    g.bullets.length = 0;
-    dock(true);
-  };
+  g.dock = dock;
 
   /* Nav computer: drop on to the chosen world for a dive. */
   g.dive = function (index) {
@@ -8563,11 +8829,11 @@ window.PD = window.PD || {};
       }
     }
 
-    g.uiBlocking = g.state !== 'play' && g.state !== 'space';
+    g.uiBlocking = g.state !== 'play';
     handleStateKeys();
 
-    // the refinery deck earns in every state where time passes
-    if (g.state !== 'title' && g.state !== 'cutscene' && g.state !== 'pause') { PD.factory.tick(dt, g); appraiseTick(dt); }
+    // Zaz keeps working in every state where time passes
+    if (g.state !== 'title' && g.state !== 'cutscene' && g.state !== 'pause') { appraiseTick(dt); demandTick(dt); }
 
     if (g.state === 'cutscene') {
       PD.cutscene.update(dt, g);
@@ -8575,15 +8841,15 @@ window.PD = window.PD || {};
         g.save.seenIntro = 1;
         saveGame();
         startBody(g.save.bodyIndex || 0, false);
-        g.toField();
+        dock(true);
       }
       return;
     }
 
-    if (g.state === 'space') {
-      PD.space.update(dt, g);
-      PD.tutorial.update(dt, g, 'space');
-      if (PD.input.hit('esc')) { g.pausedFrom = 'space'; g.state = 'pause'; A.thrust(0); }
+    if (g.state === 'starmap') {
+      PD.starmap.update(dt, g);
+      PD.tutorial.update(dt, g, 'starmap');
+      FX.update(dt, null);
       return;
     }
 
@@ -8707,7 +8973,7 @@ window.PD = window.PD || {};
       case 'interior':
         break;                                   // interior.update handles its own keys
       case 'cutscene':
-      case 'space':
+      case 'starmap':
         break;
       case 'pause':
         if (esc) g.state = g.pausedFrom || 'play';
@@ -8777,6 +9043,7 @@ window.PD = window.PD || {};
     scale = fit >= 2 ? Math.floor(fit) : Math.max(0.5, fit);
     offX = Math.floor((w - VW * scale) / 2);
     offY = Math.floor((h - VH * scale) / 2);
+    g.scale = scale; g.offX = offX; g.offY = offY;
   }
 
   function updatePod(dt) {
@@ -8921,15 +9188,10 @@ window.PD = window.PD || {};
       return;
     }
 
-    if (g.state === 'space' || (g.state === 'pause' && g.pausedFrom === 'space')) {
-      PD.space.draw(ctx, g, g.time);
+    if (g.state === 'starmap') {
+      PD.starmap.draw(ctx, g, g.time);
       FX.drawOverlay(ctx, VW, VH);
-      FX.drawFloaters(ctx, { x: Math.round(PD.space.S.cam.x), y: Math.round(PD.space.S.cam.y) }, (c, s2, x, y, col, size) =>
-        F.draw(c, s2, x, y, col, { center: true, scale: size >= 2 ? 2 : 1 }));
-      UI.hudField(ctx, g);
-      PD.tutorial.draw(ctx, g, 'space');
-      if (g.state === 'pause') { const r = UI.pause(ctx, g); if (r.resume) g.state = 'space'; if (r.ship) { g.state = 'space'; g.throughHole(); } }
-      PD.touch.draw(ctx, g.state === 'space' ? 'space' : 'ui', g);
+      PD.tutorial.draw(ctx, g, 'starmap');
       UI.endFrame();
       blit();
       return;
@@ -8955,7 +9217,7 @@ window.PD = window.PD || {};
       if (r.start) {
         A.resume(); A.music(true);
         if (!g.save.seenIntro) { g.state = 'cutscene'; PD.cutscene.start(); }
-        else { startBody(g.save.bodyIndex || 0, false); g.toField(); }
+        else { startBody(g.save.bodyIndex || 0, false); dock(true); }
       }
       if (r.wipe) wipeSave();
       PD.touch.draw(ctx, 'ui');
@@ -8966,6 +9228,7 @@ window.PD = window.PD || {};
     PD.galaxy.draw(ctx, cam, g.time, 400 + g.bodyIndex * 31, g.world.body.sky);
     g.world.drawSky(ctx, cam, VW, VH, g.time, false, true);
     g.world.draw(ctx, cam, VW, VH, g.time);
+    g.world.drawFlora(ctx, cam, VW, VH, g.time);
     drawShip(ctx, cam);
 
     for (const k of g.pickups) k.draw(ctx, cam, g.time);
@@ -9044,9 +9307,7 @@ window.PD = window.PD || {};
     m.wy = m.y + g.cam.y;
 
     FX.tickFreeze(dt);
-    PD.touch.apply(g.state === 'play' ? 'play' : (g.state === 'space' ? 'space' : 'ui'));
-    if (g.state === 'space') { m.wx = m.x + PD.space.S.cam.x; m.wy = m.y + PD.space.S.cam.y; }
-    else if (PD.touch.enabled) { m.wx = m.x + g.cam.x; m.wy = m.y + g.cam.y; }
+    PD.touch.apply(g.state === 'play' ? 'play' : 'ui');
 
     if (FX.freeze > 0) {
       // hit-stop: the world holds still but particles keep creeping

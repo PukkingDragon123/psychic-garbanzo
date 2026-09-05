@@ -461,27 +461,55 @@
 
   /* THE POD: your own little fat ship. Round, stubby-winged, a dome up top
      and one big thruster. Heads right. */
+  /* The pod. Little, fat, and now properly built: riveted hull, bubble dome
+     with a visible cockpit, side pods, landing skids and a working exhaust. */
   function buildPod(phase, P) {
     P = P || { met: C.met, metD: C.metD, metDD: C.metDD };
-    const p = pix(40, 28);
+    const p = pix(46, 32);
     const f = phase ? 1 : 0;
-    p.round(4, 8, 32, 16, 8, P.met);                    // fat hull
+
+    // rear engine block and nacelles
+    p.round(0, 13, 12, 12, 4, P.metDD);
+    p.round(2, 15, 6, 8, 3, C.ink2);
+    p.rect(2, 17 + f, 4, 4, f ? C.orange : C.orangeD);
+    p.round(6, 6, 8, 6, 3, P.metD);                      // upper nacelle
+    p.round(6, 24, 8, 6, 3, P.metD);                     // lower nacelle
+    p.rect(6, 8, 2, 2, f ? C.cyan : C.metDD);
+    p.rect(6, 26, 2, 2, f ? C.cyan : C.metDD);
+
+    // fat hull
+    p.round(8, 9, 34, 18, 9, P.met);
     p.shade(P.met, P.metD, 0, 1);
-    p.round(6, 10, 28, 4, 2, C.white);                  // highlight
-    p.round(0, 12, 8, 9, 3, P.metDD);                   // thruster
-    p.rect(1, 14, 2, 5, f ? C.orange : C.orangeD);
-    p.round(30, 14, 10, 6, 3, C.suit);                  // nose cowl
-    p.rect(37, 15, 2, 3, C.cyan);
-    p.disc(19, 9, 7, C.glass);                          // dome
-    p.disc(19, 10, 5, C.ink2);
-    p.ellipse(17, 6, 2.6, 1.3, C.glassL);
-    p.round(8, 22, 10, 4, 2, P.metDD); p.round(22, 22, 10, 4, 2, P.metDD);   // stubby wings
-    p.round(14, 19, 12, 3, 1, C.gold);                 // belly stripe
-    p.disc(28, 12, 1.6, C.red); p.disc(11, 12, 1.6, C.lime);
+    p.round(11, 11, 27, 4, 2, C.white);                  // gloss
+    p.round(10, 21, 30, 5, 2, P.metD);                   // lower plate
+    p.round(15, 22, 20, 3, 1, C.gold);                   // belly stripe
+    for (let i = 0; i < 6; i++) p.set(13 + i * 5, 20, P.metDD);   // rivets
+
+    // bubble dome + pilot seat
+    p.disc(23, 10, 8, C.glass);
+    p.disc(23, 11, 6, C.ink2);
+    p.ellipse(20, 7, 3, 1.5, C.glassL);
+    p.round(19, 12, 8, 5, 2, P.metDD);                   // seat back
+
+    // nose cowl and headlight
+    p.round(38, 14, 8, 8, 3, C.suit);
+    p.rect(44, 16, 2, 4, C.cyan);
+    p.disc(41, 18, 2, f ? '#fff6c8' : C.gold);
+
+    // landing skids
+    p.rect(13, 28, 3, 4, P.metDD);
+    p.rect(31, 28, 3, 4, P.metDD);
+    p.round(10, 30, 10, 2, 1, P.metD);
+    p.round(28, 30, 10, 2, 1, P.metD);
+
+    // running lights
+    p.disc(33, 13, 1.6, C.red);
+    p.disc(14, 13, 1.6, C.lime);
     p.outline(C.ink);
     return p;
   }
-  reg('pod', [buildPod(0), buildPod(1)], 20, 16);
+
+  reg('pod', [buildPod(0), buildPod(1)], 23, 18);
 
   /* LOOT CRATE: precursor supply case. */
   function buildCrate(open) {
@@ -589,7 +617,7 @@
       alienFly: mk(frames.fly, 12, 22),
       drill: mk([0, 1, 2, 3].map(i => buildDrill(i, DP)), 3, 6),
       ship: mk([buildShip(false, SP), buildShip(true, SP)], 42, 26),
-      pod: mk([buildPod(0, SP), buildPod(1, SP)], 20, 16),
+      pod: mk([buildPod(0, SP), buildPod(1, SP)], 23, 18),
       P: P
     };
     skinCache[key] = set;

@@ -124,11 +124,58 @@
     ]
   };
 
+  /* Foliage: what grows on exposed rock in each band. The renderer draws these
+     as real curved shapes -- stems, caps, fronds -- not tiles. */
+  const FLORA = {
+    rock:     [['moss', 'grass'], ['root', 'moss'], ['crystal']],
+    ice:      [['icespike', 'frond'], ['crystal', 'icespike'], ['icespike', 'crystal']],
+    metal:    [['root'], ['root', 'ember'], ['ember', 'crystal']],
+    gem:      [['crystal', 'coral'], ['crystal', 'coral'], ['crystal']],
+    moon:     [['bone', 'moss'], ['bone', 'root'], ['tendril', 'bone']],
+    terra:    [['grass', 'fern', 'frond'], ['shroom', 'moss', 'tendril'], ['crystal', 'coral'], ['ember', 'root'], ['tendril']],
+    volcanic: [['ember', 'root'], ['ember', 'tendril'], ['ember', 'crystal']],
+    titan:    [['crystal', 'coral'], ['crystal', 'tendril'], ['crystal']],
+    core:     [['ember', 'bone'], ['ember', 'tendril'], ['tendril', 'crystal']]
+  };
+  for (const k in STRATA) {
+    const f = FLORA[k] || FLORA.rock;
+    STRATA[k].forEach((band, i) => { band.flora = f[Math.min(i, f.length - 1)]; });
+  }
+
+  /* -------------------------------------------------------------------- zones
+     The galaxy is four sectors. Each one past the first is locked behind a
+     drive you buy outright -- that is the only travel gate in the game. */
+  const ZONES = [
+    {
+      id: 'home', name: 'HOME REACH', sub: 'Cheap rocks, cheap thrills.',
+      star: '#ffd34d', tint: '#8a6a4f', x: 96, y: 178, bodies: [0, 1, 2], drive: null
+    },
+    {
+      id: 'ember', name: 'EMBER BELT', sub: 'Slag, iron and things with teeth.',
+      star: '#ff8a3d', tint: '#c67a3d', x: 196, y: 106, bodies: [3, 4],
+      drive: { name: 'ION SLED', cost: 26000, blurb: 'Burns hot enough to cross the belt.' }
+    },
+    {
+      id: 'rot', name: 'THE ROT', sub: 'Dead moons. Rude fossils.',
+      star: '#7ef9ff', tint: '#b3c4d8', x: 300, y: 182, bodies: [5, 6],
+      drive: { name: 'FOLD COIL', cost: 420000, blurb: 'Folds the gap to the dead worlds.' }
+    },
+    {
+      id: 'core', name: 'CORE DEEP', sub: 'Where the galaxy keeps the good stuff.',
+      star: '#ff5fa8', tint: '#ffc44d', x: 402, y: 96, bodies: [7, 8, 9],
+      drive: { name: 'VOID ANCHOR', cost: 5200000, blurb: 'Grips the throat of the galaxy and pulls.' }
+    }
+  ];
+  function zoneOf(bodyIndex) {
+    for (let i = 0; i < ZONES.length; i++) if (ZONES[i].bodies.indexOf(bodyIndex) >= 0) return i;
+    return 0;
+  }
+
   /* ------------------------------------------------------------------- bodies
      Each entry is one drillable world. Destroy its core to unlock the next. */
   const BODIES = [
     {
-      name: 'Pebble-7', kind: 'Asteroid', type: 'rock', radius: 20, poi: { geode: 1, fossil: 0, ruin: 0 }, gravity: 34, coreHp: 260,
+      name: 'Pebble-7', kind: 'Asteroid', type: 'rock', radius: 30, poi: { geode: 1, fossil: 0, ruin: 0 }, gravity: 34, coreHp: 260,
       reward: 1200, dominion: 0.4, caves: 0.30, enemyRate: 0.22, drillTier: 0,
       sky: '#0b0720', tint: '#8a6a4f',
       blurb: 'A crumb of rock. Warm up the drill.',
@@ -136,7 +183,7 @@
       mobs: [['crawler', 6], ['floater', 3]]
     },
     {
-      name: 'Rustclod', kind: 'Asteroid', type: 'rock', radius: 27, poi: { geode: 1, fossil: 1, ruin: 0 }, gravity: 40, coreHp: 700,
+      name: 'Rustclod', kind: 'Asteroid', type: 'rock', radius: 40, poi: { geode: 1, fossil: 1, ruin: 0 }, gravity: 40, coreHp: 700,
       reward: 4200, dominion: 0.8, caves: 0.34, enemyRate: 0.3, drillTier: 1,
       sky: '#160a1c', tint: '#9c6a54',
       blurb: 'Iron-fat and full of grubs.',
@@ -144,7 +191,7 @@
       mobs: [['crawler', 6], ['floater', 4], ['spitter', 2]]
     },
     {
-      name: 'Glacius Minor', kind: 'Ice Shard', type: 'ice', radius: 34, poi: { geode: 2, fossil: 1, ruin: 1 }, gravity: 44, coreHp: 1600,
+      name: 'Glacius Minor', kind: 'Ice Shard', type: 'ice', radius: 52, poi: { geode: 2, fossil: 1, ruin: 1 }, gravity: 44, coreHp: 1600,
       reward: 12000, dominion: 1.4, caves: 0.42, enemyRate: 0.34, drillTier: 2,
       sky: '#061423', tint: '#79c4de',
       blurb: 'Slick, hollow and humming with cold.',
@@ -152,7 +199,7 @@
       mobs: [['floater', 6], ['crawler', 3], ['spitter', 3]]
     },
     {
-      name: 'Forge Husk', kind: 'Metal Rock', type: 'metal', radius: 42, poi: { geode: 1, fossil: 1, ruin: 1 }, gravity: 52, coreHp: 3600,
+      name: 'Forge Husk', kind: 'Metal Rock', type: 'metal', radius: 64, poi: { geode: 1, fossil: 1, ruin: 1 }, gravity: 52, coreHp: 3600,
       reward: 34000, dominion: 2.2, caves: 0.36, enemyRate: 0.4, drillTier: 3,
       sky: '#1c0d0a', tint: '#c67a3d',
       blurb: 'Somebody smelted this thing. Badly.',
@@ -160,7 +207,7 @@
       mobs: [['crawler', 4], ['spitter', 5], ['gnasher', 3]]
     },
     {
-      name: 'Gemworld Shard', kind: 'Fragment', type: 'gem', radius: 50, poi: { geode: 4, fossil: 1, ruin: 1 }, gravity: 58, coreHp: 8000,
+      name: 'Gemworld Shard', kind: 'Fragment', type: 'gem', radius: 76, poi: { geode: 4, fossil: 1, ruin: 1 }, gravity: 58, coreHp: 8000,
       reward: 96000, dominion: 3.4, caves: 0.46, enemyRate: 0.44, drillTier: 4,
       sky: '#101a2e', tint: '#33c470',
       blurb: 'Every wall is a jewellery shop.',
@@ -168,7 +215,7 @@
       mobs: [['spitter', 5], ['gnasher', 4], ['floater', 4], ['lurker', 1]]
     },
     {
-      name: 'Mourn, the Dead Moon', kind: 'Moon', type: 'moon', radius: 60, poi: { geode: 2, fossil: 4, ruin: 2 }, gravity: 70, coreHp: 20000,
+      name: 'Mourn, the Dead Moon', kind: 'Moon', type: 'moon', radius: 90, poi: { geode: 2, fossil: 4, ruin: 2 }, gravity: 70, coreHp: 20000,
       reward: 290000, dominion: 6.0, caves: 0.4, enemyRate: 0.5, drillTier: 5,
       sky: '#0a0e1d', tint: '#b3c4d8',
       blurb: 'Something used to live here. Rude of it.',
@@ -176,7 +223,7 @@
       mobs: [['gnasher', 6], ['lurker', 3], ['spitter', 4], ['floater', 3]]
     },
     {
-      name: 'Terra Prime', kind: 'Planet', type: 'terra', radius: 72, poi: { geode: 3, fossil: 2, ruin: 3 }, gravity: 86, coreHp: 60000,
+      name: 'Terra Prime', kind: 'Planet', type: 'terra', radius: 104, poi: { geode: 3, fossil: 2, ruin: 3 }, gravity: 86, coreHp: 60000,
       reward: 950000, dominion: 12.0, caves: 0.44, enemyRate: 0.56, drillTier: 6,
       sky: '#04121a', tint: '#3fa84f',
       blurb: 'Inhabited! Well. Formerly inhabited.',
@@ -184,7 +231,7 @@
       mobs: [['gnasher', 6], ['lurker', 6], ['spitter', 3], ['floater', 2]]
     },
     {
-      name: 'Cinder Majoris', kind: 'Volcanic', type: 'volcanic', radius: 84, poi: { geode: 2, fossil: 1, ruin: 2 }, gravity: 104, coreHp: 165000,
+      name: 'Cinder Majoris', kind: 'Volcanic', type: 'volcanic', radius: 118, poi: { geode: 2, fossil: 1, ruin: 2 }, gravity: 104, coreHp: 165000,
       reward: 3200000, dominion: 20.0, caves: 0.5, enemyRate: 0.62, drillTier: 7,
       sky: '#1e0708', tint: '#e8425f',
       blurb: 'Molten, screaming, extremely profitable.',
@@ -192,7 +239,7 @@
       mobs: [['lurker', 8], ['gnasher', 6], ['spitter', 3]]
     },
     {
-      name: 'The Crystal Titan', kind: 'Superplanet', type: 'titan', radius: 98, poi: { geode: 6, fossil: 1, ruin: 3 }, gravity: 122, coreHp: 480000,
+      name: 'The Crystal Titan', kind: 'Superplanet', type: 'titan', radius: 132, poi: { geode: 6, fossil: 1, ruin: 3 }, gravity: 122, coreHp: 480000,
       reward: 12500000, dominion: 27.0, caves: 0.46, enemyRate: 0.68, drillTier: 8,
       sky: '#150a2b', tint: '#7d4fd6',
       blurb: 'A world-sized gem. Break it. Break it now.',
@@ -200,7 +247,7 @@
       mobs: [['lurker', 9], ['gnasher', 5], ['floater', 3]]
     },
     {
-      name: 'Galactic Heart', kind: 'Core World', type: 'core', radius: 112, poi: { geode: 3, fossil: 2, ruin: 4 }, gravity: 140, coreHp: 1600000,
+      name: 'Galactic Heart', kind: 'Core World', type: 'core', radius: 150, poi: { geode: 3, fossil: 2, ruin: 4 }, gravity: 140, coreHp: 1600000,
       reward: 60000000, dominion: 26.8, caves: 0.4, enemyRate: 0.75, drillTier: 9,
       sky: '#2a0a16', tint: '#ffc44d',
       blurb: 'The galaxy keeps its savings here.',
@@ -227,14 +274,14 @@
     {
       id: 'oxygen', mats: [['ice', 6], ['silver', 2]], late: ['sapphire', 2], name: 'O2 Tank', icon: 'tank', max: 14, base: 190, growth: 1.55,
       blurb: 'More air means deeper runs before the panic sets in.',
-      value: l => 110 + l * 30,
-      show: l => Math.round(110 + l * 30) + ' O2'
+      value: l => 66 + l * 26,
+      show: l => Math.round(66 + l * 26) + ' O2'
     },
     {
       id: 'cargo', mats: [['crust', 10], ['iron', 4]], late: ['shell', 4], name: 'Cargo Pod', icon: 'pod', max: 14, base: 240, growth: 1.6,
       blurb: 'Haul more loot per trip. Heavy pockets, heavy heart.',
-      value: l => 30 + l * 18,
-      show: l => Math.round(30 + l * 18) + ' kg'
+      value: l => 16 + l * 13,
+      show: l => Math.round(16 + l * 13) + ' kg'
     },
     {
       id: 'hull', mats: [['iron', 6], ['shell', 3]], late: ['star', 1], name: 'Hull Plate', icon: 'hull', max: 12, base: 260, growth: 1.6,
@@ -287,8 +334,8 @@
     {
       id: 'lamp', mats: [['crust', 8], ['copper', 2]], late: ['emerald', 2], name: 'Headlamp', icon: 'lamp', max: 8, base: 160, growth: 1.55,
       blurb: 'See the thing that is about to eat you.',
-      value: l => 62 + l * 15,
-      show: l => (62 + l * 15) + ' PX LAMP'
+      value: l => 78 + l * 16,
+      show: l => (78 + l * 16) + ' PX LAMP'
     },
     {
       id: 'magnet', mats: [['iron', 5], ['silver', 3]], late: ['void', 1], name: 'Tractor Magnet', icon: 'magnet', max: 8, base: 300, growth: 1.6,
@@ -309,16 +356,16 @@
       show: l => '+' + (l * 6) + '% SALES'
     },
     {
-      id: 'beltspeed', name: 'Belt Motors', icon: 'belt', max: 6, base: 900, growth: 1.7, mats: [['copper', 6], ['iron', 4]], late: ['titan', 1],
-      blurb: 'Machines: conveyors and hoppers run faster.',
-      value: l => 1 + l * 0.35,
-      show: l => 'x' + (1 + l * 0.35).toFixed(2) + ' BELT'
+      id: 'refine', name: 'Ore Purifier', icon: 'machine', max: 8, base: 1400, growth: 1.72, mats: [['copper', 6], ['silver', 3]], late: ['titan', 2],
+      blurb: 'Lab machine: scrubs raw ore clean so it sells for far more.',
+      value: l => 1 + l * 0.09,
+      show: l => '+' + (l * 9) + '% ORE PRICE'
     },
     {
-      id: 'machspeed', name: 'Overclock', icon: 'machine', max: 6, base: 2400, growth: 1.75, mats: [['silver', 4], ['titan', 2]], late: ['void', 1],
-      blurb: 'Machines: smelters, cutters, crushers and forges work faster.',
-      value: l => 1 + l * 0.4,
-      show: l => 'x' + (1 + l * 0.4).toFixed(2) + ' MACHINES'
+      id: 'kiln', name: 'Auto-Kiln', icon: 'belt', max: 6, base: 2200, growth: 1.75, mats: [['iron', 8], ['gold', 2]], late: ['void', 1],
+      blurb: 'Lab machine: bakes lots while Zaz works, cutting appraisal time.',
+      value: l => 1 + l * 0.5,
+      show: l => 'x' + (1 + l * 0.5).toFixed(2) + ' APPRAISAL'
     },
     {
       id: 'tether', name: 'Tether Reel', icon: 'belt', max: 12, base: 240, growth: 1.58, mats: [['crust', 6], ['iron', 3]], late: ['titan', 2],
@@ -396,14 +443,14 @@
     // machines, south-east
     { id: 'drones', q: 0, r: 1, glyph: 'drone' },
     { id: 'droneyield', q: 1, r: 1, glyph: 'drone' },
-    { id: 'beltspeed', q: 0, r: 2, glyph: 'belt' },
-    { id: 'machspeed', q: 1, r: 2, glyph: 'machine' }
+    { id: 'refine', q: 0, r: 2, glyph: 'machine' },
+    { id: 'kiln', q: 1, r: 2, glyph: 'belt' }
   ];
 
   /* Appraisal: raw ore waits to be valued before it can sell. */
-  function appraiseSeconds(mat, level) {
+  function appraiseSeconds(mat, level, kiln) {
     const base = 0.6 + Math.log2(1 + MAT[mat].cr / 10) * 0.5; // pricier lots take longer: crust ~1s, diamond ~5s
-    return base / (1 + level * 0.55);
+    return base / (1 + level * 0.55) / (1 + (kiln || 0) * 0.5);
   }
   function appraiseFee(level) { return Math.max(0.02, 0.12 - level * 0.0125); }
 
@@ -523,5 +570,5 @@
   }
 
   PD.data = { MAT, M, ENEMY, BODIES, UPGRADES, UPG, upgradeCost, recipe, COSMETICS, COS, TITLES, titleFor, bountyFor,
-    STRATA, MACHINES, METALS, GEMS, JUNK, goodOf, goodFromKey, NODES, appraiseSeconds, appraiseFee };
+    STRATA, ZONES, zoneOf, FLORA, MACHINES, METALS, GEMS, JUNK, goodOf, goodFromKey, NODES, appraiseSeconds, appraiseFee };
 })(window.PD);

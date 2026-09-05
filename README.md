@@ -3,9 +3,10 @@
 A 2D pixel-art mining sandbox / incremental game. You are a small, greedy,
 extremely evil alien. You have a drill. The galaxy has planets. You do the math.
 
-Fly out of the airlock, sink into an asteroid, chew through the rock for ore and
-gems, shoot the things that live down there, haul it all home before your air
-runs out — then drill all the way to the **core** and blow the whole world apart.
+Open the chart, pick a world, drop on it. Sink into the rock on a wire from your
+pod, chew through it for ore and gems, shoot the things that live down there,
+board the pod before your air runs out — then drill all the way to the **core**
+and blow the whole world apart.
 
 **No build step, no dependencies, no asset files.** Every sprite, sound effect
 and note of music is generated in code at load time.
@@ -22,44 +23,55 @@ node tools/build.js           # -> dist/planet-destroyer.html
 
 ## Readable
 
-The HUD is text first: labelled AIR / HULL / HOLD meters with big numbers, a
-one-line **objective** that always says what to do next, named hints, named
-ore in the manifest and the market. A procedural **glyph language** (coin,
-ore, drill, hole, hand, arrows, lock, check…) rides alongside the words as
-icons, and the **hexagon** is the UI's one shape besides the rectangle — the
-skill lattice, the touch pad, the time hole.
+Three readouts and no clutter: a **glass air tank** that empties and bubbles, a
+row of **hex hull chips** that shatter one at a time, and a segmented **hold
+tube**. Under them, the manifest; along the bottom, one strip with the weapon,
+dash, scanner and wire. A one-line **objective** always says what to do next,
+and a procedural **glyph language** rides alongside the words as icons. The
+**hexagon** is the UI's one shape besides the rectangle.
 
 ## The pod and the wire
 
-You fly a **little fat pod**. In the field you sit in its dome; on a dive it
-hovers over the dig site and you drop out on a **tether**. The wire is the
-leash: run out of reach and it snaps taut, flashes red and yanks you back.
-The `WIRE` bar in the HUD shows how much slack is left, and the **Tether**
-node on the ship branch of the lattice buys more reach. Press `E` under the
-pod to board and go home. The alien itself now has arms, legs and a jetpack,
-with idle / walk / fly cycles, and a drawn arm that follows the aim.
+You fly a **little fat pod** with a bubble dome, side nacelles and landing
+skids. On a dive it hovers over the dig site and you drop out on a **tether**.
+The wire is the leash: run out of reach and it snaps taut, flashes red and
+yanks you back. The `WIRE` bar shows the slack left, and the **Tether Reel**
+node buys more reach. Press `E` under the pod to board and go home. The alien
+has arms, legs and a jetpack, with idle / walk / fly cycles and a drawn arm
+that follows the aim.
 
-## You start in the field
+## The chart
 
-The run opens in an **asteroid field**. Fly the pod (hold anywhere to fly
-toward the pointer; `Space`/`FIRE` shoots), hoover up drifting ore, shoot
-rocks to crack them open, then press `E` / the **hole** key to open a **time
-hole** and fly into it — that is how you get home. From Deck A the **nav
-computer** drops you on to a planet for a dive; the airlock returns you to the
-field.
+The airlock opens on the **galaxy chart**: four sectors, each one past Home
+Reach locked behind a **drive** you buy outright — the Ion Sled, the Fold
+Coil, the Void Anchor. Enter a sector and you are looking at its **solar
+system**: worlds on their orbits, with a dossier for the one you have picked
+(depth, gravity, core, bounty, what it is made of). Press `DROP` and you are
+falling on it. That is the whole travel loop: chart, sector, world, drop.
 
-## Appraisal
+## Selling
 
-Ore that lands in the bin is **unappraised**. The house values one unit at a
-time, priciest first (crust ~1s, a diamond ~5s), in real time wherever you
-are, and takes a cut. Only appraised lots sell. The **Appraiser** and **Broker**
-staff nodes speed it up, shrink the fee and lift prices.
+Ore that lands in the bin is **unappraised**. Zaz values one lot at a time,
+priciest first, in real time wherever you are, and the house takes a cut. Only
+appraised lots sell. The Exchange shows the belt with the lot riding through
+the scanner, the queue, and a **live ore market**: every material carries a
+demand multiplier that drifts on its own, so the same rock is worth more some
+days than others. Three numbers decide your take — the house fee, the Broker,
+and the Purifier.
 
 ## Skill lattice
 
-The fabricator is a **hex skill tree**: the drill at the centre, six branches
-out — guns, ship, oxygen, cargo, staff, machines (belt motors, overclock). A
-node opens once any neighbour has a level; every level burns credits and ore.
+The Lab is a **hex skill tree**: the drill at the centre, six branches out —
+guns, ship, oxygen, cargo, staff, machines (Ore Purifier, Auto-Kiln). Each node
+carries its name, level, what it does and what it costs. A node opens once any
+neighbour has a level; every level burns credits and raw ore.
+
+## Two machines, one deck
+
+The Rustmaw has been stripped to the two things that matter: **THE LAB** on the
+port side and **THE EXCHANGE** on the starboard, both of them enormous. Tap or
+click anywhere to walk, tap a machine to use it, take the airlock for the
+chart. Everything else was sold for scrap.
 
 ## Controls
 
@@ -72,22 +84,24 @@ node opens once any neighbour has a level; every level burns credits and ore.
 | `Q` / wheel | Swap weapon (pistol → scattergun → lance, as fabricated) |
 | `Shift` / double-tap a direction | **Burst dash** with invulnerability frames |
 | `Tab` | **Scanner ping** — paints ore on the minimap |
-| `E` | Dock at the ship / use a machine / talk / launch |
+| `E` | Board the pod / use a machine / talk / drop on a world |
 | Hold `R` | Emergency tractor beam home — costs 10% of your cargo |
 | `Esc` | Pause, or disconnect from a terminal |
 
 **On a phone or tablet** the controls switch to touch automatically: a
 hexagonal pad on the left for the jets, drag anywhere on the right to aim *and*
-drill, hex action keys in the corner. In the field a held touch flies you; on
-the deck you **tap where to walk** and tap a machine to use it.
+drill, hex action keys in the corner. On the deck and the chart you **tap what
+you want** — where to walk, which machine, which world.
 
 ## Worlds are layered
 
 Every body is generated in **strata** — depth bands with their own rock, ores,
-cave density and light. Terra Prime runs topsoil → glowcap hollows → crystal
-vaults → magma sea → core shell; an ice shard runs permafrost → crystal
-caverns → glacial core. Pocket biomes swap in alternate tables where the biome
-noise runs hot, so two dives never read the same. Deeper bands are tougher rock.
+cave density, light and **flora**. Terra Prime runs topsoil → glowcap hollows →
+crystal vaults → magma sea → core shell; an ice shard runs permafrost →
+crystal caverns → glacial core. Pocket biomes swap in alternate tables where
+the biome noise runs hot, so two dives never read the same. Deeper bands are
+tougher rock, and the planets themselves are large — a hundred metres of rock
+on the starter asteroid, fifteen hundred on the Galactic Heart.
 
 Hidden in them: **geodes** lined with gems, **fossil beds**, and **precursor
 ruins** — plated rooms with a relic on a plinth, supply caches, and a guard.
@@ -96,45 +110,59 @@ slowly while it rides in your hold. Crossing into a new band puts its name on
 screen. `Tab` fires a **scanner ping** that paints deposits on the fog-of-war
 **minimap**.
 
+## Rock that is not made of squares
+
+The tile grid is still what you drill, but nothing about it is drawn square.
+Every tile is cut to a rounded path whose convex corners are real arcs and
+whose open faces bow slightly, and each one is painted in three cached layers:
+the depth band's own rock, then the **material as a blob** shaped against its
+own kind — so an iron seam is a vein, not a run of squares — then light and a
+dark rim, only where the tile faces open space. Open ground gets a rolling soil
+lip so the surface line waves.
+
+Growing out of it: **foliage drawn as real curves**. Grass tufts, ferns,
+drooping fronds, moss cushions, glowing mushrooms, hanging tendrils and vines,
+roots, ribs, coral fans, crystal shards and licking flames — each one bent,
+bulged and swaying, picked from the band's own flora table and derived from the
+cell hash, so mining a tile takes its garden with it. Each plant is baked into
+a small sprite with four sway frames, which is what keeps a whole hillside of
+it at 60fps.
+
 ## The loop
 
-1. **Launch** from the Rustmaw, your mining barge. Space has no gravity; drift
-   down until the rock starts pulling.
+1. **Pick a world.** Take the airlock to the galaxy chart, choose a sector (buy
+   its drive if you have not), choose a world from its solar system, and drop.
 2. **Dig.** Every tile is a real material with its own hardness, weight and
    price. Regolith is worthless ballast; sapphire, voidstone and starmetal are
    not. Loose ore pops out and gets sucked in by your tractor magnet.
-3. **Survive.** Three meters: **O2** (drains faster while drilling and deeper
-   down), **hull** (grubs, gnashers, spitters, falling boulders), and **cargo
-   weight** (a full hold makes you slow and thirsty). Lose your hull and the
-   ship yanks you home minus a third of the loot.
-4. **Come home.** Docking drops your haul into the ship's **feedstock bin** — it
+3. **Survive.** Three readouts: the **air tank** (drains faster while drilling
+   and deeper down), the **hull chips** (grubs, gnashers, spitters, falling
+   boulders), and the **hold tube** (a full hold makes you slow and thirsty).
+   Air starts at 66 seconds and the hold at 16kg — both of them are meant to
+   hurt until you upgrade them. Lose your hull and the pod yanks you home minus
+   a third of the loot. The **wire** keeps you inside the pod's reach the whole
+   time.
+4. **Board the pod.** `E` under the pod drops your haul into the ship's bin — it
    does *not* auto-sell. What you do with the ore is the decision the game is
    built around.
-5. **Walk the deck.** Dock and you are standing on Deck A, not staring at a
-   menu. Walk to whichever machine you need:
-   - **Cargo Exchange** — sell raw ore or refined goods, by the lot or all at once
-   - **Refinery Deck** — a Factorio-style grid. Hoppers pull one ore type out of
-     the bin, conveyors carry it, a **smelter** turns metal into ingots (×2.6),
-     a **gem cutter** cuts stones (×3.2), a **crusher** turns junk rock into
-     concentrate (×4), an **alloy forge** fuses two ingots (×2.4 on the pair),
-     and depots bank the result. It runs in real time while you are down a hole
-   - **Fabricator** — build upgrades. Every level costs credits *and* raw ore, so
-     selling a vein of voidstone means not building with it
-   - **Drone Bay** — the idle swarm that earns credits while you fly
-   - **Identity Pod** — repaint your suit, gene-splice your skin, tint your visor,
-     refinish the drill bit, re-livery the hull; also your galactic dossier
-   - **Nav Computer** — star map with a survey readout and ore signature per world
-   - **Airlock** — back out into the dark
+5. **Walk the deck.** Two machines, both huge:
+   - **THE LAB** — the hex lattice. Every level costs credits *and* raw ore, so
+     selling a vein of voidstone means not building with it. The machines branch
+     holds the **Ore Purifier** (every rock sells for more) and the
+     **Auto-Kiln** (Zaz values lots faster)
+   - **THE EXCHANGE** — the appraisal belt and the live ore market. Sell by the
+     lot or hit SELL EVERYTHING
+   - **Airlock** — back out to the chart
 6. **Break the world.** At the centre of every body is a molten core in a hollow
    chamber, usually with a Core Warden floating in front of it. Drill the core to
    zero and the whole planet fissures, detonates and comes apart in flying chunks
    of real terrain. Bounty, permanent value bonus, galaxy-control percentage, and
    the next world unlocks.
 
-Ten worlds, from a 15-tile pebble to the Galactic Heart. Destroyed worlds regrow
-if you fly back, so the sandbox never closes. Your reputation grows with the
-wreckage — from *Unlicensed Prospector* to *Sovereign of Ash* — and so does the
-bounty on your head.
+Ten worlds across four sectors, from a 300-metre pebble to the Galactic Heart.
+Destroyed worlds regrow if you fly back, so the sandbox never closes. Your
+reputation grows with the wreckage — from *Unlicensed Prospector* to *Sovereign
+of Ash* — and so does the bounty on your head.
 
 ## Combat
 
@@ -152,7 +180,7 @@ for a bounty multiplier.
 Deck A is a cute, lit, postered little home for very bad people. **NIX**, the
 round three-eyed holo-alien, keeps the books and files complaints in the
 reactor. **BOLT**, an orange goggled mechanic with a spanner, runs the
-fabricator. **ZAZ**, the tall lavender appraiser with a monocle, values your
+Lab. **ZAZ**, the tall lavender appraiser with a monocle, values your
 ore one lot at a time and takes a cut. **GLOOP**, a rescued rock grub in a
 tank, eats your inventory. **SPROUT** the space-cat wanders the aft deck. Tap
 or click anywhere on the deck to walk there; tap a station to walk over and
@@ -168,23 +196,23 @@ use it.
 | `src/artint.js` | The ship interior: deck backdrop, machines, the alien crew (Nix, Bolt, Zaz, Gloop, Sprout), posters and lights, and the cratered-moon generator used for skies and nav thumbnails |
 | `src/font.js` | Hand-drawn 5×7 bitmap font, cached per colour |
 | `src/audio.js` | WebAudio synthesis — a drill loop that tracks rock hardness, jetpack noise, explosions, and a villainous little groove |
-| `src/data.js` | 30 materials, 9 enemy species, ten worlds, nine strata templates, weapons and upgrades with ore recipes, factory machines and refined goods, cosmetics, the evil-title ladder |
-| `src/world.js` | Tile grid; strata + pocket-biome generation, tunnels and caverns, veins on a rarity curve, magma lakes, geodes, fossil beds, ruins; fog of war; cave backdrops, glowing tiles, terrain rendering |
+| `src/data.js` | 30 materials, 9 enemy species, ten worlds in four sectors, nine strata templates with their flora, weapons and upgrades with ore recipes, drives, cosmetics, the evil-title ladder |
+| `src/world.js` | Tile grid; strata + pocket-biome generation, tunnels and caverns, veins on a rarity curve, magma lakes, geodes, fossil beds, ruins; fog of war; the three-layer rounded terrain renderer and the foliage pass |
 | `src/entities.js` | Mobs with four AI kinds, bullets, ore pickups, falling boulders |
 | `src/player.js` | Movement, the drill, weapons, dash, air, cargo, damage, and the tether to the pod |
+| `src/flora.js` | Every plant in the game, drawn as curves and baked into cached sway frames |
 | `src/fx.js` | Particles, floating numbers, shockwave rings, terrain chunks, screen shake, hit-stop |
-| `src/ui.js` | In-flight HUD, pause, victory and title screens |
+| `src/ui.js` | The vitals pod (air tank, hull chips, hold tube), the action strip, pause, victory and title screens |
 | `src/dialog.js` | The comms panel: portrait window, name plate, text that types itself |
 | `src/terminal.js` | RUSTMAW OS — the diegetic CRT console every menu lives inside, with per-app phosphor themes, boot sequences and scanlines |
-| `src/factory.js` | The refinery deck: grid editor, belt/machine simulation at 10Hz, refined-goods output |
-| `src/interior.js` | Deck A: walking, stations, crew and their barks |
+| `src/interior.js` | Deck A: tap-to-walk, the Lab and the Exchange, crew and their barks |
 | `src/cutscene.js` | The cold open |
-| `src/glyph.js` | The wordless icon language and hex primitives |
+| `src/glyph.js` | The icon language that rides alongside the text, and the hex primitives |
 | `src/galaxy.js` | Spiral-arm star band, nebulae, sun, ringed planets, shooting stars |
-| `src/space.js` | The asteroid field: the pod, drifting ore, rocks, mites, the time hole |
+| `src/starmap.js` | The galaxy chart and the solar-system view: sectors, drives, world dossiers |
 | `src/skilltree.js` | Hex skill lattice with adjacency unlocks |
-| `src/tutorial.js` | Pictographic tutorial that advances as you do the thing |
-| `src/touch.js` | Hex pad, drag-to-drill, tap-to-fly, tap-to-walk, hex action keys, haptics |
+| `src/tutorial.js` | Seven-step tutorial that advances as you do the thing |
+| `src/touch.js` | Hex pad, drag-to-drill, tap-to-walk, tap-to-pick, hex action keys, haptics |
 | `src/game.js` | Loop, camera, ship, lighting, the vault economy, save/load, and the world-destruction sequence |
 | `tools/build.js` | Inlines everything into one distributable HTML file |
 

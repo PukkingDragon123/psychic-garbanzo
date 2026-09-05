@@ -160,40 +160,121 @@
     F.draw(ctx, text, gx + 6, y + 6, COL.text);
   }
 
-  function meters(ctx, g) {
+  /* ----------------------------------------------------------- vitals pod
+     Three readouts, no clutter: a glass air tank that empties, hull as a row
+     of hex chips that shatter, and the hold as a filling tube. */
+  function hexChip(ctx, x, y, r, fill, edge) {
+    ctx.beginPath();
+    for (let i = 0; i < 6; i++) {
+      const a = Math.PI / 180 * (60 * i - 30);
+      const px = x + Math.cos(a) * r, py = y + Math.sin(a) * r;
+      if (i) ctx.lineTo(px, py); else ctx.moveTo(px, py);
+    }
+    ctx.closePath();
+    if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+    if (edge) { ctx.strokeStyle = edge; ctx.lineWidth = 1; ctx.stroke(); }
+  }
+
+  function vitals(ctx, g) {
     const p = g.player;
     const maxO2 = p.stat('oxygen'), maxHull = p.stat('hull'), cap = p.capacity();
-    const bx = 24, bw = 84;
-    ctx.fillStyle = 'rgba(8,4,18,0.55)'; ctx.fillRect(0, 0, bx + bw + 40, 60);
-    Gd().draw(ctx, 'o2', 4, 6, COL.o2, '#2b9fc4');
-    bar(ctx, bx, 8, bw, 10, p.o2 / maxO2, p.o2 / maxO2 < 0.25 ? (Math.sin(g.time * 12) > 0 ? '#ff6b8a' : COL.o2) : COL.o2, { label: 'AIR' });
-    F.draw(ctx, Math.ceil(p.o2), bx + bw + 4, 6, COL.o2, { scale: 2 });
-    Gd().draw(ctx, 'hull', 4, 24, COL.hull, '#b32b2f');
-    bar(ctx, bx, 26, bw, 10, p.hull / maxHull, COL.hull, { label: 'HULL' });
-    F.draw(ctx, Math.ceil(p.hull), bx + bw + 4, 24, COL.hull, { scale: 2 });
-    Gd().draw(ctx, 'cargo', 4, 42, COL.cargo, '#c25c14');
-    bar(ctx, bx, 44, bw, 10, p.cargoKg / cap, p.cargoFull() ? '#ff6b8a' : COL.cargo, { label: 'HOLD' });
-    F.draw(ctx, Math.round(p.cargoKg) + '/' + Math.round(cap), bx + bw + 4, 44, p.cargoFull() ? '#ff6b8a' : COL.cargo, { scale: 2 });
+    const o2f = U.clamp(p.o2 / maxO2, 0, 1);
+    const t = g.time;
+    const PW = 172, PH = 62;
 
-    // manifest: swatch + count
-    const entries = Object.keys(p.cargo).sort((a, b) => D.MAT[b].cr - D.MAT[a].cr).slice(0, 6);
-    let my = 64;
+    ctx.fillStyle = 'rgba(8,4,18,0.62)';
+    ctx.fillRect(0, 0, PW, PH);
+    ctx.fillStyle = '#5b3f96';
+    ctx.fillRect(0, PH, PW, 1);
+    ctx.fillRect(PW, 0, 1, PH);
+
+    // --- air: a glass tank that empties
+    const tx = 5, ty = 4, tw = 14, th = 44;
+    const low = o2f < 0.25;
+    ctx.fillStyle = '#0d0720'; ctx.fillRect(tx - 1, ty - 1, tw + 2, th + 2);
+    ctx.fillStyle = '#161033'; ctx.fillRect(tx, ty, tw, th);
+    const fh = Math.round(th * o2f);
+    ctx.fillStyle = low ? (Math.sin(t * 14) > 0 ? '#ff6b8a' : '#58e8ff') : '#58e8ff';
+    ctx.fillRect(tx, ty + th - fh, tw, fh);
+    if (fh > 2) {
+      ctx.fillStyle = '#d6fbff';
+      ctx.fillRect(tx, ty + th - fh + Math.sin(t * 4) * 1.2, tw, 1);
+      for (let i = 0; i < 3; i++) {
+        const by = ty + th - ((t * 14 + i * 17) % Math.max(4, fh));
+        if (by > ty + th - fh) { ctx.fillStyle = 'rgba(255,255,255,0.5)'; ctx.fillRect(tx + 3 + i * 4, by, 1, 1); }
+      }
+    }
+    ctx.strokeStyle = '#7ef9ff'; ctx.strokeRect(tx + 0.5, ty + 0.5, tw - 1, th - 1);
+    ctx.fillStyle = 'rgba(255,255,255,0.22)'; ctx.fillRect(tx + 2, ty + 2, 3, th - 4);
+    for (let i = 1; i < 4; i++) { ctx.fillStyle = '#0d0720'; ctx.fillRect(tx, ty + (th / 4) * i, 4, 1); }
+    F.draw(ctx, 'AIR', tx + tw / 2, ty + th + 3, low ? '#ff6b8a' : '#7ef9ff', { center: true, shadow: false });
+
+    const CX = 26;                                  // right-hand column
+    F.draw(ctx, String(Math.ceil(p.o2)), CX, 4, low ? '#ff6b8a' : '#7ef9ff', { scale: 2, shadow: false });
+    F.draw(ctx, 'O2', CX + 42, 10, '#4d6f9c', { shadow: false });
+
+    // --- hull: hex chips that shatter
+    const cf = U.clamp(p.hull / maxHull, 0, 1);
+    F.draw(ctx, 'HULL', CX, 24, '#9c8ec4', { shadow: false });
+    for (let i = 0; i < 6; i++) {
+      const x = CX + 34 + i * 15, y = 27;
+      const f = U.clamp(cf * 6 - i, 0, 1);
+      hexChip(ctx, x, y, 6.5, '#2a1230', '#5b3f96');
+      if (f > 0) {
+        ctx.save();
+        ctx.beginPath(); ctx.rect(x - 7, y + 7 - 14 * f, 14, 14 * f); ctx.clip();
+        hexChip(ctx, x, y, 6.5, f < 0.35 ? '#ff8a3d' : '#ff5a4d', null);
+        ctx.restore();
+        hexChip(ctx, x, y, 6.5, null, '#ffb0a0');
+      } else {
+        ctx.strokeStyle = '#4a2a4a'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(x - 4, y - 3); ctx.lineTo(x + 3, y + 4); ctx.stroke();
+      }
+    }
+
+    // --- hold: a filling tube
+    const hx = CX + 28, hy = 42, hw = 84, hh = 9;
+    const load = U.clamp(p.cargoKg / cap, 0, 1);
+    F.draw(ctx, 'HOLD', CX, 43, '#9c8ec4', { shadow: false });
+    ctx.fillStyle = '#0d0720'; ctx.fillRect(hx - 1, hy - 1, hw + 2, hh + 2);
+    ctx.fillStyle = '#231640'; ctx.fillRect(hx, hy, hw, hh);
+    const segs = 10, sw = hw / segs;
+    for (let i = 0; i < segs; i++) {
+      const f = U.clamp(load * segs - i, 0, 1);
+      if (f <= 0) continue;
+      ctx.fillStyle = p.cargoFull() ? (Math.sin(t * 12) > 0 ? '#ff6b8a' : '#ffb03d') : '#ffb03d';
+      ctx.fillRect(hx + i * sw + 1, hy + 1, Math.max(1, (sw - 2) * f), hh - 2);
+      ctx.fillStyle = 'rgba(255,255,255,0.3)';
+      ctx.fillRect(hx + i * sw + 1, hy + 1, Math.max(1, (sw - 2) * f), 1);
+    }
+    F.draw(ctx, Math.round(p.cargoKg) + '/' + Math.round(cap), hx + hw / 2, hy + 2, load > 0.55 ? '#3a2408' : '#ffb03d', { center: true, shadow: false });
+
+    // --- manifest: top three ores, then the load's worth
+    const entries = Object.keys(p.cargo).sort((a, b) => D.MAT[b].cr - D.MAT[a].cr).slice(0, 3);
+    let my = PH + 6;
     for (const k of entries) {
       const m = D.MAT[k];
-      ctx.fillStyle = m.c[1]; ctx.fillRect(8, my + 1, 6, 6);
-      ctx.fillStyle = m.c[0]; ctx.fillRect(8, my + 1, 6, 2);
-      F.draw(ctx, m.name.toUpperCase().slice(0, 11) + ' ' + p.cargo[k], 18, my, COL.text);
-      my += 9;
+      ctx.fillStyle = 'rgba(8,4,18,0.5)'; ctx.fillRect(0, my - 1, 104, 10);
+      ctx.fillStyle = m.c[1]; ctx.fillRect(4, my + 1, 7, 7);
+      ctx.fillStyle = m.c[0]; ctx.fillRect(4, my + 1, 7, 2);
+      F.draw(ctx, m.name.toUpperCase().slice(0, 10), 15, my, COL.text, { shadow: false });
+      F.draw(ctx, String(p.cargo[k]), 100, my, COL.gold, { right: true, shadow: false });
+      my += 11;
     }
-    if (p.cargoValue() > 0) { Gd().draw(ctx, 'coin', 6, my, COL.gold, '#b8860b'); F.draw(ctx, U.fmt(p.cargoValue()), 22, my + 1, COL.gold, { scale: 2 }); }
+    if (p.cargoValue() > 0) {
+      ctx.fillStyle = 'rgba(8,4,18,0.5)'; ctx.fillRect(0, my - 1, 104, 16);
+      Gd().draw(ctx, 'coin', 3, my, COL.gold, '#b8860b');
+      F.draw(ctx, U.fmt(p.cargoValue()), 19, my + 1, COL.gold, { scale: 2, shadow: false });
+    }
 
-    // top right: credits, galaxy
-    ctx.fillStyle = 'rgba(8,4,18,0.55)'; ctx.fillRect(VW - 130, 0, 130, 46);
-    F.draw(ctx, '$' + U.fmt(g.save.credits), VW - 8, 6, COL.gold, { right: true, scale: 2 });
-    F.draw(ctx, 'GALAXY ' + g.save.dominion.toFixed(1) + '%', VW - 8, 24, COL.lineHi, { right: true });
-    const dps = g.droneIncome();
-    if (dps > 0) F.draw(ctx, '+$' + U.fmt(dps) + '/S DRONES', VW - 8, 34, COL.good, { right: true });
+    // top right: credits + galaxy
+    ctx.fillStyle = 'rgba(8,4,18,0.55)'; ctx.fillRect(VW - 130, 0, 130, 34);
+    F.draw(ctx, '$' + U.fmt(g.save.credits), VW - 8, 4, COL.gold, { right: true, scale: 2 });
+    F.draw(ctx, 'GALAXY ' + g.save.dominion.toFixed(1) + '%', VW - 8, 22, COL.lineHi, { right: true });
   }
+  const meters = vitals;
+
+
 
   function hud(ctx, g) {
     const p = g.player;
@@ -205,26 +286,32 @@
     F.draw(ctx, g.world.depthMeters(p.y) + 'M', 22, VH - 16, COL.text, { scale: 2 });
     objective(ctx, g);
 
-    // weapon, dash, scan
+    // one compact action strip: weapon, dash, scan, wire
     const wg = { pistol: 'gun', scatter: 'scatter', lance: 'lance' }[p.weapon];
-    Gd().draw(ctx, wg, 6, VH - 84, '#ffffff', '#7ef9ff');
-    F.draw(ctx, p.weapon.toUpperCase() + (p.weapons().length > 1 ? '  Q' : ''), 22, VH - 81, COL.text);
-    Gd().draw(ctx, 'dash', 6, VH - 68, p.dashCool > 0 ? COL.dim : COL.gold, '#2a1c4a');
-    bar(ctx, 22, VH - 64, 40, 4, 1 - p.dashCool / Math.max(0.1, p.stat('dash')), p.dashCool > 0 ? '#9c8ec4' : COL.gold, {});
-    F.draw(ctx, 'DASH', 66, VH - 66, COL.dim);
-    Gd().draw(ctx, 'scan', 6, VH - 54, p.scanCool > 0 ? COL.dim : COL.good, '#2a1c4a');
-    bar(ctx, 22, VH - 50, 40, 4, 1 - p.scanCool / 4, p.scanCool > 0 ? '#9c8ec4' : COL.good, {});
-    F.draw(ctx, 'SCAN', 66, VH - 52, COL.dim);
-    // tether reel
-    Gd().draw(ctx, 'belt', 6, VH - 40, p.tetherFrac > 0.9 ? '#ff5a4d' : COL.o2, '#2a1c4a');
-    bar(ctx, 22, VH - 36, 40, 4, p.tetherFrac || 0, p.tetherFrac > 0.9 ? '#ff5a4d' : COL.o2, {});
-    F.draw(ctx, 'WIRE', 66, VH - 38, COL.dim);
+    const sy = VH - 86;
+    ctx.fillStyle = 'rgba(8,4,18,0.55)';
+    ctx.fillRect(0, sy - 4, 190, 16);
+    Gd().draw(ctx, wg, 4, sy - 2, '#ffffff', '#7ef9ff');
+    F.draw(ctx, p.weapon.toUpperCase() + (p.weapons().length > 1 ? ' Q' : ''), 20, sy + 1, COL.text, { shadow: false });
+    const pip = (x, glyph, frac, col) => {
+      Gd().draw(ctx, glyph, x, sy - 2, frac >= 1 ? col : COL.dim, '#2a1c4a');
+      ctx.fillStyle = '#2a1c4a'; ctx.fillRect(x, sy + 10, 12, 2);
+      ctx.fillStyle = frac >= 1 ? col : '#9c8ec4'; ctx.fillRect(x, sy + 10, Math.round(12 * U.clamp(frac, 0, 1)), 2);
+    };
+    pip(78, 'dash', 1 - p.dashCool / Math.max(0.1, p.stat('dash')), COL.gold);
+    pip(96, 'scan', 1 - p.scanCool / 4, COL.good);
+    // the wire is the one that matters, so it gets a real bar
+    const tf = U.clamp(p.tetherFrac || 0, 0, 1);
+    const tcol = tf > 0.9 ? '#ff5a4d' : (tf > 0.7 ? COL.gold : COL.o2);
+    Gd().draw(ctx, 'belt', 116, sy - 2, tcol, '#2a1c4a');
+    bar(ctx, 132, sy + 1, 52, 7, tf, tcol, {});
+    F.draw(ctx, 'WIRE', 132 + 26, sy + 2, tf > 0.6 ? '#0d0720' : COL.dim, { center: true, shadow: false });
 
     // core integrity
     if (g.world.coreHp < g.world.coreMax) {
-      const cw = 140, cx = VW / 2 - cw / 2;
-      F.draw(ctx, 'CORE', cx - 30, 28, COL.core);
-      bar(ctx, cx, 26, cw, 9, g.world.coreHp / g.world.coreMax, COL.core, { right: Math.ceil(g.world.coreHp / g.world.coreMax * 100) + '%' });
+      const cw = 128, cx = 214;
+      F.draw(ctx, 'CORE', 182, 40, COL.core);
+      bar(ctx, cx, 38, cw, 9, g.world.coreHp / g.world.coreMax, COL.core, { right: Math.ceil(g.world.coreHp / g.world.coreMax * 100) + '%' });
     }
     if (p.recall > 0.1) {
       Gd().draw(ctx, 'hole', VW / 2 - 48, VH - 40, COL.o2, '#2b9fc4');
@@ -255,22 +342,6 @@
       ctx.globalAlpha = 1;
     }
 
-    hintStrip(ctx, g, VH - 44);
-    toasts(ctx, g);
-  }
-
-  /* Scooter field HUD: the same meters, plus the field's own readouts. */
-  function hudField(ctx, g) {
-    meters(ctx, g);
-    const p = g.player;
-    F.draw(ctx, g.world.body.name + ' ORBIT', 6, VH - 26, COL.text);
-    Gd().draw(ctx, 'speed', 6, VH - 16, COL.dim, '#2a1c4a');
-    F.draw(ctx, Math.round(Math.hypot(p.vx, p.vy)), 22, VH - 16, COL.text, { scale: 2 });
-    Gd().draw(ctx, 'hole', 6, VH - 68, PD.space.S.hole ? '#d8bcff' : COL.dim, '#6b3fb5');
-    F.draw(ctx, PD.space.S.hole ? 'FLY IN' : 'E  TIME HOLE', 22, VH - 65, PD.space.S.hole ? '#d8bcff' : COL.text);
-    Gd().draw(ctx, 'gun', 6, VH - 52, '#ffffff', '#7ef9ff');
-    F.draw(ctx, 'SPACE  FIRE', 22, VH - 49, COL.text);
-    objective(ctx, g);
     hintStrip(ctx, g, VH - 44);
     toasts(ctx, g);
   }
@@ -657,7 +728,7 @@
   }
 
   PD.ui = {
-    VW, VH, COL, panel, bar, button, icon, hud, hudField, objective, shop, title, pause, victory,
+    VW, VH, COL, panel, bar, button, icon, hud, objective, shop, title, pause, victory,
     sellSplash, ending, endFrame
   };
 })(window.PD);

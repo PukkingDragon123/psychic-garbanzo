@@ -461,6 +461,119 @@
     return p;
   }
 
+  /* --------------------------------------------------------------- THE LAB
+     One enormous fabrication rig: hex holo-core, press arm, goo tanks and an
+     ore hopper. This is where every upgrade in the game gets built. */
+  function labMachine(on) {
+    const p = pix(122, 104);
+    // gantry frame
+    p.rect(0, 8, 122, 6, P.steelDD);
+    p.rect(0, 8, 122, 1, P.steel);
+    p.rect(2, 12, 8, 88, P.steelD);
+    p.rect(112, 12, 8, 88, P.steelD);
+    for (let y = 18; y < 96; y += 12) { p.rect(2, y, 8, 2, P.steelDD); p.rect(112, y, 8, 2, P.steelDD); }
+    // main body
+    p.round(10, 26, 102, 74, 5, P.steelD);
+    p.round(13, 29, 96, 62, 4, P.screenD);
+    // hex holo core
+    const cx = 61, cy = 58;
+    for (let ring = 3; ring >= 1; ring--) {
+      const r = ring * 8;
+      const col = ring === 1 ? (on ? '#d8fdff' : P.holoD) : (on ? P.holo : P.holoD);
+      for (let a = 0; a < 6; a++) {
+        const a0 = a * Math.PI / 3, a1 = (a + 1) * Math.PI / 3;
+        p.line(cx + Math.cos(a0) * r, cy + Math.sin(a0) * r * 0.92,
+               cx + Math.cos(a1) * r, cy + Math.sin(a1) * r * 0.92, col);
+      }
+    }
+    p.disc(cx, cy, 4, on ? '#ffffff' : P.holoD);
+    p.disc(cx, cy, 2, on ? P.gold : P.steelDD);
+    // scan sweep
+    if (on) for (let i = 0; i < 96; i += 3) p.set(13 + i, 34, 'rgba(126,249,255,0.5)');
+    // press arm on the left
+    p.round(16, 32, 16, 10, 2, P.steelDD);
+    p.rect(22, 42, 5, on ? 12 : 18, P.steel);
+    p.round(18, on ? 54 : 60, 13, 7, 2, P.steelDD);
+    // goo tanks on the right
+    for (let i = 0; i < 3; i++) {
+      const tx = 88 + i * 8;
+      p.round(tx, 36, 6, 30, 2, P.steelDD);
+      p.rect(tx + 1, 44 - (i * 3), 4, 20 + i * 3, i === 0 ? '#39ffa6' : (i === 1 ? '#ff8ad8' : P.amber));
+      p.rect(tx + 1, 44 - (i * 3), 4, 2, '#ffffff');
+    }
+    // ore hopper mouth, bottom left
+    p.round(14, 78, 30, 18, 3, P.steelDD);
+    p.rect(18, 82, 22, 3, P.rust);
+    for (let i = 0; i < 5; i++) p.set(20 + i * 4, 87 + (i % 2), P.gold);
+    // readout strip, bottom right
+    p.round(60, 78, 48, 18, 3, P.screenD);
+    for (let i = 0; i < 5; i++) {
+      const w = 6 + Math.floor(U.hash2(i, on ? 3 : 9) * 28);
+      p.rect(63, 81 + i * 3, w, 2, i % 2 ? P.screenL : P.holo);
+    }
+    // feet
+    p.rect(12, 100, 18, 4, P.steelDD);
+    p.rect(92, 100, 18, 4, P.steelDD);
+    // beacon
+    p.disc(61, 5, 4, on ? P.amber : P.rust);
+    p.outline(P.ink);
+    return p;
+  }
+
+  /* ---------------------------------------------------------- THE EXCHANGE
+     The other half of the ship: a trading floor. Price board, brass scales,
+     vault door, pneumatic cash tubes. */
+  function exchange(on) {
+    const p = pix(128, 106);
+    // big price board
+    p.round(4, 4, 120, 46, 4, P.steelDD);
+    p.round(8, 8, 112, 38, 3, '#07231b');
+    for (let r = 0; r < 5; r++) {
+      const y = 11 + r * 7;
+      p.rect(11, y, 3, 4, r % 2 ? P.gold : P.screenL);                 // ore chip
+      const w = 20 + Math.floor(U.hash2(r, on ? 5 : 11) * 40);
+      p.rect(17, y + 1, w, 2, P.screenL);
+      p.rect(96, y, 4 + (r % 3) * 3, 4, r % 3 === 0 ? P.red : P.screenL);
+      p.rect(104, y + 1, 12, 2, P.gold);
+    }
+    if (on) p.rect(8, 8 + (Math.floor(U.hash2(1, 2) * 30)), 112, 1, 'rgba(57,255,166,0.45)');
+    // counter
+    p.round(0, 62, 128, 22, 3, P.rust);
+    p.rect(2, 62, 124, 3, P.gold);
+    p.rect(0, 84, 128, 6, P.steelDD);
+    // brass scales on the counter
+    p.rect(30, 50, 2, 12, P.gold);
+    p.rect(20, 50, 22, 2, P.gold);
+    p.round(17, 52, 8, 4, 2, P.gold);
+    p.round(37, on ? 54 : 52, 8, 4, 2, P.gold);
+    p.set(31, 47, P.gold);
+    // coin stacks
+    for (let i = 0; i < 4; i++) {
+      const h = 3 + (i % 3) * 2;
+      for (let k = 0; k < h; k++) p.round(56 + i * 9, 58 - k * 2, 8, 3, 1, k % 2 ? P.gold : '#c99a1e');
+    }
+    // vault door, right
+    p.round(96, 44, 30, 20, 4, P.steelD);
+    p.disc(111, 54, 7, P.steelDD);
+    p.disc(111, 54, 3, P.gold);
+    for (let a = 0; a < 4; a++) {
+      const ang = a * Math.PI / 4 + (on ? 0.4 : 0);
+      p.line(111, 54, 111 + Math.cos(ang) * 8, 54 + Math.sin(ang) * 8, P.gold);
+    }
+    // pneumatic tube arcing over the counter
+    for (let i = 0; i < 26; i++) {
+      const x = 4 + i * 4;
+      p.set(x, 58 - Math.floor(Math.sin(i / 26 * Math.PI) * 6), P.steel);
+      p.set(x, 59 - Math.floor(Math.sin(i / 26 * Math.PI) * 6), P.steelDD);
+    }
+    if (on) p.disc(4 + 12 * 4, 56 - Math.floor(Math.sin(12 / 26 * Math.PI) * 6), 2, P.amber);
+    // legs
+    p.rect(8, 90, 12, 14, P.steelDD);
+    p.rect(108, 90, 12, 14, P.steelDD);
+    p.outline(P.ink);
+    return p;
+  }
+
   reg('airlock', [airlock()], 23, 62);
   reg('console', [console_(false), console_(true)], 29, 50);
   reg('fabricator', [fabricator(false), fabricator(true)], 35, 56);
@@ -468,6 +581,8 @@
   reg('wardrobe', [wardrobe(false), wardrobe(true)], 22, 60);
   reg('navchart', [navChart(false), navChart(true)], 38, 50);
   reg('refinery', [refinery(false), refinery(true)], 36, 58);
+  reg('labmach', [labMachine(false), labMachine(true)], 61, 104);
+  reg('exchange', [exchange(false), exchange(true)], 64, 106);
   reg('crate', [crate(0), crate(1)], 11, 18);
   reg('plant', [plant()], 10, 26);
   reg('nix', [nix(0), nix(1)], 13, 34);

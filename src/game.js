@@ -22,7 +22,7 @@
     mobs: [], bullets: [], pickups: [], boulders: [],
     cam: { x: 0, y: 0 },
     bodyIndex: 0,
-    ship: { x: 0, y: 0, w: 60, h: 34 },
+    ship: { x: 0, y: 0, w: 66, h: 38 },
     toasts: [],
     hint: '', hintT: 0, hintKey: '',
     shopTab: 0, shopTip: '',
@@ -53,7 +53,7 @@
       owned: {},                                  // purchased cosmetics
       seenIntro: 0,
       goods: {},                                  // refined output from the refinery deck
-      factory: null,                              // machine layout
+      drives: 0,                                  // sectors unlocked by drive
       appr: {},                                   // appraised ore, ready to sell
       apprT: 0,
       tut: { i: 0 }
@@ -83,7 +83,6 @@
       if (s.goods) for (const k in s.goods) { const n = +s.goods[k]; if (n > 0) base.goods[k] = n; }
       if (s.appr) for (const k in s.appr) { const n = +s.appr[k]; if (n > 0 && D.MAT[k]) base.appr[k] = n; }
       if (s.tut) base.tut = { i: U.clamp(+s.tut.i || 0, 0, 99) };
-      if (s.factory && Array.isArray(s.factory.cells)) base.factory = { cells: s.factory.cells, produced: +s.factory.produced || 0 };
       if (s.cos) for (const k in base.cos) if (s.cos[k]) base.cos[k] = s.cos[k];
       if (s.upg) for (const k in base.upg) base.upg[k] = U.clamp(+s.upg[k] || 0, 0, D.UPG[k].max);
     }
@@ -92,8 +91,7 @@
 
   function saveGame() {
     try {
-      const f = g.save.factory;
-      const slim = Object.assign({}, g.save, { factory: f ? { cells: f.cells, produced: f.produced || 0 } : null });
+      const slim = Object.assign({}, g.save);
       localStorage.setItem(SAVE_KEY, JSON.stringify(slim));
     } catch (e) { /* private mode */ }
   }
@@ -149,17 +147,16 @@
   g.objective = function () {
     const p = g.player;
     const tut = PD.tutorial.current(g);
-    if (g.state === 'space') {
-      if (p.cargoKg < p.capacity() * 0.5) return { g: ['ore', 'arrowR', 'cargo'], t: 'Collect drifting ore  (' + Math.round(p.cargoKg) + '/' + Math.round(p.capacity()) + ' kg)' };
-      return { g: ['hole', 'arrowR', 'home'], t: 'Hold is heavy. Press E to open a time hole home.' };
+    if (g.state === 'starmap') {
+      return { g: ['planet', 'arrowR', 'drill'], t: 'Pick a world and drop on it' };
     }
     if (g.state === 'interior') {
       const raw = Object.values(g.save.vault).reduce((a, c) => a + c, 0);
       const ok = Object.values(g.save.appr).reduce((a, c) => a + c, 0);
-      if (ok > 0) return { g: ['sell', 'arrowR', 'coin'], t: 'Sell appraised ore at the Cargo Exchange' };
+      if (ok > 0) return { g: ['sell', 'arrowR', 'coin'], t: 'Sell appraised ore at The Exchange' };
       if (raw > 0) return { g: ['clock'], t: 'Zaz is appraising your ore (' + raw + ' left)' };
-      if (!Object.keys(g.save.upg).some(k => g.save.upg[k] > 0)) return { g: ['coin', 'arrowR', 'hex'], t: 'Spend credits at the Skill Lattice' };
-      return { g: ['planet', 'arrowR', 'drill'], t: 'Pick a world at the Nav Computer, or take the airlock' };
+      if (!Object.keys(g.save.upg).some(k => g.save.upg[k] > 0)) return { g: ['coin', 'arrowR', 'hex'], t: 'Build an upgrade in the Lab' };
+      return { g: ['planet', 'arrowR', 'drill'], t: 'Take the airlock to the star chart and pick a world' };
     }
     if (g.state === 'play') {
       if (g.world.coreHp < g.world.coreMax) return { g: ['drill', 'arrowR', 'star'], t: 'Break the core!' };
@@ -293,7 +290,7 @@
   function appraiseTick(dt) {
     const mat = g.appraising();
     if (mat === null) { g.save.apprT = 0; return; }
-    const need = D.appraiseSeconds(mat, g.save.upg.appraise || 0);
+    const need = D.appraiseSeconds(mat, g.save.upg.appraise || 0, g.save.upg.kiln || 0);
     g.save.apprT += dt;
     while (g.save.apprT >= need && (g.save.vault[mat] || 0) > 0) {
       g.save.apprT -= need;
@@ -305,15 +302,37 @@
   g.apprFrac = function () {
     const mat = g.appraising();
     if (mat === null) return 0;
-    return U.clamp(g.save.apprT / D.appraiseSeconds(mat, g.save.upg.appraise || 0), 0, 1);
+    return U.clamp(g.save.apprT / D.appraiseSeconds(mat, g.save.upg.appraise || 0, g.save.upg.kiln || 0), 0, 1);
   };
-  g.saleMult = function () { return g.valueMult() * D.UPG.crew.value(g.save.upg.crew || 0) * (1 - D.appraiseFee(g.save.upg.appraise || 0)); };
+  /* The ore market moves. Every material carries a demand multiplier that
+     drifts slowly, so a lot you sat on can be worth a fifth more -- or less.
+     This is what makes the Exchange a screen worth reading. */
+  g.demand = {};
+  g.demandTrend = {};
+  function demandTick(dt) {
+    for (const m of D.MAT) {
+      if (!m.id) continue;
+      if (g.demand[m.id] === undefined) {
+        g.demand[m.id] = 0.9 + U.hash2(m.id * 13, 7) * 0.34;
+        g.demandTrend[m.id] = (U.hash2(m.id, 21) - 0.5) * 0.05;
+      }
+      let v = g.demand[m.id] + g.demandTrend[m.id] * dt;
+      if (v > 1.28) { v = 1.28; g.demandTrend[m.id] = -Math.abs(g.demandTrend[m.id]); }
+      if (v < 0.78) { v = 0.78; g.demandTrend[m.id] = Math.abs(g.demandTrend[m.id]); }
+      if (U.chance(dt * 0.08)) g.demandTrend[m.id] = (U.hash2(m.id + g.time * 100 | 0, 3) - 0.5) * 0.06;
+      g.demand[m.id] = v;
+    }
+  }
+  g.demandFor = function (mat) { return g.demand[mat] === undefined ? 1 : g.demand[mat]; };
+  g.priceOf = function (mat) { return Math.round(D.MAT[mat].cr * g.saleMult() * g.demandFor(mat)); };
+
+  g.saleMult = function () { return g.valueMult() * D.UPG.crew.value(g.save.upg.crew || 0) * D.UPG.refine.value(g.save.upg.refine || 0) * (1 - D.appraiseFee(g.save.upg.appraise || 0)); };
 
   g.sellFromVault = function (mat, qty) {
     const have = g.save.appr[mat] || 0;
     qty = Math.min(qty, have);
     if (qty <= 0) { A.sfx.deny(); return; }
-    const value = Math.round(D.MAT[mat].cr * qty * g.saleMult());
+    const value = g.priceOf(mat) * qty;
     g.save.appr[mat] = have - qty;
     if (g.save.appr[mat] <= 0) delete g.save.appr[mat];
     g.save.credits += value;
@@ -326,7 +345,7 @@
   g.sellAll = function () {
     let total = 0, lots = 0;
     for (const k in g.save.appr) {
-      total += Math.round(D.MAT[k].cr * g.save.appr[k] * g.saleMult());
+      total += g.priceOf(+k) * g.save.appr[k];
       lots++;
     }
     if (!total) { A.sfx.deny(); return; }
@@ -614,33 +633,24 @@
     saveGame();
   }
 
-  /* The airlock opens on to the scooter field, not the planet: the planet is
-     a destination you choose at the nav computer. */
+  /* The airlock opens on to the chart: pick a sector, pick a world, drop. */
   g.undock = function () {
     g.player.docked = false;
     PD.term.close();
     PD.dialog.clear();
-    g.toField();
+    g.openChart();
   };
 
-  g.toField = function () {
-    g.state = 'space';
-    g.player.docked = false;
-    g.player.invuln = 1;
+  g.openChart = function () {
+    g.state = 'starmap';
     g.hintT = 0; g.hintKey = '';
-    PD.space.enter(g);
+    PD.starmap.enter(g);
     A.sfx.tone(520, { type: 'triangle', dur: 0.2, vol: 0.12 });
     A.sfx.tone(300, { type: 'square', to: 700, dur: 0.25, vol: 0.08 });
     saveGame();
   };
 
-  /* Through the time hole: from anywhere, straight to Deck A. */
-  g.throughHole = function () {
-    A.sfx.warp();
-    FX.flash(0.9, '#d8bcff');
-    g.bullets.length = 0;
-    dock(true);
-  };
+  g.dock = dock;
 
   /* Nav computer: drop on to the chosen world for a dive. */
   g.dive = function (index) {
@@ -828,11 +838,11 @@
       }
     }
 
-    g.uiBlocking = g.state !== 'play' && g.state !== 'space';
+    g.uiBlocking = g.state !== 'play';
     handleStateKeys();
 
-    // the refinery deck earns in every state where time passes
-    if (g.state !== 'title' && g.state !== 'cutscene' && g.state !== 'pause') { PD.factory.tick(dt, g); appraiseTick(dt); }
+    // Zaz keeps working in every state where time passes
+    if (g.state !== 'title' && g.state !== 'cutscene' && g.state !== 'pause') { appraiseTick(dt); demandTick(dt); }
 
     if (g.state === 'cutscene') {
       PD.cutscene.update(dt, g);
@@ -840,15 +850,15 @@
         g.save.seenIntro = 1;
         saveGame();
         startBody(g.save.bodyIndex || 0, false);
-        g.toField();
+        dock(true);
       }
       return;
     }
 
-    if (g.state === 'space') {
-      PD.space.update(dt, g);
-      PD.tutorial.update(dt, g, 'space');
-      if (PD.input.hit('esc')) { g.pausedFrom = 'space'; g.state = 'pause'; A.thrust(0); }
+    if (g.state === 'starmap') {
+      PD.starmap.update(dt, g);
+      PD.tutorial.update(dt, g, 'starmap');
+      FX.update(dt, null);
       return;
     }
 
@@ -972,7 +982,7 @@
       case 'interior':
         break;                                   // interior.update handles its own keys
       case 'cutscene':
-      case 'space':
+      case 'starmap':
         break;
       case 'pause':
         if (esc) g.state = g.pausedFrom || 'play';
@@ -1042,6 +1052,7 @@
     scale = fit >= 2 ? Math.floor(fit) : Math.max(0.5, fit);
     offX = Math.floor((w - VW * scale) / 2);
     offY = Math.floor((h - VH * scale) / 2);
+    g.scale = scale; g.offX = offX; g.offY = offY;
   }
 
   function updatePod(dt) {
@@ -1186,15 +1197,10 @@
       return;
     }
 
-    if (g.state === 'space' || (g.state === 'pause' && g.pausedFrom === 'space')) {
-      PD.space.draw(ctx, g, g.time);
+    if (g.state === 'starmap') {
+      PD.starmap.draw(ctx, g, g.time);
       FX.drawOverlay(ctx, VW, VH);
-      FX.drawFloaters(ctx, { x: Math.round(PD.space.S.cam.x), y: Math.round(PD.space.S.cam.y) }, (c, s2, x, y, col, size) =>
-        F.draw(c, s2, x, y, col, { center: true, scale: size >= 2 ? 2 : 1 }));
-      UI.hudField(ctx, g);
-      PD.tutorial.draw(ctx, g, 'space');
-      if (g.state === 'pause') { const r = UI.pause(ctx, g); if (r.resume) g.state = 'space'; if (r.ship) { g.state = 'space'; g.throughHole(); } }
-      PD.touch.draw(ctx, g.state === 'space' ? 'space' : 'ui', g);
+      PD.tutorial.draw(ctx, g, 'starmap');
       UI.endFrame();
       blit();
       return;
@@ -1220,7 +1226,7 @@
       if (r.start) {
         A.resume(); A.music(true);
         if (!g.save.seenIntro) { g.state = 'cutscene'; PD.cutscene.start(); }
-        else { startBody(g.save.bodyIndex || 0, false); g.toField(); }
+        else { startBody(g.save.bodyIndex || 0, false); dock(true); }
       }
       if (r.wipe) wipeSave();
       PD.touch.draw(ctx, 'ui');
@@ -1231,6 +1237,7 @@
     PD.galaxy.draw(ctx, cam, g.time, 400 + g.bodyIndex * 31, g.world.body.sky);
     g.world.drawSky(ctx, cam, VW, VH, g.time, false, true);
     g.world.draw(ctx, cam, VW, VH, g.time);
+    g.world.drawFlora(ctx, cam, VW, VH, g.time);
     drawShip(ctx, cam);
 
     for (const k of g.pickups) k.draw(ctx, cam, g.time);
@@ -1309,9 +1316,7 @@
     m.wy = m.y + g.cam.y;
 
     FX.tickFreeze(dt);
-    PD.touch.apply(g.state === 'play' ? 'play' : (g.state === 'space' ? 'space' : 'ui'));
-    if (g.state === 'space') { m.wx = m.x + PD.space.S.cam.x; m.wy = m.y + PD.space.S.cam.y; }
-    else if (PD.touch.enabled) { m.wx = m.x + g.cam.x; m.wy = m.y + g.cam.y; }
+    PD.touch.apply(g.state === 'play' ? 'play' : 'ui');
 
     if (FX.freeze > 0) {
       // hit-stop: the world holds still but particles keep creeping
