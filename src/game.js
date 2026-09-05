@@ -22,7 +22,7 @@
     mobs: [], bullets: [], pickups: [], boulders: [],
     cam: { x: 0, y: 0 },
     bodyIndex: 0,
-    ship: { x: 0, y: 0, w: 84, h: 52 },
+    ship: { x: 0, y: 0, w: 60, h: 34 },
     toasts: [],
     hint: '', hintT: 0, hintKey: '',
     shopTab: 0, shopTip: '',
@@ -127,12 +127,47 @@
   g.toast = toast;
   g.hint = (k, m) => hint(k, m);
 
+  const HINT_TEXT = {
+    dive: 'Fly down to the rock. Hold left mouse to drill.',
+    full: 'Hold is full! Fly back up to the pod.',
+    dock: 'Press E to board the pod and go home.',
+    core: 'Keep drilling the core to break the world!',
+    air: 'Air is low. Get back to the pod, or hold R.',
+    lava: 'Magma! Get out of it!',
+    uran: 'Uranium in the hold is cooking you. Sell it fast.',
+    tether: 'End of the wire. Upgrade the Tether Reel to go deeper.'
+  };
   function hint(key, glyphs) {
     if (g.hintKey === key) { g.hintT = Math.max(g.hintT, 1); return; }
     g.hintKey = key;
     g.hintGlyphs = Array.isArray(glyphs) ? glyphs : [glyphs];
+    g.hintText = HINT_TEXT[key] || '';
     g.hintT = 5;
   }
+
+  /* One line that always says what to do next. */
+  g.objective = function () {
+    const p = g.player;
+    const tut = PD.tutorial.current(g);
+    if (g.state === 'space') {
+      if (p.cargoKg < p.capacity() * 0.5) return { g: ['ore', 'arrowR', 'cargo'], t: 'Collect drifting ore  (' + Math.round(p.cargoKg) + '/' + Math.round(p.capacity()) + ' kg)' };
+      return { g: ['hole', 'arrowR', 'home'], t: 'Hold is heavy. Press E to open a time hole home.' };
+    }
+    if (g.state === 'interior') {
+      const raw = Object.values(g.save.vault).reduce((a, c) => a + c, 0);
+      const ok = Object.values(g.save.appr).reduce((a, c) => a + c, 0);
+      if (ok > 0) return { g: ['sell', 'arrowR', 'coin'], t: 'Sell appraised ore at the Cargo Exchange' };
+      if (raw > 0) return { g: ['clock'], t: 'Zaz is appraising your ore (' + raw + ' left)' };
+      if (!Object.keys(g.save.upg).some(k => g.save.upg[k] > 0)) return { g: ['coin', 'arrowR', 'hex'], t: 'Spend credits at the Skill Lattice' };
+      return { g: ['planet', 'arrowR', 'drill'], t: 'Pick a world at the Nav Computer, or take the airlock' };
+    }
+    if (g.state === 'play') {
+      if (g.world.coreHp < g.world.coreMax) return { g: ['drill', 'arrowR', 'star'], t: 'Break the core!' };
+      if (p.cargoFull()) return { g: ['cargo', 'arrowR', 'home'], t: 'Hold full. Board the pod (E)' };
+      return { g: ['drill', 'arrowD', 'ore'], t: 'Dig deeper for rarer ore. Watch the wire.' };
+    }
+    return null;
+  };
 
   /* -------------------------------------------------------------- world setup */
   function startBody(index, freshPlayer) {
@@ -149,7 +184,7 @@
     g.cinematic = false;
 
     g.ship.x = g.world.cx * TILE;
-    g.ship.y = Math.max(30, g.world.bodyTopPx - 130);
+    g.ship.y = Math.max(30, g.world.bodyTopPx - 70);
 
     if (!g.player || freshPlayer) g.player = new PD.Player(g);
     g.player.clearCargo();
@@ -895,6 +930,7 @@
     }
 
     FX.update(dt, g.world);
+    updatePod(dt);
     updateCamera(dt, false);
 
     PD.tutorial.update(dt, g, 'play');
@@ -1008,30 +1044,59 @@
     offY = Math.floor((h - VH * scale) / 2);
   }
 
-  /* Above the dig site hangs the time hole you came through. Fly into it to
-     go home. */
+  function updatePod(dt) {
+    const s = g.ship, p = g.player;
+    if (g.state !== 'play') return;
+    // the pod tracks you along the sky but never dips into the rock
+    const tx = U.clamp(p.x, 60, g.world.pxW - 60);
+    s.x = U.damp(s.x, tx, 0.04, dt);
+    s.y = Math.max(30, g.world.bodyTopPx - 70) + Math.sin(g.time * 1.3) * 3;
+  }
+
+  /* Your pod hangs above the dig site with the wire running down to you.
+     Fly up to it and press E to go home. */
   function drawShip(ctx, cam) {
-    const s = g.ship;
+    const s = g.ship, p = g.player;
     const t = g.time;
-    const x = s.x - cam.x, y = s.y - cam.y + 12;
-    const near = Math.abs(g.player.x - s.x) < s.w / 2 && g.player.y > s.y - 14 && g.player.y < s.y + 50;
-    const rr = 26 + Math.sin(t * 2) * 2 + (near ? 4 : 0);
-    const grd = ctx.createRadialGradient(x, y, 2, x, y, rr + 14);
-    grd.addColorStop(0, 'rgba(255,255,255,0.85)');
-    grd.addColorStop(0.35, 'rgba(126,249,255,0.55)');
-    grd.addColorStop(1, 'rgba(120,80,220,0)');
-    ctx.fillStyle = grd;
-    ctx.fillRect(x - rr - 14, y - rr - 14, rr * 2 + 28, rr * 2 + 28);
-    for (let k = 0; k < 3; k++) {
-      ctx.save(); ctx.translate(x, y); ctx.rotate(t * (1.2 + k * 0.7) * (k % 2 ? -1 : 1));
-      PD.glyph.hex(ctx, 0, 0, rr * (1 - k * 0.24), null, k ? '#d8bcff' : '#ffffff', 1.5);
-      ctx.restore();
+    const x = s.x - cam.x, y = s.y - cam.y;
+    const near = Math.abs(p.x - s.x) < s.w / 2 && p.y > s.y - 14 && p.y < s.y + 50;
+
+    // the wire: a sagging line from the pod's belly to the player's pack
+    if (!p.docked) {
+      const L = p.stat('tether');
+      const frac = U.clamp(p.tetherFrac || 0, 0, 1);
+      const px = p.x - cam.x - (Math.cos(p.aim) < 0 ? -6 : 6), py = p.y - cam.y - 2;
+      const sag = (1 - frac) * 40;
+      ctx.strokeStyle = frac > 0.9 ? (Math.sin(t * 20) > 0 ? '#ff5a4d' : '#ffd34d') : '#c9c9dc';
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(x, y + 12);
+      ctx.quadraticCurveTo((x + px) / 2, Math.max(y, py) + sag, px, py);
+      ctx.stroke();
+      ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+      ctx.beginPath(); ctx.moveTo(x, y + 13);
+      ctx.quadraticCurveTo((x + px) / 2, Math.max(y, py) + sag + 1, px, py + 1);
+      ctx.stroke();
+      // reel gauge on the pod
+      ctx.fillStyle = '#0d0720'; ctx.fillRect(x - 16, y - 24, 32, 4);
+      ctx.fillStyle = frac > 0.9 ? '#ff5a4d' : '#7ef9ff'; ctx.fillRect(x - 16, y - 24, Math.round(32 * frac), 4);
     }
-    if (U.chance(0.4)) {
-      const a = U.rand(0, U.TAU);
-      FX.spawn({ x: s.x + Math.cos(a) * rr, y: s.y + 12 + Math.sin(a) * rr, vx: -Math.cos(a) * 30, vy: -Math.sin(a) * 30, life: 0.5, size: 1.5, color: '#7ef9ff', grav: 0, drag: 0.9, glow: 1 });
+
+    const pod = PD.art.skinFor(g.save.cos).pod;
+    const bob = Math.sin(t * 2) * 1.5;
+    const flip = p.x < s.x - 10;
+    ctx.save(); ctx.translate(x | 0, (y + bob) | 0); if (flip) ctx.scale(-1, 1);
+    ctx.drawImage(pod.frames[Math.floor(t * 8) % 2], -pod.ox, -pod.oy);
+    ctx.restore();
+    for (let i = 0; i < 2; i++) {                    // idle thruster puff
+      ctx.globalAlpha = 0.3 + 0.2 * Math.sin(t * 12 + i);
+      ctx.fillStyle = i ? '#ff9b3d' : '#ffe08a';
+      ctx.fillRect((x + (flip ? 20 : -24) - i * 3) | 0, (y + bob + 1) | 0, 4, 3);
     }
-    if (g.state === 'play' && near) PD.glyph.draw(ctx, 'home', x - 7, y - rr - 24 + Math.sin(t * 5) * 2, '#ffd34d', '#ff9b3d');
+    ctx.globalAlpha = 1;
+    if (g.state === 'play' && near) {
+      PD.glyph.draw(ctx, 'home', x - 7, y - 42 + Math.sin(t * 5) * 2, '#ffd34d', '#ff9b3d');
+      F.draw(ctx, 'E', x, y - 30, '#ffd34d', { center: true });
+    }
   }
 
   function drawLighting(cam) {

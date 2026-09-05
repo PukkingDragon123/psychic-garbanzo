@@ -11,15 +11,15 @@
   /* Each step: which scene it belongs to, the glyph sentence, and a predicate
      that marks it done. */
   const STEPS = [
-    { scene: 'space', say: ['hand', 'arrowR', 'speed'],       done: g => Math.hypot(PD.space.S.scoot.vx, PD.space.S.scoot.vy) > 60 },
-    { scene: 'space', say: ['speed', 'arrowR', 'ore', 'cargo'], done: g => g.player.cargoKg > 3 },
-    { scene: 'space', say: ['gun', 'arrowR', 'rock'],           done: g => PD.space.S.rocks.some(r => r.dead) },
-    { scene: 'space', say: ['cargo', 'arrowR', 'hole', 'home'], done: g => !!PD.space.S.hole },
-    { scene: 'interior', say: ['hand', 'arrowR', 'sell', 'coin'],   done: g => g.save.totalEarned > 0 },
-    { scene: 'interior', say: ['coin', 'arrowR', 'hex', 'up'],      done: g => Object.keys(g.save.upg).some(k => g.save.upg[k] > 0) },
-    { scene: 'interior', say: ['planet', 'arrowR', 'drill'],        done: g => g.state === 'play' },
-    { scene: 'play', say: ['hand', 'arrowD', 'drill', 'ore'],       done: g => g.save.totalMined > 8 },
-    { scene: 'play', say: ['o2', 'arrowD', 'bang', 'arrowU', 'hole'], done: g => g.player.docked }
+    { scene: 'space', text: 'HOLD TO FLY', say: ['hand', 'arrowR', 'speed'],       done: g => Math.hypot(PD.space.S.scoot.vx, PD.space.S.scoot.vy) > 60 },
+    { scene: 'space', text: 'FLY INTO ORE TO COLLECT IT', say: ['speed', 'arrowR', 'ore', 'cargo'], done: g => g.player.cargoKg > 3 },
+    { scene: 'space', text: 'SHOOT A ROCK  (SPACE)', say: ['gun', 'arrowR', 'rock'],           done: g => PD.space.S.rocks.some(r => r.dead) },
+    { scene: 'space', text: 'OPEN A TIME HOLE HOME  (E)', say: ['cargo', 'arrowR', 'hole', 'home'], done: g => !!PD.space.S.hole },
+    { scene: 'interior', text: 'SELL APPRAISED ORE AT THE EXCHANGE', say: ['hand', 'arrowR', 'sell', 'coin'],   done: g => g.save.totalEarned > 0 },
+    { scene: 'interior', text: 'BUILD A NODE ON THE SKILL LATTICE', say: ['coin', 'arrowR', 'hex', 'up'],      done: g => Object.keys(g.save.upg).some(k => g.save.upg[k] > 0) },
+    { scene: 'interior', text: 'PICK A WORLD AT THE NAV COMPUTER', say: ['planet', 'arrowR', 'drill'],        done: g => g.state === 'play' },
+    { scene: 'play', text: 'HOLD LEFT MOUSE TO DRILL', say: ['hand', 'arrowD', 'drill', 'ore'],       done: g => g.save.totalMined > 8 },
+    { scene: 'play', text: 'AIR LOW? FLY UP TO THE POD (E)', say: ['o2', 'arrowD', 'bang', 'arrowU', 'hole'], done: g => g.player.docked }
   ];
 
   const st = { i: 0, flash: 0, doneT: 0 };
@@ -47,21 +47,21 @@
   function draw(ctx, g, scene) {
     const s = current(g);
     if (!s || s.scene !== scene) return;
-    const w = s.say.length * 20 + 16;
-    const x = VW / 2 - w / 2, y = 8;
+    const w = Math.max(s.say.length * 20 + 16, F.width(s.text, 1) + 20);
+    const x = VW / 2 - w / 2, y = scene === 'interior' ? 42 : 24;
     const done = st.doneT > 0;
-    ctx.fillStyle = 'rgba(8,4,18,0.85)';
-    ctx.fillRect(x, y, w, 24);
+    ctx.fillStyle = 'rgba(8,4,18,0.88)';
+    ctx.fillRect(x, y, w, 40);
     ctx.strokeStyle = done ? '#8affa0' : '#ffd34d';
-    ctx.strokeRect(x + 0.5, y + 0.5, w - 1, 23);
+    ctx.strokeRect(x + 0.5, y + 0.5, w - 1, 39);
     for (let i = 0; i < s.say.length; i++) {
       const bump = (!done && i === s.say.length - 1) ? Math.sin(st.flash * 6) * 1.5 : 0;
-      G.draw(ctx, s.say[i], x + 8 + i * 20, y + 5 + bump, done ? '#8affa0' : '#ffffff', done ? '#3fb85a' : '#ffd34d');
+      G.draw(ctx, s.say[i], VW / 2 - s.say.length * 10 + i * 20 + 3, y + 4 + bump, done ? '#8affa0' : '#ffffff', done ? '#3fb85a' : '#ffd34d');
     }
+    F.draw(ctx, s.text, VW / 2, y + 24, done ? '#8affa0' : '#ffd34d', { center: true });
     if (done) G.draw(ctx, 'check', x + w - 14, y - 6, '#8affa0', '#3fb85a');
-    // step counter as hex pips
     for (let i = 0; i < STEPS.length; i++) {
-      G.hex(ctx, x + 6 + i * 6, y + 30, 2, i < g.save.tut.i ? '#8affa0' : (i === g.save.tut.i ? '#ffd34d' : '#2a1c4a'), null);
+      G.hex(ctx, x + 6 + i * 6, y + 46, 2, i < g.save.tut.i ? '#8affa0' : (i === g.save.tut.i ? '#ffd34d' : '#2a1c4a'), null);
     }
   }
 

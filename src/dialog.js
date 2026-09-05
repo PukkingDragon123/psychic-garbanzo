@@ -14,6 +14,7 @@
     nix:   { name: 'NIX',      sub: 'SHIP INTELLIGENCE', spr: 'nix',   col: '#7ef9ff', bg: '#0a2430', voice: 900, glyph: 'eye' },
     bolt:  { name: 'BOLT',     sub: 'FABRICATION UNIT',  spr: 'bolt',  col: '#ffb03d', bg: '#2a1c08', voice: 340, glyph: 'build' },
     gloop: { name: 'GLOOP',    sub: 'SHIP PET',          spr: 'gloop', col: '#c8ff5a', bg: '#16280a', voice: 1400, glyph: 'star' },
+    zaz:   { name: 'ZAZ',      sub: 'APPRAISER',         spr: 'zaz',   col: '#c9a8ff', bg: '#1e1230', voice: 1100, glyph: 'clock' },
     you:   { name: 'YOU',      sub: 'FUTURE TYRANT',     spr: 'you',   col: '#ff5fa8', bg: '#2a0a1e', voice: 700, glyph: 'skull' },
     sys:   { name: 'RUSTMAW',  sub: 'AUTOMATED',         spr: null,    col: '#39ffa6', bg: '#062018', voice: 1100, glyph: 'home' }
   };
@@ -66,7 +67,7 @@
   function draw(ctx, g, t, skinAlien) {
     if (!cur) return;
     const c = CAST[cur.who] || CAST.sys;
-    const H = 62, Y = VH - H - 6, X = 10, W = VW - 20;
+    const H = 66, Y = VH - H - 6, X = 10, W = VW - 20;
 
     // angled comms frame
     ctx.fillStyle = 'rgba(4,2,10,0.85)';
@@ -108,10 +109,12 @@
     ctx.globalAlpha = 1;
     ctx.restore();
 
-    // name plate: a coloured tab with the speaker's glyph
+    // name plate: glyph + name + role
     ctx.fillStyle = c.col;
-    ctx.fillRect(PX, Y - 6, PW, 10);
-    PD.glyph.draw(ctx, c.glyph || 'crew', PX + PW / 2 - 7, Y - 9, '#0a0614', c.col);
+    ctx.fillRect(PX, Y - 7, PW + 96, 12);
+    PD.glyph.draw(ctx, c.glyph || 'crew', PX + 2, Y - 8, '#0a0614', c.col);
+    F.draw(ctx, c.name, PX + 18, Y - 5, '#0a0614', { shadow: false });
+    F.draw(ctx, c.sub, PX + 20 + F.width(c.name, 1) + 6, Y - 5, 'rgba(10,6,20,0.7)', { shadow: false });
 
     if (Array.isArray(cur.text)) {
       // pictograph strip, one glyph per "character"
@@ -123,9 +126,9 @@
       for (let i = 0; i < cur.text.length; i++) PD.glyph.hex(ctx, PX + PW + 17 + i * 22, Y + 25, 11, null, i < n ? c.col : 'rgba(255,255,255,0.15)', 1);
     } else {
       const shown = cur.text.slice(0, Math.floor(chars));
-      const lines = wrap(shown, 62);
+      const lines = wrap(shown, 60);
       for (let i = 0; i < Math.min(lines.length, 4); i++) {
-        F.draw(ctx, lines[i], PX + PW + 8, Y + 10 + i * 11, '#f2e9ff', { shadow: false });
+        F.draw(ctx, lines[i], PX + PW + 8, Y + 12 + i * 12, '#f2e9ff', { shadow: false });
       }
     }
     if (done && Math.sin(t * 6) > 0) {

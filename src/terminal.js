@@ -21,6 +21,15 @@
     refinery: { hi: '#ffd34d', mid: '#b58a1e', lo: '#3a2c0a', bg: '#120e04', name: 'REFINERY DECK', glyph: 'machine' }
   };
 
+  const FOOT = {
+    market: 'ZAZ APPRAISES ONE LOT AT A TIME. ONLY APPRAISED ORE SELLS.',
+    skills: 'CLICK A HEX. NEIGHBOURS OF A BUILT NODE UNLOCK.',
+    bay: 'DRONES EARN WHILE YOU FLY.',
+    vanity: 'CLICK TO BUY, CLICK AGAIN TO WEAR.',
+    nav: 'PICK A WORLD TO DIVE. THE AIRLOCK GOES BACK TO THE FIELD.',
+    refinery: 'HOPPER -> BELT -> MACHINE -> DEPOT. GOODS SELL FOR MORE.'
+  };
+
   const state = {
     app: null, t: 0, boot: 0, lines: [], scroll: 0,
     sel: 0, flash: 0, msg: '', msgT: 0, msgCol: null, cat: 0, tip: ''
@@ -76,8 +85,8 @@
     ctx.fillStyle = th.mid;
     ctx.fillRect(SX, SY + 14, SW, 1);
     PD.glyph.draw(ctx, th.glyph || 'hex', SX + 4, SY, th.hi, th.mid);
-    for (let i = 0; i < 6; i++) { ctx.fillStyle = i % 2 ? th.mid : th.lo; ctx.fillRect(SX + 24 + i * 5, SY + 5, 3, 4); }
-    if (sub) F.draw(ctx, sub, SX + SW - 6, SY + 4, th.mid, { right: true, shadow: false });
+    F.draw(ctx, title, SX + 22, SY + 3, th.hi, { shadow: false });
+    if (sub) F.draw(ctx, sub, SX + SW - 6, SY + 3, th.mid, { right: true, shadow: false });
 
     // footer rail
     ctx.fillStyle = th.lo;
@@ -177,8 +186,7 @@
 
     // fee and broker shown as glyph + number
     const fee = Math.round(D.appraiseFee(g.save.upg.appraise || 0) * 100);
-    Gd.stat(ctx, 'clock', '-' + fee + '%', IX + 90, IY - 3, '#ffb03d', '#c07a20', th.mid);
-    Gd.stat(ctx, 'crew', '+' + Math.round((D.UPG.crew.value(g.save.upg.crew || 0) - 1) * 100) + '%', IX + 150, IY - 3, th.hi, th.mid, th.mid);
+    F.draw(ctx, 'FEE -' + fee + '%   BROKER +' + Math.round((D.UPG.crew.value(g.save.upg.crew || 0) - 1) * 100) + '%', IX + 80, IY + 1, th.mid, { shadow: false });
 
     const entry = k => {
       if (isRaw) { const m = D.MAT[k]; return { cr: m.cr, c: m.c }; }
@@ -195,10 +203,10 @@
 
     // column glyphs
     const hy = IY + 16;
-    Gd.draw(ctx, isRaw ? 'ore' : 'machine', IX, hy, th.mid, th.lo);
-    if (isRaw) { Gd.draw(ctx, 'clock', IX + 120, hy, th.mid, th.lo); Gd.draw(ctx, 'check', IX + 170, hy, th.mid, th.lo); }
-    else Gd.draw(ctx, 'check', IX + 170, hy, th.mid, th.lo);
-    Gd.draw(ctx, 'coin', IX + 226, hy, th.mid, th.lo);
+    F.draw(ctx, isRaw ? 'ORE' : 'GOODS', IX, hy + 3, th.mid, { shadow: false });
+    if (isRaw) { F.draw(ctx, 'WAITING', IX + 100, hy + 3, th.mid, { shadow: false }); F.draw(ctx, 'READY', IX + 170, hy + 3, th.mid, { shadow: false }); }
+    else F.draw(ctx, 'READY', IX + 170, hy + 3, th.mid, { shadow: false });
+    F.draw(ctx, 'EACH', IX + 226, hy + 3, th.mid, { shadow: false }); F.draw(ctx, 'TOTAL', IX + 282, hy + 3, th.mid, { shadow: false });
     ctx.fillStyle = th.lo; ctx.fillRect(IX, hy + 16, IW, 1);
 
     if (!keys.length) Gd.draw(ctx, isRaw ? 'ore' : 'machine', IX + IW / 2 - 7, IY + 70, th.lo, th.lo, 2);
@@ -217,6 +225,7 @@
       const r = row(ctx, IX, y, IW, 14, th);
       ctx.fillStyle = e.c[1]; ctx.fillRect(IX + 3, y + 3, 8, 8); ctx.fillStyle = e.c[0]; ctx.fillRect(IX + 3, y + 3, 8, 3);
       if (!isRaw) { ctx.fillStyle = '#ffffff'; ctx.fillRect(IX + 6, y + 6, 2, 2); }
+      F.draw(ctx, (isRaw ? D.MAT[k].name : (D.goodFromKey(k) || { name: D.MAT[+k.slice(4)].name }).name).toUpperCase().slice(0, 14), IX + 14, y + 4, th.hi, { shadow: false });
       if (isRaw) {
         // raw count + the appraisal bar for the lot being valued
         F.draw(ctx, String(raw), IX + 120, y + 4, raw ? '#ffb03d' : th.lo, { shadow: false });
@@ -227,20 +236,16 @@
       F.draw(ctx, U.fmt(val), IX + 282, y + 4, ready ? th.hi : th.lo, { shadow: false });
       // sell keys: one / all, as glyphs
       const sx = IX + IW - 66;
-      if (key(ctx, sx, y, 30, 14, '', th, { enabled: ready > 0 })) (isRaw ? g.sellFromVault(+k, 1) : g.sellGood(k, 1));
-      Gd.draw(ctx, 'coin', sx + 8, y, ready ? '#ffd34d' : '#3a3030', ready ? '#b8860b' : '#2a2020');
-      if (key(ctx, sx + 34, y, 30, 14, '', th, { enabled: ready > 0 })) (isRaw ? g.sellFromVault(+k, ready) : g.sellGood(k, ready));
-      Gd.draw(ctx, 'sell', sx + 42, y, ready ? '#ffffff' : '#3a3030', ready ? th.hi : '#2a2020');
-      if (r.hover) state.tip = [isRaw ? 'ore' : 'machine', 'arrowR', 'coin'];
+      if (key(ctx, sx, y, 30, 14, '1', th, { enabled: ready > 0 })) (isRaw ? g.sellFromVault(+k, 1) : g.sellGood(k, 1));
+      if (key(ctx, sx + 34, y, 30, 14, 'ALL', th, { enabled: ready > 0 })) (isRaw ? g.sellFromVault(+k, ready) : g.sellGood(k, ready));
+
     }
     for (let i = maxRows; i < keys.length; i++) total += Math.round(entry(keys[i]).cr * (isRaw ? g.saleMult() : g.valueMult())) * (isRaw ? (g.save.appr[keys[i]] || 0) : g.save.goods[keys[i]]);
 
     ctx.fillStyle = th.lo; ctx.fillRect(IX, IY + IH - 24, IW, 1);
     Gd.stat(ctx, 'coin', U.fmt(total), IX, IY + IH - 18, '#ffd34d', '#b8860b', th.hi);
     if (key(ctx, IX + IW - 72, IY + IH - 20, 70, 16, '', th, { enabled: total > 0 })) { if (isRaw) g.sellAll(); else g.sellAllGoods(); }
-    Gd.draw(ctx, 'sell', IX + IW - 62, IY + IH - 19, total ? '#ffffff' : '#3a3030', total ? th.hi : '#2a2020');
-    Gd.draw(ctx, 'sell', IX + IW - 46, IY + IH - 19, total ? '#ffffff' : '#3a3030', total ? th.hi : '#2a2020');
-    Gd.draw(ctx, 'sell', IX + IW - 30, IY + IH - 19, total ? '#ffffff' : '#3a3030', total ? th.hi : '#2a2020');
+    F.draw(ctx, 'SELL ALL', IX + IW - 37, IY + IH - 16, total ? '#ffffff' : '#3a3030', { center: true, shadow: false });
   }
 
   /* ------------------------------------------------------------ fabricator */
@@ -412,7 +417,7 @@
 
   /* ------------------------------------------------------------------- nav */
   function appNav(ctx, g, th, t) {
-    PD.glyph.draw(ctx, 'planet', IX, IY - 3, th.mid, th.lo); PD.glyph.draw(ctx, 'weight', IX + 226, IY - 3, th.mid, th.lo); PD.glyph.draw(ctx, 'coin', IX + 254, IY - 3, th.mid, th.lo);
+    F.draw(ctx, 'WORLD', IX, IY, th.mid, { shadow: false }); F.draw(ctx, 'GRAV', IX + 222, IY, th.mid, { shadow: false }); F.draw(ctx, 'BOUNTY', IX + 254, IY, th.mid, { shadow: false }); F.draw(ctx, 'DIVE', IX + IW - 36, IY, th.mid, { shadow: false });
     ctx.fillStyle = th.lo; ctx.fillRect(IX, IY + 9, IW, 1);
     for (let i = 0; i < D.BODIES.length; i++) {
       const b = D.BODIES[i];
@@ -432,10 +437,9 @@
       if (done) PD.glyph.draw(ctx, 'check', IX + 254, y - 1, th.mid, th.lo);
       else if (unlocked) F.draw(ctx, U.fmt(b.reward), IX + 254, y + 4, th.hi, { shadow: false });
       else PD.glyph.draw(ctx, 'lock', IX + 254, y - 1, th.lo, th.lo);
-      if (here) PD.glyph.draw(ctx, 'home', IX + IW - 24, y - 1, '#ffffff', th.hi);
+      if (here) F.draw(ctx, 'HERE', IX + IW - 24, y + 4, '#ffffff', { center: true, shadow: false });
       else if (unlocked) {
-        if (key(ctx, IX + IW - 40, y, 38, 13, '', th)) g.travelTo(i);
-        PD.glyph.draw(ctx, 'drill', IX + IW - 28, y - 1, '#ffffff', th.hi);
+        if (key(ctx, IX + IW - 44, y, 42, 13, 'DIVE', th)) g.travelTo(i);
       }
       if (r.hover && unlocked) { state.tip = b.blurb.toUpperCase(); state.sel = i; }
     }
@@ -514,10 +518,9 @@
       } else F.draw(ctx, state.msg, SX + 6, SY + SH - 11, state.msgCol || th.hi, { shadow: false });
       ctx.globalAlpha = 1;
     } else {
-      for (let i = 0; i < 9; i++) { ctx.fillStyle = ((Math.floor(t * 4) + i) % 5) ? th.lo : th.mid; ctx.fillRect(SX + 6 + i * 6, SY + SH - 9, 4, 4); }
+      F.draw(ctx, FOOT[state.app] || 'LINK STABLE', SX + 6, SY + SH - 11, th.mid, { shadow: false });
     }
-    if (key(ctx, SX + SW - 34, SY + SH - 13, 30, 11, '', th)) close();
-    PD.glyph.draw(ctx, 'cross', SX + SW - 26, SY + SH - 15, th.hi, th.mid);
+    if (key(ctx, SX + SW - 74, SY + SH - 13, 70, 11, 'CLOSE  [ESC]', th)) close();
 
     glassOver(ctx, th, t);
   }

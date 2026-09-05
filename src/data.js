@@ -321,8 +321,14 @@
       show: l => 'x' + (1 + l * 0.4).toFixed(2) + ' MACHINES'
     },
     {
-      id: 'scooter', name: 'Scooter Engine', icon: 'speed', max: 8, base: 200, growth: 1.6, mats: [['crust', 4], ['iron', 2]], late: ['copper', 6],
-      blurb: 'Ship: the scooter accelerates harder out in the field.',
+      id: 'tether', name: 'Tether Reel', icon: 'belt', max: 12, base: 240, growth: 1.58, mats: [['crust', 6], ['iron', 3]], late: ['titan', 2],
+      blurb: 'Ship: a longer wire to the pod. Every level lets you dig deeper.',
+      value: l => 230 + l * 60,
+      show: l => Math.round((230 + l * 60 - 70) / 10) + 'M REACH'
+    },
+    {
+      id: 'scooter', name: 'Pod Engine', icon: 'speed', max: 8, base: 200, growth: 1.6, mats: [['crust', 4], ['iron', 2]], late: ['copper', 6],
+      blurb: 'Ship: the pod accelerates harder out in the field.',
       value: l => 1 + l * 0.22,
       show: l => 'x' + (1 + l * 0.22).toFixed(2) + ' THRUST'
     },
@@ -376,6 +382,7 @@
     { id: 'dash', q: 1, r: -2, glyph: 'dash' },
     { id: 'scooter', q: 2, r: -2, glyph: 'speed' },
     { id: 'hull', q: 0, r: -2, glyph: 'hull' },
+    { id: 'tether', q: -1, r: -2, glyph: 'belt' },
     // oxygen and sight, north-west
     { id: 'oxygen', q: -1, r: 0, glyph: 'o2' },
     { id: 'lamp', q: -1, r: -1, glyph: 'eye' },

@@ -7,8 +7,8 @@
   const C = PD.art.C;
 
   const P = {
-    wall: '#2b2740', wallD: '#1d1a30', wallL: '#3d3859',
-    floor: '#3a3550', floorD: '#241f38', grate: '#4d4770',
+    wall: '#33294d', wallD: '#241b3a', wallL: '#463a66',
+    floor: '#3f3458', floorD: '#28203d', grate: '#5a4d80',
     pipe: '#5a5478', pipeD: '#3a3556',
     steel: '#9aa3c4', steelD: '#5e6688', steelDD: '#3a4060',
     screen: '#0f2a2e', screenL: '#39ffa6', screenD: '#0a1a1e',
@@ -330,49 +330,81 @@
     return p;
   }
 
-  /* ------------------------------------------------------------------- crew */
-  /* NIX: the ship AI. A hovering holographic head with no body and no ethics. */
+  /* ------------------------------------------------------------------- crew
+     Everyone aboard is an alien, and everyone aboard is cute. */
+  const A = PD.art.C;
+
+  /* NIX: the ship mind, projected as a round blue alien with three big eyes. */
   function nix(phase) {
     const p = pix(26, 34);
     const bob = phase ? 1 : 0;
-    // projector base
     p.round(7, 29, 12, 5, 2, P.steelD);
     p.round(9, 27, 8, 3, 1, P.steelDD);
-    // beam
-    for (let y = 26; y > 20; y--) {
-      const wdt = Math.round((26 - y) * 1.6) + 4;
-      p.rect(13 - wdt / 2, y, wdt, 1, P.holoD);
-    }
-    // angular head
-    p.round(4, 4 + bob, 18, 18, 5, P.holoD);
-    p.round(6, 6 + bob, 14, 14, 4, P.holo);
-    // three glowing eyes -- unsettling on purpose
-    p.rect(8, 11 + bob, 3, 4, '#062a34');
-    p.rect(15, 11 + bob, 3, 4, '#062a34');
-    p.rect(12, 8 + bob, 2, 2, '#062a34');
-    p.rect(9, 17 + bob, 8, 1, '#062a34');
-    // scanline glitch
-    p.rect(4, 9 + bob + (phase ? 6 : 2), 18, 1, '#d8ffff');
+    for (let y = 26; y > 21; y--) p.rect(13 - (26 - y) - 2, y, (26 - y) * 2 + 4, 1, P.holoD);
+    p.disc(13, 12 + bob, 9, P.holoD);
+    p.disc(13, 11 + bob, 7.5, P.holo);
+    p.ellipse(13, 7 + bob, 3.5, 1.4, '#d8ffff');
+    // three eyes, one big in the middle
+    p.disc(13, 12 + bob, 3, '#062a34'); p.disc(13.5, 11.5 + bob, 1.2, '#d8ffff');
+    p.disc(8, 11 + bob, 1.8, '#062a34'); p.set(8, 10 + bob, '#d8ffff');
+    p.disc(18, 11 + bob, 1.8, '#062a34'); p.set(18, 10 + bob, '#d8ffff');
+    p.rect(11, 17 + bob, 4, 1, '#062a34');
+    // two little antennae with bulbs
+    p.line(9, 4 + bob, 7, 1 + bob, P.holoD); p.disc(7, 0 + bob, 1.3, '#d8ffff');
+    p.line(17, 4 + bob, 19, 1 + bob, P.holoD); p.disc(19, 0 + bob, 1.3, '#d8ffff');
+    p.rect(4, 8 + bob + (phase ? 6 : 2), 18, 1, '#d8ffff');   // scanline
     p.outline(P.ink);
     return p;
   }
 
-  /* BOLT: welding drone at the fabricator, permanently unimpressed. */
+  /* BOLT: chunky orange alien mechanic in goggles and overalls, spanner in hand. */
   function bolt(phase) {
-    const p = pix(24, 30);
+    const p = pix(26, 32);
     const lift = phase ? 1 : 0;
-    p.round(4, 22 - lift, 16, 8, 3, P.steelDD);   // tracked base
-    p.rect(6, 27 - lift, 12, 3, P.ink);
-    for (let i = 0; i < 4; i++) p.rect(6 + i * 3, 28 - lift, 2, 2, P.steelD);
-    p.round(5, 8 - lift, 14, 15, 4, P.rust);      // chassis
-    p.rect(7, 11 - lift, 10, 6, P.screenD);
-    p.rect(8, 12 - lift, 8, 4, phase ? P.amber : '#c07a20');
-    p.rect(9, 13 - lift, 2, 2, P.ink);
-    p.rect(13, 13 - lift, 2, 2, P.ink);
-    // welding arm
-    p.line(19, 12 - lift, 23, 8 - lift, P.steelD);
-    p.rect(22, 6 - lift, 2, 3, phase ? '#fff3c0' : P.steel);
-    p.rect(6, 5 - lift, 3, 4, P.steelD);          // antenna
+    // legs + boots
+    p.round(7, 24 - lift, 4, 6, 1, '#4a3a6a'); p.round(15, 24, 4, 6, 1, '#4a3a6a');
+    p.rect(6, 29 - lift, 6, 3, P.steelDD); p.rect(14, 29, 6, 3, P.steelDD);
+    // overalls torso
+    p.round(6, 14 - lift, 14, 12, 3, '#4a6ab0');
+    p.rect(8, 14 - lift, 3, 5, '#6a8ad0'); p.rect(15, 14 - lift, 3, 5, '#6a8ad0');
+    p.rect(11, 19 - lift, 4, 3, P.gold);
+    // arms: one holding a spanner up
+    p.round(2, 15 - lift, 4, 7, 1, A.orange); p.round(3, 21 - lift, 3, 3, 1, A.orange);
+    p.round(20, 9 - lift, 4, 8, 1, A.orange);
+    p.rect(21, 4 - lift, 2, 6, P.steel); p.rect(20, 3 - lift, 4, 2, P.steel); p.rect(20, 3 - lift, 1, 1, P.ink);
+    // big round head
+    p.disc(13, 8 - lift, 7, A.orange);
+    p.shade(A.orange, A.orangeD, 1, 1);
+    // goggles
+    p.rect(6, 5 - lift, 14, 5, P.steelDD);
+    p.disc(9.5, 7.5 - lift, 2.2, A.cyan); p.disc(16.5, 7.5 - lift, 2.2, A.cyan);
+    p.set(9, 7 - lift, '#ffffff'); p.set(16, 7 - lift, '#ffffff');
+    p.rect(11, 12 - lift, 4, 1, A.orangeD);                // little grin
+    p.rect(12, 11 - lift, 2, 1, '#ffffff');
+    p.spike(13, -1 - lift, 3, 3, -1, A.orangeD);            // tuft
+    p.outline(P.ink);
+    return p;
+  }
+
+  /* ZAZ: the appraiser. Tall, thin, lavender, one monocle, very unimpressed. */
+  function zaz(phase) {
+    const p = pix(22, 36);
+    const bob = phase ? 1 : 0;
+    p.round(7, 28, 3, 6, 1, '#2a2040'); p.round(12, 28, 3, 6, 1, '#2a2040');
+    p.rect(6, 33, 5, 3, P.steelDD); p.rect(11, 33, 5, 3, P.steelDD);
+    p.round(6, 16 + bob, 10, 13, 3, '#3a2a5e');            // long coat
+    p.rect(10, 16 + bob, 2, 13, P.gold);
+    p.round(3, 17 + bob, 3, 9, 1, A.purple); p.round(16, 17 + bob, 3, 9, 1, A.purple);
+    p.round(15, 25 + bob, 4, 3, 1, '#c9a8ff');
+    p.rect(17, 22 + bob, 4, 4, P.steelD); p.rect(18, 23 + bob, 2, 2, A.cyan);   // clipboard/scanner
+    // narrow head
+    p.ellipse(11, 9 + bob, 5.5, 7.5, A.purple);
+    p.shade(A.purple, A.purpleD, 1, 1);
+    p.ellipse(8.5, 9 + bob, 1.4, 2, P.ink); p.set(9, 8 + bob, '#ffffff');
+    p.disc(14, 9 + bob, 2.8, P.gold); p.disc(14, 9 + bob, 1.9, '#d8ffff'); p.set(14, 9 + bob, P.ink);   // monocle
+    p.line(16, 11 + bob, 18, 15 + bob, P.gold);
+    p.rect(10, 14 + bob, 3, 1, A.purpleD);
+    p.line(11, 1 + bob, 11, -1 + bob, A.purpleD); p.disc(11, -1 + bob, 1.2, A.gold);
     p.outline(P.ink);
     return p;
   }
@@ -391,10 +423,41 @@
     p.ellipse(12.5, y - 1, 1.4, 1.8, P.ink);
     p.set(17, y - 2, '#ffffff'); p.set(13, y - 2, '#ffffff');
     for (let i = 0; i < 3; i++) p.set(8 + i * 5, y + 5 + (i % 2), '#4d7a1a');
-    // bubbles
     p.set(7, 10 + (phase ? 0 : 3), '#a9e6ff');
     p.set(20, 8 + (phase ? 3 : 0), '#a9e6ff');
     p.outline(P.ink);
+    return p;
+  }
+
+  /* SPROUT: the deck's pet, a tiny purple space-cat with antennae. */
+  function sprout(phase) {
+    const p = pix(16, 12);
+    const f = phase ? 1 : 0;
+    p.ellipse(8, 8, 6, 3.5, A.purple);
+    p.disc(13, 5 - f, 3.2, A.purple);
+    p.spike(11, 1 - f, 3, 3, -1, A.purple); p.spike(15, 1 - f, 3, 3, -1, A.purple);
+    p.set(12, 5 - f, P.ink); p.set(14, 5 - f, P.ink);
+    p.line(2, 7, 0, 3 + f, A.purpleD);                       // tail
+    p.rect(4, 10, 2, 2, A.purpleD); p.rect(9, 10, 2, 2, A.purpleD);
+    p.outline(P.ink);
+    return p;
+  }
+
+  /* ---------------------------------------------------------------- decor */
+  function poster(kind) {
+    const p = pix(18, 22);
+    p.round(0, 0, 18, 22, 1, kind ? '#ffd34d' : '#ff5fa8');
+    p.round(2, 2, 14, 18, 1, kind ? '#2a1c4a' : '#1a2a4a');
+    if (kind) { p.disc(9, 9, 5, '#ff8a3d'); p.disc(9, 9, 2.5, '#fff3c0'); for (let i = 0; i < 4; i++) p.rect(4 + i * 3, 17, 2, 1, '#ffd34d'); }
+    else { p.disc(9, 8, 4, '#7ff08a'); p.set(8, 7, P.ink); p.set(10, 7, P.ink); p.rect(4, 16, 10, 2, '#ff5fa8'); }
+    p.outline(P.ink);
+    return p;
+  }
+  function lights(phase) {
+    const p = pix(60, 8);
+    for (let x = 0; x < 60; x++) p.set(x, 1 + Math.round(Math.sin(x * 0.2) * 1.2), P.pipeD);
+    const cols = ['#ff5fa8', '#ffd34d', '#58e8ff', '#c8ff5a'];
+    for (let i = 0; i < 6; i++) { const x = 4 + i * 10; const on = (i + (phase ? 1 : 0)) % 2; p.disc(x, 5, 2, on ? cols[i % 4] : '#4a4460'); }
     return p;
   }
 
@@ -408,8 +471,12 @@
   reg('crate', [crate(0), crate(1)], 11, 18);
   reg('plant', [plant()], 10, 26);
   reg('nix', [nix(0), nix(1)], 13, 34);
-  reg('bolt', [bolt(0), bolt(1)], 12, 30);
+  reg('bolt', [bolt(0), bolt(1)], 13, 32);
+  reg('zaz', [zaz(0), zaz(1)], 11, 36);
   reg('gloop', [gloop(0), gloop(1)], 14, 34);
+  reg('sprout', [sprout(0), sprout(1)], 8, 12);
+  reg('poster', [poster(0), poster(1)], 9, 22);
+  reg('lights', [lights(0), lights(1)], 30, 8);
 
   /* ------------------------------------------------------- moon / planet art
      A big detailed body for the sky: maria, craters with rim light, a soft

@@ -28,37 +28,47 @@
   ];
 
   const CREW = [
-    { id: 'nix',   x: 216, spr: 'nix',   label: 'NIX' },
-    { id: 'bolt',  x: 356, spr: 'bolt',  label: 'BOLT' },
-    { id: 'gloop', x: 502, spr: 'gloop', label: 'GLOOP' }
+    { id: 'zaz',   x: 118, spr: 'zaz',   label: 'ZAZ',   glyph: 'clock' },
+    { id: 'nix',   x: 216, spr: 'nix',   label: 'NIX',   glyph: 'eye' },
+    { id: 'bolt',  x: 356, spr: 'bolt',  label: 'BOLT',  glyph: 'build' },
+    { id: 'gloop', x: 502, spr: 'gloop', label: 'GLOOP', glyph: 'star' }
   ];
 
   const DECOR = [
-    { x: 108, spr: 'crate', f: 0 }, { x: 128, spr: 'crate', f: 1 },
-    { x: 396, spr: 'crate', f: 1 }, { x: 740, spr: 'plant', f: 0 }, { x: 640, spr: 'crate', f: 0 },
-    { x: 88, spr: 'plant', f: 0 }
+    { x: 100, spr: 'crate', f: 0 }, { x: 396, spr: 'crate', f: 1 },
+    { x: 740, spr: 'plant', f: 0 }, { x: 640, spr: 'crate', f: 0 }, { x: 88, spr: 'plant', f: 0 },
+    { x: 250, spr: 'poster', f: 0, y: 124 }, { x: 470, spr: 'poster', f: 1, y: 122 }, { x: 830, spr: 'poster', f: 0, y: 126 },
+    { x: 160, spr: 'lights', f: 0, y: 108 }, { x: 420, spr: 'lights', f: 0, y: 108 }, { x: 690, spr: 'lights', f: 0, y: 108 }
   ];
+  const PET = { x: 600, dir: 1, t: 0 };
 
   /* Crew barks. They rotate, and they are all enabling you. */
   const LINES = {
     nix: [
-      ['coin', 'arrowU', 'galaxy'],
-      ['planet', 'arrowR', 'coin', 'coin'],
-      ['skull', 'check', 'star'],
-      ['eye', 'arrowR', 'planet', 'bang']
+      'Balance updated. I rounded in our favour again.',
+      'Three worlds filed complaints. I filed them in the reactor.',
+      'The wire keeps you close to the pod. Longer reels are on the lattice.',
+      'You look tired. Statistically, greed is a stimulant.'
     ],
     bolt: [
-      ['ore', 'arrowR', 'machine', 'arrowR', 'coin'],
-      ['hex', 'arrowR', 'drill', 'up'],
-      ['belt', 'machine', 'belt', 'sell']
+      'Rocks in, machines out. That is the whole religion, boss.',
+      'Feed the hoppers and the refinery runs itself. Ingots sell triple.',
+      'Every node you build on the lattice, I weld another seam. You are welcome.',
+      'Want to dig deeper? Buy wire. Simple as that.'
+    ],
+    zaz: [
+      'One lot at a time, darling. Quality cannot be rushed. Well. It can, for a fee.',
+      'Your regolith is... regolith. Your diamond, however, has my full attention.',
+      'The house takes twelve percent. Hire a broker and it takes less.',
+      'Appraised lots are ready to sell. Unappraised ones are just heavy.'
     ],
     gloop: [
-      ['ore', 'arrowR', 'crew', 'quest'],
-      ['eye', 'eye', 'eye', 'eye'],
-      ['star', 'arrowR', 'crew']
+      'GLOOP chirps and headbutts the glass affectionately.',
+      'GLOOP is eating a rock you were going to sell. GLOOP is unrepentant.',
+      'GLOOP blinks all four eyes at slightly different times.'
     ]
   };
-  const barkIdx = { nix: 0, bolt: 0, gloop: 0 };
+  const barkIdx = { nix: 0, bolt: 0, gloop: 0, zaz: 0 };
 
   const P = {
     x: 100, y: FLOOR, vx: 0, vy: 0, face: 1, walk: 0, near: null, hop: 0,
@@ -169,7 +179,16 @@
     const cam = Math.round(g.intCam);
     ctx.drawImage(bg, -cam, 0);
 
-    for (const d of DECOR) drawSpr(ctx, AI.S[d.spr], d.f, d.x - cam, FLOOR + 2);
+    for (const d of DECOR) {
+      const f = d.spr === 'lights' ? Math.floor(t * 2) % 2 : d.f;
+      drawSpr(ctx, AI.S[d.spr], f, d.x - cam, d.y !== undefined ? d.y : FLOOR + 2);
+    }
+    // Sprout the space-cat pads up and down the deck
+    PET.t += 1 / 60;
+    PET.x += PET.dir * 12 / 60;
+    if (PET.x > 760 || PET.x < 560) PET.dir *= -1;
+    ctx.save(); ctx.translate((PET.x - cam) | 0, FLOOR + 2); if (PET.dir < 0) ctx.scale(-1, 1);
+    const ps = AI.S.sprout; ctx.drawImage(ps.frames[Math.floor(PET.t * 6) % 2], -ps.ox, -ps.oy); ctx.restore();
 
     const blink = Math.sin(t * 2.4) > 0 ? 1 : 0;
     for (const s of STATIONS) {
@@ -196,29 +215,27 @@
 
     // the player, hovering along on suit thrusters
     const skin = PD.art.skinFor(g.save.cos);
-    const al = skin.alien;
-    const bob = Math.sin(P.walk * 2 + t * 3) * 1.6 + (P.y < FLOOR ? -1 : 0);
+    const walking = Math.abs(P.vx) > 10;
+    const inAir = P.y < FLOOR - 1;
+    const set = inAir ? skin.alienFly : (walking ? skin.alienWalk : skin.alien);
+    const frame = inAir ? Math.floor(t * 8) % 2 : (walking ? Math.floor(P.walk * 1.2) % 4 : (Math.sin(t * 0.9) > 0.95 ? 2 : Math.floor(t * 1.5) % 2));
     ctx.save();
-    ctx.translate((P.x - cam) | 0, (P.y + bob) | 0);
+    ctx.translate((P.x - cam) | 0, P.y | 0);
     if (P.face < 0) ctx.scale(-1, 1);
-    ctx.drawImage(al.frames[Math.sin(t * 0.9) > 0.95 ? 2 : 0], -al.ox, -al.oy - 6);
+    ctx.drawImage(set.frames[frame], -set.ox, -set.oy - 10);
     ctx.restore();
-    if (Math.abs(P.vx) > 12 && U.chance(0.5)) {
-      FX.trail(P.x + cam * 0 - P.face * 6, P.y - 4, '#ffd34d', 1.4);
-    }
-    // thruster wash on the deck
-    ctx.globalAlpha = 0.25;
-    ctx.fillStyle = '#ffb03d';
-    ctx.fillRect((P.x - cam - 4) | 0, (P.y - 3) | 0, 8, 3);
-    ctx.globalAlpha = 1;
+    if (walking && U.chance(0.15)) FX.dust(P.x - P.face * 4, P.y - 1, 1, '#5a4d80', 10);
 
     // interaction prompt: a hand and the machine's glyph
     if (P.near && !PD.term.app && !PD.dialog.active()) {
       const x = P.near.x - cam;
       const y = FLOOR - (P.near.spr === 'gloop' ? 44 : 70) + Math.sin(t * 5) * 2;
-      PD.glyph.hex(ctx, x, y + 8, 14, 'rgba(8,4,18,0.85)', '#7ef9ff', 1);
-      PD.glyph.draw(ctx, P.near.glyph || 'crew', x - 7, y + 1, '#ffffff', '#7ef9ff');
-      PD.glyph.draw(ctx, 'hand', x + 8, y - 8, '#ffd34d', '#ff9b3d');
+      const w = F.width(P.near.label, 1) + 34;
+      ctx.fillStyle = 'rgba(8,4,18,0.88)'; ctx.fillRect(x - w / 2, y, w, 16);
+      ctx.strokeStyle = '#7ef9ff'; ctx.strokeRect(x - w / 2 + 0.5, y + 0.5, w - 1, 15);
+      PD.glyph.draw(ctx, P.near.glyph || 'crew', x - w / 2 + 3, y + 1, '#ffffff', '#7ef9ff');
+      F.draw(ctx, 'E', x - w / 2 + 19, y + 5, '#ffd34d', { shadow: false });
+      F.draw(ctx, P.near.label, x - w / 2 + 28, y + 5, '#ffffff', { shadow: false });
     }
     // walk target marker
     if (P.target !== null) PD.glyph.hex(ctx, P.target - cam, FLOOR + 6, 4 + Math.sin(t * 8), null, '#ffd34d', 1);
@@ -226,26 +243,31 @@
 
   /* Slim diegetic status strip -- the deck's own readout, not a game HUD. */
   function drawStatus(ctx, g, t) {
-    ctx.fillStyle = 'rgba(8,4,18,0.8)';
-    ctx.fillRect(0, 0, VW, 16);
+    ctx.fillStyle = 'rgba(8,4,18,0.85)';
+    ctx.fillRect(0, 0, VW, 18);
     ctx.fillStyle = '#39ffa6';
-    ctx.fillRect(0, 16, VW, 1);
-    const Gd = PD.glyph;
-    let x = 6;
-    x += Gd.stat(ctx, 'coin', U.fmt(g.save.credits), x, 1, '#ffd34d', '#b8860b') + 12;
+    ctx.fillRect(0, 18, VW, 1);
+    F.draw(ctx, 'THE RUSTMAW  -  DECK A', 6, 6, '#39ffa6', { shadow: false });
+    F.draw(ctx, '$' + U.fmt(g.save.credits), 200, 3, '#ffd34d', { shadow: false, scale: 2 });
     const bin = Object.keys(g.save.vault).reduce((n, k) => n + g.save.vault[k], 0);
     const ok = Object.keys(g.save.appr).reduce((n, k) => n + g.save.appr[k], 0);
-    x += Gd.stat(ctx, 'clock', bin, x, 1, '#ffb03d', '#c07a20') + 12;
-    x += Gd.stat(ctx, 'sell', ok, x, 1, '#39ffa6', '#1e9e68') + 12;
-    x += Gd.stat(ctx, 'drone', g.save.upg.drones || 0, x, 1, '#c8ff5a', '#7cbb26') + 12;
-    Gd.stat(ctx, 'galaxy', g.save.dominion.toFixed(1) + '%', VW - 78, 1, '#ff8ad8', '#b0459a');
-    // appraisal in progress
+    F.draw(ctx, 'WAIT ' + bin + '   READY ' + ok, 292, 6, '#7ef9ff', { shadow: false });
     const mat = g.appraising();
     if (mat !== null) {
       const f = g.apprFrac();
-      ctx.fillStyle = D.MAT[mat].c[1]; ctx.fillRect(VW / 2 - 30, 4, 8, 8);
-      ctx.fillStyle = '#2a1c4a'; ctx.fillRect(VW / 2 - 18, 6, 50, 4);
-      ctx.fillStyle = '#ffb03d'; ctx.fillRect(VW / 2 - 18, 6, Math.round(50 * f), 4);
+      ctx.fillStyle = '#2a1c4a'; ctx.fillRect(292, 14, 96, 3);
+      ctx.fillStyle = '#ffb03d'; ctx.fillRect(292, 14, Math.round(96 * f), 3);
+    }
+    F.draw(ctx, 'GALAXY ' + g.save.dominion.toFixed(1) + '%', VW - 6, 6, '#ff8ad8', { right: true, shadow: false });
+    // objective line under the strip
+    const o = g.objective && g.objective();
+    if (o && !PD.term.app) {
+      const text = o.t.toUpperCase();
+      const w = F.width(text, 1) + o.g.length * 16 + 20;
+      ctx.fillStyle = 'rgba(8,4,18,0.75)'; ctx.fillRect(VW / 2 - w / 2, 22, w, 16);
+      let gx = VW / 2 - w / 2 + 4;
+      for (const gname of o.g) { PD.glyph.draw(ctx, gname, gx, 23, '#ffffff', '#ffd34d'); gx += 16; }
+      F.draw(ctx, text, gx + 4, 27, '#f2e9ff', { shadow: false });
     }
   }
 

@@ -36,55 +36,79 @@
   /* ------------------------------------------------------------------ player
      A round little alien in a bubble helmet. Drawn facing right; the renderer
      flips it for leftward travel. */
-  function buildAlien(blink, squish, P) {
+  /* pose: 'idle' | 'walk' | 'fly'; f: frame index. Head sits on a chubby
+     torso with proper little arms and legs, so it can walk the deck and
+     dangle from the tether. */
+  function buildAlien(pose, f, P, blink) {
     P = P || C;
-    const p = pix(22, 32);
-    const cy = 14 + (squish ? 1 : 0);   // helmet centre
-    const by = 20 + (squish ? 1 : 0);   // suit top
+    const p = pix(24, 34);
+    const walk = pose === 'walk';
+    const fly = pose === 'fly';
+    const bob = walk ? (f % 2 ? 1 : 0) : (pose === 'idle' && f ? 1 : 0);
+    const cy = 10 + bob;           // helmet centre
+    const ty = 18 + bob;           // torso top
+
+    // legs
+    if (fly) {
+      // trailing behind in zero-g, slightly apart
+      p.round(7, ty + 8, 4, 7, 2, P.suitD); p.round(13, ty + 9, 4, 6, 2, P.suitD);
+      p.rect(7, ty + 14, 4, 2, C.metD); p.rect(13, ty + 14, 4, 2, C.metD);
+    } else {
+      const swing = walk ? [[-2, 2], [0, 0], [2, -2], [0, 0]][f % 4] : [0, 0];
+      p.round(7 + swing[0], ty + 8, 4, 8 - Math.abs(swing[0]), 2, P.suitD);
+      p.round(13 + swing[1], ty + 8, 4, 8 - Math.abs(swing[1]), 2, P.suitD);
+      p.rect(6 + swing[0], ty + 15 - Math.abs(swing[0]), 6, 2, C.metD);
+      p.rect(12 + swing[1], ty + 15 - Math.abs(swing[1]), 6, 2, C.metD);
+    }
 
     // jetpack
-    p.round(1, by - 1, 5, 8, 2, C.metD);
-    p.rect(2, by, 2, 5, C.met);
+    p.round(2, ty - 1, 5, 9, 2, C.metD);
+    p.rect(3, ty, 2, 6, C.met);
+    if (fly) { p.rect(3, ty + 8, 3, 3, C.orange); p.rect(4, ty + 11, 1, 2, C.gold); }
 
-    // suit body
-    p.round(5, by, 13, 9, 3, C.suit);
-    p.rect(7, by, 9, 2, P.suitL);
-    p.round(6, by + 6, 4, 3, 1, C.metD);
-    p.round(13, by + 6, 4, 3, 1, C.metD);
-    p.rect(10, by + 4, 3, 2, C.gold);
+    // torso
+    p.round(6, ty, 12, 10, 3, P.suit);
+    p.rect(8, ty, 8, 2, P.suitL);
+    p.rect(10, ty + 5, 4, 2, C.gold);
 
-    // helmet glass + alien head
-    p.disc(11, cy, 8, P.glass);
-    p.disc(11, cy + 1, 5.6, P.skin);
+    // arms: the back arm swings with the walk, the front arm reaches forward
+    const aswing = walk ? [2, 0, -2, 0][f % 4] : 0;
+    p.round(4, ty + 1 + aswing, 3, 7, 1, P.suit);        // back arm
+    p.round(5, ty + 7 + aswing, 3, 3, 1, P.skin);        // hand
+    p.round(16, ty + 2 - aswing, 4, 6, 1, P.suit);       // front arm
+    p.round(17, ty + 7 - aswing, 3, 3, 1, P.skin);
+
+    // helmet + head
+    p.disc(12, cy, 8, P.glass);
+    p.disc(12, cy + 1, 5.6, P.skin);
     p.shade(P.skin, P.skinD, 1, 1);
-    p.ellipse(11, cy - 2.5, 3.4, 1.6, P.skinL);
-
-    if (blink) {
-      p.rect(7, cy + 1, 3, 1, C.eye);
-      p.rect(13, cy + 1, 3, 1, C.eye);
-    } else {
-      p.ellipse(8.4, cy + 1, 1.7, 2.4, C.eye);
-      p.ellipse(14.2, cy + 1, 1.7, 2.4, C.eye);
-      p.set(9, cy - 1, C.white); p.set(9, cy, C.white);
-      p.set(15, cy - 1, C.white); p.set(15, cy, C.white);
+    p.ellipse(12, cy - 2.5, 3.4, 1.6, P.skinL);
+    if (blink) { p.rect(8, cy + 1, 3, 1, C.eye); p.rect(14, cy + 1, 3, 1, C.eye); }
+    else {
+      p.ellipse(9.4, cy + 1, 1.7, 2.4, C.eye); p.ellipse(15.2, cy + 1, 1.7, 2.4, C.eye);
+      p.set(10, cy - 1, C.white); p.set(10, cy, C.white); p.set(16, cy - 1, C.white); p.set(16, cy, C.white);
     }
-    // smirk
-    p.rect(11, cy + 4, 3, 1, P.skinD);
-    p.set(14, cy + 3, P.skinD);
-
-    // glass shine
-    p.set(6, cy - 4, P.glassL); p.set(7, cy - 5, P.glassL);
-    p.set(8, cy - 6, P.glassL); p.set(7, cy - 4, P.glassL);
-
-    // antenna with bobble
-    p.line(11, cy - 8, 11, cy - 10, C.metD);
-    p.disc(11, cy - 11.5, 1.8, C.gold);
+    p.rect(12, cy + 4, 3, 1, P.skinD); p.set(15, cy + 3, P.skinD);
+    p.set(7, cy - 4, P.glassL); p.set(8, cy - 5, P.glassL); p.set(9, cy - 6, P.glassL); p.set(8, cy - 4, P.glassL);
+    p.line(12, cy - 8, 12, cy - 10, C.metD);
+    p.disc(12, cy - 11.5, 1.8, C.gold);
 
     p.outline(C.ink);
     return p;
   }
 
-  reg('alien', [buildAlien(false, false), buildAlien(false, true), buildAlien(true, false)], 11, 19);
+  function alienSet(P) {
+    return {
+      idle: [buildAlien('idle', 0, P), buildAlien('idle', 1, P), buildAlien('idle', 0, P, true)],
+      walk: [0, 1, 2, 3].map(i => buildAlien('walk', i, P)),
+      fly: [buildAlien('fly', 0, P), buildAlien('fly', 1, P)]
+    };
+  }
+
+  const base = alienSet(C);
+  reg('alien', base.idle, 12, 22);
+  reg('alienWalk', base.walk, 12, 22);
+  reg('alienFly', base.fly, 12, 22);
 
   /* ------------------------------------------------------------------- drill
      Horizontal, pointing right, anchored at the shoulder end. */
@@ -435,6 +459,30 @@
   }
   reg('scooter', [buildScooter(0), buildScooter(1)], 15, 8);
 
+  /* THE POD: your own little fat ship. Round, stubby-winged, a dome up top
+     and one big thruster. Heads right. */
+  function buildPod(phase, P) {
+    P = P || { met: C.met, metD: C.metD, metDD: C.metDD };
+    const p = pix(40, 28);
+    const f = phase ? 1 : 0;
+    p.round(4, 8, 32, 16, 8, P.met);                    // fat hull
+    p.shade(P.met, P.metD, 0, 1);
+    p.round(6, 10, 28, 4, 2, C.white);                  // highlight
+    p.round(0, 12, 8, 9, 3, P.metDD);                   // thruster
+    p.rect(1, 14, 2, 5, f ? C.orange : C.orangeD);
+    p.round(30, 14, 10, 6, 3, C.suit);                  // nose cowl
+    p.rect(37, 15, 2, 3, C.cyan);
+    p.disc(19, 9, 7, C.glass);                          // dome
+    p.disc(19, 10, 5, C.ink2);
+    p.ellipse(17, 6, 2.6, 1.3, C.glassL);
+    p.round(8, 22, 10, 4, 2, P.metDD); p.round(22, 22, 10, 4, 2, P.metDD);   // stubby wings
+    p.round(14, 19, 12, 3, 1, C.gold);                 // belly stripe
+    p.disc(28, 12, 1.6, C.red); p.disc(11, 12, 1.6, C.lime);
+    p.outline(C.ink);
+    return p;
+  }
+  reg('pod', [buildPod(0), buildPod(1)], 20, 16);
+
   /* LOOT CRATE: precursor supply case. */
   function buildCrate(open) {
     const p = pix(16, 13);
@@ -534,10 +582,14 @@
       const frames = builders.map(b => b.toCanvas());
       return { frames, w: frames[0].width, h: frames[0].height, ox, oy };
     };
+    const frames = alienSet(P);
     const set = {
-      alien: mk([buildAlien(false, false, P), buildAlien(false, true, P), buildAlien(true, false, P)], 11, 19),
+      alien: mk(frames.idle, 12, 22),
+      alienWalk: mk(frames.walk, 12, 22),
+      alienFly: mk(frames.fly, 12, 22),
       drill: mk([0, 1, 2, 3].map(i => buildDrill(i, DP)), 3, 6),
       ship: mk([buildShip(false, SP), buildShip(true, SP)], 42, 26),
+      pod: mk([buildPod(0, SP), buildPod(1, SP)], 20, 16),
       P: P
     };
     skinCache[key] = set;

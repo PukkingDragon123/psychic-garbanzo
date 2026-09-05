@@ -20,22 +20,33 @@ python3 -m http.server 8000   # then visit http://localhost:8000
 node tools/build.js           # -> dist/planet-destroyer.html
 ```
 
-## Wordless
+## Readable
 
-The game has almost no text. A procedural **glyph language** (coin, ore, drill,
-hole, hand, arrows, lock, check…) carries the HUD, the terminals, the crew's
-speech and the tutorial: a bar plus a glyph plus a number is a sentence. The
-one shape the UI allows besides the rectangle is the **hexagon** — the skill
-lattice, the touch pad, the time hole, the tutorial pips.
+The HUD is text first: labelled AIR / HULL / HOLD meters with big numbers, a
+one-line **objective** that always says what to do next, named hints, named
+ore in the manifest and the market. A procedural **glyph language** (coin,
+ore, drill, hole, hand, arrows, lock, check…) rides alongside the words as
+icons, and the **hexagon** is the UI's one shape besides the rectangle — the
+skill lattice, the touch pad, the time hole.
 
-## You start on a scooter
+## The pod and the wire
 
-The run opens in an **asteroid field**. Ride the scooter (hold anywhere to fly
+You fly a **little fat pod**. In the field you sit in its dome; on a dive it
+hovers over the dig site and you drop out on a **tether**. The wire is the
+leash: run out of reach and it snaps taut, flashes red and yanks you back.
+The `WIRE` bar in the HUD shows how much slack is left, and the **Tether**
+node on the ship branch of the lattice buys more reach. Press `E` under the
+pod to board and go home. The alien itself now has arms, legs and a jetpack,
+with idle / walk / fly cycles, and a drawn arm that follows the aim.
+
+## You start in the field
+
+The run opens in an **asteroid field**. Fly the pod (hold anywhere to fly
 toward the pointer; `Space`/`FIRE` shoots), hoover up drifting ore, shoot
 rocks to crack them open, then press `E` / the **hole** key to open a **time
 hole** and fly into it — that is how you get home. From Deck A the **nav
 computer** drops you on to a planet for a dive; the airlock returns you to the
-field. The dive's anchor is the time hole hanging over the dig site.
+field.
 
 ## Appraisal
 
@@ -138,10 +149,14 @@ for a bounty multiplier.
 
 ## The crew
 
-Deck A is not empty. **NIX**, the ship intelligence, keeps the books and files
-the complaints in the reactor. **BOLT**, a welding unit with opinions, runs the
-fabricator. **GLOOP**, a rescued rock grub in a tank, eats your inventory. All
-three talk to you, and all three are enabling you.
+Deck A is a cute, lit, postered little home for very bad people. **NIX**, the
+round three-eyed holo-alien, keeps the books and files complaints in the
+reactor. **BOLT**, an orange goggled mechanic with a spanner, runs the
+fabricator. **ZAZ**, the tall lavender appraiser with a monocle, values your
+ore one lot at a time and takes a cut. **GLOOP**, a rescued rock grub in a
+tank, eats your inventory. **SPROUT** the space-cat wanders the aft deck. Tap
+or click anywhere on the deck to walk there; tap a station to walk over and
+use it.
 
 ## How it is put together
 
@@ -150,13 +165,13 @@ three talk to you, and all three are enabling you.
 | `src/util.js` | Math, `Math.imul` hash noise, fbm, and an inverse-normal quantile helper used to hit exact ore/cave densities |
 | `src/pix.js` | Tiny pixel-drawing surface; `outline()` traces the dark cartoon border that gives everything its look |
 | `src/art.js` | Player, drill, pistol, ship, drones, six enemies, gems, UI icons — all procedural, and all repaintable from a cosmetic palette |
-| `src/artint.js` | The ship interior: deck backdrop, machines, crew, and the cratered-moon generator used for skies and nav thumbnails |
+| `src/artint.js` | The ship interior: deck backdrop, machines, the alien crew (Nix, Bolt, Zaz, Gloop, Sprout), posters and lights, and the cratered-moon generator used for skies and nav thumbnails |
 | `src/font.js` | Hand-drawn 5×7 bitmap font, cached per colour |
 | `src/audio.js` | WebAudio synthesis — a drill loop that tracks rock hardness, jetpack noise, explosions, and a villainous little groove |
 | `src/data.js` | 30 materials, 9 enemy species, ten worlds, nine strata templates, weapons and upgrades with ore recipes, factory machines and refined goods, cosmetics, the evil-title ladder |
 | `src/world.js` | Tile grid; strata + pocket-biome generation, tunnels and caverns, veins on a rarity curve, magma lakes, geodes, fossil beds, ruins; fog of war; cave backdrops, glowing tiles, terrain rendering |
 | `src/entities.js` | Mobs with four AI kinds, bullets, ore pickups, falling boulders |
-| `src/player.js` | Movement, the drill, the pistol, air, cargo, damage |
+| `src/player.js` | Movement, the drill, weapons, dash, air, cargo, damage, and the tether to the pod |
 | `src/fx.js` | Particles, floating numbers, shockwave rings, terrain chunks, screen shake, hit-stop |
 | `src/ui.js` | In-flight HUD, pause, victory and title screens |
 | `src/dialog.js` | The comms panel: portrait window, name plate, text that types itself |
@@ -166,7 +181,7 @@ three talk to you, and all three are enabling you.
 | `src/cutscene.js` | The cold open |
 | `src/glyph.js` | The wordless icon language and hex primitives |
 | `src/galaxy.js` | Spiral-arm star band, nebulae, sun, ringed planets, shooting stars |
-| `src/space.js` | The scooter field: drifting ore, rocks, mites, the time hole |
+| `src/space.js` | The asteroid field: the pod, drifting ore, rocks, mites, the time hole |
 | `src/skilltree.js` | Hex skill lattice with adjacency unlocks |
 | `src/tutorial.js` | Pictographic tutorial that advances as you do the thing |
 | `src/touch.js` | Hex pad, drag-to-drill, tap-to-fly, tap-to-walk, hex action keys, haptics |

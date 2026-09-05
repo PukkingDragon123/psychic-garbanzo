@@ -65,7 +65,7 @@
       const d = Math.hypot(dx, dy);
       if (d > 14) { ix = dx / d; iy = dy / d; }
     }
-    const thrust = p.stat('thruster') * 1.35 * (1 - p.loadFactor() * 0.4);
+    const thrust = p.stat('thruster') * 1.35 * p.stat('scooter') * (1 - p.loadFactor() * 0.4);
     sc.vx += ix * thrust * dt; sc.vy += iy * thrust * dt;
     sc.thrust = Math.hypot(ix, iy);
     if (sc.thrust > 0.1) sc.ang = U.lerp(sc.ang, Math.atan2(iy, ix), 0.2);
@@ -232,19 +232,23 @@
       }
     }
 
-    // the scooter: alien riding a hover-bike, drawn along its heading
+    // your little fat pod, nose along its heading, alien visible in the dome
     const sc = S.scoot;
     const skin = PD.art.skinFor(g.save.cos);
-    const bike = PD.art.sprites.scooter;
+    const pod = skin.pod;
     const flip = Math.cos(sc.ang) < 0;
-    const bob = Math.sin(t * 5) * 1.2;
+    const bob = Math.sin(t * 3) * 1.2;
+    const tilt = U.clamp(sc.vy * 0.0015, -0.35, 0.35) * (flip ? -1 : 1);
     ctx.save();
     ctx.translate((sc.x - cam.x) | 0, (sc.y - cam.y + bob) | 0);
-    ctx.rotate(flip ? Math.PI - sc.ang : sc.ang);
+    ctx.rotate(tilt);
     if (flip) ctx.scale(-1, 1);
-    ctx.drawImage(bike.frames[Math.floor(t * 10) % 2], -bike.ox, -bike.oy);
+    ctx.drawImage(pod.frames[Math.floor(t * 10) % 2], -pod.ox, -pod.oy);
+    // the pilot peeking out of the dome
+    const al = skin.alien;
+    ctx.drawImage(al.frames[0], 4, 0, 16, 12, -8, -22, 16, 12);
     ctx.restore();
-    PD.ent.drawSprite(ctx, skin.alien, 0, sc.x - cam.x, sc.y - cam.y + bob - 9, flip, g.player.hurtT > 0.15);
+    if (g.player.hurtT > 0.15) { ctx.globalAlpha = 0.5; ctx.fillStyle = '#ff5a4d'; ctx.fillRect(sc.x - cam.x - 18, sc.y - cam.y - 14, 36, 28); ctx.globalAlpha = 1; }
 
     // where a held touch is steering to
     if (PD.input.mouse.left && !g.uiBlocking) {

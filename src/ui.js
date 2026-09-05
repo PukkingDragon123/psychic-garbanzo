@@ -111,7 +111,7 @@
 
   /* Glyph toasts stack up from the bottom; a toast is [glyphs..., number?]. */
   function toasts(ctx, g) {
-    let ty = VH - 62;
+    let ty = VH - 96;
     for (let i = g.toasts.length - 1; i >= 0; i--) {
       const t = g.toasts[i];
       const arr = Array.isArray(t.msg) ? t.msg : null;
@@ -134,67 +134,97 @@
   function hintStrip(ctx, g, y) {
     if (g.hintT <= 0 || !g.hintGlyphs) return;
     const arr = g.hintGlyphs;
-    const w = arr.length * 18 + 10;
+    const text = (g.hintText || '').toUpperCase();
+    const w = Math.max(arr.length * 18 + 10, F.width(text, 1) + 16);
     ctx.globalAlpha = U.clamp(g.hintT, 0, 1);
-    ctx.fillStyle = 'rgba(8,4,18,0.7)';
-    ctx.fillRect(VW / 2 - w / 2, y - 3, w, 20);
-    for (let i = 0; i < arr.length; i++) Gd().draw(ctx, arr[i], VW / 2 - w / 2 + 5 + i * 18, y, '#ffffff', '#ffd34d');
+    ctx.fillStyle = 'rgba(8,4,18,0.82)';
+    ctx.fillRect(VW / 2 - w / 2, y - 14, w, text ? 32 : 20);
+    ctx.fillStyle = '#ffd34d'; ctx.fillRect(VW / 2 - w / 2, y - 14, w, 1);
+    for (let i = 0; i < arr.length; i++) Gd().draw(ctx, arr[i], VW / 2 - arr.length * 9 + i * 18, y - 11, '#ffffff', '#ffd34d');
+    if (text) F.draw(ctx, text, VW / 2, y + 6, '#ffffff', { center: true });
     ctx.globalAlpha = 1;
+  }
+
+  /* The objective line: always on, always says what to do next. */
+  function objective(ctx, g) {
+    const o = g.objective && g.objective();
+    if (!o) return;
+    const text = o.t.toUpperCase();
+    const w = F.width(text, 1) + o.g.length * 16 + 24;
+    const x = VW / 2 - w / 2, y = 64;
+    ctx.fillStyle = 'rgba(8,4,18,0.75)';
+    ctx.fillRect(x, y, w, 18);
+    ctx.fillStyle = COL.gold; ctx.fillRect(x, y + 17, w, 1);
+    let gx = x + 6;
+    for (const gname of o.g) { Gd().draw(ctx, gname, gx, y + 2, '#ffffff', COL.gold); gx += 16; }
+    F.draw(ctx, text, gx + 6, y + 6, COL.text);
   }
 
   function meters(ctx, g) {
     const p = g.player;
     const maxO2 = p.stat('oxygen'), maxHull = p.stat('hull'), cap = p.capacity();
-    const bx = 24, bw = 70;
-    Gd().draw(ctx, 'o2', 4, 5, COL.o2, '#2b9fc4');
-    bar(ctx, bx, 8, bw, 7, p.o2 / maxO2, p.o2 / maxO2 < 0.25 ? (Math.sin(g.time * 12) > 0 ? '#ff6b8a' : COL.o2) : COL.o2, { right: Math.ceil(p.o2) + '' });
-    Gd().draw(ctx, 'hull', 4, 21, COL.hull, '#b32b2f');
-    bar(ctx, bx, 24, bw, 7, p.hull / maxHull, COL.hull, { right: Math.ceil(p.hull) + '' });
-    Gd().draw(ctx, 'cargo', 4, 37, COL.cargo, '#c25c14');
-    bar(ctx, bx, 40, bw, 7, p.cargoKg / cap, p.cargoFull() ? '#ff6b8a' : COL.cargo, { right: Math.round(p.cargoKg) + '' });
-    if (p.cargoFull() && Math.sin(g.time * 9) > 0) Gd().draw(ctx, 'bang', bx + bw + 4, 37, '#ff6b8a', '#8a2a3a');
+    const bx = 24, bw = 84;
+    ctx.fillStyle = 'rgba(8,4,18,0.55)'; ctx.fillRect(0, 0, bx + bw + 40, 60);
+    Gd().draw(ctx, 'o2', 4, 6, COL.o2, '#2b9fc4');
+    bar(ctx, bx, 8, bw, 10, p.o2 / maxO2, p.o2 / maxO2 < 0.25 ? (Math.sin(g.time * 12) > 0 ? '#ff6b8a' : COL.o2) : COL.o2, { label: 'AIR' });
+    F.draw(ctx, Math.ceil(p.o2), bx + bw + 4, 6, COL.o2, { scale: 2 });
+    Gd().draw(ctx, 'hull', 4, 24, COL.hull, '#b32b2f');
+    bar(ctx, bx, 26, bw, 10, p.hull / maxHull, COL.hull, { label: 'HULL' });
+    F.draw(ctx, Math.ceil(p.hull), bx + bw + 4, 24, COL.hull, { scale: 2 });
+    Gd().draw(ctx, 'cargo', 4, 42, COL.cargo, '#c25c14');
+    bar(ctx, bx, 44, bw, 10, p.cargoKg / cap, p.cargoFull() ? '#ff6b8a' : COL.cargo, { label: 'HOLD' });
+    F.draw(ctx, Math.round(p.cargoKg) + '/' + Math.round(cap), bx + bw + 4, 44, p.cargoFull() ? '#ff6b8a' : COL.cargo, { scale: 2 });
 
     // manifest: swatch + count
     const entries = Object.keys(p.cargo).sort((a, b) => D.MAT[b].cr - D.MAT[a].cr).slice(0, 6);
-    let my = 56;
+    let my = 64;
     for (const k of entries) {
       const m = D.MAT[k];
       ctx.fillStyle = m.c[1]; ctx.fillRect(8, my + 1, 6, 6);
       ctx.fillStyle = m.c[0]; ctx.fillRect(8, my + 1, 6, 2);
-      F.draw(ctx, p.cargo[k], 18, my, COL.dim);
+      F.draw(ctx, m.name.toUpperCase().slice(0, 11) + ' ' + p.cargo[k], 18, my, COL.text);
       my += 9;
     }
-    if (p.cargoValue() > 0) Gd().stat(ctx, 'coin', U.fmt(p.cargoValue()), 6, my + 1, COL.gold, '#b8860b', COL.gold);
+    if (p.cargoValue() > 0) { Gd().draw(ctx, 'coin', 6, my, COL.gold, '#b8860b'); F.draw(ctx, U.fmt(p.cargoValue()), 22, my + 1, COL.gold, { scale: 2 }); }
 
     // top right: credits, galaxy
-    F.draw(ctx, U.fmt(g.save.credits), VW - 8, 8, COL.gold, { right: true, scale: 2 });
-    Gd().draw(ctx, 'coin', VW - 24 - F.width(U.fmt(g.save.credits), 2), 8, COL.gold, '#b8860b');
-    Gd().stat(ctx, 'galaxy', g.save.dominion.toFixed(1) + '%', VW - 78, 26, COL.lineHi, '#3a2a5e', COL.lineHi);
+    ctx.fillStyle = 'rgba(8,4,18,0.55)'; ctx.fillRect(VW - 130, 0, 130, 46);
+    F.draw(ctx, '$' + U.fmt(g.save.credits), VW - 8, 6, COL.gold, { right: true, scale: 2 });
+    F.draw(ctx, 'GALAXY ' + g.save.dominion.toFixed(1) + '%', VW - 8, 24, COL.lineHi, { right: true });
     const dps = g.droneIncome();
-    if (dps > 0) Gd().stat(ctx, 'drone', '+' + U.fmt(dps), VW - 78, 40, COL.good, '#3fb85a', COL.good);
+    if (dps > 0) F.draw(ctx, '+$' + U.fmt(dps) + '/S DRONES', VW - 8, 34, COL.good, { right: true });
   }
 
   function hud(ctx, g) {
     const p = g.player;
     meters(ctx, g);
 
-    // depth
-    Gd().stat(ctx, 'depth', g.world.depthMeters(p.y), 6, VH - 18, COL.dim, '#2a1c4a', COL.text);
+    // world + depth
+    F.draw(ctx, g.world.body.name, 6, VH - 26, COL.text);
+    Gd().draw(ctx, 'depth', 6, VH - 16, COL.dim, '#2a1c4a');
+    F.draw(ctx, g.world.depthMeters(p.y) + 'M', 22, VH - 16, COL.text, { scale: 2 });
+    objective(ctx, g);
 
     // weapon, dash, scan
     const wg = { pistol: 'gun', scatter: 'scatter', lance: 'lance' }[p.weapon];
-    Gd().draw(ctx, wg, 6, VH - 66, '#ffffff', '#7ef9ff');
-    if (p.weapons().length > 1) Gd().draw(ctx, 'arrowR', 20, VH - 66, COL.dim, COL.line);
-    Gd().draw(ctx, 'dash', 6, VH - 50, p.dashCool > 0 ? COL.dim : COL.gold, '#2a1c4a');
-    bar(ctx, 22, VH - 46, 36, 3, 1 - p.dashCool / Math.max(0.1, p.stat('dash')), p.dashCool > 0 ? '#9c8ec4' : COL.gold, {});
-    Gd().draw(ctx, 'scan', 6, VH - 36, p.scanCool > 0 ? COL.dim : COL.good, '#2a1c4a');
-    bar(ctx, 22, VH - 32, 36, 3, 1 - p.scanCool / 4, p.scanCool > 0 ? '#9c8ec4' : COL.good, {});
+    Gd().draw(ctx, wg, 6, VH - 84, '#ffffff', '#7ef9ff');
+    F.draw(ctx, p.weapon.toUpperCase() + (p.weapons().length > 1 ? '  Q' : ''), 22, VH - 81, COL.text);
+    Gd().draw(ctx, 'dash', 6, VH - 68, p.dashCool > 0 ? COL.dim : COL.gold, '#2a1c4a');
+    bar(ctx, 22, VH - 64, 40, 4, 1 - p.dashCool / Math.max(0.1, p.stat('dash')), p.dashCool > 0 ? '#9c8ec4' : COL.gold, {});
+    F.draw(ctx, 'DASH', 66, VH - 66, COL.dim);
+    Gd().draw(ctx, 'scan', 6, VH - 54, p.scanCool > 0 ? COL.dim : COL.good, '#2a1c4a');
+    bar(ctx, 22, VH - 50, 40, 4, 1 - p.scanCool / 4, p.scanCool > 0 ? '#9c8ec4' : COL.good, {});
+    F.draw(ctx, 'SCAN', 66, VH - 52, COL.dim);
+    // tether reel
+    Gd().draw(ctx, 'belt', 6, VH - 40, p.tetherFrac > 0.9 ? '#ff5a4d' : COL.o2, '#2a1c4a');
+    bar(ctx, 22, VH - 36, 40, 4, p.tetherFrac || 0, p.tetherFrac > 0.9 ? '#ff5a4d' : COL.o2, {});
+    F.draw(ctx, 'WIRE', 66, VH - 38, COL.dim);
 
     // core integrity
     if (g.world.coreHp < g.world.coreMax) {
       const cw = 140, cx = VW / 2 - cw / 2;
-      Gd().draw(ctx, 'star', cx - 16, 12, COL.core, '#c93b1c');
-      bar(ctx, cx, 16, cw, 8, g.world.coreHp / g.world.coreMax, COL.core, { right: Math.ceil(g.world.coreHp / g.world.coreMax * 100) + '%' });
+      F.draw(ctx, 'CORE', cx - 30, 28, COL.core);
+      bar(ctx, cx, 26, cw, 9, g.world.coreHp / g.world.coreMax, COL.core, { right: Math.ceil(g.world.coreHp / g.world.coreMax * 100) + '%' });
     }
     if (p.recall > 0.1) {
       Gd().draw(ctx, 'hole', VW / 2 - 48, VH - 40, COL.o2, '#2b9fc4');
@@ -215,14 +245,17 @@
       const tint = si >= 0 ? g.world.strata[si].tint : '#2a1c4a';
       ctx.globalAlpha = a;
       ctx.fillStyle = 'rgba(8,4,18,0.6)'; ctx.fillRect(VW / 2 - 60, 86, 120, 22);
-      ctx.fillStyle = COL.gold; ctx.fillRect(VW / 2 - 60, 86, 120, 1); ctx.fillRect(VW / 2 - 60, 107, 120, 1);
+      ctx.fillStyle = COL.gold; ctx.fillRect(VW / 2 - 60, 86, 120, 1);
       for (let i = 0; i < 5; i++) { ctx.fillStyle = tint; ctx.globalAlpha = a * (0.5 + i * 0.1); ctx.fillRect(VW / 2 - 52 + i * 10, 91, 8, 12); }
       ctx.globalAlpha = a;
-      Gd().stat(ctx, 'depth', g.world.depthMeters(p.y), VW / 2 + 4, 90, COL.gold, '#b8860b', COL.text);
+      ctx.globalAlpha = 1;
+      ctx.globalAlpha = a;
+      ctx.fillStyle = 'rgba(8,4,18,0.6)'; ctx.fillRect(VW / 2 - 100, 108, 200, 14);
+      F.draw(ctx, g.banner.text + '  -  ' + g.world.depthMeters(p.y) + 'M', VW / 2, 111, COL.gold, { center: true });
       ctx.globalAlpha = 1;
     }
 
-    hintStrip(ctx, g, VH - 34);
+    hintStrip(ctx, g, VH - 44);
     toasts(ctx, g);
   }
 
@@ -230,11 +263,15 @@
   function hudField(ctx, g) {
     meters(ctx, g);
     const p = g.player;
-    Gd().stat(ctx, 'speed', Math.round(Math.hypot(p.vx, p.vy)), 6, VH - 18, COL.dim, '#2a1c4a', COL.text);
-    Gd().draw(ctx, 'hole', 6, VH - 50, PD.space.S.hole ? '#d8bcff' : COL.dim, '#6b3fb5');
-    Gd().draw(ctx, 'hand', 22, VH - 50, COL.dim, COL.line);
-    Gd().draw(ctx, 'gun', 6, VH - 34, '#ffffff', '#7ef9ff');
-    hintStrip(ctx, g, VH - 34);
+    F.draw(ctx, g.world.body.name + ' ORBIT', 6, VH - 26, COL.text);
+    Gd().draw(ctx, 'speed', 6, VH - 16, COL.dim, '#2a1c4a');
+    F.draw(ctx, Math.round(Math.hypot(p.vx, p.vy)), 22, VH - 16, COL.text, { scale: 2 });
+    Gd().draw(ctx, 'hole', 6, VH - 68, PD.space.S.hole ? '#d8bcff' : COL.dim, '#6b3fb5');
+    F.draw(ctx, PD.space.S.hole ? 'FLY IN' : 'E  TIME HOLE', 22, VH - 65, PD.space.S.hole ? '#d8bcff' : COL.text);
+    Gd().draw(ctx, 'gun', 6, VH - 52, '#ffffff', '#7ef9ff');
+    F.draw(ctx, 'SPACE  FIRE', 22, VH - 49, COL.text);
+    objective(ctx, g);
+    hintStrip(ctx, g, VH - 44);
     toasts(ctx, g);
   }
 
@@ -520,37 +557,31 @@
     const cx = 168;
     const bob = Math.sin(t * 1.6) * 2;
     titleArt(ctx, t);
-    F.draw(ctx, 'PLANET', cx, 40 + bob, '#ffd34d', { center: true, scale: 5, shadow: '#7a2a10' });
-    F.draw(ctx, 'DESTROYER', cx, 80 + bob, '#ff5fa8', { center: true, scale: 4, shadow: '#3a0c30' });
+    F.draw(ctx, 'PLANET', cx, 30 + bob, '#ffd34d', { center: true, scale: 5, shadow: '#7a2a10' });
+    F.draw(ctx, 'DESTROYER', cx, 70 + bob, '#ff5fa8', { center: true, scale: 4, shadow: '#3a0c30' });
+    F.draw(ctx, 'A GREEDY LITTLE ALIEN MINING GAME', cx, 106, COL.dim, { center: true });
 
-    // the play key: one big hex
     const m = PD.input.mouse;
-    const px = cx, py = 160;
-    const hot = m.inside && U.dist(m.x, m.y, px, py) < 26;
-    PD.glyph.hex(ctx, px, py, 26 + (hot ? 2 : 0), hot ? '#3f9a5a' : '#2f7a4a', '#8affa0', 2);
-    ctx.save(); ctx.translate(px + 2, py); ctx.rotate(-Math.PI / 2);
-    PD.glyph.draw(ctx, 'play', -7, -7, '#ffffff', '#8affa0', 1);
-    ctx.restore();
+    const px = cx, py = 150;
+    const hot = m.inside && Math.abs(m.x - px) < 70 && Math.abs(m.y - py) < 14;
+    ctx.fillStyle = hot ? '#3f9a5a' : '#2f7a4a'; ctx.fillRect(px - 70, py - 14, 140, 28);
+    ctx.strokeStyle = '#8affa0'; ctx.lineWidth = 2; ctx.strokeRect(px - 69, py - 13, 138, 26);
+    ctx.save(); ctx.translate(px - 50, py); ctx.rotate(-Math.PI / 2); PD.glyph.draw(ctx, 'play', -7, -7, '#ffffff', '#8affa0'); ctx.restore();
+    F.draw(ctx, g.save.totalEarned > 0 ? 'CONTINUE' : 'START', px + 6, py - 7, '#ffffff', { center: true, scale: 2 });
     const start = hot && m.leftPressed;
     if (start) PD.audio.sfx.click();
 
     let wipe = false;
     if (g.save.totalEarned > 0) {
-      const wx = cx + 60, wy = 160;
-      const hot2 = m.inside && U.dist(m.x, m.y, wx, wy) < 13;
-      PD.glyph.hex(ctx, wx, wy, 13, hot2 ? '#a83a5a' : '#8a2f4a', '#ff8ab0', 1);
-      PD.glyph.draw(ctx, 'cross', wx - 7, wy - 7, '#ffffff', '#ff8ab0');
-      wipe = hot2 && m.leftPressed;
-      PD.glyph.stat(ctx, 'coin', U.fmt(g.save.credits), cx - 60, 196, COL.gold, '#b8860b', COL.gold);
-      PD.glyph.stat(ctx, 'galaxy', g.save.dominion.toFixed(1) + '%', cx - 60, 212, '#ff8ad8', '#b0459a', COL.text);
+      wipe = button(ctx, cx - 40, 174, 80, 14, 'NEW GAME', { accent: '#8a2f4a' });
+      F.draw(ctx, '$' + U.fmt(g.save.credits) + '   GALAXY ' + g.save.dominion.toFixed(1) + '%', cx, 194, COL.gold, { center: true });
     }
-    // control legend as glyph pairs
-    const legend = [['hand', 'speed'], ['hand', 'drill'], ['gun', 'skull'], ['hole', 'home']];
+    const legend = [['hand', 'FLY'], ['hand', 'DRILL'], ['gun', 'SHOOT'], ['hole', 'HOME']];
     for (let i = 0; i < legend.length; i++) {
-      PD.glyph.draw(ctx, legend[i][0], 12 + i * 44, 244, COL.text, COL.line);
-      PD.glyph.draw(ctx, 'arrowR', 26 + i * 44, 244, COL.dim, COL.line);
-      PD.glyph.draw(ctx, legend[i][1], 40 + i * 44, 244, COL.gold, '#b8860b');
+      PD.glyph.draw(ctx, legend[i][0], 14 + i * 80, 240, COL.gold, '#b8860b');
+      F.draw(ctx, legend[i][1], 30 + i * 80, 244, COL.text);
     }
+    F.draw(ctx, 'HOLD MOUSE / TOUCH TO FLY     E DOCK     Q SWAP     TAB SCAN', VW / 2, 258, COL.dim, { center: true });
     return { start, wipe };
   }
 
@@ -626,7 +657,7 @@
   }
 
   PD.ui = {
-    VW, VH, COL, panel, bar, button, icon, hud, hudField, shop, title, pause, victory,
+    VW, VH, COL, panel, bar, button, icon, hud, hudField, objective, shop, title, pause, victory,
     sellSplash, ending, endFrame
   };
 })(window.PD);

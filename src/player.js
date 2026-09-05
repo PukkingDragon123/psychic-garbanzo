@@ -37,6 +37,7 @@
     this.squish = 0;
     this.tetherT = 0;
     this.weapon = 'pistol';
+    this.tetherFrac = 0; this.tetherSnap = 0; this.anim = 0;
     this.dashCool = 0; this.dashT = 0;
     this.lastTap = { key: '', t: -9 };
     this.scanCool = 0;
@@ -176,6 +177,23 @@
 
     this.thrusting.x = ix; this.thrusting.y = iy;
     if (!frozen) A.thrust((Math.abs(ix) + Math.abs(iy)) > 0 ? 0.7 : 0);
+
+    // the wire to the pod: past its length it hauls you back, hard
+    if (!this.docked && g.ship) {
+      const L = this.stat('tether');
+      const dx = this.x - g.ship.x, dy = this.y - (g.ship.y + 10);
+      const d = Math.hypot(dx, dy);
+      this.tetherFrac = d / L;
+      if (d > L) {
+        const over = d - L;
+        const nx = dx / d, ny = dy / d;
+        this.x -= nx * over; this.y -= ny * over;
+        const vAlong = this.vx * nx + this.vy * ny;
+        if (vAlong > 0) { this.vx -= nx * vAlong * 1.6; this.vy -= ny * vAlong * 1.6; }
+        if (this.tetherSnap <= 0) { this.tetherSnap = 0.5; A.tone(180, { type: 'triangle', to: 90, dur: 0.14, vol: 0.1 }); FX.shake(1.2); g.hint('tether', ['belt', 'bang']); }
+      }
+      this.tetherSnap = Math.max(0, (this.tetherSnap || 0) - dt);
+    }
 
     const before = { x: this.x, y: this.y };
     const hit = PD.ent.moveBody(this, w, dt);
@@ -427,7 +445,9 @@
   /* ----------------------------------------------------------------- drawing */
   Player.prototype.draw = function (ctx, cam, t) {
     const skin = PD.art.skinFor(this.g.save.cos);
-    const spr = skin.alien;
+    const moving = Math.hypot(this.vx, this.vy) > 20 || this.thrusting.x || this.thrusting.y;
+    const spr = moving || !this.onGround(this.g.world) ? skin.alienFly : skin.alien;
+    this.anim += 1 / 60 * (moving ? 8 : 3);
     const drill = skin.drill;
     const gun = PD.art.sprites[this.weapon === 'pistol' ? 'gun' : this.weapon];
     const px = this.x - cam.x, py = this.y - cam.y;
@@ -459,8 +479,12 @@
     ctx.drawImage(df, -drill.ox, -drill.oy);
     ctx.restore();
 
-    const frame = this.blink < 0 ? 2 : (this.squish > 0.25 ? 1 : 0);
+    const frame = spr === skin.alien ? (this.blink < 0 ? 2 : (this.squish > 0.25 ? 1 : 0)) : Math.floor(this.anim) % 2;
     PD.ent.drawSprite(ctx, spr, frame, px, py - 1, flip, this.hurtT > 0.15);
+    // the arm that holds the tool, from the shoulder to the grip
+    ctx.strokeStyle = skin.P.suit; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(px + (flip ? -4 : 4), py - 2); ctx.lineTo(px + Math.cos(this.aim) * 9, py + Math.sin(this.aim) * 9); ctx.stroke();
+    ctx.fillStyle = skin.P.skin; ctx.fillRect(px + Math.cos(this.aim) * 9 - 2, py + Math.sin(this.aim) * 9 - 2, 4, 4);
 
     if (this.gunFlash > 0) {
       const a = this.aim;
