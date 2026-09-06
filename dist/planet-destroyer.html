@@ -854,6 +854,50 @@ window.PD = window.PD || {};
     STRATA[k].forEach((band, i) => { band.flora = f[Math.min(i, f.length - 1)]; });
   }
 
+  /* ----------------------------------------------------------------- lore
+     Who is out here, what they want, and what they will say about it. */
+  const FACTIONS = {
+    reavers:  { name: 'THE REAVERS', col: '#ff5a4d', blurb: 'Pirates with whistling arrows and a code they mostly ignore.' },
+    nova:     { name: 'NOVA WATCH',  col: '#8fb6ff', blurb: 'The law. Neat helmets, long memories, longer paperwork.' },
+    krael:    { name: 'THE KRAEL ASCENDANCY', col: '#8affa0', blurb: 'An empire of very serious people who signed a peace treaty and are furious about it.' },
+    gilded:   { name: 'THE GILDED',  col: '#ffd34d', blurb: 'Gold-skinned perfectionists. Easily offended. Excellent drones.' },
+    curator:  { name: 'THE COLLECTION', col: '#c9a0ff', blurb: 'One pale man, one museum, one very large budget.' },
+    celestial:{ name: 'THE CELESTIALS', col: '#ff8ad8', blurb: 'Dead giants. You are standing in one of their skulls.' }
+  };
+
+  /* Every world carries a line of history you can read on the chart. */
+  const LORE = [
+    'Chipped off a bigger rock during a Reaver bar fight. Still has the dents.',
+    'A Nova Watch impound lot until the paperwork expired. Nobody renewed it.',
+    'Frozen mid-scream. The Krael insist it was always like that.',
+    'A Gilded foundry moon. They fired everyone for using the wrong gold.',
+    'The Collection bid on this whole world. The Curator was outbid by a mining guild. He is still cross.',
+    'Somebody’s dead moon. The Reavers use it to settle arguments.',
+    'Alive, allegedly. It hums when you drill it and the Krael call that a coincidence.',
+    'A furnace world the Ascendancy uses to test how loud a person can scream.',
+    'One enormous cut stone. The Gilded consider looking at it a crime.',
+    'The vault at the middle of everything. The Celestials built it and then died of it.'
+  ];
+
+  /* The Orb: a purple stone in a silver casing. Everyone wants it. Nobody who
+     has held one is available for comment. */
+  const ORB = {
+    name: 'THE ORB', worth: 250000,
+    lines: [
+      'THE CURATOR: Name your price. Then double it. Then bring it here.',
+      'NOVA WATCH: Surrender the artefact. There is a form. There is always a form.',
+      'REAVERS: Bluefin says hand it over and he will only whistle at you a little.',
+      'THE KRAEL: That belongs to the Ascendancy. Everything belongs to the Ascendancy.'
+    ]
+  };
+
+  /* The pod's tape deck. */
+  const MIX = [
+    'HOOKED ON A CEILING', 'AIN’T NO MOUNTAIN LOW ENOUGH', 'COME AND GET YOUR ORE',
+    'MOONAGE DRILLDREAM', 'O-O-H CHILD, THAT’S URANIUM', 'FOOLED AROUND AND BROKE A PLANET',
+    'ESCAPE (THE ORE-COLADA SONG)', 'CHERRY BOMB CRATER'
+  ];
+
   /* ---------------------------------------------------------------- your moon
      The hub is a dead little moon you own. Five buildings stand on it, each
      one raised from a hologram blueprint by the multi-purpose tool and each
@@ -861,11 +905,11 @@ window.PD = window.PD || {};
   const BUILDINGS = [
     {
       id: 'docks', name: 'THE DOCKS', glyph: 'home', x: 150, max: 5, base: 900, start: 1,
-      blurb: 'Your pod lives here. Fit the parts you fabricate. Each level adds a slot.'
+      blurb: 'Your pod lives here, and so does the tape deck. Fit the parts you fabricate.'
     },
     {
       id: 'terminal', name: 'TERMINAL', glyph: 'sell', x: 330, max: 6, base: 500, start: 1,
-      blurb: 'Sell ore and talk to the people who buy it. Each level lifts prices.'
+      blurb: 'Sell ore. Argue with a raccoon. Each level lifts prices.'
     },
     {
       id: 'fab', name: 'FABRICATOR', glyph: 'build', x: 500, max: 4, base: 700, start: 0,
@@ -873,11 +917,11 @@ window.PD = window.PD || {};
     },
     {
       id: 'mind', name: 'THE MIND', glyph: 'eye', x: 690, max: 4, base: 1600, start: 0,
-      blurb: 'A brain in a tank. It knows everything. Each level opens a deeper ring.'
+      blurb: 'A Celestial brain in a tank of acid. It knows everything and resents being asked.'
     },
     {
       id: 'obs', name: 'OBSERVATORY', glyph: 'planet', x: 880, max: 4, base: 3000, start: 1,
-      blurb: 'Finds worlds. Each level opens another sector of the galaxy.'
+      blurb: 'Finds worlds worth ruining. Each level opens another sector.'
     }
   ];
   const BUILD = {};
@@ -940,21 +984,21 @@ window.PD = window.PD || {};
      drive you buy outright -- that is the only travel gate in the game. */
   const ZONES = [
     {
-      id: 'home', name: 'HOME REACH', sub: 'Cheap rocks, cheap thrills.',
+      id: 'home', name: 'THE SKULL REACH', sub: 'You live in a dead giant\u2019s head. Rent is cheap.',
       star: '#ffd34d', tint: '#8a6a4f', x: 96, y: 178, bodies: [0, 1, 2], drive: null
     },
     {
-      id: 'ember', name: 'EMBER BELT', sub: 'Slag, iron and things with teeth.',
+      id: 'ember', name: 'THE FORGE BELT', sub: 'Gilded foundries, Reaver chop shops, things with teeth.',
       star: '#ff8a3d', tint: '#c67a3d', x: 196, y: 106, bodies: [3, 4],
       drive: { name: 'ION SLED', cost: 26000, blurb: 'Burns hot enough to cross the belt.' }
     },
     {
-      id: 'rot', name: 'THE ROT', sub: 'Dead moons. Rude fossils.',
+      id: 'rot', name: 'THE ROT', sub: 'Dead moons. Rude fossils. Nova Watch patrols that never look up.',
       star: '#7ef9ff', tint: '#b3c4d8', x: 300, y: 182, bodies: [5, 6],
       drive: { name: 'FOLD COIL', cost: 420000, blurb: 'Folds the gap to the dead worlds.' }
     },
     {
-      id: 'core', name: 'CORE DEEP', sub: 'Where the galaxy keeps the good stuff.',
+      id: 'core', name: 'THE CORE DEEP', sub: 'Where the Celestials kept the good stuff, then died on top of it.',
       star: '#ff5fa8', tint: '#ffc44d', x: 402, y: 96, bodies: [7, 8, 9],
       drive: { name: 'VOID ANCHOR', cost: 5200000, blurb: 'Grips the throat of the galaxy and pulls.' }
     }
@@ -1365,14 +1409,14 @@ window.PD = window.PD || {};
   /* What the galaxy calls you, by how much of it you have wrecked. */
   const TITLES = [
     [0,    'UNLICENSED PROSPECTOR'],
-    [1,    'ROCK THIEF'],
+    [1,    'RAVAGER, PROVISIONAL'],
     [4,    'CLAIM JUMPER'],
-    [9,    'ASTEROID BUTCHER'],
-    [18,   'WORLD BREAKER'],
-    [30,   'PLANETARY MENACE'],
+    [9,    'NOVA WATCH: WANTED'],
+    [18,   'LEGENDARY OUTLAW (SELF-DECLARED)'],
+    [30,   'STAR-THIEF'],
     [46,   'WARLORD OF THE DEEP DARK'],
     [64,   'TERROR OF THE OUTER ARM'],
-    [82,   'GALACTIC TYRANT'],
+    [82,   'DESTROYER OF WORLDS, PART TIME'],
     [99.5, 'SOVEREIGN OF ASH']
   ];
   function titleFor(dominion) {
@@ -1387,7 +1431,7 @@ window.PD = window.PD || {};
   }
 
   PD.data = { MAT, M, ENEMY, BODIES, UPGRADES, UPG, upgradeCost, recipe, COSMETICS, COS, TITLES, titleFor, bountyFor,
-    STRATA, ZONES, zoneOf, FLORA, BUILDINGS, BUILD, buildCost, RECIPES, RECIPE, NEURONS, NEURON, MACHINES, METALS, GEMS, JUNK, goodOf, goodFromKey, NODES, appraiseSeconds, appraiseFee };
+    STRATA, ZONES, zoneOf, FLORA, BUILDINGS, BUILD, buildCost, RECIPES, RECIPE, NEURONS, NEURON, FACTIONS, LORE, ORB, MIX, MACHINES, METALS, GEMS, JUNK, goodOf, goodFromKey, NODES, appraiseSeconds, appraiseFee };
 })(window.PD);
 
 /* ===== src/art.js ===== */
@@ -2590,19 +2634,23 @@ window.PD = window.PD || {};
   function bust(who, f) {
     const p = pix(96, 96);
     const talk = f === 1, blink = f === 2;
-    const skin = { zaz: ['#c4a0ff', '#8455c4', '#e6d0ff'], broker: ['#ffb03d', '#c25c14', '#ffd9a0'],
-      synd: ['#ff5a4d', '#8a2a2a', '#ffb0a0'], mum: ['#8affa0', '#3fb85a', '#d6ffd6'] }[who];
-    const cloth = { zaz: '#3a2560', broker: '#2b3a66', synd: '#1b1b2e', mum: '#8a3a5e' }[who];
-    // shoulders
-    p.round(8, 70, 80, 30, 10, cloth);
-    p.rect(12, 74, 72, 3, '#ffffff');
-    p.round(38, 66, 20, 12, 4, skin[0]);                       // neck
-    p.shade(skin[0], skin[1], 0, 1);
-    // head
-    p.round(20, 14, 56, 56, 16, skin[0]);
-    p.shade(skin[0], skin[1], 0, 1);
-    p.round(26, 20, 40, 12, 6, skin[2]);                       // forehead light
-    // eyes
+    const SK = {
+      rikkit:  ['#b07a4a', '#7a4f2c', '#e0b483'],     // a small furious engineer
+      twig:    ['#6b8a4a', '#3f5a2c', '#9ac47a'],     // bark and moss
+      bluefin: ['#5aa8ff', '#2b5fa8', '#a8d8ff'],     // blue, finned, whistling
+      curator: ['#e8e0f0', '#a89ac4', '#ffffff'],     // pale, delighted, wealthy
+      nova:    ['#8fb6ff', '#4d6fb8', '#d6e6ff']      // helmeted law
+    }[who] || ['#b07a4a', '#7a4f2c', '#e0b483'];
+    const CLOTH = { rikkit: '#c4553a', twig: '#4a3a24', bluefin: '#8a2a2a', curator: '#f2f0ff', nova: '#1b2547' }[who] || '#2b3a66';
+
+    p.round(8, 70, 80, 30, 10, CLOTH);
+    p.rect(12, 74, 72, 3, who === 'curator' ? '#c9a0ff' : '#ffffff');
+    p.round(38, 66, 20, 12, 4, SK[0]);
+    p.shade(SK[0], SK[1], 0, 1);
+    p.round(20, 14, 56, 56, 16, SK[0]);
+    p.shade(SK[0], SK[1], 0, 1);
+    p.round(26, 20, 40, 12, 6, SK[2]);
+
     if (blink) { p.rect(28, 42, 14, 3, C.ink); p.rect(54, 42, 14, 3, C.ink); }
     else {
       p.round(28, 36, 14, 16, 5, '#ffffff');
@@ -2610,32 +2658,52 @@ window.PD = window.PD || {};
       p.round(32, 40, 8, 9, 3, C.eye); p.round(58, 40, 8, 9, 3, C.eye);
       p.rect(33, 41, 3, 3, '#ffffff'); p.rect(59, 41, 3, 3, '#ffffff');
     }
-    // brows, mouth, blush
-    p.rect(27, 31, 16, 3, skin[1]); p.rect(53, 30, 16, 3, skin[1]);
+    p.rect(27, 31, 16, 3, SK[1]); p.rect(53, 30, 16, 3, SK[1]);
     if (talk) { p.round(38, 56, 20, 10, 4, C.ink); p.rect(41, 58, 14, 3, '#ff8ab0'); }
     else { p.rect(38, 58, 20, 3, C.ink); p.set(37, 57, C.ink); p.set(58, 57, C.ink); }
     p.ellipse(24, 52, 6, 4, '#ff8ab0'); p.ellipse(72, 52, 6, 4, '#ff8ab0');
-    // who they are
-    if (who === 'zaz') {                                        // monocle and top hat
-      p.round(50, 30, 26, 26, 9, null);
-      for (let i = 0; i < 26; i++) { p.set(50 + i, 30, P.gold); p.set(50 + i, 55, P.gold); }
-      for (let j = 0; j < 26; j++) { p.set(50, 30 + j, P.gold); p.set(75, 30 + j, P.gold); }
-      p.line(75, 55, 84, 72, P.gold);
-      p.round(24, 0, 48, 16, 3, '#241a3a'); p.round(16, 12, 64, 6, 2, '#241a3a');
-    } else if (who === 'broker') {                              // visor and headset
-      p.round(22, 34, 52, 12, 4, '#39ffa6');
-      p.rect(24, 36, 48, 3, '#c8ffe0');
-      p.round(14, 30, 10, 22, 4, P.steelD); p.round(72, 30, 10, 22, 4, P.steelD);
-      p.round(66, 56, 14, 5, 2, P.steelD);                      // mic
-    } else if (who === 'synd') {                                // shades and collar
-      p.round(22, 36, 24, 14, 4, '#151233'); p.round(50, 36, 24, 14, 4, '#151233');
-      p.rect(46, 41, 4, 3, '#151233');
-      p.rect(24, 38, 8, 3, '#4a4a6a'); p.rect(52, 38, 8, 3, '#4a4a6a');
-      p.round(30, 66, 36, 10, 3, '#0f0f1c');
-    } else {                                                     // curls and earrings
-      p.round(14, 8, 20, 20, 8, skin[1]); p.round(62, 8, 20, 20, 8, skin[1]);
-      p.round(30, 2, 36, 18, 8, skin[1]);
-      p.disc(18, 52, 5, P.gold); p.disc(78, 52, 5, P.gold);
+
+    if (who === 'rikkit') {
+      // round ears, a snout, a stripe down the muzzle, goggles pushed up
+      p.round(6, 12, 24, 24, 10, SK[1]); p.round(66, 12, 24, 24, 10, SK[1]);
+      p.round(11, 17, 14, 14, 6, '#e8b48a'); p.round(71, 17, 14, 14, 6, '#e8b48a');
+      p.round(34, 50, 28, 18, 8, SK[2]);
+      p.round(42, 58, 12, 8, 4, C.ink);
+      if (talk) { p.round(40, 62, 16, 8, 4, C.ink); p.rect(43, 64, 10, 3, '#ff8ab0'); }
+      p.rect(46, 20, 4, 30, SK[2]);
+      p.round(18, 22, 60, 10, 4, '#3a3450'); p.round(24, 24, 18, 6, 3, '#58e8ff'); p.round(54, 24, 18, 6, 3, '#58e8ff');
+    } else if (who === 'twig') {
+      // bark plates, moss, two twigs sprouting, glowing sap eyes
+      for (let i = 0; i < 6; i++) p.rect(24 + i * 9, 20, 3, 48, SK[1]);
+      p.round(10, 4, 16, 20, 6, SK[1]); p.round(70, 2, 16, 22, 6, SK[1]);
+      p.round(12, 0, 8, 10, 3, '#8affa0'); p.round(74, 0, 8, 10, 3, '#8affa0');
+      p.round(30, 6, 36, 12, 5, '#5a7a3a');
+      p.ellipse(34, 30, 8, 5, '#8affa0'); p.ellipse(64, 26, 6, 4, '#8affa0');
+      if (!blink) { p.round(32, 40, 8, 9, 3, '#ffd34d'); p.round(58, 40, 8, 9, 3, '#ffd34d'); }
+    } else if (who === 'bluefin') {
+      // the red fin, the arrow, the Ravager flame badge
+      p.round(40, 0, 16, 22, 6, '#ff5a4d');
+      p.round(34, 8, 28, 12, 5, '#c02f2f');
+      p.rect(30, 20, 36, 4, '#8a2a2a');
+      p.rect(4, 60, 40, 3, P.steel); p.spike(40, 56, 10, 10, -1, P.steel);
+      for (let i = 0; i < 3; i++) p.rect(6 + i * 3, 56, 2, 10, '#ff5a4d');
+      p.round(66, 70, 18, 14, 5, '#ffd34d'); p.spike(70, 72, 10, 10, -1, '#ff5a4d');
+    } else if (who === 'curator') {
+      // white coat, high collar, a very pleased little smile, an orb in hand
+      p.round(2, 62, 30, 34, 8, '#f2f0ff'); p.round(64, 62, 30, 34, 8, '#f2f0ff');
+      p.round(30, 0, 36, 20, 8, '#e8e0f0');
+      for (let i = 0; i < 8; i++) p.rect(28 + i * 5, 4, 2, 16, '#c9bce8');
+      p.round(70, 76, 20, 20, 8, '#c9a0ff'); p.round(74, 80, 12, 12, 5, '#7d4fd6');
+      p.set(78, 82, '#ffffff');
+      p.rect(38, 58, 20, 2, C.ink);
+    } else {
+      // Nova helmet: a gold visor and a starburst crest
+      p.round(16, 10, 64, 34, 12, '#1b2547');
+      p.round(22, 24, 52, 14, 5, '#ffd34d');
+      p.rect(24, 26, 48, 3, '#fff3c0');
+      p.round(40, 0, 16, 14, 5, '#ffd34d');
+      for (let i = 0; i < 4; i++) p.rect(46 + (i % 2 ? 6 : -8), 2 + i * 3, 6, 2, '#ffd34d');
+      p.round(30, 66, 36, 10, 3, '#0f1a30');
     }
     p.outline(P.ink);
     return p;
@@ -2709,6 +2777,44 @@ window.PD = window.PD || {};
     return p;
   }
 
+  /* The skull you live in: a colossal dead Celestial head half sunk in the
+     regolith, jaw open, lights strung through the eye socket. */
+  function celestialHead() {
+    const p = pix(320, 190);
+    const B = '#3a3158', BD = '#2a2342', BL = '#4d4270';
+    p.round(20, 30, 280, 150, 40, B);
+    p.shade(B, BD, 0, 1);
+    p.round(40, 40, 180, 40, 20, BL);                     // brow ridge
+    p.round(60, 92, 62, 46, 16, '#150f24');               // eye sockets
+    p.round(178, 88, 62, 46, 16, '#150f24');
+    p.round(74, 104, 30, 24, 10, '#2a1c3a');
+    p.round(192, 100, 30, 24, 10, '#2a1c3a');
+    p.disc(92, 116, 7, '#58e8ff'); p.disc(210, 112, 7, '#ff8ad8');   // somebody lives in there
+    p.round(140, 128, 34, 30, 10, '#150f24');             // nose cavity
+    p.round(60, 158, 190, 26, 8, BD);                     // teeth
+    for (let i = 0; i < 9; i++) p.round(66 + i * 21, 156, 15, 22, 4, '#4a4262');
+    p.round(246, 60, 54, 70, 18, BL);                     // cheek plate
+    for (let i = 0; i < 5; i++) p.rect(252, 70 + i * 12, 42, 4, BD);
+    p.round(10, 60, 34, 60, 12, BL);
+    p.outline('#191430');
+    return p;
+  }
+
+  /* The pod's tape deck, for the docks. */
+  function tapeDeck(f) {
+    const p = pix(64, 40);
+    p.round(0, 0, 64, 40, 6, '#2b3a66');
+    p.shade('#2b3a66', '#1b2547', 0, 1);
+    p.round(6, 6, 52, 20, 4, '#c9a06a');
+    p.round(10, 10, 44, 12, 3, '#8a5a3a');
+    p.disc(22, 16, 5, '#2a1c3a'); p.disc(42, 16, 5, '#2a1c3a');
+    p.disc(22, 16, 2, f ? '#ffd34d' : '#6b4a3a'); p.disc(42, 16, 2, f ? '#ffd34d' : '#6b4a3a');
+    p.rect(12, 14, 8, 1, '#3a2417'); p.rect(44, 18, 8, 1, '#3a2417');
+    for (let i = 0; i < 5; i++) p.rect(8 + i * 11, 30, 8, 5, i === (f ? 1 : 3) ? '#8affa0' : '#39405e');
+    p.outline(P.ink);
+    return p;
+  }
+
   /* The big brain for the Mind screen, drawn large. */
   function brainBig() {
     const p = pix(220, 170);
@@ -2718,41 +2824,65 @@ window.PD = window.PD || {};
   }
 
   /* ------------------------------------------------------------- buildMoon */
+  /* The moon disc, rasterised with integer scanlines at a low resolution and
+     blown up: hard pixel steps all the way round, never a smooth circle. */
+  function pxDisc(c, cx, cy, r, col) {
+    c.fillStyle = col;
+    const r2 = r * r;
+    for (let y = Math.ceil(cy - r); y <= Math.floor(cy + r); y++) {
+      const dy = y - cy + 0.5;
+      const w = Math.sqrt(Math.max(0, r2 - dy * dy));
+      const x0 = Math.round(cx - w), x1 = Math.round(cx + w);
+      if (x1 > x0) c.fillRect(x0, y, x1 - x0, 1);
+    }
+  }
   function buildMoon(size, tint, seed) {
-    const cv = document.createElement('canvas');
-    cv.width = cv.height = size;
-    const c = cv.getContext('2d');
-    const r = size / 2 - 1, cx = size / 2, cy = size / 2;
+    const K = 2;
+    const S = Math.max(10, Math.round(size / K));
+    const src = document.createElement('canvas');
+    src.width = src.height = S;
+    const c = src.getContext('2d');
+    const r = S / 2 - 0.5, cx = S / 2, cy = S / 2;
     const rnd = U.mulberry32(seed || 7);
     function shade(col, f) {
       const n = parseInt(col.slice(1), 16);
       const R = U.clamp(((n >> 16) & 255) * f, 0, 255) | 0, G = U.clamp(((n >> 8) & 255) * f, 0, 255) | 0, B = U.clamp((n & 255) * f, 0, 255) | 0;
       return 'rgb(' + R + ',' + G + ',' + B + ')';
     }
-    c.fillStyle = shade(tint, 0.75);
-    c.beginPath(); c.arc(cx, cy, r, 0, U.TAU); c.fill();
-    c.save(); c.beginPath(); c.arc(cx, cy, r, 0, U.TAU); c.clip();
-    for (let i = 0; i < 6; i++) {
-      const a = rnd() * U.TAU, d = rnd() * r * 0.7;
-      c.fillStyle = shade(tint, 0.5 + rnd() * 0.12);
-      c.beginPath(); c.arc(cx + Math.cos(a) * d, cy + Math.sin(a) * d, r * (0.16 + rnd() * 0.24), 0, U.TAU); c.fill();
+    pxDisc(c, cx, cy, r, shade(tint, 0.78));
+    c.save();
+    c.beginPath(); c.rect(0, 0, S, S); c.clip();
+    for (let i = 0; i < 5; i++) {                       // maria
+      const a = rnd() * U.TAU, d = rnd() * r * 0.65;
+      pxDisc(c, cx + Math.cos(a) * d, cy + Math.sin(a) * d, r * (0.14 + rnd() * 0.22), shade(tint, 0.55 + rnd() * 0.1));
     }
-    const craters = [];
-    for (let i = 0; i < 46; i++) { const a = rnd() * U.TAU, d = Math.sqrt(rnd()) * r * 0.94; craters.push({ x: cx + Math.cos(a) * d, y: cy + Math.sin(a) * d, r: (0.5 + rnd() * rnd() * 5.5) * (size / 90) }); }
-    craters.sort((p1, p2) => p2.r - p1.r);
-    for (const k of craters) {
-      c.fillStyle = shade(tint, 0.98); c.beginPath(); c.arc(k.x, k.y - k.r * 0.16, k.r, 0, U.TAU); c.fill();
-      c.fillStyle = shade(tint, 0.42); c.beginPath(); c.arc(k.x, k.y + k.r * 0.2, k.r * 0.78, 0, U.TAU); c.fill();
-      c.fillStyle = shade(tint, 0.62); c.beginPath(); c.arc(k.x, k.y + k.r * 0.05, k.r * 0.5, 0, U.TAU); c.fill();
+    for (let i = 0; i < 22; i++) {                      // craters, rim then floor
+      const a = rnd() * U.TAU, d = Math.sqrt(rnd()) * r * 0.9;
+      const kx = cx + Math.cos(a) * d, ky = cy + Math.sin(a) * d, kr = Math.max(1, (0.4 + rnd() * rnd() * 2.4) * (S / 24));
+      pxDisc(c, kx, ky - kr * 0.2, kr, shade(tint, 1.05));
+      pxDisc(c, kx, ky + kr * 0.25, kr * 0.7, shade(tint, 0.45));
     }
-    for (let i = 0; i < size * 3; i++) { c.fillStyle = shade(tint, rnd() > 0.5 ? 1.12 : 0.7); c.globalAlpha = 0.3; c.fillRect((rnd() * size) | 0, (rnd() * size) | 0, 1, 1); }
-    c.globalAlpha = 1;
-    const term = c.createLinearGradient(0, size, size * 0.85, 0);
-    term.addColorStop(0, 'rgba(4,2,12,0.94)'); term.addColorStop(0.45, 'rgba(4,2,12,0.55)'); term.addColorStop(0.8, 'rgba(4,2,12,0)');
-    c.fillStyle = term; c.fillRect(0, 0, size, size);
-    c.strokeStyle = shade(tint, 1.5); c.lineWidth = Math.max(1, size / 90);
-    c.beginPath(); c.arc(cx, cy, r - 0.5, -1.5, 0.7); c.stroke();
+    for (let i = 0; i < S * 2; i++) {                   // dust
+      c.fillStyle = shade(tint, rnd() > 0.5 ? 1.15 : 0.7);
+      c.fillRect((rnd() * S) | 0, (rnd() * S) | 0, 1, 1);
+    }
+    for (let x = 0; x < S; x++) {                       // stepped terminator
+      const f = x / S;
+      if (f > 0.45) continue;
+      c.fillStyle = 'rgba(4,2,12,' + (0.9 - f * 1.8).toFixed(2) + ')';
+      c.fillRect(x, 0, 1, S);
+    }
     c.restore();
+    c.fillStyle = shade(tint, 1.55);                    // lit limb
+    for (let i = 0; i < 34; i++) {
+      const a = -1.5 + i * 0.065;
+      c.fillRect(Math.round(cx + Math.cos(a) * r), Math.round(cy + Math.sin(a) * r), 1, 1);
+    }
+    const cv = document.createElement('canvas');
+    cv.width = cv.height = S * K;
+    const cc = cv.getContext('2d');
+    cc.imageSmoothingEnabled = false;
+    cc.drawImage(src, 0, 0, S, S, 0, 0, S * K, S * K);
     return cv;
   }
 
@@ -2767,10 +2897,12 @@ window.PD = window.PD || {};
   reg('flag', [flag(0), flag(1)], 3);
   reg('phone', [phone(false), phone(true)], 9, 14);
   reg('brain', [brainBig()], 55, 42);
-  for (const who of ['zaz', 'broker', 'synd', 'mum']) reg('bust_' + who, [bust(who, 0), bust(who, 1), bust(who, 2)], 24, 48);
+  for (const who of ['rikkit', 'twig', 'bluefin', 'curator', 'nova']) reg('bust_' + who, [bust(who, 0), bust(who, 1), bust(who, 2)], 24, 48);
   reg('mitten', [mitten()], 24, 0);
   reg('toolBig', [toolBig(0), toolBig(1)], 0, 60);
   reg('holoPad', [holoPad(0), holoPad(1), holoPad(2)], 30, 20);
+  reg('skull', [celestialHead()]);
+  reg('tape', [tapeDeck(0), tapeDeck(1)]);
 
   PD.arthome = { S, P, buildMoon, blit, HD, mitten, reg };
 })(window.PD);
@@ -2793,6 +2925,18 @@ window.PD = window.PD || {};
   }
 
   function canvas(w, h) { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; }
+
+  /* An integer scanline disc: every edge is a hard pixel step. */
+  function pxDisc(c, cx, cy, r, col) {
+    if (col) c.fillStyle = col;
+    const r2 = r * r;
+    for (let y = Math.ceil(cy - r); y <= Math.floor(cy + r); y++) {
+      const dy = y - cy + 0.5;
+      const w = Math.sqrt(Math.max(0, r2 - dy * dy));
+      const x0 = Math.round(cx - w), x1 = Math.round(cx + w);
+      if (x1 > x0) c.fillRect(x0, y, x1 - x0, 1);
+    }
+  }
 
   /* The galactic band: thousands of tiny stars concentrated along a tilted
      sine, with dust lanes drawn dark through them. */
@@ -2824,12 +2968,14 @@ window.PD = window.PD || {};
       const along = (rnd() - 0.5) * W * 1.2, spread = (rnd() - 0.5) * 60;
       const x = W / 2 + along * Math.cos(-0.42) - spread * Math.sin(-0.42);
       const y = H / 2 + along * Math.sin(-0.42) + spread * Math.cos(-0.42);
-      const g2 = c.createRadialGradient(x, y, 2, x, y, 40 + rnd() * 60);
-      g2.addColorStop(0, 'rgba(6,3,14,0.8)');
-      g2.addColorStop(1, 'rgba(6,3,14,0)');
-      c.fillStyle = g2;
+      const rr = 40 + rnd() * 60;
       c.save(); c.translate(x, y); c.rotate(-0.42); c.scale(2.6, 0.7); c.translate(-x, -y);
-      c.fillRect(x - 160, y - 160, 320, 320); c.restore();
+      for (let k = 5; k >= 1; k--) {                    // stepped dust bands
+        c.globalAlpha = 0.16;
+        pxDisc(c, x, y, rr * k / 5, 'rgb(6,3,14)');
+      }
+      c.globalAlpha = 1;
+      c.restore();
     }
     return cv;
   }
@@ -2842,13 +2988,9 @@ window.PD = window.PD || {};
     for (let i = 0; i < 9; i++) {
       const x = rnd() * W, y = rnd() * H, r = 50 + rnd() * 110;
       const col = cols[i % cols.length];
-      const g = c.createRadialGradient(x, y, 0, x, y, r);
-      g.addColorStop(0, shade(col, 1, 0.22));
-      g.addColorStop(0.5, shade(col, 0.8, 0.1));
-      g.addColorStop(1, shade(col, 0.6, 0));
-      c.fillStyle = g;
       c.save(); c.translate(x, y); c.rotate(rnd() * 3); c.scale(1 + rnd(), 0.6 + rnd() * 0.5); c.translate(-x, -y);
-      c.fillRect(x - r * 2, y - r * 2, r * 4, r * 4); c.restore();
+      for (let k = 6; k >= 1; k--) pxDisc(c, x, y, r * k / 6, shade(col, 0.7 + k * 0.06, 0.05));
+      c.restore();
     }
     // speckle so it reads as pixel art, not a soft blur
     for (let i = 0; i < 2600; i++) {
@@ -2859,65 +3001,119 @@ window.PD = window.PD || {};
   }
 
   /* A far planet: banded disc, optional rings, a moon, terminator shading. */
+  /* Planets and suns are rasterised at a low resolution with an integer
+     scanline disc -- every edge is a hard pixel step -- then blown up with
+     nearest-neighbour, so a world in the sky reads as pixel art and never as
+     a smooth vector circle. */
+  const PXK = 4;                                   // blow-up factor
+
+  /* One elliptical ring, as pixels. `back` draws the far half only. */
+  function pxRingBand(c, cx, cy, r, squash, col, thick, back) {
+    c.fillStyle = col;
+    for (let x = Math.round(cx - r); x <= Math.round(cx + r); x++) {
+      const dx = (x - cx) / r;
+      const k = 1 - dx * dx;
+      if (k < 0) continue;
+      const dy = Math.sqrt(k) * r * squash;
+      if (back) c.fillRect(x, Math.round(cy - dy), 1, thick);
+      else c.fillRect(x, Math.round(cy + dy), 1, thick);
+    }
+  }
+
   function buildPlanet(size, tint, seed, rings) {
-    const pad = rings ? size : size * 0.3;
-    const W = size + pad * 2;
-    const cv = canvas(W, W), c = cv.getContext('2d');
+    const S = Math.max(12, Math.round(size / PXK));
+    const pad = rings ? Math.round(S * 0.55) : Math.round(S * 0.18);
+    const W = S + pad * 2;
+    const src = canvas(W, W), c = src.getContext('2d');
     const rnd = U.mulberry32(seed);
-    const cx = W / 2, cy = W / 2, r = size / 2;
-    if (rings) {                                        // back half of the rings
-      c.save(); c.translate(cx, cy); c.rotate(-0.35); c.scale(1, 0.32);
-      for (let k = 0; k < 3; k++) {
-        c.strokeStyle = shade(tint, 1.2 - k * 0.2, 0.55 - k * 0.12); c.lineWidth = 3 + k;
-        c.beginPath(); c.arc(0, 0, r * (1.5 + k * 0.25), Math.PI, Math.PI * 2); c.stroke();
+    const cx = W / 2, cy = W / 2, r = S / 2;
+
+    // continents, as blobs on the sphere's surface in latitude/longitude
+    const spots = [];
+    for (let i = 0; i < 7; i++) spots.push({ x: (rnd() - 0.5) * 1.7, y: (rnd() - 0.5) * 1.7, r: 0.16 + rnd() * 0.26, k: 1.2 + rnd() * 0.35 });
+    const bands = [];
+    for (let i = 0; i < 12; i++) bands.push(0.75 + rnd() * 0.5);
+
+    if (rings) for (let k = 0; k < 3; k++) pxRingBand(c, cx, cy, r * (1.45 + k * 0.26), 0.3, shade(tint, 1.0 - k * 0.16), 2, true);
+
+    // shade the sphere per pixel, quantised into steps
+    for (let y = 0; y < W; y++) {
+      for (let x = 0; x < W; x++) {
+        const dx = (x - cx + 0.5) / r, dy = (y - cy + 0.5) / r;
+        const d2 = dx * dx + dy * dy;
+        if (d2 > 1) continue;
+        const nz = Math.sqrt(1 - d2);
+        let lam = -dx * 0.55 - dy * 0.5 + nz * 0.62;          // light from the upper left
+        lam = U.clamp(lam, 0, 1);
+        lam = Math.round(lam * 5) / 5;                          // five hard bands
+        let f = 0.34 + lam * 1.05;
+        f *= bands[Math.min(bands.length - 1, Math.floor((dy + 1) / 2 * bands.length))];
+        for (const sp of spots) {
+          if (Math.abs(dx - sp.x) < sp.r && Math.abs(dy - sp.y) < sp.r * 0.7) { f *= sp.k; break; }
+        }
+        c.fillStyle = shade(tint, U.clamp(f, 0.12, 1.9));
+        c.fillRect(x, y, 1, 1);
       }
-      c.restore();
     }
-    c.save(); c.beginPath(); c.arc(cx, cy, r, 0, U.TAU); c.clip();
-    c.fillStyle = shade(tint, 0.85); c.fillRect(0, 0, W, W);
-    for (let y = -r; y < r; y += 2 + rnd() * 3) {          // bands
-      c.fillStyle = shade(tint, 0.6 + rnd() * 0.7, 0.5);
-      c.fillRect(cx - r, cy + y, r * 2, 1 + rnd() * 3);
+    // lit limb, a single stepped pixel line on the sunward side
+    c.fillStyle = shade(tint, 1.75);
+    for (let i = 0; i < 46; i++) {
+      const a2 = -2.5 + i * 0.062;
+      c.fillRect(Math.round(cx + Math.cos(a2) * (r - 0.5)), Math.round(cy + Math.sin(a2) * (r - 0.5)), 1, 1);
     }
-    for (let i = 0; i < 6; i++) {                          // storms
-      c.fillStyle = shade(tint, 1.3, 0.35);
-      c.beginPath(); c.ellipse(cx + (rnd() - 0.5) * r * 1.4, cy + (rnd() - 0.5) * r * 1.4, 2 + rnd() * r * 0.2, 1 + rnd() * r * 0.08, 0, 0, U.TAU); c.fill();
-    }
-    const term = c.createLinearGradient(cx - r, 0, cx + r, 0);
-    term.addColorStop(0, 'rgba(255,255,255,0.12)'); term.addColorStop(0.55, 'rgba(0,0,0,0)'); term.addColorStop(1, 'rgba(4,2,12,0.9)');
-    c.fillStyle = term; c.fillRect(0, 0, W, W);
-    c.restore();
-    c.strokeStyle = shade(tint, 1.5, 0.6); c.lineWidth = 1;
-    c.beginPath(); c.arc(cx, cy, r - 0.5, Math.PI * 0.8, Math.PI * 1.6); c.stroke();
-    if (rings) {                                        // front half
-      c.save(); c.translate(cx, cy); c.rotate(-0.35); c.scale(1, 0.32);
-      for (let k = 0; k < 3; k++) {
-        c.strokeStyle = shade(tint, 1.3 - k * 0.2, 0.7 - k * 0.15); c.lineWidth = 3 + k;
-        c.beginPath(); c.arc(0, 0, r * (1.5 + k * 0.25), 0, Math.PI); c.stroke();
-      }
-      c.restore();
-    }
-    // a moon
-    c.fillStyle = shade(tint, 0.5);
-    c.beginPath(); c.arc(cx + r * 1.25, cy - r * 0.9, Math.max(2, r * 0.14), 0, U.TAU); c.fill();
+    if (rings) for (let k = 0; k < 3; k++) pxRingBand(c, cx, cy, r * (1.45 + k * 0.26), 0.3, shade(tint, 1.4 - k * 0.16), 2, false);
+    // a moon, shaded the same way
+    const mr = Math.max(1, r * 0.15);
+    pxDisc(c, cx + r * 1.3, cy - r * 0.85, mr, shade(tint, 0.55));
+    pxDisc(c, cx + r * 1.3 - mr * 0.3, cy - r * 0.85 - mr * 0.3, mr * 0.6, shade(tint, 0.85));
+
+    const cv = canvas(W * PXK, W * PXK);
+    const cc = cv.getContext('2d');
+    cc.imageSmoothingEnabled = false;
+    cc.drawImage(src, 0, 0, W, W, 0, 0, W * PXK, W * PXK);
     return cv;
   }
 
+  /* A pixel sun: quantised corona rings and four tapering spikes. */
   function buildSun(size, col) {
-    const W = size * 3;
-    const cv = canvas(W, W), c = cv.getContext('2d');
-    const cx = W / 2, cy = W / 2;
-    const g = c.createRadialGradient(cx, cy, size * 0.3, cx, cy, W / 2);
-    g.addColorStop(0, shade(col, 1.4, 0.9)); g.addColorStop(0.25, shade(col, 1, 0.45)); g.addColorStop(1, shade(col, 0.8, 0));
-    c.fillStyle = g; c.fillRect(0, 0, W, W);
-    for (let i = 0; i < 8; i++) {                       // rays
-      c.save(); c.translate(cx, cy); c.rotate(i * Math.PI / 4);
-      const rg = c.createLinearGradient(0, 0, W / 2, 0);
-      rg.addColorStop(0, shade(col, 1.3, 0.35)); rg.addColorStop(1, shade(col, 1, 0));
-      c.fillStyle = rg; c.fillRect(0, -1, W / 2, 2); c.restore();
+    const R = Math.max(4, Math.round(size / PXK));
+    const S = R * 8;
+    const src = canvas(S, S), c = src.getContext('2d');
+    const cx = S / 2, cy = S / 2;
+    for (let y = 0; y < S; y++) {
+      for (let x = 0; x < S; x++) {
+        const d = Math.hypot(x - cx + 0.5, y - cy + 0.5) / R;
+        if (d > 3.4) continue;
+        let a, f;
+        if (d <= 0.55) { a = 1; f = 1.7; }
+        else if (d <= 0.85) { a = 1; f = 1.35; }
+        else if (d <= 1.05) { a = 1; f = 1.05; }
+        else { a = U.clamp(0.42 - (d - 1.05) * 0.16, 0, 0.42); f = 1.1; }
+        if (a <= 0.02) continue;
+        c.globalAlpha = Math.round(a * 6) / 6;
+        c.fillStyle = d <= 0.55 ? '#fff8e0' : shade(col, f);
+        c.fillRect(x, y, 1, 1);
+      }
     }
-    c.fillStyle = '#fff8e0';
-    c.beginPath(); c.arc(cx, cy, size * 0.42, 0, U.TAU); c.fill();
+    c.globalAlpha = 1;
+    // spikes: tapering pixel bars on the four axes
+    for (let i = 0; i < 4; i++) {
+      const len = R * 3.2;
+      for (let d = R; d < len; d++) {
+        const th = Math.max(1, Math.round((1 - d / len) * R * 0.5));
+        c.globalAlpha = Math.round((1 - d / len) * 5) / 5 * 0.7;
+        c.fillStyle = shade(col, 1.3);
+        if (i === 0) c.fillRect(cx + d, cy - th / 2, 1, th);
+        else if (i === 1) c.fillRect(cx - d, cy - th / 2, 1, th);
+        else if (i === 2) c.fillRect(cx - th / 2, cy + d, th, 1);
+        else c.fillRect(cx - th / 2, cy - d, th, 1);
+      }
+    }
+    c.globalAlpha = 1;
+    const cv = canvas(S * PXK, S * PXK);
+    const cc = cv.getContext('2d');
+    cc.imageSmoothingEnabled = false;
+    cc.drawImage(src, 0, 0, S, S, 0, 0, S * PXK, S * PXK);
     return cv;
   }
 
@@ -2993,8 +3189,7 @@ window.PD = window.PD || {};
       const s = L.shooters[i];
       s.life -= 1 / 60; s.x += s.vx / 60; s.y += s.vy / 60;
       if (s.life <= 0) { L.shooters.splice(i, 1); continue; }
-      ctx.strokeStyle = 'rgba(255,255,255,' + (s.life).toFixed(2) + ')'; ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(s.x - s.vx * 0.06, s.y - s.vy * 0.06); ctx.stroke();
+      PD.pxd.line(ctx, s.x, s.y, s.x - s.vx * 0.06, s.y - s.vy * 0.06, 'rgba(255,255,255,' + (s.life).toFixed(2) + ')', 1);
     }
   }
 
@@ -7189,7 +7384,8 @@ window.PD = window.PD || {};
     panel(ctx, 8, VH - 72, VW - 16, 66, open ? '#7ef9ff' : '#5a4d80');
     F.draw(ctx, b.name.toUpperCase(), 16, VH - 66, '#f2e9ff', { shadow: false, scale: 2 });
     F.draw(ctx, b.kind.toUpperCase(), VW - 16, VH - 64, '#7ef9ff', { right: true, shadow: false });
-    F.draw(ctx, b.blurb, 16, VH - 48, '#9c8ec4', { shadow: false });
+    F.draw(ctx, b.blurb, 16, VH - 52, '#9c8ec4', { shadow: false });
+    F.draw(ctx, (D.LORE[S.selBody] || '').toUpperCase().slice(0, 62), 16, VH - 42, '#7d6aa8', { shadow: false });
     F.draw(ctx, 'DEPTH ' + b.radius * 10 + 'M', 16, VH - 36, '#7ef9ff', { shadow: false });
     F.draw(ctx, 'GRAV ' + b.gravity, 106, VH - 36, '#7ef9ff', { shadow: false });
     F.draw(ctx, 'CORE ' + U.fmt(b.coreHp), 166, VH - 36, '#ff6b8a', { shadow: false });
@@ -7450,17 +7646,31 @@ window.PD = window.PD || {};
   const VW = 480, VH = 270;
 
   const S = { mode: null, sel: 0, t: 0, msg: '', msgT: 0, printT: 0, printId: null, fitT: 0, fitId: null, talk: 0, blink: 0, feed: [], feedT: 0 };
+  /* Who calls the terminal, and what they want. Everyone out here is either
+     robbing you, arresting you, buying from you, or a tree. */
   const CHATTER = [
-    ['ZAZ', 'Your regolith is... regolith. Send the gems, darling.'],
-    ['BROKER K', 'Iron is up. Do not ask why. Sell now.'],
-    ['THE SYNDICATE', 'We noticed a planet is missing. Nice work.'],
-    ['ZAZ', 'Quality cannot be rushed. It can be bribed.'],
-    ['MUM', 'Are you eating? Are you destroying enough worlds?'],
-    ['BROKER K', 'Voidstone buyers are circling. Hold or fold.'],
-    ['THE SYNDICATE', 'Bounty on your head went up. Congratulations.'],
-    ['ZAZ', 'A relic! Finally something worth appraising.']
+    ['RIKKIT', 'That pod is held together with tape and optimism. I can fix it. For money.'],
+    ['RIKKIT', 'You want my professional opinion? Sell the rocks. Buy a better drill. Stop asking.'],
+    ['RIKKIT', 'I have got a plan. It is about twelve percent of a plan. It is enough.'],
+    ['RIKKIT', 'Do not touch that. Or do. It only takes off half a moon.'],
+    ['TWIG', 'I AM TWIG.'],
+    ['TWIG', 'I AM TWIG!'],
+    ['TWIG', 'I... am Twig.'],
+    ['BLUEFIN', 'Ravager rules: you steal from a thief, you are just shopping.'],
+    ['BLUEFIN', 'I whistle, the arrow moves. You do not need to know the rest.'],
+    ['BLUEFIN', 'You are not crew. You are a small angry investment.'],
+    ['THE CURATOR', 'Bring me something old. Older than that. Older than the Krael.'],
+    ['THE CURATOR', 'I collect. It is not hoarding if it is catalogued, and it is catalogued.'],
+    ['THE CURATOR', 'An artefact? Name your price, then double it. I am not a haggler.'],
+    ['NOVA WATCH', 'You are on a list. It is a long list. You are near the top.'],
+    ['NOVA WATCH', 'Destroying a planet requires a permit. You do not have a permit.'],
+    ['THE KRAEL', 'The treaty forbids us from killing you. The treaty is a piece of paper.'],
+    ['THE GILDED', 'Your ore is acceptable. Your manners are not. We are buying anyway.'],
+    ['RIKKIT', 'Put the tape back on. I am not working in silence.'],
+    ['BLUEFIN', 'Settle it with a dance-off. Works more often than you would think.']
   ];
-  const FACES = { 'ZAZ': ['#c4a0ff', '#8455c4'], 'BROKER K': ['#ffb03d', '#c25c14'], 'THE SYNDICATE': ['#ff5a4d', '#8a2a2a'], 'MUM': ['#8affa0', '#3fb85a'] };
+  const FACE_OF = { 'RIKKIT': 'rikkit', 'TWIG': 'twig', 'BLUEFIN': 'bluefin', 'THE CURATOR': 'curator',
+    'NOVA WATCH': 'nova', 'THE KRAEL': 'nova', 'THE GILDED': 'curator' };
 
   function enter(mode, g) {
     S.mode = mode; S.sel = 0; S.t = 0; S.msgT = 0; S.printT = 0; S.fitT = 0;
@@ -7712,9 +7922,9 @@ window.PD = window.PD || {};
   }
 
   /* The buyers, as pixel busts: mouth shut, mouth open, blinking. */
-  const BUST = { 'ZAZ': 'zaz', 'BROKER K': 'broker', 'THE SYNDICATE': 'synd', 'MUM': 'mum' };
+  const BUST = FACE_OF;
   function face(ctx, x, y, name, t, k) {
-    const s = AH.S['bust_' + (BUST[name] || 'zaz')];
+    const s = AH.S['bust_' + (BUST[name] || 'rikkit')];
     const frame = S.blink < 0 ? 2 : (S.talk > 0 && Math.sin(t * 12) > 0 ? 1 : 0);
     blitScaled(ctx, s, frame, x, y + Math.round(Math.sin(t * 2) * 1.5), k || 2.2);
   }
@@ -7852,6 +8062,13 @@ window.PD = window.PD || {};
       if (inst[i]) G.draw(ctx, D.RECIPE[inst[i]].glyph, sx - 6, sy - 6, '#eafcff', 'rgba(0,0,0,0)');
       else F.draw(ctx, String(i + 1), sx, sy - 3, '#2b3a66', { center: true, shadow: false });
     }
+    // the tape deck, on the wall by the lift
+    const tape = AH.S.tape;
+    blitScaled(ctx, tape, Math.floor(t * 3) % 2, 404, 96, 1.1);
+    F.draw(ctx, 'AWESOME MIX', 404, 100, '#ffd34d', { center: true, shadow: true });
+    const track = D.MIX[Math.floor(t / 12) % D.MIX.length];
+    F.draw(ctx, track.slice(0, 22), 404, 110, '#9aa3c4', { center: true, shadow: true });
+
     // stats
     const p = g.player;
     const stats = [['AIR', Math.round(p.stat('oxygen')), '#58e8ff'], ['HULL', Math.round(p.stat('hull')), '#ff5a4d'], ['HOLD', Math.round(p.capacity()) + 'KG', '#ffb03d'],
@@ -7878,7 +8095,16 @@ window.PD = window.PD || {};
     hands(ctx, t, false);
   }
 
-  PD.scenes = { enter, close, update, draw, S };
+  /* Anything in the game can put a line in the comms feed. */
+  function push(line) {
+    const i = line.indexOf(':');
+    const who = i > 0 ? line.slice(0, i).trim() : 'RIKKIT';
+    S.feed.push([who, i > 0 ? line.slice(i + 1).trim() : line]);
+    if (S.feed.length > 3) S.feed.shift();
+    S.talk = 1.6;
+  }
+
+  PD.scenes = { enter, close, update, draw, push, S };
 })(window.PD);
 
 /* ===== src/home.js ===== */
@@ -8097,11 +8323,16 @@ window.PD = window.PD || {};
       ctx.fillRect(sx | 0, s.y | 0, 1, 1);
     }
     ctx.globalAlpha = 1;
+    // the dead Celestial you live inside, sunk in the regolith behind everything
+    const sk = AH.S.skull;
+    const skx = Math.round(340 - cam * 0.42), sky2 = HORIZON + 30;
+    ctx.drawImage(sk.frames[0], skx - Math.round(sk.w * 1.2), sky2 - Math.round(sk.h * 2.4), Math.round(sk.w * 2.4), Math.round(sk.h * 2.4));
+
     const icon = g.navIcon(g.save.bodyIndex || 0);
-    const px = 372 - cam * 0.3, py = 66 + Math.sin(t * 0.4) * 2;
-    ctx.drawImage(icon, px - icon.width * 1.6, py - icon.height * 1.6, icon.width * 3.2, icon.height * 3.2);
+    const px = 392 - cam * 0.3, py = 56 + Math.sin(t * 0.4) * 2;
+    ctx.drawImage(icon, Math.round(px - icon.width * 0.85), Math.round(py - icon.height * 0.85), Math.round(icon.width * 1.7), Math.round(icon.height * 1.7));
     const ic2 = g.navIcon(Math.min(D.BODIES.length - 1, (g.save.bodyIndex || 0) + 1));
-    ctx.globalAlpha = 0.5; ctx.drawImage(ic2, 92 - cam * 0.18, 38, 22, 22); ctx.globalAlpha = 1;
+    ctx.globalAlpha = 0.55; ctx.drawImage(ic2, Math.round(86 - cam * 0.18), 30, 34, 34); ctx.globalAlpha = 1;
   }
 
   function drawGround(ctx, cam) {
@@ -8728,14 +8959,28 @@ window.PD = window.PD || {};
   /* Tiny rendered thumbnails of each world for the nav computer. */
   const navIcons = {};
   g.navIcon = function (i) {
-    if (!navIcons[i]) navIcons[i] = PD.arthome.buildMoon(22, D.BODIES[i].tint, 1000 + i * 977);
+    if (!navIcons[i]) navIcons[i] = PD.arthome.buildMoon(44, D.BODIES[i].tint, 1000 + i * 977);
     return navIcons[i];
   };
 
 
 
   g.collect = function (mat, x, y) {
-    if (mat === D.M.relic || mat === D.M.fossil || mat === D.M.aether) { g.save.artifacts = (g.save.artifacts || 0) + 1; FX.text(x, y - 12, 'ARTIFACT', '#ffd34d', 2); }
+    if (mat === D.M.relic || mat === D.M.fossil || mat === D.M.aether) {
+      g.save.artifacts = (g.save.artifacts || 0) + 1;
+      // one relic in six is the Orb, and then everyone calls at once
+      if (mat === D.M.relic && U.chance(0.17)) {
+        g.save.orbs = (g.save.orbs || 0) + 1;
+        g.save.credits += D.ORB.worth;
+        g.save.totalEarned += D.ORB.worth;
+        FX.text(x, y - 22, 'THE ORB', '#c9a0ff', 2);
+        FX.text(x, y - 12, '+$' + U.fmt(D.ORB.worth), '#ffd34d', 2);
+        FX.ring(x, y, 6, 60, 1.1, '#c9a0ff', 2);
+        FX.flash(0.5, '#c9a0ff');
+        A.sfx.fanfare && A.sfx.fanfare();
+        if (PD.scenes) PD.scenes.push(D.ORB.lines[(Math.random() * D.ORB.lines.length) | 0]);
+      } else FX.text(x, y - 12, 'ARTIFACT', '#ffd34d', 2);
+    }
     const p = g.player;
     if (!p.addOre(mat)) {
       hint('full', ['cargo', 'bang', 'arrowR', 'hole']);

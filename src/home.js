@@ -213,11 +213,16 @@
       ctx.fillRect(sx | 0, s.y | 0, 1, 1);
     }
     ctx.globalAlpha = 1;
+    // the dead Celestial you live inside, sunk in the regolith behind everything
+    const sk = AH.S.skull;
+    const skx = Math.round(340 - cam * 0.42), sky2 = HORIZON + 30;
+    ctx.drawImage(sk.frames[0], skx - Math.round(sk.w * 1.2), sky2 - Math.round(sk.h * 2.4), Math.round(sk.w * 2.4), Math.round(sk.h * 2.4));
+
     const icon = g.navIcon(g.save.bodyIndex || 0);
-    const px = 372 - cam * 0.3, py = 66 + Math.sin(t * 0.4) * 2;
-    ctx.drawImage(icon, px - icon.width * 1.6, py - icon.height * 1.6, icon.width * 3.2, icon.height * 3.2);
+    const px = 392 - cam * 0.3, py = 56 + Math.sin(t * 0.4) * 2;
+    ctx.drawImage(icon, Math.round(px - icon.width * 0.85), Math.round(py - icon.height * 0.85), Math.round(icon.width * 1.7), Math.round(icon.height * 1.7));
     const ic2 = g.navIcon(Math.min(D.BODIES.length - 1, (g.save.bodyIndex || 0) + 1));
-    ctx.globalAlpha = 0.5; ctx.drawImage(ic2, 92 - cam * 0.18, 38, 22, 22); ctx.globalAlpha = 1;
+    ctx.globalAlpha = 0.55; ctx.drawImage(ic2, Math.round(86 - cam * 0.18), 30, 34, 34); ctx.globalAlpha = 1;
   }
 
   function drawGround(ctx, cam) {

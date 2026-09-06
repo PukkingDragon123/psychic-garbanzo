@@ -279,7 +279,8 @@
     panel(ctx, 8, VH - 72, VW - 16, 66, open ? '#7ef9ff' : '#5a4d80');
     F.draw(ctx, b.name.toUpperCase(), 16, VH - 66, '#f2e9ff', { shadow: false, scale: 2 });
     F.draw(ctx, b.kind.toUpperCase(), VW - 16, VH - 64, '#7ef9ff', { right: true, shadow: false });
-    F.draw(ctx, b.blurb, 16, VH - 48, '#9c8ec4', { shadow: false });
+    F.draw(ctx, b.blurb, 16, VH - 52, '#9c8ec4', { shadow: false });
+    F.draw(ctx, (D.LORE[S.selBody] || '').toUpperCase().slice(0, 62), 16, VH - 42, '#7d6aa8', { shadow: false });
     F.draw(ctx, 'DEPTH ' + b.radius * 10 + 'M', 16, VH - 36, '#7ef9ff', { shadow: false });
     F.draw(ctx, 'GRAV ' + b.gravity, 106, VH - 36, '#7ef9ff', { shadow: false });
     F.draw(ctx, 'CORE ' + U.fmt(b.coreHp), 166, VH - 36, '#ff6b8a', { shadow: false });

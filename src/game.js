@@ -408,14 +408,28 @@
   /* Tiny rendered thumbnails of each world for the nav computer. */
   const navIcons = {};
   g.navIcon = function (i) {
-    if (!navIcons[i]) navIcons[i] = PD.arthome.buildMoon(22, D.BODIES[i].tint, 1000 + i * 977);
+    if (!navIcons[i]) navIcons[i] = PD.arthome.buildMoon(44, D.BODIES[i].tint, 1000 + i * 977);
     return navIcons[i];
   };
 
 
 
   g.collect = function (mat, x, y) {
-    if (mat === D.M.relic || mat === D.M.fossil || mat === D.M.aether) { g.save.artifacts = (g.save.artifacts || 0) + 1; FX.text(x, y - 12, 'ARTIFACT', '#ffd34d', 2); }
+    if (mat === D.M.relic || mat === D.M.fossil || mat === D.M.aether) {
+      g.save.artifacts = (g.save.artifacts || 0) + 1;
+      // one relic in six is the Orb, and then everyone calls at once
+      if (mat === D.M.relic && U.chance(0.17)) {
+        g.save.orbs = (g.save.orbs || 0) + 1;
+        g.save.credits += D.ORB.worth;
+        g.save.totalEarned += D.ORB.worth;
+        FX.text(x, y - 22, 'THE ORB', '#c9a0ff', 2);
+        FX.text(x, y - 12, '+$' + U.fmt(D.ORB.worth), '#ffd34d', 2);
+        FX.ring(x, y, 6, 60, 1.1, '#c9a0ff', 2);
+        FX.flash(0.5, '#c9a0ff');
+        A.sfx.fanfare && A.sfx.fanfare();
+        if (PD.scenes) PD.scenes.push(D.ORB.lines[(Math.random() * D.ORB.lines.length) | 0]);
+      } else FX.text(x, y - 12, 'ARTIFACT', '#ffd34d', 2);
+    }
     const p = g.player;
     if (!p.addOre(mat)) {
       hint('full', ['cargo', 'bang', 'arrowR', 'hole']);

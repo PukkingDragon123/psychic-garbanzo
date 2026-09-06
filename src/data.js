@@ -142,6 +142,50 @@
     STRATA[k].forEach((band, i) => { band.flora = f[Math.min(i, f.length - 1)]; });
   }
 
+  /* ----------------------------------------------------------------- lore
+     Who is out here, what they want, and what they will say about it. */
+  const FACTIONS = {
+    reavers:  { name: 'THE REAVERS', col: '#ff5a4d', blurb: 'Pirates with whistling arrows and a code they mostly ignore.' },
+    nova:     { name: 'NOVA WATCH',  col: '#8fb6ff', blurb: 'The law. Neat helmets, long memories, longer paperwork.' },
+    krael:    { name: 'THE KRAEL ASCENDANCY', col: '#8affa0', blurb: 'An empire of very serious people who signed a peace treaty and are furious about it.' },
+    gilded:   { name: 'THE GILDED',  col: '#ffd34d', blurb: 'Gold-skinned perfectionists. Easily offended. Excellent drones.' },
+    curator:  { name: 'THE COLLECTION', col: '#c9a0ff', blurb: 'One pale man, one museum, one very large budget.' },
+    celestial:{ name: 'THE CELESTIALS', col: '#ff8ad8', blurb: 'Dead giants. You are standing in one of their skulls.' }
+  };
+
+  /* Every world carries a line of history you can read on the chart. */
+  const LORE = [
+    'Chipped off a bigger rock during a Reaver bar fight. Still has the dents.',
+    'A Nova Watch impound lot until the paperwork expired. Nobody renewed it.',
+    'Frozen mid-scream. The Krael insist it was always like that.',
+    'A Gilded foundry moon. They fired everyone for using the wrong gold.',
+    'The Collection bid on this whole world. The Curator was outbid by a mining guild. He is still cross.',
+    'Somebody’s dead moon. The Reavers use it to settle arguments.',
+    'Alive, allegedly. It hums when you drill it and the Krael call that a coincidence.',
+    'A furnace world the Ascendancy uses to test how loud a person can scream.',
+    'One enormous cut stone. The Gilded consider looking at it a crime.',
+    'The vault at the middle of everything. The Celestials built it and then died of it.'
+  ];
+
+  /* The Orb: a purple stone in a silver casing. Everyone wants it. Nobody who
+     has held one is available for comment. */
+  const ORB = {
+    name: 'THE ORB', worth: 250000,
+    lines: [
+      'THE CURATOR: Name your price. Then double it. Then bring it here.',
+      'NOVA WATCH: Surrender the artefact. There is a form. There is always a form.',
+      'REAVERS: Bluefin says hand it over and he will only whistle at you a little.',
+      'THE KRAEL: That belongs to the Ascendancy. Everything belongs to the Ascendancy.'
+    ]
+  };
+
+  /* The pod's tape deck. */
+  const MIX = [
+    'HOOKED ON A CEILING', 'AIN’T NO MOUNTAIN LOW ENOUGH', 'COME AND GET YOUR ORE',
+    'MOONAGE DRILLDREAM', 'O-O-H CHILD, THAT’S URANIUM', 'FOOLED AROUND AND BROKE A PLANET',
+    'ESCAPE (THE ORE-COLADA SONG)', 'CHERRY BOMB CRATER'
+  ];
+
   /* ---------------------------------------------------------------- your moon
      The hub is a dead little moon you own. Five buildings stand on it, each
      one raised from a hologram blueprint by the multi-purpose tool and each
@@ -149,11 +193,11 @@
   const BUILDINGS = [
     {
       id: 'docks', name: 'THE DOCKS', glyph: 'home', x: 150, max: 5, base: 900, start: 1,
-      blurb: 'Your pod lives here. Fit the parts you fabricate. Each level adds a slot.'
+      blurb: 'Your pod lives here, and so does the tape deck. Fit the parts you fabricate.'
     },
     {
       id: 'terminal', name: 'TERMINAL', glyph: 'sell', x: 330, max: 6, base: 500, start: 1,
-      blurb: 'Sell ore and talk to the people who buy it. Each level lifts prices.'
+      blurb: 'Sell ore. Argue with a raccoon. Each level lifts prices.'
     },
     {
       id: 'fab', name: 'FABRICATOR', glyph: 'build', x: 500, max: 4, base: 700, start: 0,
@@ -161,11 +205,11 @@
     },
     {
       id: 'mind', name: 'THE MIND', glyph: 'eye', x: 690, max: 4, base: 1600, start: 0,
-      blurb: 'A brain in a tank. It knows everything. Each level opens a deeper ring.'
+      blurb: 'A Celestial brain in a tank of acid. It knows everything and resents being asked.'
     },
     {
       id: 'obs', name: 'OBSERVATORY', glyph: 'planet', x: 880, max: 4, base: 3000, start: 1,
-      blurb: 'Finds worlds. Each level opens another sector of the galaxy.'
+      blurb: 'Finds worlds worth ruining. Each level opens another sector.'
     }
   ];
   const BUILD = {};
@@ -228,21 +272,21 @@
      drive you buy outright -- that is the only travel gate in the game. */
   const ZONES = [
     {
-      id: 'home', name: 'HOME REACH', sub: 'Cheap rocks, cheap thrills.',
+      id: 'home', name: 'THE SKULL REACH', sub: 'You live in a dead giant\u2019s head. Rent is cheap.',
       star: '#ffd34d', tint: '#8a6a4f', x: 96, y: 178, bodies: [0, 1, 2], drive: null
     },
     {
-      id: 'ember', name: 'EMBER BELT', sub: 'Slag, iron and things with teeth.',
+      id: 'ember', name: 'THE FORGE BELT', sub: 'Gilded foundries, Reaver chop shops, things with teeth.',
       star: '#ff8a3d', tint: '#c67a3d', x: 196, y: 106, bodies: [3, 4],
       drive: { name: 'ION SLED', cost: 26000, blurb: 'Burns hot enough to cross the belt.' }
     },
     {
-      id: 'rot', name: 'THE ROT', sub: 'Dead moons. Rude fossils.',
+      id: 'rot', name: 'THE ROT', sub: 'Dead moons. Rude fossils. Nova Watch patrols that never look up.',
       star: '#7ef9ff', tint: '#b3c4d8', x: 300, y: 182, bodies: [5, 6],
       drive: { name: 'FOLD COIL', cost: 420000, blurb: 'Folds the gap to the dead worlds.' }
     },
     {
-      id: 'core', name: 'CORE DEEP', sub: 'Where the galaxy keeps the good stuff.',
+      id: 'core', name: 'THE CORE DEEP', sub: 'Where the Celestials kept the good stuff, then died on top of it.',
       star: '#ff5fa8', tint: '#ffc44d', x: 402, y: 96, bodies: [7, 8, 9],
       drive: { name: 'VOID ANCHOR', cost: 5200000, blurb: 'Grips the throat of the galaxy and pulls.' }
     }
@@ -653,14 +697,14 @@
   /* What the galaxy calls you, by how much of it you have wrecked. */
   const TITLES = [
     [0,    'UNLICENSED PROSPECTOR'],
-    [1,    'ROCK THIEF'],
+    [1,    'RAVAGER, PROVISIONAL'],
     [4,    'CLAIM JUMPER'],
-    [9,    'ASTEROID BUTCHER'],
-    [18,   'WORLD BREAKER'],
-    [30,   'PLANETARY MENACE'],
+    [9,    'NOVA WATCH: WANTED'],
+    [18,   'LEGENDARY OUTLAW (SELF-DECLARED)'],
+    [30,   'STAR-THIEF'],
     [46,   'WARLORD OF THE DEEP DARK'],
     [64,   'TERROR OF THE OUTER ARM'],
-    [82,   'GALACTIC TYRANT'],
+    [82,   'DESTROYER OF WORLDS, PART TIME'],
     [99.5, 'SOVEREIGN OF ASH']
   ];
   function titleFor(dominion) {
@@ -675,5 +719,5 @@
   }
 
   PD.data = { MAT, M, ENEMY, BODIES, UPGRADES, UPG, upgradeCost, recipe, COSMETICS, COS, TITLES, titleFor, bountyFor,
-    STRATA, ZONES, zoneOf, FLORA, BUILDINGS, BUILD, buildCost, RECIPES, RECIPE, NEURONS, NEURON, MACHINES, METALS, GEMS, JUNK, goodOf, goodFromKey, NODES, appraiseSeconds, appraiseFee };
+    STRATA, ZONES, zoneOf, FLORA, BUILDINGS, BUILD, buildCost, RECIPES, RECIPE, NEURONS, NEURON, FACTIONS, LORE, ORB, MIX, MACHINES, METALS, GEMS, JUNK, goodOf, goodFromKey, NODES, appraiseSeconds, appraiseFee };
 })(window.PD);

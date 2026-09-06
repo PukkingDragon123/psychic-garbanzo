@@ -14,17 +14,31 @@
   const VW = 480, VH = 270;
 
   const S = { mode: null, sel: 0, t: 0, msg: '', msgT: 0, printT: 0, printId: null, fitT: 0, fitId: null, talk: 0, blink: 0, feed: [], feedT: 0 };
+  /* Who calls the terminal, and what they want. Everyone out here is either
+     robbing you, arresting you, buying from you, or a tree. */
   const CHATTER = [
-    ['ZAZ', 'Your regolith is... regolith. Send the gems, darling.'],
-    ['BROKER K', 'Iron is up. Do not ask why. Sell now.'],
-    ['THE SYNDICATE', 'We noticed a planet is missing. Nice work.'],
-    ['ZAZ', 'Quality cannot be rushed. It can be bribed.'],
-    ['MUM', 'Are you eating? Are you destroying enough worlds?'],
-    ['BROKER K', 'Voidstone buyers are circling. Hold or fold.'],
-    ['THE SYNDICATE', 'Bounty on your head went up. Congratulations.'],
-    ['ZAZ', 'A relic! Finally something worth appraising.']
+    ['RIKKIT', 'That pod is held together with tape and optimism. I can fix it. For money.'],
+    ['RIKKIT', 'You want my professional opinion? Sell the rocks. Buy a better drill. Stop asking.'],
+    ['RIKKIT', 'I have got a plan. It is about twelve percent of a plan. It is enough.'],
+    ['RIKKIT', 'Do not touch that. Or do. It only takes off half a moon.'],
+    ['TWIG', 'I AM TWIG.'],
+    ['TWIG', 'I AM TWIG!'],
+    ['TWIG', 'I... am Twig.'],
+    ['BLUEFIN', 'Ravager rules: you steal from a thief, you are just shopping.'],
+    ['BLUEFIN', 'I whistle, the arrow moves. You do not need to know the rest.'],
+    ['BLUEFIN', 'You are not crew. You are a small angry investment.'],
+    ['THE CURATOR', 'Bring me something old. Older than that. Older than the Krael.'],
+    ['THE CURATOR', 'I collect. It is not hoarding if it is catalogued, and it is catalogued.'],
+    ['THE CURATOR', 'An artefact? Name your price, then double it. I am not a haggler.'],
+    ['NOVA WATCH', 'You are on a list. It is a long list. You are near the top.'],
+    ['NOVA WATCH', 'Destroying a planet requires a permit. You do not have a permit.'],
+    ['THE KRAEL', 'The treaty forbids us from killing you. The treaty is a piece of paper.'],
+    ['THE GILDED', 'Your ore is acceptable. Your manners are not. We are buying anyway.'],
+    ['RIKKIT', 'Put the tape back on. I am not working in silence.'],
+    ['BLUEFIN', 'Settle it with a dance-off. Works more often than you would think.']
   ];
-  const FACES = { 'ZAZ': ['#c4a0ff', '#8455c4'], 'BROKER K': ['#ffb03d', '#c25c14'], 'THE SYNDICATE': ['#ff5a4d', '#8a2a2a'], 'MUM': ['#8affa0', '#3fb85a'] };
+  const FACE_OF = { 'RIKKIT': 'rikkit', 'TWIG': 'twig', 'BLUEFIN': 'bluefin', 'THE CURATOR': 'curator',
+    'NOVA WATCH': 'nova', 'THE KRAEL': 'nova', 'THE GILDED': 'curator' };
 
   function enter(mode, g) {
     S.mode = mode; S.sel = 0; S.t = 0; S.msgT = 0; S.printT = 0; S.fitT = 0;
@@ -276,9 +290,9 @@
   }
 
   /* The buyers, as pixel busts: mouth shut, mouth open, blinking. */
-  const BUST = { 'ZAZ': 'zaz', 'BROKER K': 'broker', 'THE SYNDICATE': 'synd', 'MUM': 'mum' };
+  const BUST = FACE_OF;
   function face(ctx, x, y, name, t, k) {
-    const s = AH.S['bust_' + (BUST[name] || 'zaz')];
+    const s = AH.S['bust_' + (BUST[name] || 'rikkit')];
     const frame = S.blink < 0 ? 2 : (S.talk > 0 && Math.sin(t * 12) > 0 ? 1 : 0);
     blitScaled(ctx, s, frame, x, y + Math.round(Math.sin(t * 2) * 1.5), k || 2.2);
   }
@@ -416,6 +430,13 @@
       if (inst[i]) G.draw(ctx, D.RECIPE[inst[i]].glyph, sx - 6, sy - 6, '#eafcff', 'rgba(0,0,0,0)');
       else F.draw(ctx, String(i + 1), sx, sy - 3, '#2b3a66', { center: true, shadow: false });
     }
+    // the tape deck, on the wall by the lift
+    const tape = AH.S.tape;
+    blitScaled(ctx, tape, Math.floor(t * 3) % 2, 404, 96, 1.1);
+    F.draw(ctx, 'AWESOME MIX', 404, 100, '#ffd34d', { center: true, shadow: true });
+    const track = D.MIX[Math.floor(t / 12) % D.MIX.length];
+    F.draw(ctx, track.slice(0, 22), 404, 110, '#9aa3c4', { center: true, shadow: true });
+
     // stats
     const p = g.player;
     const stats = [['AIR', Math.round(p.stat('oxygen')), '#58e8ff'], ['HULL', Math.round(p.stat('hull')), '#ff5a4d'], ['HOLD', Math.round(p.capacity()) + 'KG', '#ffb03d'],
@@ -442,5 +463,14 @@
     hands(ctx, t, false);
   }
 
-  PD.scenes = { enter, close, update, draw, S };
+  /* Anything in the game can put a line in the comms feed. */
+  function push(line) {
+    const i = line.indexOf(':');
+    const who = i > 0 ? line.slice(0, i).trim() : 'RIKKIT';
+    S.feed.push([who, i > 0 ? line.slice(i + 1).trim() : line]);
+    if (S.feed.length > 3) S.feed.shift();
+    S.talk = 1.6;
+  }
+
+  PD.scenes = { enter, close, update, draw, push, S };
 })(window.PD);

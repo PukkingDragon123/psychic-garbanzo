@@ -16,6 +16,18 @@
 
   function canvas(w, h) { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; }
 
+  /* An integer scanline disc: every edge is a hard pixel step. */
+  function pxDisc(c, cx, cy, r, col) {
+    if (col) c.fillStyle = col;
+    const r2 = r * r;
+    for (let y = Math.ceil(cy - r); y <= Math.floor(cy + r); y++) {
+      const dy = y - cy + 0.5;
+      const w = Math.sqrt(Math.max(0, r2 - dy * dy));
+      const x0 = Math.round(cx - w), x1 = Math.round(cx + w);
+      if (x1 > x0) c.fillRect(x0, y, x1 - x0, 1);
+    }
+  }
+
   /* The galactic band: thousands of tiny stars concentrated along a tilted
      sine, with dust lanes drawn dark through them. */
   function buildBand(seed) {
@@ -46,12 +58,14 @@
       const along = (rnd() - 0.5) * W * 1.2, spread = (rnd() - 0.5) * 60;
       const x = W / 2 + along * Math.cos(-0.42) - spread * Math.sin(-0.42);
       const y = H / 2 + along * Math.sin(-0.42) + spread * Math.cos(-0.42);
-      const g2 = c.createRadialGradient(x, y, 2, x, y, 40 + rnd() * 60);
-      g2.addColorStop(0, 'rgba(6,3,14,0.8)');
-      g2.addColorStop(1, 'rgba(6,3,14,0)');
-      c.fillStyle = g2;
+      const rr = 40 + rnd() * 60;
       c.save(); c.translate(x, y); c.rotate(-0.42); c.scale(2.6, 0.7); c.translate(-x, -y);
-      c.fillRect(x - 160, y - 160, 320, 320); c.restore();
+      for (let k = 5; k >= 1; k--) {                    // stepped dust bands
+        c.globalAlpha = 0.16;
+        pxDisc(c, x, y, rr * k / 5, 'rgb(6,3,14)');
+      }
+      c.globalAlpha = 1;
+      c.restore();
     }
     return cv;
   }
@@ -64,13 +78,9 @@
     for (let i = 0; i < 9; i++) {
       const x = rnd() * W, y = rnd() * H, r = 50 + rnd() * 110;
       const col = cols[i % cols.length];
-      const g = c.createRadialGradient(x, y, 0, x, y, r);
-      g.addColorStop(0, shade(col, 1, 0.22));
-      g.addColorStop(0.5, shade(col, 0.8, 0.1));
-      g.addColorStop(1, shade(col, 0.6, 0));
-      c.fillStyle = g;
       c.save(); c.translate(x, y); c.rotate(rnd() * 3); c.scale(1 + rnd(), 0.6 + rnd() * 0.5); c.translate(-x, -y);
-      c.fillRect(x - r * 2, y - r * 2, r * 4, r * 4); c.restore();
+      for (let k = 6; k >= 1; k--) pxDisc(c, x, y, r * k / 6, shade(col, 0.7 + k * 0.06, 0.05));
+      c.restore();
     }
     // speckle so it reads as pixel art, not a soft blur
     for (let i = 0; i < 2600; i++) {
@@ -81,65 +91,119 @@
   }
 
   /* A far planet: banded disc, optional rings, a moon, terminator shading. */
+  /* Planets and suns are rasterised at a low resolution with an integer
+     scanline disc -- every edge is a hard pixel step -- then blown up with
+     nearest-neighbour, so a world in the sky reads as pixel art and never as
+     a smooth vector circle. */
+  const PXK = 4;                                   // blow-up factor
+
+  /* One elliptical ring, as pixels. `back` draws the far half only. */
+  function pxRingBand(c, cx, cy, r, squash, col, thick, back) {
+    c.fillStyle = col;
+    for (let x = Math.round(cx - r); x <= Math.round(cx + r); x++) {
+      const dx = (x - cx) / r;
+      const k = 1 - dx * dx;
+      if (k < 0) continue;
+      const dy = Math.sqrt(k) * r * squash;
+      if (back) c.fillRect(x, Math.round(cy - dy), 1, thick);
+      else c.fillRect(x, Math.round(cy + dy), 1, thick);
+    }
+  }
+
   function buildPlanet(size, tint, seed, rings) {
-    const pad = rings ? size : size * 0.3;
-    const W = size + pad * 2;
-    const cv = canvas(W, W), c = cv.getContext('2d');
+    const S = Math.max(12, Math.round(size / PXK));
+    const pad = rings ? Math.round(S * 0.55) : Math.round(S * 0.18);
+    const W = S + pad * 2;
+    const src = canvas(W, W), c = src.getContext('2d');
     const rnd = U.mulberry32(seed);
-    const cx = W / 2, cy = W / 2, r = size / 2;
-    if (rings) {                                        // back half of the rings
-      c.save(); c.translate(cx, cy); c.rotate(-0.35); c.scale(1, 0.32);
-      for (let k = 0; k < 3; k++) {
-        c.strokeStyle = shade(tint, 1.2 - k * 0.2, 0.55 - k * 0.12); c.lineWidth = 3 + k;
-        c.beginPath(); c.arc(0, 0, r * (1.5 + k * 0.25), Math.PI, Math.PI * 2); c.stroke();
+    const cx = W / 2, cy = W / 2, r = S / 2;
+
+    // continents, as blobs on the sphere's surface in latitude/longitude
+    const spots = [];
+    for (let i = 0; i < 7; i++) spots.push({ x: (rnd() - 0.5) * 1.7, y: (rnd() - 0.5) * 1.7, r: 0.16 + rnd() * 0.26, k: 1.2 + rnd() * 0.35 });
+    const bands = [];
+    for (let i = 0; i < 12; i++) bands.push(0.75 + rnd() * 0.5);
+
+    if (rings) for (let k = 0; k < 3; k++) pxRingBand(c, cx, cy, r * (1.45 + k * 0.26), 0.3, shade(tint, 1.0 - k * 0.16), 2, true);
+
+    // shade the sphere per pixel, quantised into steps
+    for (let y = 0; y < W; y++) {
+      for (let x = 0; x < W; x++) {
+        const dx = (x - cx + 0.5) / r, dy = (y - cy + 0.5) / r;
+        const d2 = dx * dx + dy * dy;
+        if (d2 > 1) continue;
+        const nz = Math.sqrt(1 - d2);
+        let lam = -dx * 0.55 - dy * 0.5 + nz * 0.62;          // light from the upper left
+        lam = U.clamp(lam, 0, 1);
+        lam = Math.round(lam * 5) / 5;                          // five hard bands
+        let f = 0.34 + lam * 1.05;
+        f *= bands[Math.min(bands.length - 1, Math.floor((dy + 1) / 2 * bands.length))];
+        for (const sp of spots) {
+          if (Math.abs(dx - sp.x) < sp.r && Math.abs(dy - sp.y) < sp.r * 0.7) { f *= sp.k; break; }
+        }
+        c.fillStyle = shade(tint, U.clamp(f, 0.12, 1.9));
+        c.fillRect(x, y, 1, 1);
       }
-      c.restore();
     }
-    c.save(); c.beginPath(); c.arc(cx, cy, r, 0, U.TAU); c.clip();
-    c.fillStyle = shade(tint, 0.85); c.fillRect(0, 0, W, W);
-    for (let y = -r; y < r; y += 2 + rnd() * 3) {          // bands
-      c.fillStyle = shade(tint, 0.6 + rnd() * 0.7, 0.5);
-      c.fillRect(cx - r, cy + y, r * 2, 1 + rnd() * 3);
+    // lit limb, a single stepped pixel line on the sunward side
+    c.fillStyle = shade(tint, 1.75);
+    for (let i = 0; i < 46; i++) {
+      const a2 = -2.5 + i * 0.062;
+      c.fillRect(Math.round(cx + Math.cos(a2) * (r - 0.5)), Math.round(cy + Math.sin(a2) * (r - 0.5)), 1, 1);
     }
-    for (let i = 0; i < 6; i++) {                          // storms
-      c.fillStyle = shade(tint, 1.3, 0.35);
-      c.beginPath(); c.ellipse(cx + (rnd() - 0.5) * r * 1.4, cy + (rnd() - 0.5) * r * 1.4, 2 + rnd() * r * 0.2, 1 + rnd() * r * 0.08, 0, 0, U.TAU); c.fill();
-    }
-    const term = c.createLinearGradient(cx - r, 0, cx + r, 0);
-    term.addColorStop(0, 'rgba(255,255,255,0.12)'); term.addColorStop(0.55, 'rgba(0,0,0,0)'); term.addColorStop(1, 'rgba(4,2,12,0.9)');
-    c.fillStyle = term; c.fillRect(0, 0, W, W);
-    c.restore();
-    c.strokeStyle = shade(tint, 1.5, 0.6); c.lineWidth = 1;
-    c.beginPath(); c.arc(cx, cy, r - 0.5, Math.PI * 0.8, Math.PI * 1.6); c.stroke();
-    if (rings) {                                        // front half
-      c.save(); c.translate(cx, cy); c.rotate(-0.35); c.scale(1, 0.32);
-      for (let k = 0; k < 3; k++) {
-        c.strokeStyle = shade(tint, 1.3 - k * 0.2, 0.7 - k * 0.15); c.lineWidth = 3 + k;
-        c.beginPath(); c.arc(0, 0, r * (1.5 + k * 0.25), 0, Math.PI); c.stroke();
-      }
-      c.restore();
-    }
-    // a moon
-    c.fillStyle = shade(tint, 0.5);
-    c.beginPath(); c.arc(cx + r * 1.25, cy - r * 0.9, Math.max(2, r * 0.14), 0, U.TAU); c.fill();
+    if (rings) for (let k = 0; k < 3; k++) pxRingBand(c, cx, cy, r * (1.45 + k * 0.26), 0.3, shade(tint, 1.4 - k * 0.16), 2, false);
+    // a moon, shaded the same way
+    const mr = Math.max(1, r * 0.15);
+    pxDisc(c, cx + r * 1.3, cy - r * 0.85, mr, shade(tint, 0.55));
+    pxDisc(c, cx + r * 1.3 - mr * 0.3, cy - r * 0.85 - mr * 0.3, mr * 0.6, shade(tint, 0.85));
+
+    const cv = canvas(W * PXK, W * PXK);
+    const cc = cv.getContext('2d');
+    cc.imageSmoothingEnabled = false;
+    cc.drawImage(src, 0, 0, W, W, 0, 0, W * PXK, W * PXK);
     return cv;
   }
 
+  /* A pixel sun: quantised corona rings and four tapering spikes. */
   function buildSun(size, col) {
-    const W = size * 3;
-    const cv = canvas(W, W), c = cv.getContext('2d');
-    const cx = W / 2, cy = W / 2;
-    const g = c.createRadialGradient(cx, cy, size * 0.3, cx, cy, W / 2);
-    g.addColorStop(0, shade(col, 1.4, 0.9)); g.addColorStop(0.25, shade(col, 1, 0.45)); g.addColorStop(1, shade(col, 0.8, 0));
-    c.fillStyle = g; c.fillRect(0, 0, W, W);
-    for (let i = 0; i < 8; i++) {                       // rays
-      c.save(); c.translate(cx, cy); c.rotate(i * Math.PI / 4);
-      const rg = c.createLinearGradient(0, 0, W / 2, 0);
-      rg.addColorStop(0, shade(col, 1.3, 0.35)); rg.addColorStop(1, shade(col, 1, 0));
-      c.fillStyle = rg; c.fillRect(0, -1, W / 2, 2); c.restore();
+    const R = Math.max(4, Math.round(size / PXK));
+    const S = R * 8;
+    const src = canvas(S, S), c = src.getContext('2d');
+    const cx = S / 2, cy = S / 2;
+    for (let y = 0; y < S; y++) {
+      for (let x = 0; x < S; x++) {
+        const d = Math.hypot(x - cx + 0.5, y - cy + 0.5) / R;
+        if (d > 3.4) continue;
+        let a, f;
+        if (d <= 0.55) { a = 1; f = 1.7; }
+        else if (d <= 0.85) { a = 1; f = 1.35; }
+        else if (d <= 1.05) { a = 1; f = 1.05; }
+        else { a = U.clamp(0.42 - (d - 1.05) * 0.16, 0, 0.42); f = 1.1; }
+        if (a <= 0.02) continue;
+        c.globalAlpha = Math.round(a * 6) / 6;
+        c.fillStyle = d <= 0.55 ? '#fff8e0' : shade(col, f);
+        c.fillRect(x, y, 1, 1);
+      }
     }
-    c.fillStyle = '#fff8e0';
-    c.beginPath(); c.arc(cx, cy, size * 0.42, 0, U.TAU); c.fill();
+    c.globalAlpha = 1;
+    // spikes: tapering pixel bars on the four axes
+    for (let i = 0; i < 4; i++) {
+      const len = R * 3.2;
+      for (let d = R; d < len; d++) {
+        const th = Math.max(1, Math.round((1 - d / len) * R * 0.5));
+        c.globalAlpha = Math.round((1 - d / len) * 5) / 5 * 0.7;
+        c.fillStyle = shade(col, 1.3);
+        if (i === 0) c.fillRect(cx + d, cy - th / 2, 1, th);
+        else if (i === 1) c.fillRect(cx - d, cy - th / 2, 1, th);
+        else if (i === 2) c.fillRect(cx - th / 2, cy + d, th, 1);
+        else c.fillRect(cx - th / 2, cy - d, th, 1);
+      }
+    }
+    c.globalAlpha = 1;
+    const cv = canvas(S * PXK, S * PXK);
+    const cc = cv.getContext('2d');
+    cc.imageSmoothingEnabled = false;
+    cc.drawImage(src, 0, 0, S, S, 0, 0, S * PXK, S * PXK);
     return cv;
   }
 
@@ -215,8 +279,7 @@
       const s = L.shooters[i];
       s.life -= 1 / 60; s.x += s.vx / 60; s.y += s.vy / 60;
       if (s.life <= 0) { L.shooters.splice(i, 1); continue; }
-      ctx.strokeStyle = 'rgba(255,255,255,' + (s.life).toFixed(2) + ')'; ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(s.x - s.vx * 0.06, s.y - s.vy * 0.06); ctx.stroke();
+      PD.pxd.line(ctx, s.x, s.y, s.x - s.vx * 0.06, s.y - s.vy * 0.06, 'rgba(255,255,255,' + (s.life).toFixed(2) + ')', 1);
     }
   }
 

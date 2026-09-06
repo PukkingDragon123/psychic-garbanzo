@@ -45,13 +45,15 @@ different building and the hologram swaps. Print it and the beam collapses.
 
 ## Not one circle
 
-Everything drawn at runtime is pixel art now, built from a set of primitives
-that never produce a smooth curve: discs are **octagons**, shockwaves are
-**stepped rings**, wires and dendrites are **chains of integer segments**,
-orbits are **dotted stepped ellipses**, and soft radial light became
-**concentric octagon bands**. Plates and frames have cut pixel corners and a
-dithered edge. The old vector faces, hands, rounded rectangles, radial glows
-and vignettes are gone -- replaced by sprites or by banded, dithered pixels.
+Everything drawn at runtime is pixel art, built from primitives that never
+produce a smooth curve: discs are **octagons**, shockwaves are **stepped
+rings**, wires and dendrites are **chains of integer segments**, orbits are
+**dotted stepped ellipses**, and soft radial light is **concentric octagon
+bands**. The planets and suns in every sky are rasterised per pixel at a low
+resolution and blown up with nearest-neighbour, so a world is a chunky
+five-band sphere with a hard terminator rather than a vector ball. Nebulae
+and dust lanes are quantised colour steps. Plates and frames have cut pixel
+corners and a dithered edge.
 
 ## Ore has sprites
 
@@ -217,11 +219,34 @@ for a bounty multiplier.
 
 ## Who else is out here
 
-Nobody. That is the point. The moon has three hopping critters, a few
-precursor ruins nobody has explained, and a string of fairy lights you put up
-yourself. Down a hole there are crawlers, floaters, spitters, gnashers,
-shellbacks, lurkers, cave mites and a Core Warden, and none of them want to
-talk.
+The comms feed at the terminal is whoever wants something from you today, as
+a big pixel bust that blinks and talks:
+
+- **RIKKIT**, a small furious engineer with round ears, goggles pushed up on
+  his head and a plan that is about twelve percent of a plan
+- **TWIG**, a walking tree with moss on his shoulders and glowing sap for
+  eyes, who has exactly one line and delivers it with feeling
+- **BLUEFIN**, a red-finned Reaver who kills with a whistle and thinks you
+  are a small angry investment
+- **THE CURATOR**, pale, delighted, absurdly rich, holding an orb, who would
+  like something older than the Krael
+- **NOVA WATCH**, gold-visored, patient, and very clear that destroying a
+  planet requires a permit
+
+Around them: **the Reavers**, pirates with a code they mostly ignore; **the
+Krael Ascendancy**, furious about a peace treaty they signed; **the Gilded**,
+gold-skinned perfectionists who buy your ore and insult your manners; **the
+Collection**; and the **Celestials**, dead giants whose skull you have built
+your base inside — you can see its eye sockets on the horizon with lights
+burning in them.
+
+One relic in six turns out to be **THE ORB**, a purple stone in a silver
+casing worth a quarter of a million, and every faction calls at once when you
+pull one out of the rock. The pod carries the **Awesome Mix** on a tape deck
+you can see spinning at the docks. Your reputation ladder runs from
+*Unlicensed Prospector* through *Ravager, Provisional* and *Legendary Outlaw
+(self-declared)* to *Sovereign of Ash*, and every world on the chart carries
+a line of history under its blurb.
 
 ## How it is put together
 
