@@ -137,16 +137,20 @@
     const t = g.time;
     const PW = 172, PH = 62;
 
-    // a stepped plate: the corner is cut in pixel stairs
-    X.rect(ctx, 0, 0, PW, PH - 8, 'rgba(10,6,24,0.72)');
-    X.rect(ctx, 0, PH - 8, PW - 8, 8, 'rgba(10,6,24,0.72)');
-    X.rect(ctx, PW - 8, PH - 8, 4, 4, 'rgba(10,6,24,0.72)');
-    X.rect(ctx, PW, 0, 1, PH - 8, 'rgba(166,125,240,0.5)');
-    X.rect(ctx, PW - 8, PH - 4, 1, 4, 'rgba(166,125,240,0.5)');
-    X.rect(ctx, PW - 4, PH - 8, 1, 4, 'rgba(166,125,240,0.5)');
-    X.rect(ctx, 0, PH, PW - 8, 1, 'rgba(166,125,240,0.5)');
-    X.rect(ctx, PW - 8, PH - 4, 4, 1, 'rgba(166,125,240,0.5)');
-    X.rect(ctx, PW - 4, PH - 8, 4, 1, 'rgba(166,125,240,0.5)');
+    // a square of cardboard, taped to the inside of the helmet
+    X.rect(ctx, 0, 0, PW, PH - 8, 'rgba(44,30,18,0.86)');
+    X.rect(ctx, 0, PH - 8, PW - 8, 8, 'rgba(44,30,18,0.86)');
+    X.rect(ctx, PW - 8, PH - 8, 4, 4, 'rgba(44,30,18,0.86)');
+    X.rect(ctx, PW, 0, 1, PH - 8, '#6b4a2e');
+    X.rect(ctx, 0, PH, PW - 8, 1, '#6b4a2e');
+    X.rect(ctx, PW - 8, PH - 4, 4, 1, '#6b4a2e');
+    X.rect(ctx, PW - 4, PH - 8, 1, 4, '#6b4a2e');
+    X.rect(ctx, PW - 8, PH - 4, 1, 4, '#6b4a2e');
+    X.rect(ctx, PW - 4, PH - 8, 4, 1, '#6b4a2e');
+    // masking tape, applied by someone with three fingers
+    X.rect(ctx, PW - 22, -3, 22, 9, 'rgba(226,208,132,0.8)');
+    X.rect(ctx, PW - 22, -3, 22, 1, 'rgba(246,232,168,0.8)');
+    X.rect(ctx, -4, 30, 8, 16, 'rgba(226,208,132,0.8)');
 
     // --- air: a glass tank that empties
     const tx = 5, ty = 4, tw = 14, th = 44;
@@ -167,19 +171,19 @@
     ctx.strokeStyle = '#7ef9ff'; ctx.strokeRect(tx + 0.5, ty + 0.5, tw - 1, th - 1);
     ctx.fillStyle = 'rgba(255,255,255,0.22)'; ctx.fillRect(tx + 2, ty + 2, 3, th - 4);
     for (let i = 1; i < 4; i++) { ctx.fillStyle = '#0d0720'; ctx.fillRect(tx, ty + (th / 4) * i, 4, 1); }
-    F.draw(ctx, 'AIR', tx + tw / 2, ty + th + 3, low ? '#ff6b8a' : '#7ef9ff', { center: true, shadow: false });
+    F.draw(ctx, 'AIR', tx + tw / 2, ty + th + 4, low ? '#ff6b8a' : '#e2d084', { center: true, shadow: '#2c1c10' });
 
     const CX = 26;                                  // right-hand column
     F.draw(ctx, String(Math.ceil(p.o2)), CX, 4, low ? '#ff6b8a' : '#7ef9ff', { scale: 2, shadow: false });
-    F.draw(ctx, 'O2', CX + 42, 10, '#4d6f9c', { shadow: false });
+    F.draw(ctx, 'BREATHS', CX + 42, 10, '#a8845e', { shadow: false });
 
     // --- hull: hex chips that shatter
     const cf = U.clamp(p.hull / maxHull, 0, 1);
-    F.draw(ctx, 'HULL', CX, 24, '#9c8ec4', { shadow: false });
+    F.draw(ctx, 'ME', CX, 24, '#e2d084', { shadow: false });
     for (let i = 0; i < 6; i++) {
       const x = CX + 34 + i * 15, y = 27;
       const f = U.clamp(cf * 6 - i, 0, 1);
-      hexChip(ctx, x, y, 6.5, '#2a1230', '#5b3f96');
+      hexChip(ctx, x, y, 6.5, '#2c1c10', '#6b4a2e');
       if (f > 0) {
         ctx.save();
         ctx.beginPath(); ctx.rect(x - 7, y + 7 - 14 * f, 14, 14 * f); ctx.clip();
@@ -187,7 +191,7 @@
         ctx.restore();
         hexChip(ctx, x, y, 6.5, null, '#ffb0a0');
       } else {
-        ctx.strokeStyle = '#4a2a4a'; ctx.lineWidth = 1;
+        ctx.strokeStyle = '#6b4a2e'; ctx.lineWidth = 1;
         ctx.beginPath(); ctx.moveTo(x - 4, y - 3); ctx.lineTo(x + 3, y + 4); ctx.stroke();
       }
     }
@@ -195,9 +199,9 @@
     // --- hold: a filling tube
     const hx = CX + 28, hy = 42, hw = 66, hh = 9;
     const load = U.clamp(p.cargoKg / cap, 0, 1);
-    F.draw(ctx, 'HOLD', CX, 43, '#9c8ec4', { shadow: false });
-    ctx.fillStyle = '#0d0720'; ctx.fillRect(hx - 1, hy - 1, hw + 2, hh + 2);
-    ctx.fillStyle = '#231640'; ctx.fillRect(hx, hy, hw, hh);
+    F.draw(ctx, 'SACK', CX, 43, '#e2d084', { shadow: false });
+    ctx.fillStyle = '#1a1108'; ctx.fillRect(hx - 1, hy - 1, hw + 2, hh + 2);
+    ctx.fillStyle = '#33240f'; ctx.fillRect(hx, hy, hw, hh);
     const segs = 10, sw = hw / segs;
     for (let i = 0; i < segs; i++) {
       const f = U.clamp(load * segs - i, 0, 1);
@@ -214,26 +218,27 @@
     let my = PH + 6;
     for (const k of entries) {
       const m = D.MAT[k];
-      X.rect(ctx, 0, my - 2, 106, 13, 'rgba(8,4,18,0.55)');
+      X.rect(ctx, 0, my - 2, 106, 13, 'rgba(44,30,18,0.72)');
       PD.art.oreChip(ctx, +k, 2, my - 3, 14);
       F.draw(ctx, m.name.toUpperCase().slice(0, 10), 18, my + 1, COL.text, { shadow: false });
       F.draw(ctx, String(p.cargo[k]), 102, my + 1, COL.gold, { right: true, shadow: false });
       my += 13;
     }
     if (p.cargoValue() > 0) {
-      X.rect(ctx, 0, my - 1, 106, 16, 'rgba(8,4,18,0.55)');
+      X.rect(ctx, 0, my - 1, 106, 16, 'rgba(44,30,18,0.72)');
       Gd().draw(ctx, 'coin', 3, my, COL.gold, '#b8860b');
       F.draw(ctx, U.fmt(p.cargoValue()), 19, my + 1, COL.gold, { scale: 2, shadow: false });
     }
 
     // top right: credits + galaxy
-    X.rect(ctx, VW - 130, 0, 130, 26, 'rgba(10,6,24,0.72)');
-    X.rect(ctx, VW - 122, 26, 122, 8, 'rgba(10,6,24,0.72)');
-    X.rect(ctx, VW - 126, 26, 4, 4, 'rgba(10,6,24,0.72)');
-    X.rect(ctx, VW - 130, 0, 1, 26, 'rgba(166,125,240,0.5)');
-    X.rect(ctx, VW - 122, 30, 122, 1, 'rgba(166,125,240,0.5)');
+    X.rect(ctx, VW - 130, 0, 130, 26, 'rgba(44,30,18,0.86)');
+    X.rect(ctx, VW - 122, 26, 122, 8, 'rgba(44,30,18,0.86)');
+    X.rect(ctx, VW - 126, 26, 4, 4, 'rgba(44,30,18,0.86)');
+    X.rect(ctx, VW - 130, 0, 1, 26, '#6b4a2e');
+    X.rect(ctx, VW - 122, 30, 122, 1, '#6b4a2e');
+    X.rect(ctx, VW - 130, -3, 18, 8, 'rgba(226,208,132,0.8)');
     F.draw(ctx, '$' + U.fmt(g.save.credits), VW - 8, 4, COL.gold, { right: true, scale: 2 });
-    F.draw(ctx, 'GALAXY ' + g.save.dominion.toFixed(1) + '%', VW - 8, 22, COL.lineHi, { right: true });
+    F.draw(ctx, 'GALAXY ATE ' + g.save.dominion.toFixed(1) + '%', VW - 8, 22, '#d8b48a', { right: true });
   }
   const meters = vitals;
 
@@ -251,8 +256,9 @@
     // one compact action strip: weapon, dash, scan, wire
     const wg = { pistol: 'gun', scatter: 'scatter', lance: 'lance' }[p.weapon];
     const sy = VH - 86;
-    ctx.fillStyle = 'rgba(8,4,18,0.55)';
+    ctx.fillStyle = 'rgba(44,30,18,0.78)';
     ctx.fillRect(0, sy - 4, 150, 16);
+    X.rect(ctx, 0, sy + 12, 150, 1, '#6b4a2e');
     Gd().draw(ctx, wg, 4, sy - 2, '#ffffff', '#7ef9ff');
     if (p.weapons().length > 1) F.draw(ctx, 'Q', 20, sy + 1, COL.dim, { shadow: false });
     const pip = (x, glyph, frac, col) => {
@@ -271,7 +277,7 @@
     // core integrity
     if (g.world.coreHp < g.world.coreMax) {
       const cw = 128, cx = 214;
-      F.draw(ctx, 'CORE', 182, 40, COL.core);
+      F.draw(ctx, 'PLANET GUTS', 150, 40, COL.core);
       bar(ctx, cx, 38, cw, 9, g.world.coreHp / g.world.coreMax, COL.core, { right: Math.ceil(g.world.coreHp / g.world.coreMax * 100) + '%' });
     }
     if (p.recall > 0.1) {
@@ -296,26 +302,33 @@
 
   }
 
-  /* On the moon: what you have, and what it is worth. One line, no boxes. */
+  /* At home: a plank he nailed up with the only three numbers he cares about,
+     written on it in chalk. No visor, no readout, no spaceship. */
   function homeBar(ctx, g) {
     const ore = g.vaultTotal();
     const val = g.vaultValue();
-    ctx.fillStyle = 'rgba(8,4,18,0.62)';
-    ctx.fillRect(0, 0, VW, 20);
-    ctx.fillStyle = '#5b3f96';
-    ctx.fillRect(0, 20, VW, 1);
-    Gd().draw(ctx, 'coin', 4, 3, COL.gold, '#b8860b');
-    F.draw(ctx, '$' + U.fmt(g.save.credits), 20, 2, COL.gold, { scale: 2, shadow: false });
-    const best = Object.keys(g.save.vault).sort((a, b) => D.MAT[b].cr - D.MAT[a].cr)[0];
-    if (best) PD.art.oreChip(ctx, +best, 148, 2, 16); else Gd().draw(ctx, 'ore', 150, 3, COL.dim, '#5b3f96');
-    F.draw(ctx, ore + ' ORE' + (val > 0 ? '  $' + U.fmt(val) : ''), 168, 6, ore ? '#ffb03d' : COL.dim, { shadow: false });
-    if (g.save.artifacts > 0) {
-      Gd().draw(ctx, 'star', 286, 3, COL.gold, '#b8860b');
-      F.draw(ctx, g.save.artifacts + ' ARTIFACT' + (g.save.artifacts === 1 ? '' : 'S'), 302, 6, COL.gold, { shadow: false });
-    }
-    F.draw(ctx, 'GALAXY ' + g.save.dominion.toFixed(1) + '%', VW - 6, 6, COL.lineHi, { right: true, shadow: false });
-  }
+    const H = 22;
+    // the plank, with a nail at each end
+    X.rect(ctx, 0, 0, VW, H, '#6b4a2e');
+    X.rect(ctx, 0, 0, VW, 3, '#8a6440');
+    X.rect(ctx, 0, H - 3, VW, 3, '#4a3020');
+    X.rect(ctx, 0, H, VW, 1, '#241708');
+    for (let x = 8; x < VW; x += 46) X.rect(ctx, x, 6, 12, 2, '#5a3d24');
+    for (const nx of [8, VW - 12]) { X.rect(ctx, nx, 8, 4, 4, '#c9bce8'); X.rect(ctx, nx, 8, 4, 1, '#f2e9ff'); }
 
+    Gd().draw(ctx, 'coin', 22, 4, COL.gold, '#b8860b');
+    F.draw(ctx, '$' + U.fmt(g.save.credits), 40, 3, '#ffe9a8', { scale: 2, shadow: '#3a2410' });
+
+    const best = Object.keys(g.save.vault).sort((a, b) => D.MAT[b].cr - D.MAT[a].cr)[0];
+    if (best) PD.art.oreChip(ctx, +best, 168, 3, 16); else Gd().draw(ctx, 'ore', 170, 4, '#8a6440', '#4a3020');
+    F.draw(ctx, ore + ' ROCKS' + (val > 0 ? '  (~$' + U.fmt(val) + ')' : ''), 188, 7, ore ? '#ffd7a0' : '#a8845e', { shadow: '#3a2410' });
+
+    if (g.save.artifacts > 0) {
+      Gd().draw(ctx, 'star', 316, 4, COL.gold, '#b8860b');
+      F.draw(ctx, g.save.artifacts + ' OLD THING' + (g.save.artifacts === 1 ? '' : 'S'), 332, 7, '#ffe9a8', { shadow: '#3a2410' });
+    }
+    F.draw(ctx, 'GALAXY ATE: ' + g.save.dominion.toFixed(1) + '%', VW - 8, 7, '#d8b48a', { right: true, shadow: '#3a2410' });
+  }
 
   /* ---------------------------------------------------------------- minimap
      Fog of war: only what the lamp has touched is drawn. Scanner pings paint
@@ -347,9 +360,13 @@
       mmCtx.putImageData(img, 0, 0);
     }
 
-    ctx.fillStyle = 'rgba(8,4,18,0.75)';
-    ctx.fillRect(x0 - 2, y0 - 2, MW + 4, MH + 4);
-    ctx.strokeStyle = COL.line; ctx.strokeRect(x0 - 1.5, y0 - 1.5, MW + 3, MH + 3);
+    // the map is a scrap of paper he tapes to the inside of the glass
+    ctx.fillStyle = 'rgba(44,30,18,0.86)';
+    ctx.fillRect(x0 - 4, y0 - 4, MW + 8, MH + 8);
+    ctx.strokeStyle = '#6b4a2e'; ctx.strokeRect(x0 - 3.5, y0 - 3.5, MW + 7, MH + 7);
+    X.rect(ctx, x0 - 8, y0 - 7, 18, 7, 'rgba(226,208,132,0.8)');
+    X.rect(ctx, x0 + MW - 10, y0 + MH, 18, 7, 'rgba(226,208,132,0.8)');
+    F.draw(ctx, 'WHERE I DUG', x0 + MW / 2, y0 + MH + 6, '#a8845e', { center: true, shadow: false });
     ctx.imageSmoothingEnabled = false;
     ctx.drawImage(mmCv, 0, 0, w.w, w.h, ox, oy, w.w * sc, w.h * sc);
 
@@ -607,12 +624,12 @@
       wipe = button(ctx, cx - 40, 174, 80, 14, 'NEW GAME', { accent: '#8a2f4a' });
       F.draw(ctx, '$' + U.fmt(g.save.credits) + '   GALAXY ' + g.save.dominion.toFixed(1) + '%', cx, 194, COL.gold, { center: true });
     }
-    const legend = [['hand', 'FLY'], ['hand', 'DRILL'], ['gun', 'SHOOT'], ['hole', 'HOME']];
+    const legend = [['hand', 'FLY'], ['drill', 'DIG'], ['gun', 'SHOOT'], ['sell', 'ABAY']];
     for (let i = 0; i < legend.length; i++) {
       PD.glyph.draw(ctx, legend[i][0], 14 + i * 80, 240, COL.gold, '#b8860b');
       F.draw(ctx, legend[i][1], 30 + i * 80, 244, COL.text);
     }
-    F.draw(ctx, 'HOLD MOUSE / TOUCH TO FLY     E DOCK     Q SWAP     TAB SCAN', VW / 2, 258, COL.dim, { center: true });
+    F.draw(ctx, 'HOLD MOUSE OR TOUCH TO FLY AND DRILL     E USE THINGS     Q SWAP GUN', VW / 2, 258, COL.dim, { center: true });
     return { start, wipe };
   }
 

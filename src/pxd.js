@@ -167,11 +167,32 @@
     for (let yy = Math.round(y) + (Math.floor(phase || 0) % gap); yy < y + h; yy += gap) ctx.fillRect(Math.round(x), yy, Math.round(w), 1);
   }
 
-  /* Checkerboard dither between two shades: the classic way to fake a mid-tone. */
+  /* Checkerboard dither between two shades: the classic way to fake a mid-tone.
+     Painting it a pixel at a time costs tens of thousands of fills a frame, so
+     the checker lives in a 2x2 tile and the whole patch is one repeat fill. */
+  const patStore = new WeakMap();
+  function ditherPat(ctx, col, odd) {
+    let byCtx = patStore.get(ctx);
+    if (!byCtx) { byCtx = {}; patStore.set(ctx, byCtx); }
+    const key = col + (odd ? '|1' : '|0');
+    let pat = byCtx[key];
+    if (!pat) {
+      const cv = document.createElement('canvas');
+      cv.width = cv.height = 2;
+      const c = cv.getContext('2d');
+      c.fillStyle = col;
+      if (odd) { c.fillRect(1, 0, 1, 1); c.fillRect(0, 1, 1, 1); }
+      else { c.fillRect(0, 0, 1, 1); c.fillRect(1, 1, 1, 1); }
+      pat = c.createPattern(cv, 'repeat');
+      byCtx[key] = pat;
+    }
+    return pat;
+  }
   function dither(ctx, x, y, w, h, col, odd) {
-    ctx.fillStyle = col;
     x = Math.round(x); y = Math.round(y); w = Math.round(w); h = Math.round(h);
-    for (let j = 0; j < h; j++) for (let i = (j + (odd ? 1 : 0)) % 2; i < w; i += 2) ctx.fillRect(x + i, y + j, 1, 1);
+    if (w <= 0 || h <= 0) return;
+    ctx.fillStyle = ditherPat(ctx, col, odd);
+    ctx.fillRect(x, y, w, h);
   }
 
   PD.pxd = { rect, plate, frame, oct, octPath, blob, ring, line, curve, orbit, glowBands, scanlines, dither };

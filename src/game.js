@@ -50,19 +50,9 @@
       totalMined: 0, totalEarned: 0, bodyIndex: 0, seen: {},
       vault: {},                                  // ore waiting on the moon
       cos: { suit: 'rose', skin: 'green', glass: 'sky', drill: 'steel', trim: 'stock' },
-      build: startBuildings(),                    // building id -> level
-      parts: {},                                  // fabricated parts in store
-      installed: {},                              // parts fitted to the pod
-      neur: {},                                   // neurons the Mind has grown
       artifacts: 0,                               // relics hauled home
       seenIntro: 1
     };
-  }
-
-  function startBuildings() {
-    const b = {};
-    for (const bd of D.BUILDINGS) b[bd.id] = bd.start || 0;
-    return b;
   }
 
   function loadGame() {
@@ -86,31 +76,22 @@
       if (s.vault) for (const k in s.vault) { const n = +s.vault[k]; if (n > 0 && D.MAT[k]) base.vault[k] = n; }
       if (s.owned) base.owned = s.owned;
       if (s.cos) for (const k in base.cos) if (s.cos[k]) base.cos[k] = s.cos[k];
-      if (s.build) for (const b of D.BUILDINGS) if (s.build[b.id] !== undefined) base.build[b.id] = U.clamp(+s.build[b.id] || 0, 0, b.max);
-      if (s.parts) for (const k in s.parts) if (D.RECIPE[k] && +s.parts[k] > 0) base.parts[k] = +s.parts[k];
-      if (s.installed) for (const k in s.installed) if (D.RECIPE[k] && +s.installed[k] > 0) base.installed[k] = +s.installed[k];
-      if (s.neur) for (const k in s.neur) if (D.UPG[k]) base.neur[k] = U.clamp(+s.neur[k] || 0, 0, D.UPG[k].max);
+      // everything you own is a thing you bought on Abay, stored flat
+      const flat = s.upg || s.neur;
+      if (flat) { for (const u of D.UPGRADES) if (flat[u.id] !== undefined) base.upg[u.id] = U.clamp(+flat[u.id] || 0, 0, u.max); }
       base.artifacts = +s.artifacts || 0;
     }
     g.save = base;
     recompute();
   }
 
-  /* Every stat is what the Mind has grown plus what is bolted to the pod. */
+  /* Every stat is simply the level of the thing you bought for it. */
   function recompute() {
     const sv = g.save;
-    for (const u of D.UPGRADES) sv.upg[u.id] = U.clamp(sv.neur[u.id] || 0, 0, u.max);
-    for (const id in sv.installed) {
-      const r = D.RECIPE[id];
-      if (!r) continue;
-      for (const k in r.gives) if (D.UPG[k]) sv.upg[k] = U.clamp(sv.upg[k] + r.gives[k] * sv.installed[id], 0, D.UPG[k].max);
-    }
-    // the terminal's own level is the broker
-    sv.upg.crew = U.clamp(Math.max(0, (sv.build.terminal || 0) - 1), 0, D.UPG.crew.max);
+    for (const u of D.UPGRADES) sv.upg[u.id] = U.clamp(sv.upg[u.id] || 0, 0, u.max);
     if (g.player) { g.player.o2 = Math.min(g.player.o2, g.player.stat('oxygen')); }
   }
   g.recompute = recompute;
-  const applyBuildings = recompute;
 
   function saveGame() {
     try { localStorage.setItem(SAVE_KEY, JSON.stringify(Object.assign({}, g.save))); } catch (e) { /* private mode */ }
@@ -119,7 +100,6 @@
     try { localStorage.removeItem(SAVE_KEY); } catch (e) {}
     g.save = blankSave();
     recompute();
-    g.printing = null;
     startBody(0, true);
     dock(true);
   }
@@ -133,78 +113,35 @@
     return n * 2.4 * D.UPG.droneyield.value(g.save.upg.droneyield || 0) * (1 + g.save.dominion / 100);
   };
 
-  g.buildLevel = function (id) { return g.save.build[id] || 0; };
-  g.zoneOpen = function (zi) { return zi < Math.max(1, g.buildLevel('obs')); };
-  g.slots = function () { return g.buildLevel('docks') * 2; };
-  g.installedCount = function () { let n = 0; for (const k in g.save.installed) n += g.save.installed[k]; return n; };
+  /* Sectors open when you buy another WARP THINGY off bort_electronics. */
+  g.zoneOpen = function (zi) { return zi < 1 + (g.save.upg.warp || 0); };
 
-  /* The multi-tool: pay for the blueprint, and the printer takes it from there. */
-  g.startBuild = function (id) {
-    const b = D.BUILD[id];
-    if (!b || g.buildLevel(id) > 0 || g.printing) return false;
-    const cost = D.buildCost(b, 0);
+  /* ------------------------------------------------------------------ ABAY
+     One shop, one button. Pay the man, the thing is instantly on your moon,
+     nobody asks where it came from and neither do you. */
+  g.abayCost = function (id) {
+    const it = D.ABAYX[id];
+    if (!it) return Infinity;
+    return D.abayCost(it, g.save.upg[id] || 0);
+  };
+  g.abayMax = function (id) {
+    const it = D.ABAYX[id];
+    const u = D.UPG[id];
+    return Math.min(it ? it.max : 0, u ? u.max : 0);
+  };
+  g.abayBuy = function (id) {
+    const it = D.ABAYX[id];
+    if (!it) { A.sfx.deny(); return false; }
+    const lvl = g.save.upg[id] || 0;
+    if (lvl >= g.abayMax(id)) { A.sfx.deny(); return false; }
+    const cost = D.abayCost(it, lvl);
     if (g.save.credits < cost) { A.sfx.deny(); return false; }
     g.save.credits -= cost;
-    g.printing = { id, t: 0, dur: 3.2 };
-    A.sfx.tone(200, { type: 'sawtooth', to: 600, dur: 0.5, vol: 0.08 });
-    saveGame();
-    return true;
-  };
-  g.finishBuild = function (id) {
-    g.save.build[id] = Math.max(1, g.save.build[id] || 0);
-    recompute();
-    A.sfx.buy(); A.sfx.fanfare && A.sfx.fanfare();
-    const b = D.BUILD[id];
-    const hx = b.x, hy = PD.home.groundY(b.x) - 40;
-    FX.ring(hx, hy, 6, 50, 0.8, '#58e8ff', 2);
-    for (let i = 0; i < 30; i++) FX.spawn({ x: hx + U.rand(-30, 30), y: hy + U.rand(-20, 20), vx: U.rand(-50, 50), vy: U.rand(-90, -10), life: 0.9, size: 2, color: i % 2 ? '#58e8ff' : '#ffffff', grav: 80, drag: 1, glow: 1 });
-    FX.text(hx, hy - 20, b.name + ' ONLINE', '#58e8ff', 2);
-    saveGame();
-  };
-  g.upgradeBuilding = function (id) {
-    const b = D.BUILD[id];
-    const lvl = g.buildLevel(id);
-    if (!b || lvl <= 0 || lvl >= b.max) { A.sfx.deny(); return false; }
-    const cost = D.buildCost(b, lvl);
-    if (g.save.credits < cost) { A.sfx.deny(); return false; }
-    g.save.credits -= cost;
-    g.save.build[id] = lvl + 1;
-    recompute();
-    A.sfx.buy();
-    A.sfx.tone(320, { type: 'square', to: 880, dur: 0.24, vol: 0.1 });
-    const hx = b.x, hy = PD.home.groundY(b.x) - 30;
-    FX.ring(hx, hy, 6, 34, 0.7, '#ffd34d', 2);
-    for (let i = 0; i < 22; i++) FX.spawn({ x: hx + U.rand(-16, 16), y: hy + U.rand(-10, 10), vx: U.rand(-40, 40), vy: U.rand(-70, -10), life: 0.8, size: 2, color: i % 2 ? '#ffd34d' : '#8affa0', grav: 90, drag: 1, glow: 1 });
-    FX.text(hx, hy - 14, b.name + ' LV' + (lvl + 1), '#ffd34d', 2);
-    saveGame();
-    return true;
-  };
-
-  /* Fabricator: ore in, a part out. */
-  g.craft = function (rid) {
-    const r = D.RECIPE[rid];
-    if (!r || r.tier > g.buildLevel('fab')) { A.sfx.deny(); return false; }
-    for (const k in r.mats) if ((g.save.vault[D.M[k]] || 0) < r.mats[k]) { A.sfx.deny(); return false; }
-    for (const k in r.mats) { g.save.vault[D.M[k]] -= r.mats[k]; if (g.save.vault[D.M[k]] <= 0) delete g.save.vault[D.M[k]]; }
-    g.save.parts[rid] = (g.save.parts[rid] || 0) + 1;
-    A.sfx.buy();
-    A.sfx.tone(140, { type: 'sawtooth', to: 70, dur: 0.3, vol: 0.1 });
-    const b = D.BUILD.fab;
-    FX.text(b.x, PD.home.groundY(b.x) - 60, r.name + ' MADE', '#ffb03d', 2);
-    saveGame();
-    return true;
-  };
-  /* Docks: fit a part to the pod. */
-  g.install = function (rid) {
-    if ((g.save.parts[rid] || 0) <= 0 || g.installedCount() >= g.slots()) { A.sfx.deny(); return false; }
-    g.save.parts[rid]--;
-    if (g.save.parts[rid] <= 0) delete g.save.parts[rid];
-    g.save.installed[rid] = (g.save.installed[rid] || 0) + 1;
+    g.save.upg[id] = lvl + 1;
     recompute();
     if (g.player) { g.player.o2 = g.player.stat('oxygen'); g.player.hull = g.player.stat('hull'); }
     A.sfx.buy();
-    const b = D.BUILD.docks;
-    FX.text(b.x, PD.home.groundY(b.x) - 60, D.RECIPE[rid].name + ' FITTED', '#58e8ff', 2);
+    A.sfx.tone(320, { type: 'square', to: 880, dur: 0.2, vol: 0.09 });
     saveGame();
     return true;
   };
@@ -369,20 +306,13 @@
   g.sellAll = function () {
     const total = g.vaultValue();
     if (!total) { A.sfx.deny(); return; }
-    let lots = 0;
+    let lots = 0;   // counted for the sound of it
     for (const k in g.save.vault) lots += g.save.vault[k];
     g.save.vault = {};
     g.save.credits += total;
     g.save.totalEarned += total;
     A.sfx.sell();
     for (let i = 0; i < 8; i++) setTimeout(() => A.sfx.coin(i), i * 55);
-    const bx = D.BUILD.terminal.x, by = PD.home.groundY(D.BUILD.terminal.x) - 60;
-    FX.ring(bx, by, 8, 40, 0.8, '#ffd34d', 2);
-    for (let i = 0; i < Math.min(60, 12 + lots * 2); i++) {
-      FX.spawn({ x: bx + U.rand(-14, 14), y: by + U.rand(-8, 8), vx: U.rand(-60, 60), vy: U.rand(-110, -30),
-        life: 1.1, size: 2, color: i % 3 ? '#ffd34d' : '#fff3c0', grav: 150, drag: 1, glow: 1 });
-    }
-    FX.text(bx, by - 16, '+$' + U.fmt(total), '#ffd34d', 2);
     saveGame();
   };
 
@@ -427,7 +357,7 @@
         FX.ring(x, y, 6, 60, 1.1, '#c9a0ff', 2);
         FX.flash(0.5, '#c9a0ff');
         A.sfx.fanfare && A.sfx.fanfare();
-        if (PD.scenes) PD.scenes.push(D.ORB.lines[(Math.random() * D.ORB.lines.length) | 0]);
+        if (PD.home && PD.home.say) PD.home.say(D.ORB.lines[(Math.random() * D.ORB.lines.length) | 0]);
       } else FX.text(x, y - 12, 'ARTIFACT', '#ffd34d', 2);
     }
     const p = g.player;
@@ -567,12 +497,13 @@
     p.invuln = 1;
     const n = stow();
     g.state = 'home';
-    PD.home.enter(g, D.BUILD.docks.x + 30);
+    const pad = PD.home.SPOTS[1].x;
+    PD.home.enter(g, pad - 70);
     A.sfx.dock();
     A.drill(false); A.thrust(0);
     if (n > 0) {
-      // the haul lands on the pad as a little shower of ore
-      const bx = D.BUILD.docks.x, by = PD.home.groundY(D.BUILD.docks.x) - 40;
+      // the haul tumbles out of the saucer and rolls across the regolith
+      const bx = pad, by = PD.home.groundY(pad) - 30;
       for (let i = 0; i < Math.min(40, n * 2); i++) {
         FX.spawn({ x: bx + U.rand(-12, 12), y: by, vx: U.rand(-40, 40), vy: U.rand(-90, -20),
           life: 0.9, size: 2, color: i % 2 ? '#ffb03d' : '#c9bce8', grav: 160, drag: 1 });
@@ -802,8 +733,8 @@
       FX.update(dt, null);
       return;
     }
-    if (g.state === 'mind') {
-      PD.mind.update(dt, g);
+    if (g.state === 'desk') {
+      PD.desk.update(dt, g);
       return;
     }
 
@@ -918,7 +849,7 @@
         else if (esc) { g.pausedFrom = 'play'; g.state = 'pause'; A.drill(false); A.thrust(0); }
         break;
       case 'home':
-      case 'mind':
+      case 'desk':
         break;                                   // these scenes handle their own keys
       case 'starmap':
         break;
@@ -1113,8 +1044,9 @@
       return;
     }
 
-    if (g.state === 'mind') {
-      PD.mind.draw(ctx, g, g.time);
+    if (g.state === 'desk') {
+      PD.desk.draw(ctx, g, g.time);
+      PD.touch.draw(ctx, 'ui', g);
       UI.endFrame();
       blit();
       return;
@@ -1125,7 +1057,7 @@
       FX.drawWorld(ctx, { x: Math.round(g.intCam), y: 0 });
       FX.drawFloaters(ctx, { x: Math.round(g.intCam), y: 0 }, (c, str, x, y, col, size) =>
         F.draw(c, str, x, y, col, { center: true, scale: size >= 2 ? 2 : 1 }));
-      if (!PD.home.UI.mode) UI.homeBar(ctx, g);
+      UI.homeBar(ctx, g);
       PD.touch.draw(ctx, PD.home.touchMode(), g);
       UI.endFrame();
       blit();

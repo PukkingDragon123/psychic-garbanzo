@@ -897,50 +897,7 @@
   /* The core reads as one molten orb rather than a stack of flat tiles:
      each tile is shaded by its distance from the core centre. */
   /* Magma: a slow churn of bright cells on a dark crust, with a hot skin. */
-  /* Foliage pass. Plants are derived from the cell hash at draw time, so
-     mining a tile takes its garden with it and nothing has to be tracked. */
-  World.prototype.drawFlora = function (ctx, cam, vw, vh, time) {
-    const c0 = Math.max(1, Math.floor(cam.x / TILE));
-    const c1 = Math.min(this.w - 2, Math.ceil((cam.x + vw) / TILE));
-    const r0 = Math.max(1, Math.floor(cam.y / TILE));
-    const r1 = Math.min(this.h - 2, Math.ceil((cam.y + vh) / TILE));
-    const FL = PD.flora;
-    if (!FL) return;
-    for (let cy = r0; cy <= r1; cy++) {
-      for (let cx = c0; cx <= c1; cx++) {
-        const i = cy * this.w + cx;
-        if (this.cells[i]) continue;                 // plants live in open cells
-        const below = this.cells[i + this.w];
-        const above = this.cells[i - this.w];
-        if (!below && !above) continue;
-        const h = U.hash2(cx * 7 + 3, cy * 13 + 11);
-        // thicker on a planet's skin, sparser in the caves below
-        const skin = !this.inside[i];
-        if (h > (skin ? 0.34 : 0.16)) continue;
-        // keep neighbours apart so plants never merge into a carpet
-        if (U.hash2(cx * 5 + 1, cy) < 0.4 && this.cells[i + 1] === 0 && U.hash2((cx + 1) * 7 + 3, cy * 13 + 11) < 0.16) continue;
-        if (below && this.cells[i - this.w]) continue;  // needs headroom to grow into
-        const band = this.strata[this.stratum[i]];
-        const list = band && band.flora;
-        if (!list || !list.length) continue;
-        const sx = cx * TILE - cam.x;
-        const sy = cy * TILE - cam.y;
-        const seed = cx * 31 + cy * 17;
-        const kind = list[(U.hash2(cx + 5, cy + 9) * list.length) | 0];
-        const size = 7 + U.hash2(cx * 3, cy * 5) * 8;
-        const jitter = (U.hash2(cx * 11, cy * 2) - 0.5) * 4;
-        if (below) FL.draw(ctx, kind, sx + TILE / 2 + jitter, sy + TILE + 1, size, seed, time, 1);
-        else if (h < 0.07) FL.draw(ctx, hangKind(kind), sx + TILE / 2 + jitter, sy - 1, size * 0.9, seed + 5, time, -1);
-      }
-    }
-  };
-  function hangKind(k) {
-    if (k === 'grass' || k === 'fern' || k === 'frond') return 'vine';
-    if (k === 'shroom' || k === 'moss') return 'tendril';
-    if (k === 'ember' || k === 'coral') return k;
-    if (k === 'bone') return 'root';
-    return k === 'icespike' ? 'icespike' : (k === 'crystal' ? 'crystal' : 'root');
-  }
+  World.prototype.drawFlora = function () {};   // no plants: these are dead rocks
 
   World.prototype.drawLavaTile = function (ctx, sx, sy, cx, cy, time) {
     const swirl = Math.sin(time * 1.6 + cx * 0.9 + cy * 1.3) * 0.5 + 0.5;

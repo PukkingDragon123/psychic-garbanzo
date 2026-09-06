@@ -186,107 +186,90 @@
     'ESCAPE (THE ORE-COLADA SONG)', 'CHERRY BOMB CRATER'
   ];
 
-  /* ---------------------------------------------------------------- your moon
-     The hub is a dead little moon you own. Five buildings stand on it, each
-     one raised from a hologram blueprint by the multi-purpose tool and each
-     one levelled with credits. No staff, no menus that are not a building. */
-  const BUILDINGS = [
-    {
-      id: 'docks', name: 'THE DOCKS', glyph: 'home', x: 150, max: 5, base: 900, start: 1,
-      blurb: 'Your pod lives here, and so does the tape deck. Fit the parts you fabricate.'
-    },
-    {
-      id: 'terminal', name: 'TERMINAL', glyph: 'sell', x: 330, max: 6, base: 500, start: 1,
-      blurb: 'Sell ore. Argue with a raccoon. Each level lifts prices.'
-    },
-    {
-      id: 'fab', name: 'FABRICATOR', glyph: 'build', x: 500, max: 4, base: 700, start: 0,
-      blurb: 'Turns ore into pod parts. Each level opens a tier of recipes.'
-    },
-    {
-      id: 'mind', name: 'THE MIND', glyph: 'eye', x: 690, max: 4, base: 1600, start: 0,
-      blurb: 'A Celestial brain in a tank of acid. It knows everything and resents being asked.'
-    },
-    {
-      id: 'obs', name: 'OBSERVATORY', glyph: 'planet', x: 880, max: 4, base: 3000, start: 1,
-      blurb: 'Finds worlds worth ruining. Each level opens another sector.'
-    }
+  /* ------------------------------------------------------------------ abay
+     You are not clever with machines. You stole a computer off a human world
+     and found a shopping site on it. Everything you will ever own comes from
+     there: you list your rocks, and you buy junk with the proceeds. Sellers
+     are all obviously dodgy. Delivery is instant because you are in orbit and
+     they are lying about the warehouse. */
+  const ABAY = [
+    { id: 'drill', name: 'BIG DRILL BIT (USED)', seller: 'krunk_tools_99', stars: 4,
+      blurb: 'CHEWS ROCK GOOD. ONLY DROPPED ONCE. SMELLS FINE.', base: 260, growth: 1.62, max: 12 },
+    { id: 'oxygen', name: 'AIR CAN, EXTRA BIG', seller: 'lungmart', stars: 5,
+      blurb: 'BREATHE FOR LONGER TIME. HUMAN LUNG NOT INCLUDED.', base: 240, growth: 1.6, max: 14 },
+    { id: 'cargo', name: 'BIGGER POCKET SACK', seller: 'sack_dave', stars: 3,
+      blurb: 'HOLDS MORE ROCK. DO NOT PUT LIQUID IN SACK.', base: 280, growth: 1.6, max: 14 },
+    { id: 'hull', name: 'ARMOUR PLATE (DENTED)', seller: 'krunk_tools_99', stars: 4,
+      blurb: 'STOPS TEETH. MOSTLY. NO REFUND IF BITTEN.', base: 300, growth: 1.6, max: 12 },
+    { id: 'tether', name: 'VERY LONG STRING', seller: 'ropeguy', stars: 5,
+      blurb: 'LONGER STRING = GO DEEPER. IT IS JUST STRING.', base: 260, growth: 1.58, max: 12 },
+    { id: 'thruster', name: 'LEAF BLOWER (SPACE)', seller: 'garden_of_zorb', stars: 2,
+      blurb: 'PUSHES YOU ALONG. LOUD. NEIGHBOURS COMPLAIN.', base: 320, growth: 1.62, max: 10 },
+    { id: 'pistol', name: 'ZAP GUN, POINTY END', seller: 'bang_bang_bort', stars: 4,
+      blurb: 'MAKES ALIEN GO AWAY. AIM AT THE ALIEN NOT YOU.', base: 340, growth: 1.62, max: 12 },
+    { id: 'lamp', name: 'TORCH ON HAT', seller: 'lungmart', stars: 5,
+      blurb: 'SEE IN DARK. BATTERY IS A SMALL ANGRY ROCK.', base: 200, growth: 1.55, max: 8 },
+    { id: 'magnet', name: 'SUCKY MAGNET', seller: 'sack_dave', stars: 3,
+      blurb: 'ROCKS COME TO YOU. ALSO YOUR SPOON. SORRY.', base: 300, growth: 1.6, max: 8 },
+    { id: 'dash', name: 'PANIC BOOSTERS', seller: 'garden_of_zorb', stars: 3,
+      blurb: 'GO FAST SUDDENLY. GOOD FOR RUNNING AWAY.', base: 420, growth: 1.6, max: 8 },
+    { id: 'scanner', name: 'BEEPY FINDER BOX', seller: 'bort_electronics', stars: 4,
+      blurb: 'BEEPS NEAR SHINY. BEEPS NEAR NOTHING TOO.', base: 380, growth: 1.6, max: 8 },
+    { id: 'reach', name: 'DRILL ARM EXTENDER', seller: 'krunk_tools_99', stars: 3,
+      blurb: 'ARM LONGER. DIG WIDER. LOOKS SILLY.', base: 340, growth: 1.7, max: 8 },
+    { id: 'trigger', name: 'FASTER TRIGGER SPRING', seller: 'bang_bang_bort', stars: 4,
+      blurb: 'PEW PEW BECOMES PEWPEWPEW.', base: 360, growth: 1.7, max: 8 },
+    { id: 'scatter', name: 'WIDE BANG GUN', seller: 'bang_bang_bort', stars: 5,
+      blurb: 'FIVE BITS AT ONCE. PRESS Q TO SWAP TO IT.', base: 900, growth: 1.7, max: 10 },
+    { id: 'lance', name: 'HOT LINE MAKER', seller: 'bort_electronics', stars: 5,
+      blurb: 'MAKES A LONG HOT LINE. CUTS ROCK AND FRIENDS.', base: 4800, growth: 1.72, max: 10 },
+    { id: 'crew', name: 'SELLING ADVICE BOOK', seller: 'biz_grunk', stars: 2,
+      blurb: 'TEACHES HAGGLE. EVERY ROCK SELLS FOR MORE.', base: 700, growth: 1.7, max: 8 },
+    { id: 'refine', name: 'ROCK WASHING MACHINE', seller: 'biz_grunk', stars: 3,
+      blurb: 'CLEAN ROCK SELLS BETTER. DO NOT WASH SELF.', base: 1400, growth: 1.72, max: 8 },
+    { id: 'greed', name: 'GREED GLAND (JAR)', seller: 'wet_ted', stars: 1,
+      blurb: 'PUT IN MOUTH. WANT MONEY MORE. THIS IS FINE.', base: 2400, growth: 1.9, max: 4 },
+    { id: 'lung', name: 'SPARE LUNG, USED', seller: 'wet_ted', stars: 1,
+      blurb: 'THIRD LUNG. DO NOT ASK WHERE FROM.', base: 1200, growth: 1.8, max: 4 },
+    { id: 'belly', name: 'STRETCHY STOMACH', seller: 'wet_ted', stars: 1,
+      blurb: 'CARRY MORE INSIDE YOU. LEGAL IN 2 SYSTEMS.', base: 1400, growth: 1.8, max: 4 },
+    { id: 'ironskin', name: 'SKIN, THICKER', seller: 'wet_ted', stars: 1,
+      blurb: 'BUY SKIN. WEAR SKIN. BE TOUGH.', base: 1300, growth: 1.8, max: 4 },
+    { id: 'drones', name: 'LITTLE ROBOT FRIENDS', seller: 'bort_electronics', stars: 3,
+      blurb: 'THEY DIG WHILE YOU SIT. THEY DO NOT LIKE YOU.', base: 900, growth: 1.28, max: 40 },
+    { id: 'droneyield', name: 'ROBOT MOTIVATION POSTER', seller: 'biz_grunk', stars: 2,
+      blurb: 'SAYS HANG IN THERE. ROBOTS DIG HARDER. FEAR.', base: 1400, growth: 1.34, max: 25 },
+    { id: 'scooter', name: 'ENGINE FOR THE SAUCER', seller: 'garden_of_zorb', stars: 2,
+      blurb: 'SAUCER GOES. WAS A BOAT ENGINE. DO NOT CARE.', base: 400, growth: 1.6, max: 8 },
+    { id: 'warp', name: 'WARP THINGY', seller: 'bort_electronics', stars: 4,
+      blurb: 'GO TO FURTHER SECTORS. BUY MORE FOR MORE FAR.', base: 4000, growth: 3.4, max: 3 }
   ];
-  const BUILD = {};
-  for (const b of BUILDINGS) BUILD[b.id] = b;
-  function buildCost(b, level) {
-    return Math.round(b.base * Math.pow(1.85, Math.max(0, level - (b.start || 0))) / 10) * 10;
+  const ABAYX = {};
+  for (const it of ABAY) ABAYX[it.id] = it;
+  function abayCost(it, level) {
+    return Math.round(it.base * Math.pow(it.growth, level) / 10) * 10;
   }
-
-  /* ------------------------------------------------------------ the fabricator
-     Ore in, pod parts out. A part is fitted at the docks and adds levels to
-     the stat it names. Tiers open with the fabricator's own level. */
-  const RECIPES = [
-    { id: 'plate',   name: 'HULL PLATE',    glyph: 'hull',   tier: 1, mats: { iron: 6, stone: 6 },     gives: { hull: 2 },              blurb: 'Bolted armour. +52 hull.' },
-    { id: 'scrub',   name: 'AIR SCRUBBER',  glyph: 'o2',     tier: 1, mats: { ice: 4, copper: 3 },     gives: { oxygen: 2 },            blurb: 'Breathes for you. +52 air.' },
-    { id: 'bit',     name: 'TUNGSTEN BIT',  glyph: 'drill',  tier: 1, mats: { iron: 8, copper: 4 },    gives: { drill: 2, reach: 1 },   blurb: 'Chews harder rock, wider.' },
-    { id: 'coil',    name: 'THRUST COIL',   glyph: 'speed',  tier: 2, mats: { copper: 6, silver: 2 },  gives: { thruster: 2, dash: 1 }, blurb: 'Punchier jets and a quicker dash.' },
-    { id: 'spool',   name: 'WIRE SPOOL',    glyph: 'belt',   tier: 2, mats: { iron: 10, silver: 3 },   gives: { tether: 2 },            blurb: 'Twelve more metres of wire.' },
-    { id: 'magnet',  name: 'ORE MAGNET',    glyph: 'weight', tier: 2, mats: { iron: 4, gold: 2 },      gives: { magnet: 2, cargo: 1 },  blurb: 'Pulls loot from further away.' },
-    { id: 'lens',    name: 'SCAN LENS',     glyph: 'scan',   tier: 3, mats: { crystal: 4, sapphire: 2 }, gives: { scanner: 2, lamp: 2 }, blurb: 'Sees ore through rock.' },
-    { id: 'cell',    name: 'VOID CELL',     glyph: 'lance',  tier: 3, mats: { void: 2, gold: 4 },      gives: { lance: 1, trigger: 2 }, blurb: 'Powers the plasma lance.' },
-    { id: 'heart',   name: 'STAR HEART',    glyph: 'star',   tier: 4, mats: { star: 2, diamond: 1 },   gives: { drill: 3, oxygen: 3, cargo: 3 }, blurb: 'A piece of a sun, in a box.' }
-  ];
-  const RECIPE = {};
-  for (const r of RECIPES) RECIPE[r.id] = r;
-
-  /* ------------------------------------------------------------------ the mind
-     The skill tree is a brain. Neurons sit in rings around the stem; a neuron
-     fires (can be bought) once one it is wired to has a level, and the mind's
-     own level decides how deep the rings go. Angles are degrees, 0 = up. */
-  const NEURONS = [
-    { id: 'drill',    ring: 0, a: 0,   links: [] },
-    { id: 'oxygen',   ring: 1, a: 300, links: ['drill'] },
-    { id: 'cargo',    ring: 1, a: 60,  links: ['drill'] },
-    { id: 'pistol',   ring: 1, a: 120, links: ['drill'] },
-    { id: 'thruster', ring: 1, a: 180, links: ['drill'] },
-    { id: 'hull',     ring: 1, a: 240, links: ['drill'] },
-    { id: 'reach',    ring: 1, a: 0,   links: ['drill'] },
-    { id: 'lamp',     ring: 2, a: 285, links: ['oxygen'] },
-    { id: 'lung',     ring: 2, a: 320, links: ['oxygen'] },
-    { id: 'magnet',   ring: 2, a: 45,  links: ['cargo'] },
-    { id: 'belly',    ring: 2, a: 80,  links: ['cargo'] },
-    { id: 'trigger',  ring: 2, a: 110, links: ['pistol'] },
-    { id: 'scatter',  ring: 2, a: 140, links: ['pistol'] },
-    { id: 'dash',     ring: 2, a: 175, links: ['thruster'] },
-    { id: 'tether',   ring: 2, a: 210, links: ['thruster', 'hull'] },
-    { id: 'ironskin', ring: 2, a: 245, links: ['hull'] },
-    { id: 'scanner',  ring: 2, a: 10,  links: ['reach'] },
-    { id: 'greed',    ring: 3, a: 30,  links: ['magnet', 'scanner'] },
-    { id: 'lance',    ring: 3, a: 125, links: ['trigger', 'scatter'] },
-    { id: 'refine',   ring: 3, a: 70,  links: ['belly'] },
-    { id: 'drones',   ring: 3, a: 200, links: ['dash', 'tether'] },
-    { id: 'crew',     ring: 3, a: 265, links: ['ironskin', 'lamp'] },
-    { id: 'kiln',     ring: 3, a: 335, links: ['lung'] }
-  ];
-  const NEURON = {};
-  for (const n of NEURONS) NEURON[n.id] = n;
 
   /* -------------------------------------------------------------------- zones
      The galaxy is four sectors. Each one past the first is locked behind a
      drive you buy outright -- that is the only travel gate in the game. */
   const ZONES = [
     {
-      id: 'home', name: 'THE SKULL REACH', sub: 'You live in a dead giant\u2019s head. Rent is cheap.',
+      id: 'home', name: 'THE SKULL REACH', sub: 'CLOSE TO HOME. ROCKS ARE RUBBISH BUT SO ARE YOU.',
       star: '#ffd34d', tint: '#8a6a4f', x: 96, y: 178, bodies: [0, 1, 2], drive: null
     },
     {
-      id: 'ember', name: 'THE FORGE BELT', sub: 'Gilded foundries, Reaver chop shops, things with teeth.',
+      id: 'ember', name: 'THE FORGE BELT', sub: 'HOT. LOUD. THINGS WITH TEETH LIVE HERE.',
       star: '#ff8a3d', tint: '#c67a3d', x: 196, y: 106, bodies: [3, 4],
       drive: { name: 'ION SLED', cost: 26000, blurb: 'Burns hot enough to cross the belt.' }
     },
     {
-      id: 'rot', name: 'THE ROT', sub: 'Dead moons. Rude fossils. Nova Watch patrols that never look up.',
+      id: 'rot', name: 'THE ROT', sub: 'DEAD MOONS. RUDE FOSSILS. SMELLS OF OLD SOUP.',
       star: '#7ef9ff', tint: '#b3c4d8', x: 300, y: 182, bodies: [5, 6],
       drive: { name: 'FOLD COIL', cost: 420000, blurb: 'Folds the gap to the dead worlds.' }
     },
     {
-      id: 'core', name: 'THE CORE DEEP', sub: 'Where the Celestials kept the good stuff, then died on top of it.',
+      id: 'core', name: 'THE CORE DEEP', sub: 'THE GOOD STUFF. ALSO EVERYTHING THAT WANTS TO EAT YOU.',
       star: '#ff5fa8', tint: '#ffc44d', x: 402, y: 96, bodies: [7, 8, 9],
       drive: { name: 'VOID ANCHOR', cost: 5200000, blurb: 'Grips the throat of the galaxy and pulls.' }
     }
@@ -719,5 +702,5 @@
   }
 
   PD.data = { MAT, M, ENEMY, BODIES, UPGRADES, UPG, upgradeCost, recipe, COSMETICS, COS, TITLES, titleFor, bountyFor,
-    STRATA, ZONES, zoneOf, FLORA, BUILDINGS, BUILD, buildCost, RECIPES, RECIPE, NEURONS, NEURON, FACTIONS, LORE, ORB, MIX, MACHINES, METALS, GEMS, JUNK, goodOf, goodFromKey, NODES, appraiseSeconds, appraiseFee };
+    STRATA, ZONES, zoneOf, FLORA, ABAY, ABAYX, abayCost, FACTIONS, LORE, ORB, MIX, MACHINES, METALS, GEMS, JUNK, goodOf, goodFromKey, NODES, appraiseSeconds, appraiseFee };
 })(window.PD);
