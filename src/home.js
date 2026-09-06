@@ -87,8 +87,8 @@
     if (g.printing) return;
     if (b.id === 'obs') { g.openChart(); return; }
     if (b.id === 'mind') { PD.mind.open(g); return; }
-    UI.mode = b.id; UI.sel = 0;
-    A.sfx.tone(180, { type: 'square', to: 900, dur: 0.18, vol: 0.08 });
+    UI.mode = b.id;
+    PD.scenes.enter(b.id, g);
   }
 
   /* ---------------------------------------------------------------- update */
@@ -111,14 +111,14 @@
       if (g.printing.t >= g.printing.dur) { const id = g.printing.id; g.printing = null; g.finishBuild(id); }
     }
 
-    if (UI.mode) { updatePanel(dt, g); return; }
+    if (UI.mode) { PD.scenes.update(dt, g); return; }
 
     const use_ = P.lock <= 0 && (IN.hit('KeyE') || IN.hit('space'));
     const m = IN.mouse;
 
     // the phone: Tab, or tap the device in the corner
-    const onPhone = m.inside && m.x > VW - 34 && m.y > VH - 52;
-    if (P.lock <= 0 && (IN.hit('Tab') || IN.hit('KeyB') || (m.leftPressed && onPhone))) { UI.mode = 'phone'; UI.sel = 0; A.sfx.click(); return; }
+    const onPhone = m.inside && m.x > VW - 44 && m.y > VH - 60 && m.y < VH;
+    if (P.lock <= 0 && (IN.hit('Tab') || IN.hit('KeyB') || (m.leftPressed && onPhone))) { UI.mode = 'phone'; PD.scenes.enter('phone', g); return; }
 
     let ix = 0;
     if (IN.down('left')) ix -= 1;
@@ -182,45 +182,8 @@
     g.intCam = U.damp(g.intCam, U.clamp(P.x - VW / 2, 0, ROOM_W - VW), 0.15, dt);
   }
 
-  /* ----------------------------------------------------------------- panels */
-  const PANEL = { x: 92, y: 36, w: 296, h: 190 };
-  function rows(g) {
-    if (UI.mode === 'phone') return D.BUILDINGS;
-    if (UI.mode === 'fab') return D.RECIPES.filter(r => r.tier <= g.buildLevel('fab'));
-    if (UI.mode === 'docks') return D.RECIPES.filter(r => (g.save.parts[r.id] || 0) > 0);
-    return [];
-  }
-  function updatePanel(dt, g) {
-    const IN = PD.input, m = IN.mouse;
-    const list = rows(g);
-    if (IN.hit('esc') || (m.leftPressed && (m.x < PANEL.x || m.x > PANEL.x + PANEL.w || m.y < PANEL.y || m.y > PANEL.y + PANEL.h))) {
-      UI.mode = null; P.lock = 0.2; A.sfx.click(); return;
-    }
-    if (IN.hit('down')) UI.sel = Math.min(list.length - 1, UI.sel + 1);
-    if (IN.hit('up')) UI.sel = Math.max(0, UI.sel - 1);
-    // rows are 20px tall from PANEL.y + 34
-    if (m.leftPressed) {
-      const i = Math.floor((m.y - (PANEL.y + 34)) / 20);
-      if (i >= 0 && i < list.length && m.x < PANEL.x + PANEL.w - 4) { if (UI.sel === i) act(g, list[i]); else { UI.sel = i; A.sfx.click(); } }
-      if (m.y > PANEL.y + PANEL.h - 30 && m.x > PANEL.x + PANEL.w - 120 && UI.mode === 'terminal') g.sellAll();
-    }
-    if (IN.hit('KeyE') || IN.hit('space') || IN.hit('enter')) {
-      if (UI.mode === 'terminal') g.sellAll();
-      else if (list[UI.sel]) act(g, list[UI.sel]);
-    }
-  }
-  function act(g, item) {
-    if (UI.mode === 'phone') {
-      const lvl = g.buildLevel(item.id);
-      if (lvl <= 0) { if (g.startBuild(item.id)) { UI.mode = null; P.lock = 0.3; } else say('NOT ENOUGH CREDITS'); }
-      else if (lvl >= item.max) say('ALREADY MAXED');
-      else if (!g.upgradeBuilding(item.id)) say('NOT ENOUGH CREDITS');
-    } else if (UI.mode === 'fab') {
-      if (!g.craft(item.id)) say('MISSING ORE');
-    } else if (UI.mode === 'docks') {
-      if (!g.install(item.id)) say('NO FREE SLOT');
-    }
-  }
+  function closeScene() { UI.mode = null; P.lock = 0.2; A.sfx.click(); }
+  function touchMode() { return UI.mode ? 'ui' : 'home'; }
 
   /* ------------------------------------------------------------------ draw */
   function drawSky(ctx, g, t, cam) {
@@ -379,7 +342,7 @@
     AH.blit(ctx, ph, on ? 1 : 0, VW - 18, VH - 6 + (on ? 0 : Math.sin(t * 2) * 1));
     F.draw(ctx, 'TAB', VW - 18, VH - 46, '#9c8ec4', { center: true, shadow: true });
 
-    if (UI.mode) drawPanel(ctx, g, t);
+    if (UI.mode) PD.scenes.draw(ctx, g, t);
     if (UI.msgT > 0) {
       ctx.globalAlpha = Math.min(1, UI.msgT);
       F.draw(ctx, UI.msg, VW / 2, VH - 30, '#ff6b8a', { center: true, scale: 1 });
@@ -456,145 +419,5 @@
     ctx.beginPath(); ctx.moveTo(left - 4, y + 2); ctx.lineTo(left + 6, top); ctx.moveTo(left + w + 4, y + 2); ctx.lineTo(left + w - 6, top); ctx.stroke();
   }
 
-  /* One hologram panel for everything: phone, docks, terminal, fabricator. */
-  function holoFrame(ctx, title, sub, t) {
-    const { x, y, w, h } = PANEL;
-    ctx.fillStyle = 'rgba(4,14,26,0.9)'; ctx.fillRect(x, y, w, h);
-    ctx.fillStyle = 'rgba(88,232,255,0.06)';
-    for (let yy = y + (Math.floor(t * 30) % 4); yy < y + h; yy += 4) ctx.fillRect(x, yy, w, 1);
-    ctx.strokeStyle = '#58e8ff'; ctx.lineWidth = 1; ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
-    ctx.fillStyle = '#58e8ff';
-    ctx.fillRect(x, y, 14, 2); ctx.fillRect(x, y, 2, 14); ctx.fillRect(x + w - 14, y + h - 2, 14, 2); ctx.fillRect(x + w - 2, y + h - 14, 2, 14);
-    F.draw(ctx, title, x + 8, y + 6, '#eafcff', { shadow: false, scale: 2 });
-    if (sub) F.draw(ctx, sub, x + w - 8, y + 10, '#58e8ff', { right: true, shadow: false });
-    F.draw(ctx, 'ESC', x + w - 8, y + h - 12, '#2f8fae', { right: true, shadow: false });
-  }
-  function wrap(ctx, text, x, y, maxW, col, maxLines) {
-    const words = text.toUpperCase().split(' ');
-    let line = '', ly = y, n = 0;
-    for (const w of words) {
-      if (F.width(line + ' ' + w, 1) > maxW && line) {
-        F.draw(ctx, line, x, ly, col, { shadow: false }); line = w; ly += 10; n++;
-        if (n >= (maxLines || 2)) return;
-      } else line = line ? line + ' ' + w : w;
-    }
-    if (line) F.draw(ctx, line, x, ly, col, { shadow: false });
-  }
-  function rowBox(ctx, i, hot, sel) {
-    const y = PANEL.y + 34 + i * 20;
-    ctx.fillStyle = sel ? 'rgba(88,232,255,0.18)' : (i % 2 ? 'rgba(88,232,255,0.04)' : 'rgba(0,0,0,0)');
-    ctx.fillRect(PANEL.x + 6, y, PANEL.w - 12, 19);
-    if (sel) { ctx.strokeStyle = '#58e8ff'; ctx.strokeRect(PANEL.x + 6.5, y + 0.5, PANEL.w - 13, 18); }
-    return y;
-  }
-
-  function drawPanel(ctx, g, t) {
-    const { x, y, w, h } = PANEL;
-    const b = D.BUILD[UI.mode];
-    if (b) {
-      // projector beam from the building up to the panel
-      const bx = b.x - g.intCam, by = groundY(b.x) - AH.S[b.id + tierOf(Math.max(1, g.buildLevel(b.id)))].h;
-      ctx.fillStyle = 'rgba(88,232,255,0.12)';
-      ctx.beginPath(); ctx.moveTo(bx - 6, by); ctx.lineTo(bx + 6, by); ctx.lineTo(x + w, y + h); ctx.lineTo(x, y + h); ctx.closePath(); ctx.fill();
-    }
-    const list = rows(g);
-    if (UI.mode === 'phone') {
-      holoFrame(ctx, 'MULTI-TOOL', '$' + U.fmt(g.save.credits), t);
-      F.draw(ctx, 'BUILDINGS   -   PICK ONE TO PRINT OR UPGRADE', x + 8, y + 24, '#2f8fae', { shadow: false });
-      list.forEach((bd, i) => {
-        const ry = rowBox(ctx, i, false, UI.sel === i);
-        const lvl = g.buildLevel(bd.id);
-        G.draw(ctx, bd.glyph, x + 10, ry + 3, '#eafcff', '#2f8fae');
-        F.draw(ctx, bd.name, x + 28, ry + 6, '#eafcff', { shadow: false });
-        const cost = D.buildCost(bd, lvl);
-        const right = lvl <= 0 ? 'PRINT  $' + U.fmt(cost) : (lvl >= bd.max ? 'LV ' + lvl + '  MAX' : 'LV ' + lvl + '  UP  $' + U.fmt(cost));
-        F.draw(ctx, right, x + w - 12, ry + 6, lvl >= bd.max ? '#8affa0' : (g.save.credits >= cost ? '#ffd34d' : '#ff6b8a'), { right: true, shadow: false });
-      });
-      const sb = list[UI.sel];
-      if (sb) wrap(ctx, sb.blurb, x + 8, y + h - 40, w - 16, '#58e8ff', 2);
-      F.draw(ctx, 'E  CONFIRM', x + 8, y + h - 12, '#eafcff', { shadow: false });
-    } else if (UI.mode === 'terminal') {
-      holoFrame(ctx, 'TERMINAL', 'LV ' + g.buildLevel('terminal') + '  +' + Math.round((D.UPG.crew.value(g.save.upg.crew || 0) - 1) * 100) + '% PRICES', t);
-      const keys = Object.keys(g.save.vault).filter(k => g.save.vault[k] > 0).sort((a, c) => D.MAT[c].cr - D.MAT[a].cr);
-      F.draw(ctx, 'ORE', x + 10, y + 24, '#2f8fae', { shadow: false });
-      F.draw(ctx, 'QTY', x + 110, y + 24, '#2f8fae', { shadow: false });
-      F.draw(ctx, 'EACH', x + 138, y + 24, '#2f8fae', { shadow: false });
-      if (!keys.length) F.draw(ctx, 'NOTHING TO SELL. GO DIG.', x + 10, y + 50, '#2f8fae', { shadow: false });
-      keys.slice(0, 6).forEach((k, i) => {
-        const ry = y + 34 + i * 16, m = D.MAT[k];
-        ctx.fillStyle = m.c[1]; ctx.fillRect(x + 10, ry + 2, 8, 8); ctx.fillStyle = m.c[0]; ctx.fillRect(x + 10, ry + 2, 8, 3);
-        F.draw(ctx, m.name.toUpperCase().slice(0, 13), x + 22, ry + 4, '#eafcff', { shadow: false });
-        F.draw(ctx, String(g.save.vault[k]), x + 110, ry + 4, '#ffd34d', { shadow: false });
-        const pct = Math.round((g.demandFor(+k) - 1) * 100);
-        F.draw(ctx, U.fmt(g.priceOf(+k)), x + 138, ry + 4, '#eafcff', { shadow: false });
-        F.draw(ctx, (pct >= 0 ? '+' : '') + pct + '%', x + 168, ry + 4, pct >= 0 ? '#8affa0' : '#ff6b8a', { shadow: false });
-      });
-      // comms feed
-      ctx.fillStyle = 'rgba(88,232,255,0.25)'; ctx.fillRect(x + 196, y + 22, 1, h - 60);
-      F.draw(ctx, 'COMMS', x + 204, y + 24, '#2f8fae', { shadow: false });
-      UI.feed.forEach((msg, i) => {
-        const fy = y + 36 + i * 40;
-        F.draw(ctx, msg[0], x + 204, fy, '#ffd34d', { shadow: false });
-        const words = msg[1].toUpperCase().split(' ');
-        let line = '', ly = fy + 10;
-        for (const wd of words) {
-          if (F.width(line + ' ' + wd, 1) > 84) { F.draw(ctx, line, x + 204, ly, '#eafcff', { shadow: false }); line = wd; ly += 9; if (ly > fy + 30) break; }
-          else line = line ? line + ' ' + wd : wd;
-        }
-        if (line && ly <= fy + 30) F.draw(ctx, line, x + 204, ly, '#eafcff', { shadow: false });
-      });
-      const total = g.vaultValue();
-      const hot = total > 0;
-      ctx.fillStyle = hot ? (Math.sin(t * 5) > 0 ? '#39ffa6' : '#2ad48a') : '#0f2a2e';
-      ctx.fillRect(x + w - 120, y + h - 30, 112, 20);
-      F.draw(ctx, 'E  SELL ALL  $' + U.fmt(total), x + w - 64, y + h - 23, hot ? '#05170e' : '#2f5a44', { center: true, shadow: false });
-    } else if (UI.mode === 'fab') {
-      holoFrame(ctx, 'FABRICATOR', 'LV ' + g.buildLevel('fab') + '  TIER ' + g.buildLevel('fab'), t);
-      F.draw(ctx, 'RECIPE', x + 28, y + 24, '#2f8fae', { shadow: false });
-      F.draw(ctx, 'NEEDS', x + 140, y + 24, '#2f8fae', { shadow: false });
-      F.draw(ctx, 'OWNED', x + w - 12, y + 24, '#2f8fae', { right: true, shadow: false });
-      list.forEach((r, i) => {
-        const ry = rowBox(ctx, i, false, UI.sel === i);
-        G.draw(ctx, r.glyph, x + 10, ry + 3, '#eafcff', '#2f8fae');
-        F.draw(ctx, r.name, x + 28, ry + 6, '#eafcff', { shadow: false });
-        let mx = x + 140, ok = true;
-        for (const key in r.mats) {
-          const mat = D.M[key], have = g.save.vault[mat] || 0, need = r.mats[key];
-          if (have < need) ok = false;
-          ctx.fillStyle = D.MAT[mat].c[1]; ctx.fillRect(mx, ry + 5, 7, 7); ctx.fillStyle = D.MAT[mat].c[0]; ctx.fillRect(mx, ry + 5, 7, 2);
-          F.draw(ctx, have + '/' + need, mx + 9, ry + 6, have >= need ? '#8affa0' : '#ff6b8a', { shadow: false });
-          mx += 40;
-        }
-        F.draw(ctx, String(g.save.parts[r.id] || 0), x + w - 12, ry + 6, '#ffd34d', { right: true, shadow: false });
-        if (UI.sel === i) wrap(ctx, r.blurb, x + 8, y + h - 40, w - 16, ok ? '#58e8ff' : '#ff6b8a', 2);
-      });
-      F.draw(ctx, 'E  CRAFT', x + 8, y + h - 12, '#eafcff', { shadow: false });
-    } else if (UI.mode === 'docks') {
-      const slots = g.slots(), used = g.installedCount();
-      holoFrame(ctx, 'THE DOCKS', 'LV ' + g.buildLevel('docks') + '  SLOTS ' + used + '/' + slots, t);
-      // the pod's slots
-      let sx = x + 10;
-      const inst = [];
-      for (const id in g.save.installed) for (let k = 0; k < g.save.installed[id]; k++) inst.push(id);
-      for (let i = 0; i < slots; i++) {
-        G.hex(ctx, sx + 8, y + 32, 8, inst[i] ? '#1e9e5c' : '#0f2a2e', '#58e8ff', 1);
-        if (inst[i]) G.draw(ctx, D.RECIPE[inst[i]].glyph, sx + 2, y + 26, '#eafcff', 'rgba(0,0,0,0)');
-        sx += 22;
-      }
-      F.draw(ctx, 'FITTED PARTS', x + w - 12, y + 30, '#2f8fae', { right: true, shadow: false });
-      F.draw(ctx, 'PARTS IN STORE  -  PICK ONE TO FIT', x + 10, y + 50, '#2f8fae', { shadow: false });
-      if (!list.length) F.draw(ctx, 'NOTHING BUILT YET. THE FABRICATOR MAKES PARTS.', x + 10, y + 70, '#2f8fae', { shadow: false });
-      list.forEach((r, i) => {
-        const ry = PANEL.y + 34 + 26 + i * 20;
-        ctx.fillStyle = UI.sel === i ? 'rgba(88,232,255,0.18)' : 'rgba(0,0,0,0)'; ctx.fillRect(x + 6, ry, w - 12, 19);
-        if (UI.sel === i) { ctx.strokeStyle = '#58e8ff'; ctx.strokeRect(x + 6.5, ry + 0.5, w - 13, 18); }
-        G.draw(ctx, r.glyph, x + 10, ry + 3, '#eafcff', '#2f8fae');
-        F.draw(ctx, r.name + '  x' + (g.save.parts[r.id] || 0), x + 28, ry + 6, '#eafcff', { shadow: false });
-        F.draw(ctx, r.blurb.toUpperCase().slice(0, 26), x + w - 12, ry + 6, '#58e8ff', { right: true, shadow: false });
-      });
-      F.draw(ctx, 'E  FIT PART', x + 8, y + h - 12, '#eafcff', { shadow: false });
-    }
-  }
-
-  PD.home = { enter, update, draw, P, UI, groundY, ROOM_W };
+  PD.home = { enter, update, draw, closeScene, touchMode, P, UI, groundY, ROOM_W };
 })(window.PD);

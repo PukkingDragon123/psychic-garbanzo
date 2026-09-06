@@ -22,24 +22,32 @@ python3 -m http.server 8000   # then visit http://localhost:8000
 node tools/build.js           # -> dist/planet-destroyer.html
 ```
 
-## The multi-tool
+## Close-ups
 
-Everything on the moon is a building, and every building came out of the
-handheld **multi-tool** in your pocket (`Tab`, or tap the device in the
-corner). Pick one, pay for the blueprint, and a cyan **hologram** of it
-flickers into place on the ground; then the printer builds it upward, layer by
-layer, under a bright scanning bar, until it is real. Five buildings:
+Using a building zooms you into it, first person: your green mittens on the
+counter, the console filling the screen, cards big enough to tap. There are
+no floating panels anywhere in the game.
 
-| Building | Press `E` for |
+| Building | What you see |
 | --- | --- |
-| **THE DOCKS** | Your pod parks here. Fit the parts you fabricate; each level adds two slots |
-| **TERMINAL** | Sell ore at live prices, and read what the buyers are texting you |
-| **FABRICATOR** | Turn ore into pod parts: hull plates, air scrubbers, tungsten bits, thrust coils, wire spools, scan lenses, void cells |
-| **THE MIND** | A brain in a tank of acid. The skill tree is its wiring |
+| **Multi-tool** (`Tab`) | The device held up in both hands. Five building cards with live thumbnails, level pips and a price. Tap one to print it from a hologram blueprint, or level it up |
+| **THE DOCKS** | Your pod on the lift, big, with its component slots hung off the hull, its numbers on the left, your parts in store below. Tap a part to fit it |
+| **TERMINAL** | A video desk: whoever is buying today on the left, talking; the book on the right with quantity, price and trend per rock; one SELL ALL |
+| **FABRICATOR** | The bench: recipe cards with ingredient chips (have/need), the printer bed on the right that builds the part in front of you when you craft |
+| **THE MIND** | The brain tank. The skill tree is its wiring |
 | **OBSERVATORY** | The galaxy chart. Each level brings another sector into range |
 
 The docks, terminal and observatory are standing when you arrive. The
 fabricator and the Mind you print yourself.
+
+## One button
+
+You hold one thing: the drill. Aim it, hold it, and rock comes apart. The gun
+is automatic now: anything that comes within range gets shot, and anything
+that wanders into the spinning bit gets chewed. Consecutive tiles build a
+**chain** that pitches the break sound up and gets louder every ten; valuable
+ore lands with a hit-stop and a ring. On a phone, a held touch on the right
+half of the screen is that one button.
 
 ## The Mind
 
@@ -62,7 +70,9 @@ the little things — a tie knot, a rivet, a bubble in the tank — actually
 exist. When he drills he plants his feet wide, leans his whole weight into
 the tool, grips it two-handed, grits his teeth, and the drill shakes him and
 the camera and throws sparks. On the moon he runs, jumps absurdly high in the
-low gravity, and tucks into a **roll** (`Shift`).
+low gravity, and tucks into a **roll** (`Shift`). On a phone the moon has
+its own hex keys for jump, roll and use, and a held touch on the left half
+walks you.
 
 ## The pod and the wire
 
@@ -206,7 +216,8 @@ talk.
 | `src/flora.js` | Every plant and pebble in the game, hard-edged pixel art at 2x, baked into cached sway frames |
 | `src/fx.js` | Particles, floating numbers, shockwave rings, terrain chunks, screen shake, hit-stop |
 | `src/ui.js` | The vitals pod (air tank, hull chips, hold tube), the action strip, the moon's status line, pause, victory and title screens |
-| `src/home.js` | The moon: running, jumping, rolling, the multi-tool, blueprints and the printer, the hologram panels for the docks, terminal and fabricator |
+| `src/home.js` | The moon: running, jumping, rolling, blueprints and the printer |
+| `src/scenes.js` | The close-ups: the multi-tool in your hands, the terminal's video desk, the fabricator bench, the docks with the pod on the lift |
 | `src/mind.js` | The Mind: the brain tank, the neuron graph, pulses and perks |
 | `src/glyph.js` | The icon language that rides alongside the text, and the hex primitives |
 | `src/galaxy.js` | Spiral-arm star band, nebulae, sun, ringed planets, shooting stars |

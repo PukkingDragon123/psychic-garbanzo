@@ -136,11 +136,12 @@
     const t = g.time;
     const PW = 172, PH = 62;
 
-    ctx.fillStyle = 'rgba(8,4,18,0.62)';
-    ctx.fillRect(0, 0, PW, PH);
-    ctx.fillStyle = '#5b3f96';
-    ctx.fillRect(0, PH, PW, 1);
-    ctx.fillRect(PW, 0, 1, PH);
+    ctx.fillStyle = 'rgba(10,6,24,0.7)';
+    ctx.beginPath();
+    ctx.moveTo(0, 0); ctx.lineTo(PW, 0); ctx.lineTo(PW, PH - 10); ctx.quadraticCurveTo(PW, PH, PW - 10, PH); ctx.lineTo(0, PH); ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(166,125,240,0.45)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(PW + 0.5, 0); ctx.lineTo(PW + 0.5, PH - 10); ctx.quadraticCurveTo(PW + 0.5, PH + 0.5, PW - 10, PH + 0.5); ctx.lineTo(0, PH + 0.5); ctx.stroke();
 
     // --- air: a glass tank that empties
     const tx = 5, ty = 4, tw = 14, th = 44;
@@ -222,7 +223,8 @@
     }
 
     // top right: credits + galaxy
-    ctx.fillStyle = 'rgba(8,4,18,0.55)'; ctx.fillRect(VW - 130, 0, 130, 34);
+    ctx.fillStyle = 'rgba(10,6,24,0.7)';
+    ctx.beginPath(); ctx.moveTo(VW - 130, 0); ctx.lineTo(VW, 0); ctx.lineTo(VW, 34); ctx.lineTo(VW - 120, 34); ctx.quadraticCurveTo(VW - 130, 34, VW - 130, 24); ctx.closePath(); ctx.fill();
     F.draw(ctx, '$' + U.fmt(g.save.credits), VW - 8, 4, COL.gold, { right: true, scale: 2 });
     F.draw(ctx, 'GALAXY ' + g.save.dominion.toFixed(1) + '%', VW - 8, 22, COL.lineHi, { right: true });
   }

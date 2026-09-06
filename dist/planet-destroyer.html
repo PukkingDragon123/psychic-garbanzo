@@ -3102,13 +3102,16 @@ window.PD = window.PD || {};
   const cfg = {
     stick: { x: 62, y: VH - 60, r: 36, knob: 15 },
     play: {
-      fire: { x: VW - 38, y: VH - 46, r: 22, glyph: 'gun',  col: '#7ef9ff', key: null },
-      dash: { x: VW - 86, y: VH - 30, r: 16, glyph: 'dash', col: '#ffd34d', key: 'shift' },
-      swap: { x: VW - 90, y: VH - 72, r: 13, glyph: 'scatter', col: '#ff8ad8', key: 'KeyQ' },
-      scan: { x: VW - 40, y: VH - 96, r: 13, glyph: 'scan', col: '#8affa0', key: 'Tab' },
-      use:  { x: VW - 130, y: VH - 54, r: 13, glyph: 'hand', col: '#ffb03d', key: 'KeyE' },
-      beam: { x: VW - 130, y: VH - 22, r: 11, glyph: 'home', col: '#ff5a4d', key: 'KeyR', hold: true }
+      dash: { x: VW - 34, y: VH - 74, r: 16, glyph: 'dash', col: '#ffd34d', key: 'shift' },
+      scan: { x: VW - 72, y: VH - 92, r: 13, glyph: 'scan', col: '#8affa0', key: 'Tab' },
+      use:  { x: VW - 30, y: VH - 116, r: 13, glyph: 'home', col: '#ffb03d', key: 'KeyE' },
+      beam: { x: VW - 76, y: VH - 130, r: 11, glyph: 'hole', col: '#ff5a4d', key: 'KeyR', hold: true }
     },
+    home: {
+      jump: { x: VW - 34, y: VH - 74, r: 18, glyph: 'up', col: '#7ef9ff', key: 'up' },
+      roll: { x: VW - 78, y: VH - 50, r: 14, glyph: 'dash', col: '#ffd34d', key: 'shift' },
+      use:  { x: VW - 78, y: VH - 92, r: 14, glyph: 'hand', col: '#ffb03d', key: 'KeyE' }
+    }
   };
 
   const state = {
@@ -3149,6 +3152,10 @@ window.PD = window.PD || {};
         if (state.mode === 'play') {
           if (p.x < VW * 0.42) { state.stickId = tch.identifier; state.sx = p.x; state.sy = p.y; state.dx = state.dy = 0; }
           else { state.aimId = tch.identifier; state.ax = p.x; state.ay = p.y; state.aiming = true; }
+        } else if (state.mode === 'home' && p.x < VW * 0.5 && p.y > VH * 0.45) {
+          // left half of the moon: a held touch walks you that way
+          state.stickId = tch.identifier; state.sx = p.x; state.sy = p.y; state.dx = state.dy = 0;
+          state.tapPress = true; state.tapX = p.x; state.tapY = p.y;
         } else {
           // field and menus: a held touch is a pointer, a tap is a click
           state.aimId = tch.identifier; state.ax = p.x; state.ay = p.y; state.aiming = true;
@@ -3199,10 +3206,15 @@ window.PD = window.PD || {};
       const dz = 0.26;
       IN.keys.left = state.dx < -dz; IN.keys.right = state.dx > dz;
       IN.keys.up = state.dy < -dz;   IN.keys.down = state.dy > dz;
+      // one button: a held touch on the right aims and drills; the gun is automatic
       if (state.aiming) { IN.mouse.x = state.ax; IN.mouse.y = state.ay; IN.mouse.inside = true; IN.mouse.left = true; }
       else IN.mouse.left = false;
-      IN.mouse.right = !!state.down.fire;
     } else {
+      if (mode === 'home') {
+        const dz = 0.3;
+        IN.keys.left = state.dx < -dz; IN.keys.right = state.dx > dz;
+        if (state.stickId !== null && Math.abs(state.dx) > dz) state.tapPress = false;
+      }
       IN.mouse.x = state.tapX; IN.mouse.y = state.tapY; IN.mouse.inside = true;
       IN.mouse.left = state.tapHold;
       if (state.tapPress) { IN.mouse.leftPressed = true; state.tapPress = false; }
@@ -3212,7 +3224,7 @@ window.PD = window.PD || {};
   function clearEdges() {
     if (!state.enabled) return;
     const IN = PD.input;
-    for (const m of ['play']) for (const k in cfg[m]) { const key = cfg[m][k].key; if (key && !cfg[m][k].hold) IN.keys[key] = false; }
+    for (const m of ['play', 'home']) for (const k in cfg[m]) { const key = cfg[m][k].key; if (key && !cfg[m][k].hold) IN.keys[key] = false; }
   }
 
   function padKey(ctx, k, c) {
@@ -3228,6 +3240,7 @@ window.PD = window.PD || {};
 
   function draw(ctx, mode, g) {
     if (!state.enabled || mode === 'ui') return;
+    if (mode === 'home') { const keys = keysFor(mode); for (const k in keys) padKey(ctx, k, keys[k]); return; }
     const t = g ? g.time : 0;
     if (mode === 'play') {
       const s = cfg.stick;
@@ -5563,6 +5576,11 @@ window.PD = window.PD || {};
     this.vy *= 1 - Math.min(1, dt * 2.5);
     if (this.drillT > 0.05) FX.shake(0.7);
 
+    // the spinning bit chews anything standing in it
+    for (const m of g.mobs) {
+      if (m.dead) continue;
+      if (Math.hypot(m.x - bite.x, m.y - bite.y) < 14 + m.w / 2 && U.chance(dt * 6)) m.hurtBy(this.stat('drill') * 0.12, g, Math.sign(m.x - this.x), 'drill');
+    }
     const power = this.stat('drill') * dt;
     const hardness = U.clamp(D.MAT[bite.mat].hp / 255, 0, 1);
     this.drillPitch = 1 - hardness;
@@ -5588,11 +5606,21 @@ window.PD = window.PD || {};
   };
 
   /* --------------------------------------------------------------------- gun */
+  /* One button. You aim the drill; the gun finds its own targets and fires
+     itself at anything in range. Right mouse still fires manually. */
   Player.prototype.doGun = function (dt, g) {
     const IN = PD.input;
-    const want = (IN.mouse.right || IN.down('space')) && !g.uiBlocking;
+    let target = null, best = 118;
+    for (const m of g.mobs) {
+      if (m.dead || m.submerged) continue;
+      const d = Math.hypot(m.x - this.x, m.y - this.y);
+      if (d < best) { best = d; target = m; }
+    }
+    const manual = (IN.mouse.right || IN.down('space')) && !g.uiBlocking;
+    const want = manual || (target && !g.uiBlocking && (this.drilling || this.weapon === 'pistol' || true));
     if (!want || this.gunCool > 0) return;
-    const a0 = this.aim;
+    const a0 = manual || !target ? this.aim : Math.atan2(target.y - this.y, target.x - this.x);
+    this.gunAim = a0;
     const ox = Math.cos(a0) * 12, oy = Math.sin(a0) * 12;
 
     if (this.weapon === 'scatter') {
@@ -5740,7 +5768,8 @@ window.PD = window.PD || {};
     if (!drilling) {
       ctx.save();
       ctx.translate(px | 0, py | 0);
-      ctx.rotate(this.aim + (flip ? Math.PI : 0));
+      const ga = this.gunAim === undefined ? this.aim : this.gunAim;
+      ctx.rotate(ga + (flip ? Math.PI : 0));
       ctx.scale(1, flip ? -1 : 1);
       const gf = gun.frames[this.gunCool > 0.05 ? 1 : 0];
       ctx.drawImage(gf, -2, -10);
@@ -5771,15 +5800,15 @@ window.PD = window.PD || {};
       ctx.fillStyle = skin.P.skin; ctx.fillRect(hx - 2, hy - 2, 4, 4);
     } else {
       // hot sparks and grit off the bit
-      if (U.chance(0.7)) {
+      if (U.chance(0.45)) {
         const tx = hx + Math.cos(this.aim) * 24, ty = hy + Math.sin(this.aim) * 24;
         FX.spawn({ x: tx + cam.x, y: ty + cam.y, vx: -Math.cos(this.aim) * U.rand(30, 90) + U.rand(-40, 40), vy: -Math.sin(this.aim) * U.rand(30, 90) + U.rand(-60, 10),
-          life: U.rand(0.15, 0.4), size: 1, color: U.chance(0.5) ? '#fff2b0' : '#ff9b3d', grav: 260, drag: 1, glow: 1 });
+          life: U.rand(0.15, 0.4), size: 1, color: U.chance(0.5) ? '#fff2b0' : '#ff9b3d', grav: 260, drag: 1 });
       }
     }
 
     if (this.gunFlash > 0) {
-      const a = this.aim;
+      const a = this.gunAim === undefined ? this.aim : this.gunAim;
       ctx.fillStyle = '#eafcff';
       ctx.globalAlpha = this.gunFlash / 0.09;
       const fx = px + Math.cos(a) * 15, fy = py + Math.sin(a) * 15;
@@ -5941,11 +5970,12 @@ window.PD = window.PD || {};
     const t = g.time;
     const PW = 172, PH = 62;
 
-    ctx.fillStyle = 'rgba(8,4,18,0.62)';
-    ctx.fillRect(0, 0, PW, PH);
-    ctx.fillStyle = '#5b3f96';
-    ctx.fillRect(0, PH, PW, 1);
-    ctx.fillRect(PW, 0, 1, PH);
+    ctx.fillStyle = 'rgba(10,6,24,0.7)';
+    ctx.beginPath();
+    ctx.moveTo(0, 0); ctx.lineTo(PW, 0); ctx.lineTo(PW, PH - 10); ctx.quadraticCurveTo(PW, PH, PW - 10, PH); ctx.lineTo(0, PH); ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(166,125,240,0.45)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(PW + 0.5, 0); ctx.lineTo(PW + 0.5, PH - 10); ctx.quadraticCurveTo(PW + 0.5, PH + 0.5, PW - 10, PH + 0.5); ctx.lineTo(0, PH + 0.5); ctx.stroke();
 
     // --- air: a glass tank that empties
     const tx = 5, ty = 4, tw = 14, th = 44;
@@ -6027,7 +6057,8 @@ window.PD = window.PD || {};
     }
 
     // top right: credits + galaxy
-    ctx.fillStyle = 'rgba(8,4,18,0.55)'; ctx.fillRect(VW - 130, 0, 130, 34);
+    ctx.fillStyle = 'rgba(10,6,24,0.7)';
+    ctx.beginPath(); ctx.moveTo(VW - 130, 0); ctx.lineTo(VW, 0); ctx.lineTo(VW, 34); ctx.lineTo(VW - 120, 34); ctx.quadraticCurveTo(VW - 130, 34, VW - 130, 24); ctx.closePath(); ctx.fill();
     F.draw(ctx, '$' + U.fmt(g.save.credits), VW - 8, 4, COL.gold, { right: true, scale: 2 });
     F.draw(ctx, 'GALAXY ' + g.save.dominion.toFixed(1) + '%', VW - 8, 22, COL.lineHi, { right: true });
   }
@@ -7064,6 +7095,427 @@ window.PD = window.PD || {};
   PD.mind = { open, close, update, draw, S, pos };
 })(window.PD);
 
+/* ===== src/scenes.js ===== */
+/* Close-up scenes. Using a building on the moon zooms you into it, first
+   person: your hands on the counter, the console filling the screen, big
+   readable cards. Four scenes: the multi-tool in your hands, the terminal's
+   video desk, the fabricator bench, and the docks with the pod on the lift. */
+(function (PD) {
+  'use strict';
+  const U = PD.util;
+  const F = PD.font;
+  const D = PD.data;
+  const A = PD.audio;
+  const G = PD.glyph;
+  const AH = PD.arthome;
+  const VW = 480, VH = 270;
+
+  const S = { mode: null, sel: 0, t: 0, msg: '', msgT: 0, printT: 0, printId: null, fitT: 0, fitId: null, talk: 0, blink: 0, feed: [], feedT: 0 };
+  const CHATTER = [
+    ['ZAZ', 'Your regolith is... regolith. Send the gems, darling.'],
+    ['BROKER K', 'Iron is up. Do not ask why. Sell now.'],
+    ['THE SYNDICATE', 'We noticed a planet is missing. Nice work.'],
+    ['ZAZ', 'Quality cannot be rushed. It can be bribed.'],
+    ['MUM', 'Are you eating? Are you destroying enough worlds?'],
+    ['BROKER K', 'Voidstone buyers are circling. Hold or fold.'],
+    ['THE SYNDICATE', 'Bounty on your head went up. Congratulations.'],
+    ['ZAZ', 'A relic! Finally something worth appraising.']
+  ];
+  const FACES = { 'ZAZ': ['#c4a0ff', '#8455c4'], 'BROKER K': ['#ffb03d', '#c25c14'], 'THE SYNDICATE': ['#ff5a4d', '#8a2a2a'], 'MUM': ['#8affa0', '#3fb85a'] };
+
+  function enter(mode, g) {
+    S.mode = mode; S.sel = 0; S.t = 0; S.msgT = 0; S.printT = 0; S.fitT = 0;
+    if (!S.feed.length) for (let i = 0; i < 3; i++) S.feed.push(CHATTER[(i * 3) % CHATTER.length]);
+    if (mode === 'terminal') S.talk = 1.2;
+    A.sfx.tone(180, { type: 'square', to: 900, dur: 0.18, vol: 0.08 });
+  }
+  function close() { S.mode = null; PD.home.closeScene(); }
+  function say(m) { S.msg = m; S.msgT = 2; A.sfx.deny(); }
+
+  function list(g) {
+    if (S.mode === 'phone') return D.BUILDINGS;
+    if (S.mode === 'fab') return D.RECIPES.filter(r => r.tier <= g.buildLevel('fab'));
+    if (S.mode === 'docks') return D.RECIPES.filter(r => (g.save.parts[r.id] || 0) > 0);
+    return [];
+  }
+
+  /* Layout: rows live in LIST, the action key in BTN. */
+  const LIST = { x: 20, y: 46, w: 240, rowH: 30, rows: 6 };
+  const BTN = { x: VW - 190, y: VH - 44, w: 170, h: 28 };
+  const BACK = { x: VW - 56, y: 6, w: 50, h: 18 };
+
+  function inRect(m, r) { return m.inside && m.x >= r.x && m.x <= r.x + r.w && m.y >= r.y && m.y <= r.y + r.h; }
+
+  function act(g) {
+    const items = list(g);
+    if (S.mode === 'phone') {
+      const b = items[S.sel]; if (!b) return;
+      const lvl = g.buildLevel(b.id);
+      if (lvl <= 0) { if (g.startBuild(b.id)) close(); else say('NOT ENOUGH CREDITS'); }
+      else if (lvl >= b.max) say('ALREADY AT FULL SIZE');
+      else if (!g.upgradeBuilding(b.id)) say('NOT ENOUGH CREDITS');
+    } else if (S.mode === 'terminal') {
+      if (g.vaultValue() > 0) { g.sellAll(); S.talk = 1.6; S.feed.push(['ZAZ', 'Pleasure doing business. Bring me more.']); if (S.feed.length > 3) S.feed.shift(); }
+      else say('NOTHING TO SELL');
+    } else if (S.mode === 'fab') {
+      const r = items[S.sel]; if (!r) return;
+      if (g.craft(r.id)) { S.printT = 1.4; S.printId = r.id; } else say('MISSING ORE');
+    } else if (S.mode === 'docks') {
+      const r = items[S.sel]; if (!r) return;
+      if (g.install(r.id)) { S.fitT = 1; S.fitId = r.id; S.sel = Math.min(S.sel, Math.max(0, list(g).length - 1)); } else say('NO FREE SLOT');
+    }
+  }
+
+  function update(dt, g) {
+    S.t += dt;
+    S.msgT = Math.max(0, S.msgT - dt);
+    S.printT = Math.max(0, S.printT - dt);
+    S.fitT = Math.max(0, S.fitT - dt);
+    S.talk = Math.max(0, S.talk - dt);
+    S.blink -= dt; if (S.blink < -0.15) S.blink = 2 + Math.random() * 3;
+    S.feedT += dt;
+    if (S.feedT > 8) { S.feedT = 0; S.feed.push(CHATTER[(Math.random() * CHATTER.length) | 0]); if (S.feed.length > 3) S.feed.shift(); S.talk = 1.2; }
+    const IN = PD.input, m = IN.mouse;
+    const items = list(g);
+    if (IN.hit('esc') || (m.leftPressed && inRect(m, BACK))) { close(); return; }
+    if (IN.hit('down')) S.sel = Math.min(items.length - 1, S.sel + 1);
+    if (IN.hit('up')) S.sel = Math.max(0, S.sel - 1);
+    if (m.leftPressed) {
+      if (inRect(m, BTN)) { act(g); return; }
+      const i = Math.floor((m.y - LIST.y) / LIST.rowH);
+      if (m.x >= LIST.x && m.x <= LIST.x + LIST.w && i >= 0 && i < Math.min(items.length, LIST.rows)) {
+        if (S.sel === i) act(g); else { S.sel = i; A.sfx.click(); }
+      }
+    }
+    if (IN.hit('KeyE') || IN.hit('enter') || IN.hit('space')) act(g);
+  }
+
+  /* ------------------------------------------------------------- widgets */
+  function panel(ctx, x, y, w, h, col, fill) {
+    ctx.fillStyle = fill || 'rgba(6,10,26,0.82)';
+    ctx.fillRect(x, y, w, h);
+    ctx.strokeStyle = col; ctx.lineWidth = 1; ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
+    ctx.fillStyle = col;
+    ctx.fillRect(x, y, 10, 2); ctx.fillRect(x, y, 2, 10); ctx.fillRect(x + w - 10, y + h - 2, 10, 2); ctx.fillRect(x + w - 2, y + h - 10, 2, 10);
+  }
+  function button(ctx, r, label, on, t, col) {
+    col = col || '#39ffa6';
+    ctx.fillStyle = on ? (Math.sin(t * 5) > 0 ? col : shade(col)) : '#141a30';
+    ctx.fillRect(r.x, r.y, r.w, r.h);
+    ctx.strokeStyle = on ? '#ffffff' : '#2a3350'; ctx.lineWidth = 1; ctx.strokeRect(r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1);
+    F.draw(ctx, label, r.x + r.w / 2, r.y + r.h / 2 - 7, on ? '#05170e' : '#3a4a6a', { center: true, shadow: false, scale: 2 });
+  }
+  function shade(hex) { const n = parseInt(hex.slice(1), 16); return 'rgb(' + (((n >> 16) & 255) * 0.8 | 0) + ',' + (((n >> 8) & 255) * 0.8 | 0) + ',' + ((n & 255) * 0.8 | 0) + ')'; }
+  function header(ctx, title, sub, col) {
+    ctx.fillStyle = 'rgba(4,6,18,0.9)'; ctx.fillRect(0, 0, VW, 30);
+    ctx.fillStyle = col; ctx.fillRect(0, 30, VW, 1);
+    F.draw(ctx, title, 12, 8, '#ffffff', { shadow: false, scale: 2 });
+    if (sub) F.draw(ctx, sub, 12 + F.width(title, 2) + 14, 14, col, { shadow: false });
+    ctx.fillStyle = '#1a2240'; ctx.fillRect(BACK.x, BACK.y, BACK.w, BACK.h);
+    ctx.strokeStyle = col; ctx.strokeRect(BACK.x + 0.5, BACK.y + 0.5, BACK.w - 1, BACK.h - 1);
+    F.draw(ctx, 'BACK', BACK.x + BACK.w / 2, BACK.y + 6, '#ffffff', { center: true, shadow: false });
+  }
+  function row(ctx, i, sel, col) {
+    const y = LIST.y + i * LIST.rowH;
+    ctx.fillStyle = sel ? 'rgba(255,255,255,0.10)' : (i % 2 ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.15)');
+    ctx.fillRect(LIST.x, y, LIST.w, LIST.rowH - 2);
+    if (sel) { ctx.strokeStyle = col; ctx.lineWidth = 1; ctx.strokeRect(LIST.x + 0.5, y + 0.5, LIST.w - 1, LIST.rowH - 3); ctx.fillStyle = col; ctx.fillRect(LIST.x, y, 3, LIST.rowH - 2); }
+    return y;
+  }
+  /* Your own green mittens, on the counter. */
+  function hands(ctx, t, holding) {
+    const P = PD.art.skinFor(PD.game.save.cos).P;
+    const bob = Math.sin(t * 1.4) * 1.5;
+    const draw = (x, flip) => {
+      ctx.save(); ctx.translate(x, VH + 18 + bob); if (flip) ctx.scale(-1, 1);
+      ctx.fillStyle = '#2b3a66'; ctx.beginPath(); ctx.ellipse(0, 22, 34, 30, 0, 0, Math.PI * 2); ctx.fill();   // sleeve
+      ctx.fillStyle = '#f6f3ff'; ctx.fillRect(-26, -4, 52, 6);                                                // cuff
+      ctx.fillStyle = P.skin; ctx.beginPath(); ctx.ellipse(0, -12, 24, 18, 0, 0, Math.PI * 2); ctx.fill();   // mitten
+      ctx.fillStyle = P.skinD; ctx.beginPath(); ctx.ellipse(-16, -16, 8, 10, -0.4, 0, Math.PI * 2); ctx.fill(); // thumb
+      ctx.strokeStyle = '#1a1030'; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(0, -12, 24, 18, 0, 0, Math.PI * 2); ctx.stroke();
+      ctx.fillStyle = '#ffd34d'; ctx.beginPath(); ctx.arc(-18, -2, 2.5, 0, Math.PI * 2); ctx.fill();           // cufflink
+      ctx.restore();
+    };
+    if (holding) { draw(150, false); draw(330, true); }
+    else { draw(40, false); draw(VW - 40, true); }
+  }
+  function orePip(ctx, x, y, mat) {
+    const m = D.MAT[mat];
+    ctx.fillStyle = m.c[1]; ctx.fillRect(x, y, 10, 10); ctx.fillStyle = m.c[0]; ctx.fillRect(x, y, 10, 3);
+    ctx.fillStyle = '#0a0616'; ctx.fillRect(x, y + 9, 10, 1);
+  }
+  function wrap(ctx, text, x, y, maxW, col, maxLines, scale) {
+    scale = scale || 1;
+    const words = text.toUpperCase().split(' ');
+    let line = '', ly = y, n = 0;
+    for (const w of words) {
+      if (F.width(line + ' ' + w, scale) > maxW && line) {
+        F.draw(ctx, line, x, ly, col, { shadow: false, scale }); line = w; ly += 8 * scale + 2; n++;
+        if (n >= (maxLines || 2)) return;
+      } else line = line ? line + ' ' + w : w;
+    }
+    if (line) F.draw(ctx, line, x, ly, col, { shadow: false, scale });
+  }
+  function spriteFit(ctx, s, x, y, maxW, maxH) {
+    const cv = s.frames[0];
+    const k = Math.min(maxW / s.w, maxH / s.h, 1);
+    ctx.drawImage(cv, x - s.w * k / 2, y - s.h * k, s.w * k, s.h * k);
+  }
+
+  /* --------------------------------------------------------------- scenes */
+  function draw(ctx, g, t) {
+    if (S.mode === 'phone') drawPhone(ctx, g, t);
+    else if (S.mode === 'terminal') drawTerminal(ctx, g, t);
+    else if (S.mode === 'fab') drawFab(ctx, g, t);
+    else if (S.mode === 'docks') drawDocks(ctx, g, t);
+    if (S.msgT > 0) {
+      ctx.globalAlpha = Math.min(1, S.msgT);
+      ctx.fillStyle = 'rgba(80,10,20,0.9)'; ctx.fillRect(VW / 2 - 90, VH / 2 - 12, 180, 24);
+      F.draw(ctx, S.msg, VW / 2, VH / 2 - 4, '#ffffff', { center: true, shadow: false });
+      ctx.globalAlpha = 1;
+    }
+    PD.touch.draw(ctx, 'ui');
+  }
+
+  /* The multi-tool, held up in front of you. */
+  function drawPhone(ctx, g, t) {
+    const sky = ctx.createLinearGradient(0, 0, 0, VH);
+    sky.addColorStop(0, '#0d0826'); sky.addColorStop(1, '#2a1846');
+    ctx.fillStyle = sky; ctx.fillRect(0, 0, VW, VH);
+    // moon horizon blurred behind the device
+    ctx.fillStyle = '#3a3450'; ctx.beginPath(); ctx.moveTo(0, 200); for (let x = 0; x <= VW; x += 8) ctx.lineTo(x, 200 + Math.sin(x * 0.02) * 8); ctx.lineTo(VW, VH); ctx.lineTo(0, VH); ctx.fill();
+    // the device
+    const px = 100, py = 14, pw = 280, ph = 250;
+    ctx.fillStyle = '#1b2547'; roundRect(ctx, px - 4, py - 4, pw + 8, ph + 8, 14); ctx.fill();
+    ctx.fillStyle = '#2b3a66'; roundRect(ctx, px, py, pw, ph, 12); ctx.fill();
+    ctx.fillStyle = '#9aa3c4'; ctx.fillRect(px + pw / 2 - 16, py + 5, 32, 3);
+    ctx.fillStyle = '#062a33'; roundRect(ctx, px + 10, py + 14, pw - 20, ph - 30, 6); ctx.fill();
+    // scanlines
+    ctx.fillStyle = 'rgba(88,232,255,0.05)';
+    for (let y = py + 14 + (Math.floor(t * 30) % 4); y < py + ph - 16; y += 4) ctx.fillRect(px + 10, y, pw - 20, 1);
+    F.draw(ctx, 'MULTI-TOOL', px + 20, py + 22, '#eafcff', { shadow: false, scale: 2 });
+    F.draw(ctx, '$' + U.fmt(g.save.credits), px + pw - 20, py + 26, '#ffd34d', { right: true, shadow: false });
+    F.draw(ctx, 'TAP A BUILDING. TAP AGAIN TO PRINT OR UPGRADE.', px + 20, py + 40, '#2f8fae', { shadow: false });
+    // building cards
+    const items = D.BUILDINGS;
+    const cardY = py + 52, cardH = 26;
+    LIST.x = px + 16; LIST.y = cardY; LIST.w = pw - 32; LIST.rowH = cardH; LIST.rows = 5;
+    items.forEach((b, i) => {
+      const y = row(ctx, i, S.sel === i, '#58e8ff');
+      const lvl = g.buildLevel(b.id);
+      const s = AH.S[b.id + (lvl <= 1 ? 0 : (lvl < 4 ? 1 : 2))];
+      ctx.save();
+      if (lvl <= 0) ctx.globalAlpha = 0.45;
+      spriteFit(ctx, s, LIST.x + 22, y + cardH - 4, 34, 24);
+      ctx.restore();
+      F.draw(ctx, b.name, LIST.x + 46, y + 5, '#eafcff', { shadow: false });
+      for (let k = 0; k < b.max; k++) { ctx.fillStyle = k < lvl ? '#58e8ff' : '#123a44'; ctx.fillRect(LIST.x + 46 + k * 7, y + 16, 5, 3); }
+      const cost = D.buildCost(b, lvl);
+      const txt = lvl <= 0 ? 'PRINT $' + U.fmt(cost) : (lvl >= b.max ? 'MAX' : 'UP $' + U.fmt(cost));
+      F.draw(ctx, txt, LIST.x + LIST.w - 8, y + 10, lvl >= b.max ? '#8affa0' : (g.save.credits >= cost ? '#ffd34d' : '#ff6b8a'), { right: true, shadow: false });
+    });
+    const sb = items[S.sel];
+    if (sb) wrap(ctx, sb.blurb, px + 20, py + ph - 56, pw - 40, '#58e8ff', 2);
+    const lvl = g.buildLevel(sb.id);
+    const cost = D.buildCost(sb, lvl);
+    BTN.x = px + 20; BTN.y = py + ph - 34; BTN.w = pw - 40; BTN.h = 20;
+    button(ctx, BTN, lvl <= 0 ? 'PRINT  $' + U.fmt(cost) : (lvl >= sb.max ? 'FULL SIZE' : 'UPGRADE  $' + U.fmt(cost)), lvl < sb.max && g.save.credits >= cost, t, '#58e8ff');
+    header(ctx, '', '', '#58e8ff');
+    ctx.fillStyle = 'rgba(0,0,0,0)';
+    hands(ctx, t, true);
+  }
+
+  function roundRect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y); ctx.lineTo(x + w - r, y); ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r); ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    ctx.lineTo(x + r, y + h); ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x, y + r); ctx.quadraticCurveTo(x, y, x + r, y); ctx.closePath();
+  }
+
+  /* The terminal: a video desk. The buyer on the left, the book on the right. */
+  function face(ctx, x, y, name, t) {
+    const col = FACES[name] || ['#c4a0ff', '#8455c4'];
+    const talking = S.talk > 0;
+    const mouth = talking ? Math.abs(Math.sin(t * 16)) * 5 + 1 : 1;
+    const blink = S.blink < 0;
+    // shoulders, head
+    ctx.fillStyle = col[1]; ctx.beginPath(); ctx.ellipse(x, y + 58, 40, 22, 0, Math.PI, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = col[0]; ctx.beginPath(); ctx.ellipse(x, y + 10 + Math.sin(t * 2) * 1.5, 30, 34, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#1a1030'; ctx.lineWidth = 2; ctx.stroke();
+    if (name === 'ZAZ') { ctx.strokeStyle = '#ffd34d'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x + 12, y + 6, 8, 0, Math.PI * 2); ctx.stroke(); }
+    ctx.fillStyle = '#151233';
+    if (blink) { ctx.fillRect(x - 18, y + 4, 12, 2); ctx.fillRect(x + 6, y + 4, 12, 2); }
+    else { ctx.beginPath(); ctx.ellipse(x - 12, y + 4, 5, 7, 0, 0, Math.PI * 2); ctx.ellipse(x + 12, y + 4, 5, 7, 0, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = '#fff'; ctx.fillRect(x - 14, y, 3, 3); ctx.fillRect(x + 10, y, 3, 3); }
+    ctx.fillStyle = '#1a1030'; ctx.beginPath(); ctx.ellipse(x, y + 24, 9, mouth, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#ff8ab0'; ctx.beginPath(); ctx.ellipse(x - 22, y + 16, 5, 3, 0, 0, Math.PI * 2); ctx.ellipse(x + 22, y + 16, 5, 3, 0, 0, Math.PI * 2); ctx.fill();
+    if (name === 'THE SYNDICATE') { ctx.fillStyle = '#151233'; ctx.fillRect(x - 32, y - 2, 64, 10); }   // shades
+    if (name === 'MUM') { ctx.fillStyle = '#ffd34d'; ctx.beginPath(); ctx.arc(x - 24, y - 22, 6, 0, Math.PI * 2); ctx.arc(x + 24, y - 22, 6, 0, Math.PI * 2); ctx.fill(); }
+  }
+  function drawTerminal(ctx, g, t) {
+    ctx.fillStyle = '#0a1a16'; ctx.fillRect(0, 0, VW, VH);
+    // kiosk interior: warm wall panels
+    ctx.fillStyle = '#12302a'; ctx.fillRect(0, 30, VW, VH - 30);
+    for (let x = 0; x < VW; x += 40) { ctx.fillStyle = 'rgba(0,0,0,0.12)'; ctx.fillRect(x, 30, 1, VH); }
+    // the video window
+    const vx = 18, vy = 42, vw = 190, vh = 120;
+    panel(ctx, vx, vy, vw, vh, '#39ffa6', '#04140f');
+    const last = S.feed[S.feed.length - 1] || CHATTER[0];
+    ctx.save(); ctx.beginPath(); ctx.rect(vx + 2, vy + 2, vw - 4, vh - 4); ctx.clip();
+    const bg = ctx.createLinearGradient(0, vy, 0, vy + vh); bg.addColorStop(0, '#1a3a52'); bg.addColorStop(1, '#0a1a2a');
+    ctx.fillStyle = bg; ctx.fillRect(vx, vy, vw, vh);
+    face(ctx, vx + vw / 2, vy + 40, last[0], t);
+    ctx.fillStyle = 'rgba(57,255,166,0.06)'; for (let y = vy + (Math.floor(t * 30) % 3); y < vy + vh; y += 3) ctx.fillRect(vx, y, vw, 1);
+    ctx.restore();
+    ctx.fillStyle = '#ff5a4d'; ctx.beginPath(); ctx.arc(vx + 10, vy + 10, 3 + Math.sin(t * 6), 0, Math.PI * 2); ctx.fill();
+    F.draw(ctx, 'LIVE  -  ' + last[0], vx + 18, vy + 6, '#39ffa6', { shadow: false });
+    // speech
+    panel(ctx, vx, vy + vh + 6, vw, 52, '#1e9e68', 'rgba(4,20,15,0.9)');
+    wrap(ctx, last[1], vx + 8, vy + vh + 14, vw - 16, '#eafcff', 3);
+    // the book
+    const bx = 224, by = 42, bw = VW - 224 - 12;
+    panel(ctx, bx, by, bw, 180, '#39ffa6');
+    F.draw(ctx, 'THE BOOK', bx + 8, by + 6, '#39ffa6', { shadow: false });
+    F.draw(ctx, 'QTY', bx + 130, by + 6, '#1e9e68', { shadow: false });
+    F.draw(ctx, 'EACH', bx + 162, by + 6, '#1e9e68', { shadow: false });
+    F.draw(ctx, 'TREND', bx + bw - 8, by + 6, '#1e9e68', { right: true, shadow: false });
+    const keys = Object.keys(g.save.vault).filter(k => g.save.vault[k] > 0).sort((a, c) => D.MAT[c].cr - D.MAT[a].cr);
+    if (!keys.length) F.draw(ctx, 'EMPTY. GO DIG SOMETHING UP.', bx + 8, by + 40, '#1e9e68', { shadow: false });
+    keys.slice(0, 8).forEach((k, i) => {
+      const y = by + 20 + i * 16;
+      ctx.fillStyle = i % 2 ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0)'; ctx.fillRect(bx + 4, y - 2, bw - 8, 15);
+      orePip(ctx, bx + 8, y, +k);
+      F.draw(ctx, D.MAT[k].name.toUpperCase().slice(0, 14), bx + 22, y + 2, '#eafcff', { shadow: false });
+      F.draw(ctx, String(g.save.vault[k]), bx + 130, y + 2, '#ffd34d', { shadow: false });
+      F.draw(ctx, U.fmt(g.priceOf(+k)), bx + 162, y + 2, '#eafcff', { shadow: false });
+      const pct = Math.round((g.demandFor(+k) - 1) * 100);
+      F.draw(ctx, (pct >= 0 ? '+' : '') + pct + '%', bx + bw - 8, y + 2, pct >= 0 ? '#8affa0' : '#ff6b8a', { right: true, shadow: false });
+    });
+    const total = g.vaultValue();
+    F.draw(ctx, 'TOTAL', bx + 8, by + 158, '#1e9e68', { shadow: false });
+    F.draw(ctx, '$' + U.fmt(total), bx + bw - 8, by + 154, '#ffd34d', { right: true, shadow: false, scale: 2 });
+    BTN.x = bx; BTN.y = VH - 40; BTN.w = bw; BTN.h = 26;
+    button(ctx, BTN, 'SELL ALL', total > 0, t);
+    header(ctx, 'TERMINAL', 'LV ' + g.buildLevel('terminal') + '   +' + Math.round((D.UPG.crew.value(g.save.upg.crew || 0) - 1) * 100) + '% PRICES', '#39ffa6');
+    hands(ctx, t, false);
+  }
+
+  /* The fabricator bench: recipes left, the printer bed right. */
+  function drawFab(ctx, g, t) {
+    ctx.fillStyle = '#1a1210'; ctx.fillRect(0, 0, VW, VH);
+    ctx.fillStyle = '#2c1f18'; ctx.fillRect(0, 30, VW, VH - 30);
+    for (let y = 40; y < VH; y += 26) { ctx.fillStyle = 'rgba(0,0,0,0.15)'; ctx.fillRect(0, y, VW, 2); }
+    // bench top
+    ctx.fillStyle = '#6b4a3a'; ctx.fillRect(0, VH - 60, VW, 60); ctx.fillStyle = '#8a5a3a'; ctx.fillRect(0, VH - 60, VW, 4);
+    const items = list(g);
+    LIST.x = 14; LIST.y = 44; LIST.w = 250; LIST.rowH = 30; LIST.rows = 6;
+    panel(ctx, LIST.x - 4, LIST.y - 8, LIST.w + 8, LIST.rowH * 6 + 12, '#ffb03d');
+    items.forEach((r, i) => {
+      if (i >= 6) return;
+      const y = row(ctx, i, S.sel === i, '#ffb03d');
+      G.draw(ctx, r.glyph, LIST.x + 8, y + 3, '#ffffff', '#c07a20', 2);
+      F.draw(ctx, r.name, LIST.x + 36, y + 4, '#fff3d0', { shadow: false });
+      let mx = LIST.x + 36;
+      for (const key in r.mats) {
+        const mat = D.M[key], have = g.save.vault[mat] || 0, need = r.mats[key];
+        orePip(ctx, mx, y + 15, mat);
+        F.draw(ctx, have + '/' + need, mx + 12, y + 17, have >= need ? '#8affa0' : '#ff6b8a', { shadow: false });
+        mx += 44;
+      }
+      F.draw(ctx, 'x' + (g.save.parts[r.id] || 0), LIST.x + LIST.w - 8, y + 10, '#ffd34d', { right: true, shadow: false });
+    });
+    if (g.buildLevel('fab') < 4) F.draw(ctx, 'MORE RECIPES AT FABRICATOR LV ' + (g.buildLevel('fab') + 1), LIST.x, LIST.y + LIST.rowH * 6 + 8, '#8a5a3a', { shadow: false });
+    // the printer bed
+    const px = 284, py = 44, pw = 182, ph = 130;
+    panel(ctx, px, py, pw, ph, '#ffb03d', '#0f0a08');
+    ctx.fillStyle = '#39405e'; ctx.fillRect(px + 12, py + ph - 22, pw - 24, 8);
+    ctx.fillStyle = '#9aa3c4'; ctx.fillRect(px + 10, py + 10, 4, ph - 32); ctx.fillRect(px + pw - 14, py + 10, 4, ph - 32); ctx.fillRect(px + 10, py + 10, pw - 20, 4);
+    const sel = items[S.sel];
+    if (sel) {
+      const cx = px + pw / 2, cy = py + ph - 26;
+      const printing = S.printT > 0 && S.printId === sel.id;
+      const k = printing ? 1 - S.printT / 1.4 : 1;
+      // the part, big
+      ctx.save();
+      ctx.beginPath(); ctx.rect(px, cy - 60 * k, pw, 60 * k + 2); ctx.clip();
+      G.draw(ctx, sel.glyph, cx - 30, cy - 62, printing ? '#ffffff' : '#eafcff', '#c07a20', 5);
+      ctx.restore();
+      if (printing) {
+        const headX = px + 20 + ((S.t * 260) % (pw - 44));
+        ctx.fillStyle = '#ffb03d'; ctx.fillRect(headX, py + 14, 12, 10); ctx.fillStyle = '#58e8ff'; ctx.fillRect(headX + 4, py + 24, 4, cy - 60 * k - py - 24);
+        ctx.fillStyle = '#ffffff'; ctx.fillRect(px + 16, cy - 60 * k, pw - 32, 2);
+        F.draw(ctx, Math.round(k * 100) + '%', cx, py + ph - 12, '#ffffff', { center: true, shadow: false });
+      } else {
+        F.draw(ctx, sel.name, cx, py + 20, '#fff3d0', { center: true, shadow: false });
+        wrap(ctx, sel.blurb, px + 10, py + ph - 14, pw - 20, '#ffb03d', 1);
+      }
+    }
+    BTN.x = px; BTN.y = VH - 44; BTN.w = pw; BTN.h = 26;
+    let can = false;
+    if (sel) { can = true; for (const key in sel.mats) if ((g.save.vault[D.M[key]] || 0) < sel.mats[key]) can = false; }
+    button(ctx, BTN, 'CRAFT', can, t, '#ffb03d');
+    header(ctx, 'FABRICATOR', 'LV ' + g.buildLevel('fab') + '   TIER ' + g.buildLevel('fab') + ' RECIPES', '#ffb03d');
+    hands(ctx, t, false);
+  }
+
+  /* The docks: your pod on the lift, its slots, its numbers. */
+  function drawDocks(ctx, g, t) {
+    ctx.fillStyle = '#0c1020'; ctx.fillRect(0, 0, VW, VH);
+    // hangar: ribs and a lit floor
+    for (let x = 0; x < VW; x += 60) { ctx.fillStyle = '#161d38'; ctx.fillRect(x, 30, 8, VH); }
+    ctx.fillStyle = '#1c2446'; ctx.fillRect(0, VH - 70, VW, 70);
+    ctx.fillStyle = '#2b3a66'; ctx.fillRect(0, VH - 70, VW, 3);
+    for (let i = 0; i < 8; i++) { ctx.fillStyle = i % 2 ? '#ffb03d' : '#39405e'; ctx.fillRect(40 + i * 52, VH - 66, 26, 3); }
+    // the pod, big, on the lift
+    const pod = PD.art.skinFor(g.save.cos).pod;
+    const cx = 300, cy = VH - 74 + Math.sin(t * 1.4) * 2;
+    ctx.fillStyle = '#39405e'; ctx.fillRect(cx - 60, VH - 70, 120, 6); ctx.fillRect(cx - 8, VH - 64, 16, 20);
+    ctx.save(); ctx.translate(cx, cy); ctx.scale(2.4, 2.4);
+    ctx.drawImage(pod.frames[Math.floor(t * 3) % 2], -pod.ox, -pod.oy + 2, pod.w, pod.h);
+    ctx.restore();
+    // slots as hexes hung off the hull
+    const slots = g.slots();
+    const inst = [];
+    for (const id in g.save.installed) for (let k = 0; k < g.save.installed[id]; k++) inst.push(id);
+    for (let i = 0; i < slots; i++) {
+      const a = Math.PI * 1.15 + i * (Math.PI * 0.7 / Math.max(1, slots - 1));
+      const sx = cx + Math.cos(a) * 92, sy = cy - 44 + Math.sin(a) * 40;
+      ctx.strokeStyle = inst[i] ? '#58e8ff' : '#2b3a66'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(cx + Math.cos(a) * 40, cy - 40 + Math.sin(a) * 20); ctx.stroke();
+      const flash = S.fitT > 0 && inst[i] === S.fitId && i === inst.lastIndexOf(S.fitId);
+      G.hex(ctx, sx, sy, 12, inst[i] ? (flash ? '#ffffff' : '#123a44') : '#0c1020', inst[i] ? '#58e8ff' : '#2b3a66', 1);
+      if (inst[i]) G.draw(ctx, D.RECIPE[inst[i]].glyph, sx - 6, sy - 6, '#eafcff', 'rgba(0,0,0,0)');
+      else F.draw(ctx, String(i + 1), sx, sy - 3, '#2b3a66', { center: true, shadow: false });
+    }
+    // stats
+    const p = g.player;
+    const stats = [['AIR', Math.round(p.stat('oxygen')), '#58e8ff'], ['HULL', Math.round(p.stat('hull')), '#ff5a4d'], ['HOLD', Math.round(p.capacity()) + 'KG', '#ffb03d'],
+      ['DRILL', Math.round(p.stat('drill')), '#ffd34d'], ['WIRE', Math.round((p.stat('tether') - 70) / 10) + 'M', '#8affa0']];
+    panel(ctx, 14, 40, 120, 96, '#58e8ff');
+    F.draw(ctx, 'THE POD', 22, 46, '#58e8ff', { shadow: false });
+    stats.forEach((s, i) => { F.draw(ctx, s[0], 22, 60 + i * 14, '#9aa3c4', { shadow: false }); F.draw(ctx, String(s[1]), 126, 60 + i * 14, s[2], { right: true, shadow: false }); });
+    // parts in store
+    const items = list(g);
+    LIST.x = 14; LIST.y = 150; LIST.w = 150; LIST.rowH = 18; LIST.rows = 4;
+    panel(ctx, LIST.x - 4, LIST.y - 16, LIST.w + 8, LIST.rowH * 4 + 22, '#58e8ff');
+    F.draw(ctx, 'PARTS IN STORE', LIST.x + 4, LIST.y - 10, '#58e8ff', { shadow: false });
+    if (!items.length) F.draw(ctx, 'NONE. THE FABRICATOR MAKES THEM.', LIST.x + 4, LIST.y + 6, '#2b3a66', { shadow: false });
+    items.slice(0, 4).forEach((r, i) => {
+      const y = row(ctx, i, S.sel === i, '#58e8ff');
+      G.draw(ctx, r.glyph, LIST.x + 6, y + 2, '#eafcff', '#2b3a66');
+      F.draw(ctx, r.name + ' x' + (g.save.parts[r.id] || 0), LIST.x + 22, y + 4, '#eafcff', { shadow: false });
+    });
+    const sel = items[S.sel];
+    if (sel) wrap(ctx, sel.blurb, 180, 46, 120, '#58e8ff', 2);
+    BTN.x = 14; BTN.y = VH - 40; BTN.w = 160; BTN.h = 26;
+    button(ctx, BTN, 'FIT PART', !!sel && g.installedCount() < slots, t, '#58e8ff');
+    header(ctx, 'THE DOCKS', 'LV ' + g.buildLevel('docks') + '   SLOTS ' + g.installedCount() + '/' + slots, '#58e8ff');
+    hands(ctx, t, false);
+  }
+
+  PD.scenes = { enter, close, update, draw, S };
+})(window.PD);
+
 /* ===== src/home.js ===== */
 /* Your moon. Side-scrolling, low gravity: run, jump very high, tuck into a
    roll. Five buildings, each one raised from a hologram blueprint by the
@@ -7154,8 +7606,8 @@ window.PD = window.PD || {};
     if (g.printing) return;
     if (b.id === 'obs') { g.openChart(); return; }
     if (b.id === 'mind') { PD.mind.open(g); return; }
-    UI.mode = b.id; UI.sel = 0;
-    A.sfx.tone(180, { type: 'square', to: 900, dur: 0.18, vol: 0.08 });
+    UI.mode = b.id;
+    PD.scenes.enter(b.id, g);
   }
 
   /* ---------------------------------------------------------------- update */
@@ -7178,14 +7630,14 @@ window.PD = window.PD || {};
       if (g.printing.t >= g.printing.dur) { const id = g.printing.id; g.printing = null; g.finishBuild(id); }
     }
 
-    if (UI.mode) { updatePanel(dt, g); return; }
+    if (UI.mode) { PD.scenes.update(dt, g); return; }
 
     const use_ = P.lock <= 0 && (IN.hit('KeyE') || IN.hit('space'));
     const m = IN.mouse;
 
     // the phone: Tab, or tap the device in the corner
-    const onPhone = m.inside && m.x > VW - 34 && m.y > VH - 52;
-    if (P.lock <= 0 && (IN.hit('Tab') || IN.hit('KeyB') || (m.leftPressed && onPhone))) { UI.mode = 'phone'; UI.sel = 0; A.sfx.click(); return; }
+    const onPhone = m.inside && m.x > VW - 44 && m.y > VH - 60 && m.y < VH;
+    if (P.lock <= 0 && (IN.hit('Tab') || IN.hit('KeyB') || (m.leftPressed && onPhone))) { UI.mode = 'phone'; PD.scenes.enter('phone', g); return; }
 
     let ix = 0;
     if (IN.down('left')) ix -= 1;
@@ -7249,45 +7701,8 @@ window.PD = window.PD || {};
     g.intCam = U.damp(g.intCam, U.clamp(P.x - VW / 2, 0, ROOM_W - VW), 0.15, dt);
   }
 
-  /* ----------------------------------------------------------------- panels */
-  const PANEL = { x: 92, y: 36, w: 296, h: 190 };
-  function rows(g) {
-    if (UI.mode === 'phone') return D.BUILDINGS;
-    if (UI.mode === 'fab') return D.RECIPES.filter(r => r.tier <= g.buildLevel('fab'));
-    if (UI.mode === 'docks') return D.RECIPES.filter(r => (g.save.parts[r.id] || 0) > 0);
-    return [];
-  }
-  function updatePanel(dt, g) {
-    const IN = PD.input, m = IN.mouse;
-    const list = rows(g);
-    if (IN.hit('esc') || (m.leftPressed && (m.x < PANEL.x || m.x > PANEL.x + PANEL.w || m.y < PANEL.y || m.y > PANEL.y + PANEL.h))) {
-      UI.mode = null; P.lock = 0.2; A.sfx.click(); return;
-    }
-    if (IN.hit('down')) UI.sel = Math.min(list.length - 1, UI.sel + 1);
-    if (IN.hit('up')) UI.sel = Math.max(0, UI.sel - 1);
-    // rows are 20px tall from PANEL.y + 34
-    if (m.leftPressed) {
-      const i = Math.floor((m.y - (PANEL.y + 34)) / 20);
-      if (i >= 0 && i < list.length && m.x < PANEL.x + PANEL.w - 4) { if (UI.sel === i) act(g, list[i]); else { UI.sel = i; A.sfx.click(); } }
-      if (m.y > PANEL.y + PANEL.h - 30 && m.x > PANEL.x + PANEL.w - 120 && UI.mode === 'terminal') g.sellAll();
-    }
-    if (IN.hit('KeyE') || IN.hit('space') || IN.hit('enter')) {
-      if (UI.mode === 'terminal') g.sellAll();
-      else if (list[UI.sel]) act(g, list[UI.sel]);
-    }
-  }
-  function act(g, item) {
-    if (UI.mode === 'phone') {
-      const lvl = g.buildLevel(item.id);
-      if (lvl <= 0) { if (g.startBuild(item.id)) { UI.mode = null; P.lock = 0.3; } else say('NOT ENOUGH CREDITS'); }
-      else if (lvl >= item.max) say('ALREADY MAXED');
-      else if (!g.upgradeBuilding(item.id)) say('NOT ENOUGH CREDITS');
-    } else if (UI.mode === 'fab') {
-      if (!g.craft(item.id)) say('MISSING ORE');
-    } else if (UI.mode === 'docks') {
-      if (!g.install(item.id)) say('NO FREE SLOT');
-    }
-  }
+  function closeScene() { UI.mode = null; P.lock = 0.2; A.sfx.click(); }
+  function touchMode() { return UI.mode ? 'ui' : 'home'; }
 
   /* ------------------------------------------------------------------ draw */
   function drawSky(ctx, g, t, cam) {
@@ -7446,7 +7861,7 @@ window.PD = window.PD || {};
     AH.blit(ctx, ph, on ? 1 : 0, VW - 18, VH - 6 + (on ? 0 : Math.sin(t * 2) * 1));
     F.draw(ctx, 'TAB', VW - 18, VH - 46, '#9c8ec4', { center: true, shadow: true });
 
-    if (UI.mode) drawPanel(ctx, g, t);
+    if (UI.mode) PD.scenes.draw(ctx, g, t);
     if (UI.msgT > 0) {
       ctx.globalAlpha = Math.min(1, UI.msgT);
       F.draw(ctx, UI.msg, VW / 2, VH - 30, '#ff6b8a', { center: true, scale: 1 });
@@ -7523,147 +7938,7 @@ window.PD = window.PD || {};
     ctx.beginPath(); ctx.moveTo(left - 4, y + 2); ctx.lineTo(left + 6, top); ctx.moveTo(left + w + 4, y + 2); ctx.lineTo(left + w - 6, top); ctx.stroke();
   }
 
-  /* One hologram panel for everything: phone, docks, terminal, fabricator. */
-  function holoFrame(ctx, title, sub, t) {
-    const { x, y, w, h } = PANEL;
-    ctx.fillStyle = 'rgba(4,14,26,0.9)'; ctx.fillRect(x, y, w, h);
-    ctx.fillStyle = 'rgba(88,232,255,0.06)';
-    for (let yy = y + (Math.floor(t * 30) % 4); yy < y + h; yy += 4) ctx.fillRect(x, yy, w, 1);
-    ctx.strokeStyle = '#58e8ff'; ctx.lineWidth = 1; ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
-    ctx.fillStyle = '#58e8ff';
-    ctx.fillRect(x, y, 14, 2); ctx.fillRect(x, y, 2, 14); ctx.fillRect(x + w - 14, y + h - 2, 14, 2); ctx.fillRect(x + w - 2, y + h - 14, 2, 14);
-    F.draw(ctx, title, x + 8, y + 6, '#eafcff', { shadow: false, scale: 2 });
-    if (sub) F.draw(ctx, sub, x + w - 8, y + 10, '#58e8ff', { right: true, shadow: false });
-    F.draw(ctx, 'ESC', x + w - 8, y + h - 12, '#2f8fae', { right: true, shadow: false });
-  }
-  function wrap(ctx, text, x, y, maxW, col, maxLines) {
-    const words = text.toUpperCase().split(' ');
-    let line = '', ly = y, n = 0;
-    for (const w of words) {
-      if (F.width(line + ' ' + w, 1) > maxW && line) {
-        F.draw(ctx, line, x, ly, col, { shadow: false }); line = w; ly += 10; n++;
-        if (n >= (maxLines || 2)) return;
-      } else line = line ? line + ' ' + w : w;
-    }
-    if (line) F.draw(ctx, line, x, ly, col, { shadow: false });
-  }
-  function rowBox(ctx, i, hot, sel) {
-    const y = PANEL.y + 34 + i * 20;
-    ctx.fillStyle = sel ? 'rgba(88,232,255,0.18)' : (i % 2 ? 'rgba(88,232,255,0.04)' : 'rgba(0,0,0,0)');
-    ctx.fillRect(PANEL.x + 6, y, PANEL.w - 12, 19);
-    if (sel) { ctx.strokeStyle = '#58e8ff'; ctx.strokeRect(PANEL.x + 6.5, y + 0.5, PANEL.w - 13, 18); }
-    return y;
-  }
-
-  function drawPanel(ctx, g, t) {
-    const { x, y, w, h } = PANEL;
-    const b = D.BUILD[UI.mode];
-    if (b) {
-      // projector beam from the building up to the panel
-      const bx = b.x - g.intCam, by = groundY(b.x) - AH.S[b.id + tierOf(Math.max(1, g.buildLevel(b.id)))].h;
-      ctx.fillStyle = 'rgba(88,232,255,0.12)';
-      ctx.beginPath(); ctx.moveTo(bx - 6, by); ctx.lineTo(bx + 6, by); ctx.lineTo(x + w, y + h); ctx.lineTo(x, y + h); ctx.closePath(); ctx.fill();
-    }
-    const list = rows(g);
-    if (UI.mode === 'phone') {
-      holoFrame(ctx, 'MULTI-TOOL', '$' + U.fmt(g.save.credits), t);
-      F.draw(ctx, 'BUILDINGS   -   PICK ONE TO PRINT OR UPGRADE', x + 8, y + 24, '#2f8fae', { shadow: false });
-      list.forEach((bd, i) => {
-        const ry = rowBox(ctx, i, false, UI.sel === i);
-        const lvl = g.buildLevel(bd.id);
-        G.draw(ctx, bd.glyph, x + 10, ry + 3, '#eafcff', '#2f8fae');
-        F.draw(ctx, bd.name, x + 28, ry + 6, '#eafcff', { shadow: false });
-        const cost = D.buildCost(bd, lvl);
-        const right = lvl <= 0 ? 'PRINT  $' + U.fmt(cost) : (lvl >= bd.max ? 'LV ' + lvl + '  MAX' : 'LV ' + lvl + '  UP  $' + U.fmt(cost));
-        F.draw(ctx, right, x + w - 12, ry + 6, lvl >= bd.max ? '#8affa0' : (g.save.credits >= cost ? '#ffd34d' : '#ff6b8a'), { right: true, shadow: false });
-      });
-      const sb = list[UI.sel];
-      if (sb) wrap(ctx, sb.blurb, x + 8, y + h - 40, w - 16, '#58e8ff', 2);
-      F.draw(ctx, 'E  CONFIRM', x + 8, y + h - 12, '#eafcff', { shadow: false });
-    } else if (UI.mode === 'terminal') {
-      holoFrame(ctx, 'TERMINAL', 'LV ' + g.buildLevel('terminal') + '  +' + Math.round((D.UPG.crew.value(g.save.upg.crew || 0) - 1) * 100) + '% PRICES', t);
-      const keys = Object.keys(g.save.vault).filter(k => g.save.vault[k] > 0).sort((a, c) => D.MAT[c].cr - D.MAT[a].cr);
-      F.draw(ctx, 'ORE', x + 10, y + 24, '#2f8fae', { shadow: false });
-      F.draw(ctx, 'QTY', x + 110, y + 24, '#2f8fae', { shadow: false });
-      F.draw(ctx, 'EACH', x + 138, y + 24, '#2f8fae', { shadow: false });
-      if (!keys.length) F.draw(ctx, 'NOTHING TO SELL. GO DIG.', x + 10, y + 50, '#2f8fae', { shadow: false });
-      keys.slice(0, 6).forEach((k, i) => {
-        const ry = y + 34 + i * 16, m = D.MAT[k];
-        ctx.fillStyle = m.c[1]; ctx.fillRect(x + 10, ry + 2, 8, 8); ctx.fillStyle = m.c[0]; ctx.fillRect(x + 10, ry + 2, 8, 3);
-        F.draw(ctx, m.name.toUpperCase().slice(0, 13), x + 22, ry + 4, '#eafcff', { shadow: false });
-        F.draw(ctx, String(g.save.vault[k]), x + 110, ry + 4, '#ffd34d', { shadow: false });
-        const pct = Math.round((g.demandFor(+k) - 1) * 100);
-        F.draw(ctx, U.fmt(g.priceOf(+k)), x + 138, ry + 4, '#eafcff', { shadow: false });
-        F.draw(ctx, (pct >= 0 ? '+' : '') + pct + '%', x + 168, ry + 4, pct >= 0 ? '#8affa0' : '#ff6b8a', { shadow: false });
-      });
-      // comms feed
-      ctx.fillStyle = 'rgba(88,232,255,0.25)'; ctx.fillRect(x + 196, y + 22, 1, h - 60);
-      F.draw(ctx, 'COMMS', x + 204, y + 24, '#2f8fae', { shadow: false });
-      UI.feed.forEach((msg, i) => {
-        const fy = y + 36 + i * 40;
-        F.draw(ctx, msg[0], x + 204, fy, '#ffd34d', { shadow: false });
-        const words = msg[1].toUpperCase().split(' ');
-        let line = '', ly = fy + 10;
-        for (const wd of words) {
-          if (F.width(line + ' ' + wd, 1) > 84) { F.draw(ctx, line, x + 204, ly, '#eafcff', { shadow: false }); line = wd; ly += 9; if (ly > fy + 30) break; }
-          else line = line ? line + ' ' + wd : wd;
-        }
-        if (line && ly <= fy + 30) F.draw(ctx, line, x + 204, ly, '#eafcff', { shadow: false });
-      });
-      const total = g.vaultValue();
-      const hot = total > 0;
-      ctx.fillStyle = hot ? (Math.sin(t * 5) > 0 ? '#39ffa6' : '#2ad48a') : '#0f2a2e';
-      ctx.fillRect(x + w - 120, y + h - 30, 112, 20);
-      F.draw(ctx, 'E  SELL ALL  $' + U.fmt(total), x + w - 64, y + h - 23, hot ? '#05170e' : '#2f5a44', { center: true, shadow: false });
-    } else if (UI.mode === 'fab') {
-      holoFrame(ctx, 'FABRICATOR', 'LV ' + g.buildLevel('fab') + '  TIER ' + g.buildLevel('fab'), t);
-      F.draw(ctx, 'RECIPE', x + 28, y + 24, '#2f8fae', { shadow: false });
-      F.draw(ctx, 'NEEDS', x + 140, y + 24, '#2f8fae', { shadow: false });
-      F.draw(ctx, 'OWNED', x + w - 12, y + 24, '#2f8fae', { right: true, shadow: false });
-      list.forEach((r, i) => {
-        const ry = rowBox(ctx, i, false, UI.sel === i);
-        G.draw(ctx, r.glyph, x + 10, ry + 3, '#eafcff', '#2f8fae');
-        F.draw(ctx, r.name, x + 28, ry + 6, '#eafcff', { shadow: false });
-        let mx = x + 140, ok = true;
-        for (const key in r.mats) {
-          const mat = D.M[key], have = g.save.vault[mat] || 0, need = r.mats[key];
-          if (have < need) ok = false;
-          ctx.fillStyle = D.MAT[mat].c[1]; ctx.fillRect(mx, ry + 5, 7, 7); ctx.fillStyle = D.MAT[mat].c[0]; ctx.fillRect(mx, ry + 5, 7, 2);
-          F.draw(ctx, have + '/' + need, mx + 9, ry + 6, have >= need ? '#8affa0' : '#ff6b8a', { shadow: false });
-          mx += 40;
-        }
-        F.draw(ctx, String(g.save.parts[r.id] || 0), x + w - 12, ry + 6, '#ffd34d', { right: true, shadow: false });
-        if (UI.sel === i) wrap(ctx, r.blurb, x + 8, y + h - 40, w - 16, ok ? '#58e8ff' : '#ff6b8a', 2);
-      });
-      F.draw(ctx, 'E  CRAFT', x + 8, y + h - 12, '#eafcff', { shadow: false });
-    } else if (UI.mode === 'docks') {
-      const slots = g.slots(), used = g.installedCount();
-      holoFrame(ctx, 'THE DOCKS', 'LV ' + g.buildLevel('docks') + '  SLOTS ' + used + '/' + slots, t);
-      // the pod's slots
-      let sx = x + 10;
-      const inst = [];
-      for (const id in g.save.installed) for (let k = 0; k < g.save.installed[id]; k++) inst.push(id);
-      for (let i = 0; i < slots; i++) {
-        G.hex(ctx, sx + 8, y + 32, 8, inst[i] ? '#1e9e5c' : '#0f2a2e', '#58e8ff', 1);
-        if (inst[i]) G.draw(ctx, D.RECIPE[inst[i]].glyph, sx + 2, y + 26, '#eafcff', 'rgba(0,0,0,0)');
-        sx += 22;
-      }
-      F.draw(ctx, 'FITTED PARTS', x + w - 12, y + 30, '#2f8fae', { right: true, shadow: false });
-      F.draw(ctx, 'PARTS IN STORE  -  PICK ONE TO FIT', x + 10, y + 50, '#2f8fae', { shadow: false });
-      if (!list.length) F.draw(ctx, 'NOTHING BUILT YET. THE FABRICATOR MAKES PARTS.', x + 10, y + 70, '#2f8fae', { shadow: false });
-      list.forEach((r, i) => {
-        const ry = PANEL.y + 34 + 26 + i * 20;
-        ctx.fillStyle = UI.sel === i ? 'rgba(88,232,255,0.18)' : 'rgba(0,0,0,0)'; ctx.fillRect(x + 6, ry, w - 12, 19);
-        if (UI.sel === i) { ctx.strokeStyle = '#58e8ff'; ctx.strokeRect(x + 6.5, ry + 0.5, w - 13, 18); }
-        G.draw(ctx, r.glyph, x + 10, ry + 3, '#eafcff', '#2f8fae');
-        F.draw(ctx, r.name + '  x' + (g.save.parts[r.id] || 0), x + 28, ry + 6, '#eafcff', { shadow: false });
-        F.draw(ctx, r.blurb.toUpperCase().slice(0, 26), x + w - 12, ry + 6, '#58e8ff', { right: true, shadow: false });
-      });
-      F.draw(ctx, 'E  FIT PART', x + 8, y + h - 12, '#eafcff', { shadow: false });
-    }
-  }
-
-  PD.home = { enter, update, draw, P, UI, groundY, ROOM_W };
+  PD.home = { enter, update, draw, closeScene, touchMode, P, UI, groundY, ROOM_W };
 })(window.PD);
 
 /* ===== src/game.js ===== */
@@ -8114,10 +8389,15 @@ window.PD = window.PD || {};
     if (m.cr >= 300) PD.touch.buzz(12);
 
     g.save.totalMined++;
+    g.chain = g.chain || { n: 0, t: 0 };
+    g.chain.n++; g.chain.t = 1.3;
     FX.dust(x, y, m.shine ? 9 : 6, m.c[2], 55);
-    FX.burst(x, y, 3, m.c, 70);
+    FX.burst(x, y, 3 + Math.min(6, g.chain.n >> 2), m.c, 70 + Math.min(60, g.chain.n * 4));
     A.sfx.break_(U.clamp(m.hp / 255, 0, 1));
-    FX.shake(1.2);
+    A.sfx.tone(440 + Math.min(20, g.chain.n) * 28, { type: 'triangle', dur: 0.05, vol: 0.05 });
+    FX.shake(1.2 + Math.min(1.5, g.chain.n * 0.05));
+    if (g.chain.n % 10 === 0) { FX.text(x, y - 14, 'x' + g.chain.n + ' CHAIN', '#ffd34d', 2); FX.hitStop(0.03); A.sfx.coin(g.chain.n / 10 | 0); }
+    if (m.cr >= 300) { FX.hitStop(0.04); FX.ring(x, y, 4, 22, 0.4, m.c[0], 2); }
 
     if (g.pickups.length < 160) g.pickups.push(new PD.ent.Pickup(x, y, mat));
     else g.collect(mat, x, y);
@@ -8458,6 +8738,7 @@ window.PD = window.PD || {};
     }
 
     g.combo.t -= dt;
+    if (g.chain && g.chain.t > 0) { g.chain.t -= dt; if (g.chain.t <= 0) g.chain.n = 0; }
     if (g.combo.t <= 0 && g.combo.n) { g.combo.n = 0; g.combo.mult = 1; }
     for (let i = g.pings.length - 1; i >= 0; i--) { g.pings[i].life -= dt; if (g.pings[i].life <= 0) g.pings.splice(i, 1); }
     if (g.banner) { g.banner.t -= dt; if (g.banner.t <= 0) g.banner = null; }
@@ -8802,8 +9083,8 @@ window.PD = window.PD || {};
       FX.drawWorld(ctx, { x: Math.round(g.intCam), y: 0 });
       FX.drawFloaters(ctx, { x: Math.round(g.intCam), y: 0 }, (c, str, x, y, col, size) =>
         F.draw(c, str, x, y, col, { center: true, scale: size >= 2 ? 2 : 1 }));
-      UI.homeBar(ctx, g);
-      PD.touch.draw(ctx, 'ui');
+      if (!PD.home.UI.mode) UI.homeBar(ctx, g);
+      PD.touch.draw(ctx, PD.home.touchMode(), g);
       UI.endFrame();
       blit();
       return;
@@ -8907,7 +9188,7 @@ window.PD = window.PD || {};
     m.wy = m.y + g.cam.y;
 
     FX.tickFreeze(dt);
-    PD.touch.apply(g.state === 'play' ? 'play' : 'ui');
+    PD.touch.apply(g.state === 'play' ? 'play' : (g.state === 'home' ? PD.home.touchMode() : 'ui'));
 
     if (FX.freeze > 0) {
       // hit-stop: the world holds still but particles keep creeping

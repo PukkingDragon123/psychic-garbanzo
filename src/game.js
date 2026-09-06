@@ -445,10 +445,15 @@
     if (m.cr >= 300) PD.touch.buzz(12);
 
     g.save.totalMined++;
+    g.chain = g.chain || { n: 0, t: 0 };
+    g.chain.n++; g.chain.t = 1.3;
     FX.dust(x, y, m.shine ? 9 : 6, m.c[2], 55);
-    FX.burst(x, y, 3, m.c, 70);
+    FX.burst(x, y, 3 + Math.min(6, g.chain.n >> 2), m.c, 70 + Math.min(60, g.chain.n * 4));
     A.sfx.break_(U.clamp(m.hp / 255, 0, 1));
-    FX.shake(1.2);
+    A.sfx.tone(440 + Math.min(20, g.chain.n) * 28, { type: 'triangle', dur: 0.05, vol: 0.05 });
+    FX.shake(1.2 + Math.min(1.5, g.chain.n * 0.05));
+    if (g.chain.n % 10 === 0) { FX.text(x, y - 14, 'x' + g.chain.n + ' CHAIN', '#ffd34d', 2); FX.hitStop(0.03); A.sfx.coin(g.chain.n / 10 | 0); }
+    if (m.cr >= 300) { FX.hitStop(0.04); FX.ring(x, y, 4, 22, 0.4, m.c[0], 2); }
 
     if (g.pickups.length < 160) g.pickups.push(new PD.ent.Pickup(x, y, mat));
     else g.collect(mat, x, y);
@@ -789,6 +794,7 @@
     }
 
     g.combo.t -= dt;
+    if (g.chain && g.chain.t > 0) { g.chain.t -= dt; if (g.chain.t <= 0) g.chain.n = 0; }
     if (g.combo.t <= 0 && g.combo.n) { g.combo.n = 0; g.combo.mult = 1; }
     for (let i = g.pings.length - 1; i >= 0; i--) { g.pings[i].life -= dt; if (g.pings[i].life <= 0) g.pings.splice(i, 1); }
     if (g.banner) { g.banner.t -= dt; if (g.banner.t <= 0) g.banner = null; }
@@ -1133,8 +1139,8 @@
       FX.drawWorld(ctx, { x: Math.round(g.intCam), y: 0 });
       FX.drawFloaters(ctx, { x: Math.round(g.intCam), y: 0 }, (c, str, x, y, col, size) =>
         F.draw(c, str, x, y, col, { center: true, scale: size >= 2 ? 2 : 1 }));
-      UI.homeBar(ctx, g);
-      PD.touch.draw(ctx, 'ui');
+      if (!PD.home.UI.mode) UI.homeBar(ctx, g);
+      PD.touch.draw(ctx, PD.home.touchMode(), g);
       UI.endFrame();
       blit();
       return;
@@ -1238,7 +1244,7 @@
     m.wy = m.y + g.cam.y;
 
     FX.tickFreeze(dt);
-    PD.touch.apply(g.state === 'play' ? 'play' : 'ui');
+    PD.touch.apply(g.state === 'play' ? 'play' : (g.state === 'home' ? PD.home.touchMode() : 'ui'));
 
     if (FX.freeze > 0) {
       // hit-stop: the world holds still but particles keep creeping

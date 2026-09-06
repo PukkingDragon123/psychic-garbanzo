@@ -10,13 +10,16 @@
   const cfg = {
     stick: { x: 62, y: VH - 60, r: 36, knob: 15 },
     play: {
-      fire: { x: VW - 38, y: VH - 46, r: 22, glyph: 'gun',  col: '#7ef9ff', key: null },
-      dash: { x: VW - 86, y: VH - 30, r: 16, glyph: 'dash', col: '#ffd34d', key: 'shift' },
-      swap: { x: VW - 90, y: VH - 72, r: 13, glyph: 'scatter', col: '#ff8ad8', key: 'KeyQ' },
-      scan: { x: VW - 40, y: VH - 96, r: 13, glyph: 'scan', col: '#8affa0', key: 'Tab' },
-      use:  { x: VW - 130, y: VH - 54, r: 13, glyph: 'hand', col: '#ffb03d', key: 'KeyE' },
-      beam: { x: VW - 130, y: VH - 22, r: 11, glyph: 'home', col: '#ff5a4d', key: 'KeyR', hold: true }
+      dash: { x: VW - 34, y: VH - 74, r: 16, glyph: 'dash', col: '#ffd34d', key: 'shift' },
+      scan: { x: VW - 72, y: VH - 92, r: 13, glyph: 'scan', col: '#8affa0', key: 'Tab' },
+      use:  { x: VW - 30, y: VH - 116, r: 13, glyph: 'home', col: '#ffb03d', key: 'KeyE' },
+      beam: { x: VW - 76, y: VH - 130, r: 11, glyph: 'hole', col: '#ff5a4d', key: 'KeyR', hold: true }
     },
+    home: {
+      jump: { x: VW - 34, y: VH - 74, r: 18, glyph: 'up', col: '#7ef9ff', key: 'up' },
+      roll: { x: VW - 78, y: VH - 50, r: 14, glyph: 'dash', col: '#ffd34d', key: 'shift' },
+      use:  { x: VW - 78, y: VH - 92, r: 14, glyph: 'hand', col: '#ffb03d', key: 'KeyE' }
+    }
   };
 
   const state = {
@@ -57,6 +60,10 @@
         if (state.mode === 'play') {
           if (p.x < VW * 0.42) { state.stickId = tch.identifier; state.sx = p.x; state.sy = p.y; state.dx = state.dy = 0; }
           else { state.aimId = tch.identifier; state.ax = p.x; state.ay = p.y; state.aiming = true; }
+        } else if (state.mode === 'home' && p.x < VW * 0.5 && p.y > VH * 0.45) {
+          // left half of the moon: a held touch walks you that way
+          state.stickId = tch.identifier; state.sx = p.x; state.sy = p.y; state.dx = state.dy = 0;
+          state.tapPress = true; state.tapX = p.x; state.tapY = p.y;
         } else {
           // field and menus: a held touch is a pointer, a tap is a click
           state.aimId = tch.identifier; state.ax = p.x; state.ay = p.y; state.aiming = true;
@@ -107,10 +114,15 @@
       const dz = 0.26;
       IN.keys.left = state.dx < -dz; IN.keys.right = state.dx > dz;
       IN.keys.up = state.dy < -dz;   IN.keys.down = state.dy > dz;
+      // one button: a held touch on the right aims and drills; the gun is automatic
       if (state.aiming) { IN.mouse.x = state.ax; IN.mouse.y = state.ay; IN.mouse.inside = true; IN.mouse.left = true; }
       else IN.mouse.left = false;
-      IN.mouse.right = !!state.down.fire;
     } else {
+      if (mode === 'home') {
+        const dz = 0.3;
+        IN.keys.left = state.dx < -dz; IN.keys.right = state.dx > dz;
+        if (state.stickId !== null && Math.abs(state.dx) > dz) state.tapPress = false;
+      }
       IN.mouse.x = state.tapX; IN.mouse.y = state.tapY; IN.mouse.inside = true;
       IN.mouse.left = state.tapHold;
       if (state.tapPress) { IN.mouse.leftPressed = true; state.tapPress = false; }
@@ -120,7 +132,7 @@
   function clearEdges() {
     if (!state.enabled) return;
     const IN = PD.input;
-    for (const m of ['play']) for (const k in cfg[m]) { const key = cfg[m][k].key; if (key && !cfg[m][k].hold) IN.keys[key] = false; }
+    for (const m of ['play', 'home']) for (const k in cfg[m]) { const key = cfg[m][k].key; if (key && !cfg[m][k].hold) IN.keys[key] = false; }
   }
 
   function padKey(ctx, k, c) {
@@ -136,6 +148,7 @@
 
   function draw(ctx, mode, g) {
     if (!state.enabled || mode === 'ui') return;
+    if (mode === 'home') { const keys = keysFor(mode); for (const k in keys) padKey(ctx, k, keys[k]); return; }
     const t = g ? g.time : 0;
     if (mode === 'play') {
       const s = cfg.stick;

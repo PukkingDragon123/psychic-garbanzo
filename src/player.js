@@ -304,6 +304,11 @@
     this.vy *= 1 - Math.min(1, dt * 2.5);
     if (this.drillT > 0.05) FX.shake(0.7);
 
+    // the spinning bit chews anything standing in it
+    for (const m of g.mobs) {
+      if (m.dead) continue;
+      if (Math.hypot(m.x - bite.x, m.y - bite.y) < 14 + m.w / 2 && U.chance(dt * 6)) m.hurtBy(this.stat('drill') * 0.12, g, Math.sign(m.x - this.x), 'drill');
+    }
     const power = this.stat('drill') * dt;
     const hardness = U.clamp(D.MAT[bite.mat].hp / 255, 0, 1);
     this.drillPitch = 1 - hardness;
@@ -329,11 +334,21 @@
   };
 
   /* --------------------------------------------------------------------- gun */
+  /* One button. You aim the drill; the gun finds its own targets and fires
+     itself at anything in range. Right mouse still fires manually. */
   Player.prototype.doGun = function (dt, g) {
     const IN = PD.input;
-    const want = (IN.mouse.right || IN.down('space')) && !g.uiBlocking;
+    let target = null, best = 118;
+    for (const m of g.mobs) {
+      if (m.dead || m.submerged) continue;
+      const d = Math.hypot(m.x - this.x, m.y - this.y);
+      if (d < best) { best = d; target = m; }
+    }
+    const manual = (IN.mouse.right || IN.down('space')) && !g.uiBlocking;
+    const want = manual || (target && !g.uiBlocking && (this.drilling || this.weapon === 'pistol' || true));
     if (!want || this.gunCool > 0) return;
-    const a0 = this.aim;
+    const a0 = manual || !target ? this.aim : Math.atan2(target.y - this.y, target.x - this.x);
+    this.gunAim = a0;
     const ox = Math.cos(a0) * 12, oy = Math.sin(a0) * 12;
 
     if (this.weapon === 'scatter') {
@@ -481,7 +496,8 @@
     if (!drilling) {
       ctx.save();
       ctx.translate(px | 0, py | 0);
-      ctx.rotate(this.aim + (flip ? Math.PI : 0));
+      const ga = this.gunAim === undefined ? this.aim : this.gunAim;
+      ctx.rotate(ga + (flip ? Math.PI : 0));
       ctx.scale(1, flip ? -1 : 1);
       const gf = gun.frames[this.gunCool > 0.05 ? 1 : 0];
       ctx.drawImage(gf, -2, -10);
@@ -512,15 +528,15 @@
       ctx.fillStyle = skin.P.skin; ctx.fillRect(hx - 2, hy - 2, 4, 4);
     } else {
       // hot sparks and grit off the bit
-      if (U.chance(0.7)) {
+      if (U.chance(0.45)) {
         const tx = hx + Math.cos(this.aim) * 24, ty = hy + Math.sin(this.aim) * 24;
         FX.spawn({ x: tx + cam.x, y: ty + cam.y, vx: -Math.cos(this.aim) * U.rand(30, 90) + U.rand(-40, 40), vy: -Math.sin(this.aim) * U.rand(30, 90) + U.rand(-60, 10),
-          life: U.rand(0.15, 0.4), size: 1, color: U.chance(0.5) ? '#fff2b0' : '#ff9b3d', grav: 260, drag: 1, glow: 1 });
+          life: U.rand(0.15, 0.4), size: 1, color: U.chance(0.5) ? '#fff2b0' : '#ff9b3d', grav: 260, drag: 1 });
       }
     }
 
     if (this.gunFlash > 0) {
-      const a = this.aim;
+      const a = this.gunAim === undefined ? this.aim : this.gunAim;
       ctx.fillStyle = '#eafcff';
       ctx.globalAlpha = this.gunFlash / 0.09;
       const fx = px + Math.cos(a) * 15, fy = py + Math.sin(a) * 15;
