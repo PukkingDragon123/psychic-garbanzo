@@ -23,13 +23,15 @@
     return c;
   }
 
+  /* Sprites authored at 2x density carry hd = 2 and draw at logical size. */
   function drawSprite(ctx, spr, frame, x, y, flip, tint) {
     const cv = spr.frames[frame % spr.frames.length];
     const src = tint ? flashOf(cv) : cv;
+    const k = spr.hd || 1;
     ctx.save();
     ctx.translate(x | 0, y | 0);
     if (flip) ctx.scale(-1, 1);
-    ctx.drawImage(src, -spr.ox | 0, -spr.oy | 0);
+    ctx.drawImage(src, -spr.ox | 0, -spr.oy | 0, cv.width / k, cv.height / k);
     ctx.restore();
   }
 

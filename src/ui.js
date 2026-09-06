@@ -187,7 +187,7 @@
     }
 
     // --- hold: a filling tube
-    const hx = CX + 28, hy = 42, hw = 84, hh = 9;
+    const hx = CX + 28, hy = 42, hw = 66, hh = 9;
     const load = U.clamp(p.cargoKg / cap, 0, 1);
     F.draw(ctx, 'HOLD', CX, 43, '#9c8ec4', { shadow: false });
     ctx.fillStyle = '#0d0720'; ctx.fillRect(hx - 1, hy - 1, hw + 2, hh + 2);
@@ -201,7 +201,7 @@
       ctx.fillStyle = 'rgba(255,255,255,0.3)';
       ctx.fillRect(hx + i * sw + 1, hy + 1, Math.max(1, (sw - 2) * f), 1);
     }
-    F.draw(ctx, Math.round(p.cargoKg) + '/' + Math.round(cap), hx + hw / 2, hy + 2, load > 0.55 ? '#3a2408' : '#ffb03d', { center: true, shadow: false });
+    F.draw(ctx, Math.round(p.cargoKg) + '/' + Math.round(cap), hx + hw + 4, hy + 2, p.cargoFull() ? '#ff6b8a' : '#ffb03d', { shadow: false });
 
     // --- manifest: top three ores, then the load's worth
     const entries = Object.keys(p.cargo).sort((a, b) => D.MAT[b].cr - D.MAT[a].cr).slice(0, 3);
@@ -243,22 +243,21 @@
     const wg = { pistol: 'gun', scatter: 'scatter', lance: 'lance' }[p.weapon];
     const sy = VH - 86;
     ctx.fillStyle = 'rgba(8,4,18,0.55)';
-    ctx.fillRect(0, sy - 4, 190, 16);
+    ctx.fillRect(0, sy - 4, 150, 16);
     Gd().draw(ctx, wg, 4, sy - 2, '#ffffff', '#7ef9ff');
-    F.draw(ctx, p.weapon.toUpperCase() + (p.weapons().length > 1 ? ' Q' : ''), 20, sy + 1, COL.text, { shadow: false });
+    if (p.weapons().length > 1) F.draw(ctx, 'Q', 20, sy + 1, COL.dim, { shadow: false });
     const pip = (x, glyph, frac, col) => {
       Gd().draw(ctx, glyph, x, sy - 2, frac >= 1 ? col : COL.dim, '#2a1c4a');
       ctx.fillStyle = '#2a1c4a'; ctx.fillRect(x, sy + 10, 12, 2);
       ctx.fillStyle = frac >= 1 ? col : '#9c8ec4'; ctx.fillRect(x, sy + 10, Math.round(12 * U.clamp(frac, 0, 1)), 2);
     };
-    pip(78, 'dash', 1 - p.dashCool / Math.max(0.1, p.stat('dash')), COL.gold);
-    pip(96, 'scan', 1 - p.scanCool / 4, COL.good);
+    pip(34, 'dash', 1 - p.dashCool / Math.max(0.1, p.stat('dash')), COL.gold);
+    pip(52, 'scan', 1 - p.scanCool / 4, COL.good);
     // the wire is the one that matters, so it gets a real bar
     const tf = U.clamp(p.tetherFrac || 0, 0, 1);
     const tcol = tf > 0.9 ? '#ff5a4d' : (tf > 0.7 ? COL.gold : COL.o2);
-    Gd().draw(ctx, 'belt', 116, sy - 2, tcol, '#2a1c4a');
-    bar(ctx, 132, sy + 1, 52, 7, tf, tcol, {});
-    F.draw(ctx, 'WIRE', 132 + 26, sy + 2, tf > 0.6 ? '#0d0720' : COL.dim, { center: true, shadow: false });
+    Gd().draw(ctx, 'belt', 74, sy - 2, tcol, '#2a1c4a');
+    bar(ctx, 90, sy + 1, 54, 7, tf, tcol, {});
 
     // core integrity
     if (g.world.coreHp < g.world.coreMax) {
@@ -299,10 +298,14 @@
     Gd().draw(ctx, 'coin', 4, 3, COL.gold, '#b8860b');
     F.draw(ctx, '$' + U.fmt(g.save.credits), 20, 2, COL.gold, { scale: 2, shadow: false });
     Gd().draw(ctx, 'ore', 150, 3, ore ? '#ffb03d' : COL.dim, '#5b3f96');
-    F.draw(ctx, ore + ' ORE', 166, 6, ore ? '#ffb03d' : COL.dim, { shadow: false });
-    if (val > 0) F.draw(ctx, 'WORTH $' + U.fmt(val), 218, 6, '#8affa0', { shadow: false });
+    F.draw(ctx, ore + ' ORE' + (val > 0 ? '  $' + U.fmt(val) : ''), 166, 6, ore ? '#ffb03d' : COL.dim, { shadow: false });
+    if (g.save.artifacts > 0) {
+      Gd().draw(ctx, 'star', 286, 3, COL.gold, '#b8860b');
+      F.draw(ctx, g.save.artifacts + ' ARTIFACT' + (g.save.artifacts === 1 ? '' : 'S'), 302, 6, COL.gold, { shadow: false });
+    }
     F.draw(ctx, 'GALAXY ' + g.save.dominion.toFixed(1) + '%', VW - 6, 6, COL.lineHi, { right: true, shadow: false });
   }
+
 
   /* ---------------------------------------------------------------- minimap
      Fog of war: only what the lamp has touched is drawn. Scanner pings paint

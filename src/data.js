@@ -127,11 +127,11 @@
   /* Foliage: what grows on exposed rock in each band. The renderer draws these
      as real curved shapes -- stems, caps, fronds -- not tiles. */
   const FLORA = {
-    rock:     [['moss', 'grass'], ['root', 'moss'], ['crystal']],
+    rock:     [['pebble', 'boulder', 'moss'], ['pebble', 'root'], ['crystal', 'pebble']],
     ice:      [['icespike', 'frond'], ['crystal', 'icespike'], ['icespike', 'crystal']],
-    metal:    [['root'], ['root', 'ember'], ['ember', 'crystal']],
+    metal:    [['boulder', 'pebble'], ['pebble', 'ember'], ['ember', 'crystal']],
     gem:      [['crystal', 'coral'], ['crystal', 'coral'], ['crystal']],
-    moon:     [['bone', 'moss'], ['bone', 'root'], ['tendril', 'bone']],
+    moon:     [['pebble', 'bone', 'boulder'], ['bone', 'pebble'], ['tendril', 'bone']],
     terra:    [['grass', 'fern', 'frond'], ['shroom', 'moss', 'tendril'], ['crystal', 'coral'], ['ember', 'root'], ['tendril']],
     volcanic: [['ember', 'root'], ['ember', 'tendril'], ['ember', 'crystal']],
     titan:    [['crystal', 'coral'], ['crystal', 'tendril'], ['crystal']],
@@ -143,57 +143,85 @@
   }
 
   /* ---------------------------------------------------------------- your moon
-     The hub is a dead little moon you own. Everything you can improve is a
-     building standing on it: pay credits, it goes up a tier and gets visibly
-     bigger. No menus, no staff, no terminals -- walk over and press E. */
+     The hub is a dead little moon you own. Five buildings stand on it, each
+     one raised from a hologram blueprint by the multi-purpose tool and each
+     one levelled with credits. No staff, no menus that are not a building. */
   const BUILDINGS = [
     {
-      id: 'pad', name: 'LAUNCH PAD', glyph: 'planet', x: 120, max: 0,
-      blurb: 'Fly out and pick a world.', act: 'chart'
+      id: 'docks', name: 'THE DOCKS', glyph: 'home', x: 150, max: 5, base: 900, start: 1,
+      blurb: 'Your pod lives here. Fit the parts you fabricate. Each level adds a slot.'
     },
     {
-      id: 'market', name: 'TRADE MAST', glyph: 'sell', x: 250, max: 8, base: 700,
-      blurb: 'Sell every rock you brought home.', act: 'sell',
-      gives: { crew: 1 }, effect: l => '+' + l * 6 + '% PRICE'
+      id: 'terminal', name: 'TERMINAL', glyph: 'sell', x: 330, max: 6, base: 500, start: 1,
+      blurb: 'Sell ore and talk to the people who buy it. Each level lifts prices.'
     },
     {
-      id: 'works', name: 'DRILL WORKS', glyph: 'drill', x: 370, max: 12, base: 260,
-      blurb: 'A bigger bit and a wider bore.',
-      gives: { drill: 1, reach: 0.5 }, effect: l => (110 + l * 32) + ' DMG/S'
+      id: 'fab', name: 'FABRICATOR', glyph: 'build', x: 500, max: 4, base: 700, start: 0,
+      blurb: 'Turns ore into pod parts. Each level opens a tier of recipes.'
     },
     {
-      id: 'still', name: 'AIR STILL', glyph: 'o2', x: 480, max: 14, base: 220,
-      blurb: 'More air in the tank.',
-      gives: { oxygen: 1, lamp: 0.6 }, effect: l => (66 + l * 26) + ' AIR'
+      id: 'mind', name: 'THE MIND', glyph: 'eye', x: 690, max: 4, base: 1600, start: 0,
+      blurb: 'A brain in a tank. It knows everything. Each level opens a deeper ring.'
     },
     {
-      id: 'silo', name: 'CARGO SILO', glyph: 'cargo', x: 590, max: 14, base: 280,
-      blurb: 'A heavier hold and a stronger magnet.',
-      gives: { cargo: 1, magnet: 0.6 }, effect: l => (16 + l * 13) + ' KG'
-    },
-    {
-      id: 'armoury', name: 'GUN SHACK', glyph: 'gun', x: 700, max: 12, base: 340,
-      blurb: 'Louder guns. Level 3 adds the scattergun, 6 the lance.',
-      gives: { pistol: 1, trigger: 0.6, scatter: l => l >= 3 ? l - 2 : 0, lance: l => l >= 6 ? l - 5 : 0 },
-      effect: l => (9 + l * 7) + ' DMG'
-    },
-    {
-      id: 'hangar', name: 'WINCH TOWER', glyph: 'belt', x: 820, max: 12, base: 300,
-      blurb: 'A longer wire and a punchier suit.',
-      gives: { tether: 1, thruster: 0.6, dash: 0.5, hull: 0.8 },
-      effect: l => Math.round((230 + l * 60 - 70) / 10) + 'M WIRE'
-    },
-    {
-      id: 'relic', name: 'RUIN ALTAR', glyph: 'star', x: 930, max: 6, base: 4000,
-      blurb: 'The old ones left something under here.',
-      gives: { scanner: 1, refine: 0.8 }, effect: l => '+' + (l * 9) + '% ORE VALUE'
+      id: 'obs', name: 'OBSERVATORY', glyph: 'planet', x: 880, max: 4, base: 3000, start: 1,
+      blurb: 'Finds worlds. Each level opens another sector of the galaxy.'
     }
   ];
   const BUILD = {};
   for (const b of BUILDINGS) BUILD[b.id] = b;
   function buildCost(b, level) {
-    return Math.round(b.base * Math.pow(1.72, level) / 10) * 10;
+    return Math.round(b.base * Math.pow(1.85, Math.max(0, level - (b.start || 0))) / 10) * 10;
   }
+
+  /* ------------------------------------------------------------ the fabricator
+     Ore in, pod parts out. A part is fitted at the docks and adds levels to
+     the stat it names. Tiers open with the fabricator's own level. */
+  const RECIPES = [
+    { id: 'plate',   name: 'HULL PLATE',    glyph: 'hull',   tier: 1, mats: { iron: 6, stone: 6 },     gives: { hull: 2 },              blurb: 'Bolted armour. +52 hull.' },
+    { id: 'scrub',   name: 'AIR SCRUBBER',  glyph: 'o2',     tier: 1, mats: { ice: 4, copper: 3 },     gives: { oxygen: 2 },            blurb: 'Breathes for you. +52 air.' },
+    { id: 'bit',     name: 'TUNGSTEN BIT',  glyph: 'drill',  tier: 1, mats: { iron: 8, copper: 4 },    gives: { drill: 2, reach: 1 },   blurb: 'Chews harder rock, wider.' },
+    { id: 'coil',    name: 'THRUST COIL',   glyph: 'speed',  tier: 2, mats: { copper: 6, silver: 2 },  gives: { thruster: 2, dash: 1 }, blurb: 'Punchier jets and a quicker dash.' },
+    { id: 'spool',   name: 'WIRE SPOOL',    glyph: 'belt',   tier: 2, mats: { iron: 10, silver: 3 },   gives: { tether: 2 },            blurb: 'Twelve more metres of wire.' },
+    { id: 'magnet',  name: 'ORE MAGNET',    glyph: 'weight', tier: 2, mats: { iron: 4, gold: 2 },      gives: { magnet: 2, cargo: 1 },  blurb: 'Pulls loot from further away.' },
+    { id: 'lens',    name: 'SCAN LENS',     glyph: 'scan',   tier: 3, mats: { crystal: 4, sapphire: 2 }, gives: { scanner: 2, lamp: 2 }, blurb: 'Sees ore through rock.' },
+    { id: 'cell',    name: 'VOID CELL',     glyph: 'lance',  tier: 3, mats: { void: 2, gold: 4 },      gives: { lance: 1, trigger: 2 }, blurb: 'Powers the plasma lance.' },
+    { id: 'heart',   name: 'STAR HEART',    glyph: 'star',   tier: 4, mats: { star: 2, diamond: 1 },   gives: { drill: 3, oxygen: 3, cargo: 3 }, blurb: 'A piece of a sun, in a box.' }
+  ];
+  const RECIPE = {};
+  for (const r of RECIPES) RECIPE[r.id] = r;
+
+  /* ------------------------------------------------------------------ the mind
+     The skill tree is a brain. Neurons sit in rings around the stem; a neuron
+     fires (can be bought) once one it is wired to has a level, and the mind's
+     own level decides how deep the rings go. Angles are degrees, 0 = up. */
+  const NEURONS = [
+    { id: 'drill',    ring: 0, a: 0,   links: [] },
+    { id: 'oxygen',   ring: 1, a: 300, links: ['drill'] },
+    { id: 'cargo',    ring: 1, a: 60,  links: ['drill'] },
+    { id: 'pistol',   ring: 1, a: 120, links: ['drill'] },
+    { id: 'thruster', ring: 1, a: 180, links: ['drill'] },
+    { id: 'hull',     ring: 1, a: 240, links: ['drill'] },
+    { id: 'reach',    ring: 1, a: 0,   links: ['drill'] },
+    { id: 'lamp',     ring: 2, a: 285, links: ['oxygen'] },
+    { id: 'lung',     ring: 2, a: 320, links: ['oxygen'] },
+    { id: 'magnet',   ring: 2, a: 45,  links: ['cargo'] },
+    { id: 'belly',    ring: 2, a: 80,  links: ['cargo'] },
+    { id: 'trigger',  ring: 2, a: 110, links: ['pistol'] },
+    { id: 'scatter',  ring: 2, a: 140, links: ['pistol'] },
+    { id: 'dash',     ring: 2, a: 175, links: ['thruster'] },
+    { id: 'tether',   ring: 2, a: 210, links: ['thruster', 'hull'] },
+    { id: 'ironskin', ring: 2, a: 245, links: ['hull'] },
+    { id: 'scanner',  ring: 2, a: 10,  links: ['reach'] },
+    { id: 'greed',    ring: 3, a: 30,  links: ['magnet', 'scanner'] },
+    { id: 'lance',    ring: 3, a: 125, links: ['trigger', 'scatter'] },
+    { id: 'refine',   ring: 3, a: 70,  links: ['belly'] },
+    { id: 'drones',   ring: 3, a: 200, links: ['dash', 'tether'] },
+    { id: 'crew',     ring: 3, a: 265, links: ['ironskin', 'lamp'] },
+    { id: 'kiln',     ring: 3, a: 335, links: ['lung'] }
+  ];
+  const NEURON = {};
+  for (const n of NEURONS) NEURON[n.id] = n;
 
   /* -------------------------------------------------------------------- zones
      The galaxy is four sectors. Each one past the first is locked behind a
@@ -433,6 +461,30 @@
       show: l => 'x' + (1 + l * 0.22).toFixed(2) + ' THRUST'
     },
     {
+      id: 'greed', name: 'Greed Glands', icon: 'coin', max: 4, base: 2400, growth: 1.9, mats: [],
+      blurb: 'Perk: every sale pays more. Pure appetite.',
+      value: l => 1 + l * 0.12,
+      show: l => '+' + (l * 12) + '% SALES'
+    },
+    {
+      id: 'lung', name: 'Third Lung', icon: 'tank', max: 4, base: 1200, growth: 1.8, mats: [],
+      blurb: 'Perk: a spare lung. Flat extra air on top of the tank.',
+      value: l => l * 30,
+      show: l => '+' + (l * 30) + ' AIR'
+    },
+    {
+      id: 'belly', name: 'Lead Belly', icon: 'cargo', max: 4, base: 1400, growth: 1.8, mats: [],
+      blurb: 'Perk: you can simply carry more. Do not ask how.',
+      value: l => l * 14,
+      show: l => '+' + (l * 14) + ' KG'
+    },
+    {
+      id: 'ironskin', name: 'Iron Skin', icon: 'hull', max: 4, base: 1300, growth: 1.8, mats: [],
+      blurb: 'Perk: thicker hide under the suit.',
+      value: l => l * 40,
+      show: l => '+' + (l * 40) + ' HULL'
+    },
+    {
       id: 'drones', mats: [['copper', 6], ['gold', 3]], late: ['void', 2], name: 'Harvest Drones', icon: 'drone', max: 40, base: 500, growth: 1.28,
       blurb: 'Idle swarm that strips rubble for credits while you fly.',
       value: l => l,
@@ -623,5 +675,5 @@
   }
 
   PD.data = { MAT, M, ENEMY, BODIES, UPGRADES, UPG, upgradeCost, recipe, COSMETICS, COS, TITLES, titleFor, bountyFor,
-    STRATA, ZONES, zoneOf, FLORA, BUILDINGS, BUILD, buildCost, MACHINES, METALS, GEMS, JUNK, goodOf, goodFromKey, NODES, appraiseSeconds, appraiseFee };
+    STRATA, ZONES, zoneOf, FLORA, BUILDINGS, BUILD, buildCost, RECIPES, RECIPE, NEURONS, NEURON, MACHINES, METALS, GEMS, JUNK, goodOf, goodFromKey, NODES, appraiseSeconds, appraiseFee };
 })(window.PD);

@@ -17,7 +17,7 @@
     this.facing = 1;
     this.aim = 0;
     this.drillSpin = 0;
-    this.drilling = false;
+    this.drilling = false; this.drillT = 0;
     this.drillPitch = 0;
     this.gunCool = 0;
     this.gunFlash = 0;
@@ -62,9 +62,15 @@
     FX.text(this.x, this.y - 16, this.weapon.toUpperCase(), '#7ef9ff', 0);
   };
 
+  /* A stat is its upgrade line, plus whatever perk the Mind has grown on it. */
   Player.prototype.stat = function (id) {
+    const upg = this.g.save.upg;
     const u = D.UPG[id];
-    return u.value(this.g.save.upg[id] || 0);
+    let v = u.value(upg[id] || 0);
+    if (id === 'oxygen') v += D.UPG.lung.value(upg.lung || 0);
+    if (id === 'cargo') v += D.UPG.belly.value(upg.belly || 0);
+    if (id === 'hull') v += D.UPG.ironskin.value(upg.ironskin || 0);
+    return v;
   };
 
   Player.prototype.capacity = function () { return this.stat('cargo'); };
@@ -284,14 +290,19 @@
     const w = g.world;
 
     if (!want) {
-      this.drilling = false;
+      this.drilling = false; this.drillT = 0;
       A.drill(false);
       return;
     }
 
     const bite = this.findBite(w);
     this.drilling = !!bite;
-    if (!bite) { A.drill(false); return; }
+    if (!bite) { this.drillT = 0; A.drill(false); return; }
+    // the drill is heavy: it drags him to a crawl and rattles the camera
+    this.drillT += dt;
+    this.vx *= 1 - Math.min(1, dt * 4);
+    this.vy *= 1 - Math.min(1, dt * 2.5);
+    if (this.drillT > 0.05) FX.shake(0.7);
 
     const power = this.stat('drill') * dt;
     const hardness = U.clamp(D.MAT[bite.mat].hp / 255, 0, 1);
@@ -446,15 +457,19 @@
   Player.prototype.draw = function (ctx, cam, t) {
     const skin = PD.art.skinFor(this.g.save.cos);
     const moving = Math.hypot(this.vx, this.vy) > 20 || this.thrusting.x || this.thrusting.y;
-    const spr = moving || !this.onGround(this.g.world) ? skin.alienFly : skin.alien;
+    const drilling = this.drilling && this.drillT > 0.05;
+    const spr = drilling ? skin.alienDrill : (moving || !this.onGround(this.g.world) ? skin.alienFly : skin.alien);
     this.anim += 1 / 60 * (moving ? 8 : 3);
     const drill = skin.drill;
     const gun = PD.art.sprites[this.weapon === 'pistol' ? 'gun' : this.weapon];
-    const px = this.x - cam.x, py = this.y - cam.y;
     const flip = Math.cos(this.aim) < 0;
+    // the drill is heavy: it shakes him, kicks him back, and the camera feels it
+    const kick = drilling ? 1.6 : 0;
+    const jx = drilling ? Math.round(Math.sin(t * 90) * 1) : 0;
+    const jy = drilling ? Math.round(Math.cos(t * 70) * 1) : 0;
+    const px = this.x - cam.x - Math.cos(this.aim) * kick + jx, py = this.y - cam.y - Math.sin(this.aim) * kick * 0.5 + jy;
 
     if (this.dashT > 0) {
-      // afterimages along the burst
       ctx.globalAlpha = 0.35;
       for (let k = 1; k <= 3; k++) {
         PD.ent.drawSprite(ctx, spr, 0, px - this.vx * k * 0.012, py - this.vy * k * 0.012 - 1, flip, true);
@@ -462,29 +477,47 @@
       ctx.globalAlpha = 1;
     } else if (this.invuln > 0 && Math.sin(this.invuln * 40) < -0.2) return;
 
-    // pistol on the far side, drill on the aiming side
-    ctx.save();
-    ctx.translate(px | 0, py | 0);
-    ctx.rotate(this.aim + (flip ? Math.PI : 0));
-    ctx.scale(1, flip ? -1 : 1);
-    const g = gun.frames[this.gunCool > 0.05 ? 1 : 0];
-    ctx.drawImage(g, -2, -10);
-    ctx.restore();
+    // holstered pistol on the far side when the drill is out
+    if (!drilling) {
+      ctx.save();
+      ctx.translate(px | 0, py | 0);
+      ctx.rotate(this.aim + (flip ? Math.PI : 0));
+      ctx.scale(1, flip ? -1 : 1);
+      const gf = gun.frames[this.gunCool > 0.05 ? 1 : 0];
+      ctx.drawImage(gf, -2, -10);
+      ctx.restore();
+    }
 
-    ctx.save();
-    ctx.translate(px | 0, py | 0);
-    ctx.rotate(this.aim);
-    if (this.drilling) ctx.translate(U.rand(-1, 1), U.rand(-1, 1));
-    const df = drill.frames[Math.floor(this.drillSpin) % drill.frames.length];
-    ctx.drawImage(df, -drill.ox, -drill.oy);
-    ctx.restore();
-
-    const frame = spr === skin.alien ? (this.blink < 0 ? 2 : (this.squish > 0.25 ? 1 : 0)) : Math.floor(this.anim) % 2;
+    // the body first, then the drill in his hands
+    let frame;
+    if (drilling) frame = Math.floor(t * 30) % 3;
+    else if (spr === skin.alien) frame = this.blink < 0 ? 2 : (this.squish > 0.25 ? 1 : 0);
+    else frame = Math.floor(this.anim) % 2;
     PD.ent.drawSprite(ctx, spr, frame, px, py - 1, flip, this.hurtT > 0.15);
-    // the arm that holds the tool, from the shoulder to the grip
-    ctx.strokeStyle = skin.P.suit; ctx.lineWidth = 3;
-    ctx.beginPath(); ctx.moveTo(px + (flip ? -4 : 4), py - 2); ctx.lineTo(px + Math.cos(this.aim) * 9, py + Math.sin(this.aim) * 9); ctx.stroke();
-    ctx.fillStyle = skin.P.skin; ctx.fillRect(px + Math.cos(this.aim) * 9 - 2, py + Math.sin(this.aim) * 9 - 2, 4, 4);
+
+    // drill: gripped at the hands, pointing where he aims
+    const hx = px + Math.cos(this.aim) * (drilling ? 11 : 8), hy = py + Math.sin(this.aim) * (drilling ? 11 : 8) + 1;
+    ctx.save();
+    ctx.translate(hx | 0, hy | 0);
+    ctx.rotate(this.aim);
+    if (flip) ctx.scale(1, -1);
+    if (drilling) ctx.translate(U.rand(-1.5, 1.5), U.rand(-1, 1));
+    const df = drill.frames[Math.floor(this.drillSpin) % drill.frames.length];
+    ctx.drawImage(df, -drill.ox, -drill.oy, drill.w, drill.h);
+    ctx.restore();
+    if (!drilling) {
+      // the idle arm reaching to the tool
+      ctx.strokeStyle = '#2b3a66'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(px + (flip ? -4 : 4), py - 1); ctx.lineTo(hx, hy); ctx.stroke();
+      ctx.fillStyle = skin.P.skin; ctx.fillRect(hx - 2, hy - 2, 4, 4);
+    } else {
+      // hot sparks and grit off the bit
+      if (U.chance(0.7)) {
+        const tx = hx + Math.cos(this.aim) * 24, ty = hy + Math.sin(this.aim) * 24;
+        FX.spawn({ x: tx + cam.x, y: ty + cam.y, vx: -Math.cos(this.aim) * U.rand(30, 90) + U.rand(-40, 40), vy: -Math.sin(this.aim) * U.rand(30, 90) + U.rand(-60, 10),
+          life: U.rand(0.15, 0.4), size: 1, color: U.chance(0.5) ? '#fff2b0' : '#ff9b3d', grav: 260, drag: 1, glow: 1 });
+      }
+    }
 
     if (this.gunFlash > 0) {
       const a = this.aim;
@@ -505,6 +538,7 @@
       ctx.globalAlpha = 1;
     }
   };
+
 
   PD.Player = Player;
 })(window.PD);

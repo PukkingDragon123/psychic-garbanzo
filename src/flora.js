@@ -1,12 +1,13 @@
-/* Foliage. Everything here is drawn with real curves -- stems that bend,
-   caps that bulge, fans that branch -- so the terrain surface stops reading
-   as a grid of squares. Each plant is deterministic from its cell hash and
-   sways on its own clock. */
+/* Foliage and ground clutter, as pixel art. Every plant and pebble is built
+   with hard-edged pixel primitives at 2x density, baked into four sway
+   frames, and drawn at logical size -- so a hillside of it costs one
+   drawImage per plant and none of it is ever a smooth curve. */
 (function (PD) {
   'use strict';
   const U = PD.util;
+  const pix = PD.pix;
+  const INK = '#140f26';
 
-  /* Palettes keyed by plant kind. a = shadow, b = body, c = highlight. */
   const PAL = {
     grass:    { a: '#1d5a33', b: '#2f9350', c: '#63d67e' },
     fern:     { a: '#17482c', b: '#2b8351', c: '#5ac47f' },
@@ -20,229 +21,197 @@
     coral:    { a: '#5e1f3a', b: '#c4426f', c: '#ff8ab0' },
     crystal:  { a: '#1f3a6e', b: '#4f8ad6', c: '#b6e2ff', glow: '#7ec8ff' },
     icespike: { a: '#2a5a75', b: '#69b6d6', c: '#d6f4ff' },
-    ember:    { a: '#6e2410', b: '#d4541c', c: '#ffb84d', glow: '#ff7a2a' }
+    ember:    { a: '#6e2410', b: '#d4541c', c: '#ffb84d', glow: '#ff7a2a' },
+    pebble:   { a: '#3a3450', b: '#6b6480', c: '#9c94b4' },
+    boulder:  { a: '#3a3450', b: '#5c5574', c: '#8e86a8' }
   };
-
   function pal(kind) { return PAL[kind] || PAL.grass; }
 
-  /* Stroke a bending stem and return its tip, so caps and leaves can sit on it. */
-  function stem(ctx, x, y, h, bend, w, col) {
-    const tx = x + bend, ty = y - h;
-    ctx.strokeStyle = col;
-    ctx.lineWidth = w;
-    ctx.lineCap = 'round';
-    ctx.beginPath();
-    ctx.moveTo(x, y);
-    ctx.quadraticCurveTo(x + bend * 0.2, y - h * 0.6, tx, ty);
-    ctx.stroke();
-    return [tx, ty];
-  }
-
-  function blob(ctx, x, y, rx, ry, col) {
-    ctx.fillStyle = col;
-    ctx.beginPath();
-    ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2);
-    ctx.fill();
-  }
-
+  /* Builders draw in HD pixels. (x, y) is the base point, s the plant size in
+     HD pixels, sw the sway offset applied to the upper parts. */
   const K = {
-    /* tufts of curved blades */
-    grass(ctx, x, y, s, r, sway, P) {
-      const n = 3 + ((r * 4) | 0);
+    grass(p, x, y, s, r, sw, P) {
+      const n = 3 + (r % 3);
       for (let i = 0; i < n; i++) {
-        const o = (i - (n - 1) / 2) * (s * 0.22);
-        const h = s * (0.55 + U.hash2(r * 90 + i, 3) * 0.7);
-        stem(ctx, x + o, y, h, sway * (1 + i * 0.3) + o * 0.2, 1.4, i % 2 ? P.b : P.a);
+        const o = Math.round((i - (n - 1) / 2) * s * 0.26);
+        const h = Math.round(s * (0.6 + U.hash2(r * 9 + i, 3) * 0.6));
+        for (let k = 0; k < h; k++) {
+          const f = k / h;
+          const bx = x + o + Math.round(sw * f * f + (i % 2 ? 1 : -1) * f * 1.5);
+          p.rect(bx, y - k, k < h * 0.4 ? 2 : 1, 1, i % 2 ? P.b : P.a);
+        }
+        p.set(x + o + Math.round(sw), y - h, P.c);
       }
-      stem(ctx, x, y, s * 0.9, sway * 1.4, 1, P.c);
     },
-    /* a stem with leaflets stepping down both sides */
-    fern(ctx, x, y, s, r, sway, P) {
-      const h = s * 1.25;
-      const [tx, ty] = stem(ctx, x, y, h, sway * 1.2, 1.6, P.a);
-      ctx.strokeStyle = P.b; ctx.lineWidth = 1.4;
-      for (let i = 1; i <= 4; i++) {
-        const f = i / 5;
-        const px = x + (tx - x) * f * f, py = y - h * f;
-        const L = s * 0.42 * (1.1 - f);
-        for (const d of [-1, 1]) {
-          ctx.beginPath();
-          ctx.moveTo(px, py);
-          ctx.quadraticCurveTo(px + d * L, py - L * 0.1, px + d * L * 0.9, py - L * 0.7);
-          ctx.stroke();
+    fern(p, x, y, s, r, sw, P) {
+      const h = Math.round(s * 1.3);
+      for (let k = 0; k < h; k++) {
+        const f = k / h;
+        const bx = x + Math.round(sw * f * f);
+        p.rect(bx, y - k, 2, 1, P.a);
+        if (k % 4 === 2 && k > 3) {
+          const L = Math.round(s * 0.45 * (1.1 - f));
+          for (let d = 1; d <= L; d++) { p.set(bx - d, y - k - (d >> 1), P.b); p.set(bx + 1 + d, y - k - (d >> 1), P.b); }
+          p.set(bx - L, y - k - (L >> 1) - 1, P.c); p.set(bx + 1 + L, y - k - (L >> 1) - 1, P.c);
         }
       }
-      blob(ctx, tx, ty, 1.4, 1.4, P.c);
+      p.rect(x + Math.round(sw) - 1, y - h - 1, 4, 2, P.c);
     },
-    /* broad drooping leaf blades */
-    frond(ctx, x, y, s, r, sway, P) {
+    frond(p, x, y, s, r, sw, P) {
       for (let i = 0; i < 3; i++) {
-        const d = i === 1 ? 0 : (i === 0 ? -1 : 1);
-        const h = s * (0.9 + U.hash2(r * 31 + i, 9) * 0.5);
-        ctx.fillStyle = i % 2 ? P.b : P.a;
-        ctx.beginPath();
-        ctx.moveTo(x, y);
-        ctx.quadraticCurveTo(x + d * s * 0.7 + sway, y - h * 0.9, x + d * s * 1.1 + sway * 1.6, y - h * 0.35);
-        ctx.quadraticCurveTo(x + d * s * 0.45, y - h * 0.5, x, y);
-        ctx.fill();
+        const d = i - 1;
+        const h = Math.round(s * (0.9 + U.hash2(r * 31 + i, 9) * 0.4));
+        for (let k = 0; k < h; k++) {
+          const f = k / h;
+          const bx = x + Math.round(d * s * 0.9 * Math.sin(f * 1.6) + sw * f);
+          const w = Math.max(1, Math.round(3 * (1 - f) + 1));
+          p.rect(bx - (w >> 1), y - Math.round(k * 0.8), w, 1, i % 2 ? P.b : P.a);
+        }
       }
-      ctx.fillStyle = P.c;
-      ctx.fillRect(x - 1, y - s * 0.5, 2, s * 0.5);
+      p.rect(x - 1, y - Math.round(s * 0.5), 3, Math.round(s * 0.5), P.c);
     },
-    /* fuzzy cushions clinging to the rock */
-    moss(ctx, x, y, s, r, sway, P) {
+    moss(p, x, y, s, r, sw, P) {
       for (let i = 0; i < 5; i++) {
-        const o = (i - 2) * s * 0.26;
-        const h = s * (0.18 + U.hash2(r + i * 13, 21) * 0.3);
-        blob(ctx, x + o, y - h * 0.4, s * 0.22, h, i % 2 ? P.b : P.a);
+        const o = Math.round((i - 2) * s * 0.28);
+        const h = Math.round(s * (0.2 + U.hash2(r + i * 13, 21) * 0.32));
+        p.ellipse(x + o, y - h * 0.4, s * 0.24, h, i % 2 ? P.b : P.a);
       }
-      blob(ctx, x - s * 0.1, y - s * 0.28, s * 0.16, s * 0.13, P.c);
+      p.ellipse(x - s * 0.1, y - s * 0.3, s * 0.18, s * 0.14, P.c);
     },
-    /* bent stalk, fat glowing cap, spots */
-    shroom(ctx, x, y, s, r, sway, P) {
-      const h = s * (0.8 + U.hash2(r, 5) * 0.6);
-      const [tx, ty] = stem(ctx, x, y, h, sway * 0.8, 2.2, P.a);
-      const cw = s * (0.55 + U.hash2(r, 11) * 0.3);
-      ctx.fillStyle = P.b;
-      ctx.beginPath();
-      ctx.moveTo(tx - cw, ty + 1);
-      ctx.quadraticCurveTo(tx, ty - cw * 1.5, tx + cw, ty + 1);
-      ctx.quadraticCurveTo(tx, ty + cw * 0.5, tx - cw, ty + 1);
-      ctx.fill();
-      ctx.fillStyle = P.c;
+    shroom(p, x, y, s, r, sw, P) {
+      const h = Math.round(s * (0.8 + U.hash2(r, 5) * 0.5));
+      for (let k = 0; k < h; k++) p.rect(x - 1 + Math.round(sw * (k / h) * (k / h)), y - k, 3, 1, P.a);
+      const tx = x + Math.round(sw), ty = y - h;
+      const cw = Math.round(s * (0.55 + U.hash2(r, 11) * 0.3));
+      p.ellipse(tx, ty - 1, cw, cw * 0.62, P.b);
+      p.rect(tx - cw, ty, cw * 2 + 1, 1, P.a);
+      for (let i = 0; i < 3; i++) p.disc(tx - cw * 0.5 + i * cw * 0.5, ty - cw * 0.5 + (i % 2), 1.3, P.c);
+    },
+    tendril(p, x, y, s, r, sw, P) {
+      const h = Math.round(s * 1.6);
+      for (let k = 0; k < h; k++) {
+        const f = k / h;
+        p.rect(x + Math.round(Math.sin(f * 6 + r) * s * 0.18 + sw * f), y - k, 2, 1, P.b);
+      }
+      p.disc(x + Math.round(Math.sin(6 + r) * s * 0.18 + sw), y - h, 2.4, P.c);
+    },
+    vine(p, x, y, s, r, sw, P) {
+      const h = Math.round(s * 1.5);
+      for (let k = 0; k < h; k++) {
+        const f = k / h;
+        const bx = x + Math.round(Math.sin(f * 5 + r) * s * 0.2 + sw * f);
+        p.rect(bx, y - k, 2, 1, P.a);
+        if (k % 5 === 3) { p.rect(bx + (k % 2 ? 2 : -3), y - k - 1, 3, 2, k % 2 ? P.b : P.c); }
+      }
+    },
+    root(p, x, y, s, r, sw, P) {
+      const h = Math.round(s * 1.2);
+      for (let k = 0; k < h; k++) {
+        const f = k / h;
+        p.rect(x - 1 + Math.round(sw * f * 0.6), y - k, 3 - (f > 0.6 ? 1 : 0), 1, P.b);
+        if (k === (h >> 1)) { for (let d = 1; d < s * 0.5; d++) { p.set(x - d, y - k - d, P.a); p.set(x + 2 + d, y - k - (d >> 1), P.a); } }
+      }
+    },
+    bone(p, x, y, s, r, sw, P) {
+      const h = Math.round(s * 1.1);
       for (let i = 0; i < 3; i++) {
-        const a = -2.6 + i * 0.75;
-        blob(ctx, tx + Math.cos(a) * cw * 0.5, ty - cw * 0.45 + Math.sin(a) * 2, 1.2, 1, P.c);
+        const d = (i - 1) * Math.round(s * 0.45);
+        for (let k = 0; k < h - Math.abs(i - 1) * 3; k++) {
+          const f = k / h;
+          p.rect(x + d + Math.round(d * f * 0.6 + sw * f * 0.3), y - k, 2, 1, i === 1 ? P.c : P.b);
+        }
       }
+      p.ellipse(x + 1, y - 1, s * 0.36, s * 0.16, P.a);
     },
-    /* hanging rope of light */
-    tendril(ctx, x, y, s, r, sway, P, dir) {
-      const h = s * 1.6 * dir;
-      ctx.strokeStyle = P.b; ctx.lineWidth = 1.6; ctx.lineCap = 'round';
-      ctx.beginPath();
-      ctx.moveTo(x, y);
-      ctx.bezierCurveTo(x + sway * 2, y - h * 0.4, x - sway * 2, y - h * 0.75, x + sway * 3, y - h);
-      ctx.stroke();
-      blob(ctx, x + sway * 3, y - h, 2, 2.4, P.c);
-    },
-    vine(ctx, x, y, s, r, sway, P, dir) {
-      const h = s * 1.5 * dir;
-      ctx.strokeStyle = P.a; ctx.lineWidth = 1.8; ctx.lineCap = 'round';
-      ctx.beginPath();
-      ctx.moveTo(x, y);
-      ctx.bezierCurveTo(x + sway * 2, y - h * 0.45, x - sway, y - h * 0.7, x + sway * 2, y - h);
-      ctx.stroke();
-      for (let i = 1; i <= 3; i++) {
-        const f = i / 4;
-        blob(ctx, x + sway * f * 2 + (i % 2 ? 2 : -2), y - h * f, 2.2, 1.5, i % 2 ? P.b : P.c);
-      }
-    },
-    /* woody forks reaching out of the ceiling */
-    root(ctx, x, y, s, r, sway, P, dir) {
-      const h = s * 1.2 * dir;
-      ctx.strokeStyle = P.b; ctx.lineWidth = 2.4; ctx.lineCap = 'round';
-      ctx.beginPath();
-      ctx.moveTo(x, y);
-      ctx.quadraticCurveTo(x + sway, y - h * 0.6, x + sway * 1.4 - 2, y - h);
-      ctx.stroke();
-      ctx.lineWidth = 1.4; ctx.strokeStyle = P.a;
-      for (const d of [-1, 1]) {
-        ctx.beginPath();
-        ctx.moveTo(x + sway * 0.4, y - h * 0.45);
-        ctx.quadraticCurveTo(x + d * s * 0.5, y - h * 0.6, x + d * s * 0.7, y - h * 0.95);
-        ctx.stroke();
-      }
-    },
-    /* old ribs poking out of the strata */
-    bone(ctx, x, y, s, r, sway, P, dir) {
-      const h = s * 1.1 * dir;
-      ctx.strokeStyle = P.b; ctx.lineWidth = 2; ctx.lineCap = 'round';
-      for (let i = 0; i < 3; i++) {
-        const d = (i - 1) * 0.5;
-        ctx.beginPath();
-        ctx.moveTo(x + d * s * 0.4, y);
-        ctx.quadraticCurveTo(x + d * s + sway, y - h * 0.7, x + d * s * 0.6 + sway, y - h);
-        ctx.stroke();
-      }
-      blob(ctx, x, y - h * 0.05, s * 0.35, s * 0.16, P.a);
-    },
-    /* branching fan */
-    coral(ctx, x, y, s, r, sway, P, dir) {
-      ctx.strokeStyle = P.b; ctx.lineWidth = 2; ctx.lineCap = 'round';
-      const h = s * 1.1 * dir;
+    coral(p, x, y, s, r, sw, P) {
+      const h = Math.round(s * 1.1);
       for (let i = -2; i <= 2; i++) {
-        ctx.beginPath();
-        ctx.moveTo(x, y);
-        ctx.quadraticCurveTo(x + i * s * 0.22, y - h * 0.5, x + i * s * 0.5 + sway, y - h * (0.7 + Math.abs(i) * -0.1));
-        ctx.stroke();
+        const len = h - Math.abs(i) * 3;
+        for (let k = 0; k < len; k++) {
+          const f = k / len;
+          p.rect(x + Math.round(i * s * 0.5 * f * f + sw * f), y - k, 2, 1, i === 0 ? P.c : P.b);
+        }
+        p.disc(x + Math.round(i * s * 0.5 + sw), y - len, 1.6, P.c);
       }
-      ctx.strokeStyle = P.c; ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(x, y);
-      ctx.quadraticCurveTo(x, y - h * 0.6, x + sway, y - h * 0.95);
-      ctx.stroke();
     },
-    /* angular shard cluster */
-    crystal(ctx, x, y, s, r, sway, P, dir) {
+    crystal(p, x, y, s, r, sw, P) {
       for (let i = 0; i < 3; i++) {
-        const o = (i - 1) * s * 0.3;
-        const h = s * (0.5 + U.hash2(r * 7 + i, 17) * 0.9) * dir;
-        const w = s * 0.16 + i * 0.4;
-        ctx.fillStyle = i === 1 ? P.b : P.a;
-        ctx.beginPath();
-        ctx.moveTo(x + o - w, y);
-        ctx.lineTo(x + o + w, y);
-        ctx.lineTo(x + o + w * 0.4 + o * 0.2, y - h);
-        ctx.closePath();
-        ctx.fill();
+        const o = Math.round((i - 1) * s * 0.34);
+        const h = Math.round(s * (0.5 + U.hash2(r * 7 + i, 17) * 0.9));
+        const w = Math.round(s * 0.18) + 1;
+        p.spike(x + o - w, y - h, w * 2 + 1, h, -1, i === 1 ? P.b : P.a);
+        p.rect(x + o, y - h + 2, 1, Math.max(1, h - 5), P.c);
       }
-      ctx.fillStyle = P.c;
-      ctx.fillRect(x - 0.5, y - s * 0.7 * dir, 1, s * 0.5 * dir);
     },
-    icespike(ctx, x, y, s, r, sway, P, dir) {
-      K.crystal(ctx, x, y, s, r, sway * 0.2, P, dir);
-    },
-    /* licking flames */
-    ember(ctx, x, y, s, r, sway, P, dir) {
+    icespike(p, x, y, s, r, sw, P) { K.crystal(p, x, y, s, r, 0, P); },
+    ember(p, x, y, s, r, sw, P) {
       for (let i = 0; i < 2; i++) {
-        const o = (i - 0.5) * s * 0.35;
-        const h = s * (0.6 + U.hash2(r + i * 5, 23) * 0.6) * dir;
-        ctx.fillStyle = i ? P.b : P.a;
-        ctx.beginPath();
-        ctx.moveTo(x + o - s * 0.2, y);
-        ctx.quadraticCurveTo(x + o - s * 0.25 + sway, y - h * 0.6, x + o + sway * 2, y - h);
-        ctx.quadraticCurveTo(x + o + s * 0.3 + sway, y - h * 0.55, x + o + s * 0.2, y);
-        ctx.fill();
+        const o = Math.round((i - 0.5) * s * 0.4);
+        const h = Math.round(s * (0.6 + U.hash2(r + i * 5, 23) * 0.5));
+        p.spike(x + o - Math.round(s * 0.22), y - h, Math.round(s * 0.44) + 1, h, -1, i ? P.b : P.a);
+        p.spike(x + o - Math.round(s * 0.1) + Math.round(sw), y - h + 3, Math.round(s * 0.2) + 1, h - 5, -1, P.c);
       }
-      ctx.fillStyle = P.c;
-      blob(ctx, x + sway, y - s * 0.35 * dir, 1.4, s * 0.22, P.c);
+    },
+    /* ground clutter: small stones and a fat boulder, never animated */
+    pebble(p, x, y, s, r, sw, P) {
+      const n = 2 + (r % 3);
+      for (let i = 0; i < n; i++) {
+        const o = Math.round((i - (n - 1) / 2) * s * 0.5);
+        const rr = s * (0.16 + U.hash2(r + i * 3, 29) * 0.18);
+        p.ellipse(x + o, y - rr * 0.6, rr * 1.2, rr, i % 2 ? P.b : P.a);
+        p.set(x + o - 1, y - Math.round(rr * 1.2), P.c);
+      }
+    },
+    boulder(p, x, y, s, r, sw, P) {
+      const rr = s * 0.55;
+      p.ellipse(x, y - rr * 0.7, rr * 1.15, rr * 0.85, P.b);
+      p.shade(P.b, P.a, 0, 1);
+      p.ellipse(x - rr * 0.3, y - rr * 1.1, rr * 0.45, rr * 0.22, P.c);
+      p.rect(x + Math.round(rr * 0.3), y - Math.round(rr * 0.6), 2, 1, P.a);
+      p.set(x - Math.round(rr * 0.5), y - Math.round(rr * 0.4), P.a);
     }
   };
+  const STILL = { pebble: 1, boulder: 1, crystal: 1, icespike: 1, bone: 1, moss: 1 };
 
-  /* Plants are expensive to path out every frame, so each one is baked into a
-     small cached canvas with its sway frozen at four phases. Drawing a whole
-     hillside of foliage then costs one drawImage per plant. */
+  /* ------------------------------------------------------------ sprite cache */
   const cache = new Map();
   const PHASES = 4;
+  const HD = 2;
 
-  function sprite(kind, sizeBucket, variant, phase, dir) {
-    const key = kind + '|' + sizeBucket + '|' + variant + '|' + phase + '|' + dir;
+  function sprite(kind, bucket, variant, phase, dir) {
+    const key = kind + '|' + bucket + '|' + variant + '|' + phase + '|' + dir;
     let cv = cache.get(key);
     if (cv) return cv;
-    const s = 5 + sizeBucket * 2.2;
-    const w = Math.ceil(s * 3), h = Math.ceil(s * 2.6);
-    cv = document.createElement('canvas');
-    cv.width = w; cv.height = h;
-    const c = cv.getContext('2d');
+    const s = (5 + bucket * 2.2) * HD;                       // size in HD pixels
+    const w = Math.ceil(s * 3.2), h = Math.ceil(s * 2.6);
+    const p = pix(w, h);
     const P = pal(kind);
     const fn = K[kind] || K.grass;
     const seed = variant * 7 + 3;
-    const sway = Math.sin((phase / PHASES) * Math.PI * 2 + seed) * s * 0.16;
-    c.save();
-    if (dir < 0) { c.translate(0, h); c.scale(1, -1); }
-    if (P.glow) { c.shadowColor = P.glow; c.shadowBlur = 5; }
-    fn(c, w / 2, h - 1, s, seed, sway, P, 1);
-    c.restore();
+    const sw = STILL[kind] ? 0 : Math.round(Math.sin((phase / PHASES) * Math.PI * 2 + seed) * s * 0.14);
+    fn(p, w >> 1, h - 2, s, seed, sw, P);
+    p.outline(INK);
+    cv = p.toCanvas();
+    if (dir < 0) {
+      // hanging: flip the baked sprite
+      const f = document.createElement('canvas');
+      f.width = cv.width; f.height = cv.height;
+      const c = f.getContext('2d');
+      c.translate(0, f.height); c.scale(1, -1);
+      c.drawImage(cv, 0, 0);
+      cv = f;
+    }
+    if (P.glow) {
+      // bake a soft glow behind the glowing kinds
+      const g = document.createElement('canvas');
+      g.width = cv.width + 8; g.height = cv.height + 8;
+      const c = g.getContext('2d');
+      c.shadowColor = P.glow; c.shadowBlur = 6;
+      c.drawImage(cv, 4, 4);
+      c.shadowBlur = 0;
+      c.drawImage(cv, 4, 4);
+      cv = g;
+    }
     cache.set(key, cv);
     return cv;
   }
@@ -253,8 +222,9 @@
     const variant = seed % 5;
     const phase = ((Math.floor(time * 2.4 + seed * 0.7) % PHASES) + PHASES) % PHASES;
     const cv = sprite(kind, bucket, variant, phase, dir < 0 ? -1 : 1);
-    if (dir < 0) ctx.drawImage(cv, (x - cv.width / 2) | 0, y | 0);
-    else ctx.drawImage(cv, (x - cv.width / 2) | 0, (y - cv.height + 1) | 0);
+    const w = cv.width / HD, h = cv.height / HD;
+    if (dir < 0) ctx.drawImage(cv, (x - w / 2) | 0, (y - 1) | 0, w, h);
+    else ctx.drawImage(cv, (x - w / 2) | 0, (y - h + 1) | 0, w, h);
   }
 
   PD.flora = { draw, sprite, PAL, kinds: Object.keys(K) };

@@ -32,7 +32,7 @@
     return planets[k];
   }
 
-  function zoneOpen(g, zi) { return zi === 0 || (g.save.drives || 0) >= zi; }
+  function zoneOpen(g, zi) { return g.zoneOpen(zi); }
   function bodyOpen(g, i) { return i <= g.save.unlocked && zoneOpen(g, D.zoneOf(i)); }
 
   function enter(g) {
@@ -47,15 +47,8 @@
 
   function openZone(g, zi) {
     if (!zoneOpen(g, zi)) {
-      const z = D.ZONES[zi];
-      if (!zoneOpen(g, zi - 1)) { say('BUY THE ' + D.ZONES[zi - 1].drive.name + ' FIRST.'); A.sfx.deny(); return; }
-      if (g.save.credits < z.drive.cost) { say('NEED $' + U.fmt(z.drive.cost) + ' FOR THE ' + z.drive.name + '.'); A.sfx.deny(); return; }
-      g.save.credits -= z.drive.cost;
-      g.save.drives = zi;
-      A.sfx.buy();
-      PD.fx.flash(0.5, z.star);
-      say(z.drive.name + ' INSTALLED. ' + z.name + ' IS OPEN.');
-      g.save.tut = g.save.tut || {};
+      say('THE OBSERVATORY NEEDS LEVEL ' + (zi + 1) + ' TO SEE THAT FAR.');
+      A.sfx.deny();
       return;
     }
     S.view = 'system';
@@ -77,7 +70,7 @@
 
     if (IN.hit('esc')) {
       if (S.view === 'system') { S.view = 'galaxy'; S.zoom = 0; A.sfx.click(); }
-      else g.dock(true);
+      else { g.state = 'home'; PD.home.P.lock = 0.25; A.sfx.click(); }
       return;
     }
 
@@ -165,7 +158,7 @@
     ctx.fillStyle = '#7ef9ff'; ctx.fillRect(0, 16, VW, 1);
     PD.glyph.draw(ctx, 'planet', 3, 2, '#ffffff', '#7ef9ff');
     F.draw(ctx, S.view === 'galaxy' ? 'GALAXY CHART' : D.ZONES[S.zone].name, 20, 5, '#7ef9ff', { shadow: false });
-    F.draw(ctx, S.view === 'galaxy' ? 'ESC  BACK TO THE SHIP' : 'ESC  BACK TO THE CHART', 150, 5, '#5a4d80', { shadow: false });
+    F.draw(ctx, S.view === 'galaxy' ? 'ESC  BACK TO THE MOON' : 'ESC  BACK TO THE CHART', 150, 5, '#5a4d80', { shadow: false });
     F.draw(ctx, '$' + U.fmt(g.save.credits), VW - 6, 4, '#ffd34d', { right: true, shadow: false });
 
     if (S.msgT > 0) {
@@ -217,7 +210,7 @@
 
       if (!open) {
         PD.glyph.draw(ctx, 'lock', z.x - 6, z.y - 8, '#ffffff', '#5a4d80');
-        F.draw(ctx, '$' + U.fmt(z.drive.cost), z.x, z.y + 42, g.save.credits >= z.drive.cost ? '#ffd34d' : '#ff6b8a', { center: true });
+        F.draw(ctx, 'OBSERVATORY LV ' + (i + 1), z.x, z.y + 42, '#9c8ec4', { center: true });
       }
       F.draw(ctx, z.name, z.x, z.y + 32, open ? '#f2e9ff' : '#9c8ec4', { center: true, shadow: true });
       if (sel) {
@@ -241,10 +234,8 @@
     if (open) {
       F.draw(ctx, 'E  ENTER SECTOR', VW - 16, VH - 26, '#39ffa6', { right: true, shadow: false });
     } else {
-      F.draw(ctx, z.drive.name, VW - 16, VH - 38, '#ff8a3d', { right: true, shadow: false });
-      F.draw(ctx, z.drive.blurb, VW - 16, VH - 28, '#9c8ec4', { right: true, shadow: false });
-      const afford = g.save.credits >= z.drive.cost;
-      F.draw(ctx, 'E  BUY DRIVE  $' + U.fmt(z.drive.cost), VW - 16, VH - 18, afford ? '#ffd34d' : '#ff6b8a', { right: true, shadow: false });
+      F.draw(ctx, 'OUT OF RANGE', VW - 16, VH - 32, '#ff8a3d', { right: true, shadow: false });
+      F.draw(ctx, 'UPGRADE THE OBSERVATORY TO LV ' + (S.selZone + 1), VW - 16, VH - 20, '#9c8ec4', { right: true, shadow: false });
     }
   }
 

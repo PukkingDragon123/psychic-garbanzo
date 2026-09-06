@@ -23,14 +23,26 @@
 
   const sprites = {};
 
-  function reg(name, builders, ox, oy) {
+  function reg(name, builders, ox, oy, hd) {
     const frames = builders.map(b => b.toCanvas());
+    const k = hd || 1;
     sprites[name] = {
-      frames, w: frames[0].width, h: frames[0].height,
-      ox: ox === undefined ? frames[0].width / 2 : ox,
-      oy: oy === undefined ? frames[0].height / 2 : oy
+      frames, w: frames[0].width / k, h: frames[0].height / k, hd: k,
+      ox: ox === undefined ? frames[0].width / k / 2 : ox,
+      oy: oy === undefined ? frames[0].height / k / 2 : oy
     };
     return sprites[name];
+  }
+
+  /* Draw any registered sprite at its logical size, HD or not. */
+  function blit(ctx, spr, frame, x, y, flip) {
+    const cv = spr.frames[frame % spr.frames.length];
+    const k = spr.hd || 1;
+    ctx.save();
+    ctx.translate(x | 0, y | 0);
+    if (flip) ctx.scale(-1, 1);
+    ctx.drawImage(cv, -spr.ox | 0, -spr.oy | 0, cv.width / k, cv.height / k);
+    ctx.restore();
   }
 
   /* ------------------------------------------------------------------ player
@@ -39,124 +51,200 @@
   /* pose: 'idle' | 'walk' | 'fly'; f: frame index. Head sits on a chubby
      torso with proper little arms and legs, so it can walk the deck and
      dangle from the tether. */
-  /* The alien: small, round and extremely fat, with a fishbowl helmet, stubby
-     limbs and a bobbing antenna. Poses squash and stretch so he never stands
-     still. */
+  /* The alien, at 2x density: a small, very fat businessman in a navy suit,
+     pink tie and fishbowl helmet. Poses squash and stretch, and the drill
+     pose plants his feet and leans his whole weight into the tool. */
+  const BIZ = {
+    jacket: '#2b3a66', jacketL: '#40568f', jacketD: '#1b2547',
+    shirt: '#f6f3ff', trousers: '#1b2547', shoe: '#141a2e', shoeL: '#4a5c8f',
+    brass: '#b08a3a', brassL: '#e6c26a'
+  };
+
   function buildAlien(pose, f, P, blink) {
     P = P || C;
-    const p = pix(26, 32);
-    const walk = pose === 'walk';
-    const fly = pose === 'fly';
-    // squash: idle breathes, walk bounces, fly stretches
-    const bob = fly ? -1 : (walk ? [0, -1, 0, 1][f % 4] : (f === 1 ? 1 : 0));
-    const squash = walk ? [0, 1, 0, -1][f % 4] : (f === 1 ? 1 : 0);
-    const cy = 11 + bob;            // helmet centre
-    const ty = 17 + bob;            // belly top
+    const p = pix(60, 80);
+    const walk = pose === 'walk', fly = pose === 'fly', drill = pose === 'drill', roll = pose === 'roll';
+    const tie = P.suit, tieD = P.suitD;
 
-    // --- stubby legs / boots
+    if (roll) {
+      // tucked into a ball: suit, helmet, two shoes poking out
+      p.disc(30, 50, 22, BIZ.jacket);
+      p.shade(BIZ.jacket, BIZ.jacketD, 0, 1);
+      p.ellipse(30, 40, 12, 6, BIZ.jacketL);
+      p.round(20, 66, 10, 6, 3, BIZ.shoe); p.round(32, 68, 10, 6, 3, BIZ.shoe);
+      p.disc(30, 44, 14, P.glass);
+      p.disc(30, 46, 10, P.skin);
+      p.shade(P.skin, P.skinD, 1, 1);
+      p.ellipse(26, 47, 3, 3.6, C.eye); p.ellipse(35, 47, 3, 3.6, C.eye);
+      p.disc(27, 45.5, 1.4, C.white); p.disc(36, 45.5, 1.4, C.white);
+      p.rect(28, 53, 6, 2, P.skinD);
+      p.rect(28, 58, 4, 8, tie);
+      p.disc(46, 58, 4, P.skin); p.disc(14, 58, 4, P.skin);
+      p.outline(C.ink);
+      return p;
+    }
+
+    // squash and stretch
+    const bob = fly ? -2 : (walk ? [0, -2, 0, 2][f % 4] : (f === 1 ? 2 : 0));
+    const sq = walk ? [0, 1, 0, -1][f % 4] : (f === 1 ? 1 : 0);
+    const lean = drill ? 3 : 0;                       // whole body pushes into the drill
+    const jit = drill ? (f % 2 ? 1 : -1) : 0;          // the drill shakes him
+    const hy = 28 + bob, by = 56 + bob;               // helmet centre, belly centre
+
+    // --- legs and shoes
     if (fly) {
-      p.round(7, ty + 9, 5, 5, 2, P.suitD);
-      p.round(14, ty + 10, 5, 4, 2, P.suitD);
-      p.round(6, ty + 12, 7, 4, 2, C.metD);
-      p.round(13, ty + 12, 7, 4, 2, C.metD);
+      p.round(17, by + 10, 10, 8, 3, BIZ.trousers); p.round(33, by + 12, 10, 7, 3, BIZ.trousers);
+      p.round(13, by + 16, 14, 6, 3, BIZ.shoe); p.round(33, by + 17, 14, 6, 3, BIZ.shoe);
+    } else if (drill) {
+      // braced wide, back foot dug in
+      p.round(10, by + 8, 10, 10, 3, BIZ.trousers); p.round(36 + lean, by + 8, 10, 10, 3, BIZ.trousers);
+      p.round(6, 74, 15, 6, 3, BIZ.shoe); p.round(34 + lean, 74, 15, 6, 3, BIZ.shoe);
+      p.rect(8, 75, 5, 1, BIZ.shoeL); p.rect(36 + lean, 75, 5, 1, BIZ.shoeL);
     } else {
-      const sw = walk ? [[-2, 2], [0, 0], [2, -2], [0, 0]][f % 4] : [0, 0];
-      p.round(8 + sw[0], ty + 9, 5, 4, 2, P.suitD);
-      p.round(13 + sw[1], ty + 9, 5, 4, 2, P.suitD);
-      p.round(6 + sw[0], ty + 12, 8, 4, 2, C.metD);      // fat boots
-      p.round(12 + sw[1], ty + 12, 8, 4, 2, C.metD);
-      p.rect(6 + sw[0], ty + 14, 8, 2, C.met);
-      p.rect(12 + sw[1], ty + 14, 8, 2, C.met);
+      const sw = walk ? [[-4, 4], [0, 0], [4, -4], [0, 0]][f % 4] : [0, 0];
+      const lift = walk ? [[2, 0], [0, 0], [0, 2], [0, 0]][f % 4] : [0, 0];
+      p.round(18 + sw[0], by + 8, 10, 10 - lift[0], 3, BIZ.trousers);
+      p.round(32 + sw[1], by + 8, 10, 10 - lift[1], 3, BIZ.trousers);
+      p.round(14 + sw[0], 74 - lift[0], 15, 6, 3, BIZ.shoe);
+      p.round(31 + sw[1], 74 - lift[1], 15, 6, 3, BIZ.shoe);
+      p.rect(16 + sw[0], 75 - lift[0], 5, 1, BIZ.shoeL);
+      p.rect(33 + sw[1], 75 - lift[1], 5, 1, BIZ.shoeL);
     }
 
-    // --- little jetpack
-    p.round(2, ty, 6, 9, 3, C.metD);
-    p.rect(3, ty + 1, 2, 6, C.met);
-    p.disc(5, ty + 1, 1.4, C.cyan);
-    if (fly) { p.round(3, ty + 9, 4, 4, 2, C.orange); p.rect(4, ty + 12, 2, 3, C.gold); }
+    // --- brass jetpack
+    p.round(3, by - 12, 12, 22, 5, BIZ.brass);
+    p.rect(5, by - 10, 4, 16, BIZ.brassL);
+    p.disc(9, by - 8, 2, C.cyan);
+    p.round(4, by + 10, 10, 4, 2, C.metDD);
+    if (fly) { p.spike(4, by + 14, 10, 12, 1, C.orange); p.spike(6, by + 14, 6, 8, 1, C.gold); }
 
-    // --- round belly, wider than it is tall
-    p.ellipse(13, ty + 6 - squash * 0.5, 8 + squash * 0.5, 6.5 - squash * 0.4, P.suit);
-    p.shade(P.suit, P.suitD, 0, 1);
-    p.ellipse(13, ty + 2, 6, 2.4, P.suitL);               // chest highlight
-    p.round(9, ty + 7, 8, 3, 1, C.gold);                  // fat gold belt
-    p.disc(13, ty + 8, 1.6, C.white);                     // buckle
-    p.disc(9, ty + 3, 1.2, C.lime);                       // suit buttons
-    p.disc(9, ty + 6, 1.2, C.red);
+    // --- the belly, in a suit
+    const bx = 30 + lean;
+    p.ellipse(bx, by, 17 + sq, 13 - sq * 0.5, BIZ.jacket);
+    p.shade(BIZ.jacket, BIZ.jacketD, 0, 1);
+    // shirt and tie
+    p.rect(bx - 3, by - 12, 7, 5, BIZ.shirt);
+    p.rect(bx - 2, by - 7, 5, 6, BIZ.shirt);
+    p.rect(bx - 1, by - 1, 3, 5, BIZ.shirt);
+    p.rect(bx - 1, by - 10, 3, 3, tieD);
+    p.rect(bx - 1, by - 7, 3, 9, tie);
+    p.rect(bx - 2, by - 3, 5, 5, tie);
+    p.spike(bx - 2, by + 2, 5, 4, 1, tieD);
+    // lapels
+    p.line(bx - 4, by - 12, bx - 9, by, BIZ.jacketL); p.line(bx - 3, by - 12, bx - 8, by, BIZ.jacketL);
+    p.line(bx + 4, by - 12, bx + 9, by, BIZ.jacketL); p.line(bx + 3, by - 12, bx + 8, by, BIZ.jacketL);
+    // buttons and pocket square
+    p.disc(bx + 6, by + 3, 1.6, C.gold); p.disc(bx + 6, by + 7, 1.6, C.gold);
+    p.rect(bx - 12, by - 4, 5, 2, '#ff8ad8');
+    p.rect(bx - 12, by - 5, 3, 1, '#ffd6f0');
 
-    // --- stubby arms with mitten hands
-    const aswing = walk ? [1, 0, -1, 0][f % 4] : 0;
-    p.round(3, ty + 3 + aswing, 4, 5, 2, P.suit);
-    p.disc(5, ty + 8 + aswing, 2.4, P.skin);
-    p.round(19, ty + 3 - aswing, 4, 5, 2, P.suit);
-    p.disc(21, ty + 8 - aswing, 2.4, P.skin);
+    // --- arms
+    if (drill) {
+      // both sleeves forward, hands stacked on the grip
+      p.round(bx + 6 + jit, by - 8, 18, 8, 4, BIZ.jacket);
+      p.round(bx + 4 + jit, by - 2, 20, 8, 4, BIZ.jacket);
+      p.rect(bx + 20 + jit, by - 7, 3, 6, BIZ.shirt); p.rect(bx + 20 + jit, by - 1, 3, 6, BIZ.shirt);
+      p.disc(bx + 25 + jit, by - 4, 4.4, P.skin); p.disc(bx + 25 + jit, by + 3, 4.4, P.skin);
+      // back arm bracing behind
+      p.round(6, by - 6, 8, 12, 4, BIZ.jacket);
+    } else {
+      const asw = walk ? [3, 0, -3, 0][f % 4] : 0;
+      const fwd = fly ? -6 : 0;
+      p.round(9, by - 6 + asw + fwd, 8, 16, 4, BIZ.jacket);
+      p.rect(10, by + 7 + asw + fwd, 6, 2, BIZ.shirt);
+      p.disc(13, by + 11 + asw + fwd, 4.2, P.skin);
+      p.round(43, by - 6 - asw + fwd, 8, 16, 4, BIZ.jacket);
+      p.rect(44, by + 7 - asw + fwd, 6, 2, BIZ.shirt);
+      p.disc(47, by + 11 - asw + fwd, 4.2, P.skin);
+      p.disc(13, by + 6 + asw + fwd, 1.2, C.gold); p.disc(47, by + 6 - asw + fwd, 1.2, C.gold);   // cufflinks
+    }
 
-    // --- big fishbowl helmet and a very round head
-    p.disc(13, cy, 9, P.glass);
-    p.disc(13, cy + 1, 6.6, P.skin);
+    // --- collar ring
+    p.round(bx - 14, hy + 14, 28, 6, 3, C.metD);
+    for (let i = 0; i < 4; i++) p.set(bx - 10 + i * 7, hy + 16, C.met);
+
+    // --- helmet and head
+    const hx = 30 + lean;
+    p.disc(hx, hy, 18, P.glass);
+    p.disc(hx, hy + 2, 13, P.skin);
     p.shade(P.skin, P.skinD, 1, 1);
-    p.ellipse(13, cy - 2.6, 4, 1.8, P.skinL);
+    p.ellipse(hx, hy - 5, 8, 3.4, P.skinL);
     if (blink) {
-      p.rect(9, cy + 1, 4, 1, C.ink); p.rect(15, cy + 1, 4, 1, C.ink);
+      p.rect(hx - 9, hy + 2, 7, 2, C.ink); p.rect(hx + 2, hy + 2, 7, 2, C.ink);
     } else {
-      p.ellipse(10.2, cy + 1, 2.2, 2.8, C.eye);
-      p.ellipse(16.2, cy + 1, 2.2, 2.8, C.eye);
-      p.disc(10.8, cy, 1, C.white); p.disc(16.8, cy, 1, C.white);
-      p.set(9, cy + 2, C.white); p.set(15, cy + 2, C.white);
+      const squint = drill ? 1 : 0;
+      p.ellipse(hx - 6, hy + 3, 4.4, 5.6 - squint * 1.5, C.eye);
+      p.ellipse(hx + 6, hy + 3, 4.4, 5.6 - squint * 1.5, C.eye);
+      p.disc(hx - 4.5, hy + 1, 2, C.white); p.disc(hx + 7.5, hy + 1, 2, C.white);
+      p.set(hx - 7, hy + 5, C.white); p.set(hx + 5, hy + 5, C.white);
     }
-    // cheeky grin and blush
-    p.rect(12, cy + 4, 4, 1, P.skinD);
-    p.set(11, cy + 3, P.skinD); p.set(16, cy + 3, P.skinD);
-    p.ellipse(8.6, cy + 3, 1.6, 1, '#ff8ab0');
-    p.ellipse(17.6, cy + 3, 1.6, 1, '#ff8ab0');
-    // helmet shine and collar
-    p.set(7, cy - 4, P.glassL); p.set(8, cy - 5, P.glassL); p.set(9, cy - 6, P.glassL); p.set(8, cy - 4, P.glassL);
-    p.round(8, cy + 7, 10, 3, 1, C.metD);
-    // antenna with a wobbling bulb
-    const aw = walk ? [1, 0, -1, 0][f % 4] : (f === 1 ? 1 : 0);
-    p.line(13, cy - 9, 13 + aw, cy - 12, C.metD);
-    p.disc(13 + aw, cy - 13, 2, C.gold);
-    p.set(13 + aw, cy - 14, C.white);
+    // one raised brow: a man with a plan
+    p.line(hx - 11, hy - 4, hx - 3, hy - 6, C.ink);
+    p.line(hx + 3, hy - 8, hx + 11, hy - 5, C.ink);
+    // smirk / gritted teeth when drilling
+    if (drill) { p.rect(hx - 4, hy + 9, 9, 3, C.ink); p.rect(hx - 3, hy + 10, 7, 1, C.white); }
+    else { p.rect(hx - 3, hy + 10, 7, 2, P.skinD); p.set(hx + 4, hy + 9, P.skinD); p.set(hx + 5, hy + 8, P.skinD); }
+    p.ellipse(hx - 13, hy + 7, 3, 2, '#ff8ab0'); p.ellipse(hx + 13, hy + 7, 3, 2, '#ff8ab0');
+    // glass shine
+    p.set(hx - 14, hy - 8, P.glassL); p.set(hx - 13, hy - 10, P.glassL); p.set(hx - 11, hy - 12, P.glassL);
+    p.set(hx - 12, hy - 9, P.glassL); p.set(hx - 12, hy - 11, P.glassL); p.set(hx - 9, hy - 13, P.glassL);
+    // antenna
+    const aw = walk ? [2, 0, -2, 0][f % 4] : (f === 1 ? 2 : 0);
+    p.line(hx, hy - 18, hx + aw, hy - 24, C.metD);
+    p.disc(hx + aw, hy - 26, 3, C.gold);
+    p.set(hx + aw - 1, hy - 27, C.white);
 
     p.outline(C.ink);
     return p;
   }
-
 
   function alienSet(P) {
     return {
       idle: [buildAlien('idle', 0, P), buildAlien('idle', 1, P), buildAlien('idle', 0, P, true)],
       walk: [0, 1, 2, 3].map(i => buildAlien('walk', i, P)),
-      fly: [buildAlien('fly', 0, P), buildAlien('fly', 1, P)]
+      fly: [buildAlien('fly', 0, P), buildAlien('fly', 1, P)],
+      drill: [buildAlien('drill', 0, P), buildAlien('drill', 1, P), buildAlien('drill', 2, P)],
+      roll: [buildAlien('roll', 0, P)]
     };
   }
 
   const base = alienSet(C);
-  reg('alien', base.idle, 13, 21);
-  reg('alienWalk', base.walk, 13, 21);
-  reg('alienFly', base.fly, 13, 21);
+  const AOX = 15, AOY = 27;                         // logical anchor: the belly
+  reg('alien', base.idle, AOX, AOY, 2);
+  reg('alienWalk', base.walk, AOX, AOY, 2);
+  reg('alienFly', base.fly, AOX, AOY, 2);
+  reg('alienDrill', base.drill, AOX, AOY, 2);
+  reg('alienRoll', base.roll, AOX, 25, 2);
 
   /* ------------------------------------------------------------------- drill
      Horizontal, pointing right, anchored at the shoulder end. */
+  /* The drill at 2x: a chunky housing with a grip, a hot collar and a long
+     striped bit that spins across four frames. */
   function buildDrill(phase, P) {
     P = P || { met: C.met, metDD: C.metDD, accent: C.orange };
-    const p = pix(26, 12);
-    p.round(0, 3, 9, 6, 2, P.metDD);          // housing
-    p.rect(2, 4, 5, 2, P.met);
-    p.rect(8, 4, 3, 4, P.accent);             // collar
-    for (let x = 10; x < 25; x++) {           // tapering bit
-      const t = (x - 10) / 15;
-      const half = Math.max(0.6, 4 * (1 - t * 0.92));
+    const p = pix(56, 24);
+    p.round(0, 5, 20, 14, 4, P.metDD);            // housing
+    p.round(2, 7, 14, 4, 2, P.met);
+    p.rect(4, 12, 10, 3, C.ink2);                 // vent
+    p.round(6, 17, 10, 6, 2, P.metDD);            // grip underneath
+    p.rect(16, 3, 8, 18, P.accent);               // hot collar
+    p.rect(17, 5, 2, 14, '#ffe2a8');
+    p.disc(21, 12, 2, '#fff7d0');
+    for (let x = 24; x < 55; x++) {               // tapering bit
+      const t = (x - 24) / 31;
+      const half = Math.max(1, 8 * (1 - t * 0.92));
       for (let y = -half; y <= half; y++) {
-        const yy = Math.round(6 + y);
-        const stripe = ((x * 2 + yy + phase * 3) % 7) < 3;
+        const yy = Math.round(12 + y);
+        const stripe = ((x + yy * 2 + phase * 3) % 8) < 4;
         p.set(x, yy, stripe ? P.met : P.metDD);
       }
     }
+    p.set(55, 12, '#ffffff');
     p.outline(C.ink);
     return p;
   }
-  reg('drill', [0, 1, 2, 3].map(buildDrill), 3, 6);
+
+  reg('drill', [0, 1, 2, 3].map(buildDrill), 5, 6, 2);
 
   /* ------------------------------------------------------------------ pistol */
   function buildGun(charge) {
@@ -487,55 +575,48 @@
 
   /* THE POD: your own little fat ship. Round, stubby-winged, a dome up top
      and one big thruster. Heads right. */
-  /* The pod. Little, fat, and now properly built: riveted hull, bubble dome
-     with a visible cockpit, side pods, landing skids and a working exhaust. */
+  /* The pod at 2x: little, fat, riveted, with a bubble dome you can see into,
+     twin nacelles, landing skids and a working exhaust. */
   function buildPod(phase, P) {
     P = P || { met: C.met, metD: C.metD, metDD: C.metDD };
-    const p = pix(46, 32);
+    const p = pix(92, 64);
     const f = phase ? 1 : 0;
-
-    // rear engine block and nacelles
-    p.round(0, 13, 12, 12, 4, P.metDD);
-    p.round(2, 15, 6, 8, 3, C.ink2);
-    p.rect(2, 17 + f, 4, 4, f ? C.orange : C.orangeD);
-    p.round(6, 6, 8, 6, 3, P.metD);                      // upper nacelle
-    p.round(6, 24, 8, 6, 3, P.metD);                     // lower nacelle
-    p.rect(6, 8, 2, 2, f ? C.cyan : C.metDD);
-    p.rect(6, 26, 2, 2, f ? C.cyan : C.metDD);
-
+    // engine block and nacelles
+    p.round(0, 26, 24, 24, 8, P.metDD);
+    p.round(4, 30, 12, 16, 6, C.ink2);
+    p.round(5, 33 + f * 2, 8, 9, 3, f ? C.orange : C.orangeD);
+    p.round(6, 35 + f * 2, 5, 5, 2, f ? C.gold : C.orange);
+    p.round(12, 12, 16, 12, 6, P.metD); p.round(12, 48, 16, 12, 6, P.metD);
+    p.rect(13, 16, 4, 4, f ? C.cyan : P.metDD); p.rect(13, 52, 4, 4, f ? C.cyan : P.metDD);
     // fat hull
-    p.round(8, 9, 34, 18, 9, P.met);
+    p.round(16, 18, 68, 36, 18, P.met);
     p.shade(P.met, P.metD, 0, 1);
-    p.round(11, 11, 27, 4, 2, C.white);                  // gloss
-    p.round(10, 21, 30, 5, 2, P.metD);                   // lower plate
-    p.round(15, 22, 20, 3, 1, C.gold);                   // belly stripe
-    for (let i = 0; i < 6; i++) p.set(13 + i * 5, 20, P.metDD);   // rivets
-
-    // bubble dome + pilot seat
-    p.disc(23, 10, 8, C.glass);
-    p.disc(23, 11, 6, C.ink2);
-    p.ellipse(20, 7, 3, 1.5, C.glassL);
-    p.round(19, 12, 8, 5, 2, P.metDD);                   // seat back
-
+    p.round(22, 22, 54, 7, 3, C.white);
+    p.round(20, 42, 60, 10, 4, P.metD);
+    p.round(30, 44, 40, 5, 2, C.gold);
+    for (let i = 0; i < 7; i++) { p.disc(26 + i * 8, 40, 1.4, P.metDD); }
+    // dome and pilot seat
+    p.disc(46, 20, 16, C.glass);
+    p.disc(46, 22, 12, C.ink2);
+    p.ellipse(40, 14, 6, 3, C.glassL);
+    p.round(38, 24, 16, 10, 4, P.metDD);
+    p.round(40, 26, 12, 6, 3, '#ff5fa8');
     // nose cowl and headlight
-    p.round(38, 14, 8, 8, 3, C.suit);
-    p.rect(44, 16, 2, 4, C.cyan);
-    p.disc(41, 18, 2, f ? '#fff6c8' : C.gold);
-
-    // landing skids
-    p.rect(13, 28, 3, 4, P.metDD);
-    p.rect(31, 28, 3, 4, P.metDD);
-    p.round(10, 30, 10, 2, 1, P.metD);
-    p.round(28, 30, 10, 2, 1, P.metD);
-
+    p.round(76, 28, 16, 16, 6, C.suit);
+    p.rect(88, 32, 4, 8, C.cyan);
+    p.disc(82, 36, 4, f ? '#fff6c8' : C.gold);
+    p.disc(83, 35, 1.5, C.white);
+    // skids
+    p.rect(26, 56, 6, 6, P.metDD); p.rect(62, 56, 6, 6, P.metDD);
+    p.round(20, 60, 20, 4, 2, P.metD); p.round(56, 60, 20, 4, 2, P.metD);
     // running lights
-    p.disc(33, 13, 1.6, C.red);
-    p.disc(14, 13, 1.6, C.lime);
+    p.disc(66, 26, 3, C.red); p.disc(28, 26, 3, C.lime);
     p.outline(C.ink);
     return p;
   }
 
-  reg('pod', [buildPod(0), buildPod(1)], 23, 18);
+
+  reg('pod', [buildPod(0), buildPod(1)], 23, 18, 2);
 
   /* LOOT CRATE: precursor supply case. */
   function buildCrate(open) {
@@ -632,23 +713,26 @@
     const DP = { met: bit.c[0], metDD: bit.c[1], accent: bit.c[2] };
     const SP = { met: trim.c[0], metD: trim.c[1], metDD: trim.c[2] };
 
-    const mk = (builders, ox, oy) => {
+    const mk = (builders, ox, oy, hd) => {
       const frames = builders.map(b => b.toCanvas());
-      return { frames, w: frames[0].width, h: frames[0].height, ox, oy };
+      const k = hd || 1;
+      return { frames, w: frames[0].width / k, h: frames[0].height / k, ox, oy, hd: k };
     };
     const frames = alienSet(P);
     const set = {
-      alien: mk(frames.idle, 13, 21),
-      alienWalk: mk(frames.walk, 13, 21),
-      alienFly: mk(frames.fly, 13, 21),
-      drill: mk([0, 1, 2, 3].map(i => buildDrill(i, DP)), 3, 6),
+      alien: mk(frames.idle, AOX, AOY, 2),
+      alienWalk: mk(frames.walk, AOX, AOY, 2),
+      alienFly: mk(frames.fly, AOX, AOY, 2),
+      alienDrill: mk(frames.drill, AOX, AOY, 2),
+      alienRoll: mk(frames.roll, AOX, 25, 2),
+      drill: mk([0, 1, 2, 3].map(i => buildDrill(i, DP)), 5, 6, 2),
       ship: mk([buildShip(false, SP), buildShip(true, SP)], 42, 26),
-      pod: mk([buildPod(0, SP), buildPod(1, SP)], 23, 18),
+      pod: mk([buildPod(0, SP), buildPod(1, SP)], 23, 18, 2),
       P: P
     };
     skinCache[key] = set;
     return set;
   }
 
-  PD.art = { C, sprites, gemFor, ICON, skinFor, optOf, reg, pixOf: pix };
+  PD.art = { C, sprites, gemFor, ICON, skinFor, optOf, reg, blit, pixOf: pix };
 })(window.PD);

@@ -64,12 +64,16 @@
        2. the material's blob, cut to a mask of *same-material* neighbours, so
           an iron seam is a rounded vein rather than a run of squares
        3. lighting and the dark rim, drawn only on tiles that face open space */
+  /* Shapes are rendered at 2x density and drawn at tile size, so the arcs
+     and bows come out smooth and the speckle fine. */
+  const HD = 2;
   function cut(key, mask, v, paint, rad) {
     let cv = shapeCache.get(key);
     if (cv) return cv;
     cv = document.createElement('canvas');
-    cv.width = TILE; cv.height = TILE;
+    cv.width = TILE * HD; cv.height = TILE * HD;
     const c = cv.getContext('2d');
+    c.scale(HD, HD);
     tilePath(c, mask, v, rad);
     c.save();
     c.clip();
@@ -95,13 +99,14 @@
     return cut('m' + matId + '_' + mask + '_' + v, mask, v, c => {
       c.fillStyle = m.c[1];
       c.fillRect(0, 0, TILE, TILE);
-      for (let i = 0; i < 7; i++) {
+      // fine grain: half-unit flecks, only possible at 2x
+      for (let i = 0; i < 16; i++) {
         const h = U.hash2(v * 31 + i, matId * 17 + i * 3);
-        const x = Math.floor(h * TILE);
-        const y = Math.floor(U.hash2(matId + i * 7, v * 13 + 5) * TILE);
+        const x = Math.floor(h * TILE * 2) / 2;
+        const y = Math.floor(U.hash2(matId + i * 7, v * 13 + 5) * TILE * 2) / 2;
         c.fillStyle = h > 0.5 ? m.c[0] : m.c[2];
-        c.globalAlpha = 0.5;
-        c.fillRect(x, y, h > 0.72 ? 2 : 1, 1);
+        c.globalAlpha = 0.55;
+        c.fillRect(x, y, h > 0.72 ? 1 : 0.5, 0.5);
       }
       c.globalAlpha = 1;
     }, 2.5);
@@ -113,12 +118,13 @@
     let cv = shapeCache.get(key);
     if (cv) return cv;
     cv = document.createElement('canvas');
-    cv.width = TILE; cv.height = TILE;
+    cv.width = TILE * HD; cv.height = TILE * HD;
     const c = cv.getContext('2d');
+    c.scale(HD, HD);
     c.save();
     tilePath(c, mask, v);
     c.clip();
-    if (!(mask & 1)) { c.fillStyle = 'rgba(255,255,255,0.3)'; c.fillRect(0, 0, TILE, 2); c.fillStyle = 'rgba(255,255,255,0.13)'; c.fillRect(0, 2, TILE, 1); }
+    if (!(mask & 1)) { c.fillStyle = 'rgba(255,255,255,0.3)'; c.fillRect(0, 0, TILE, 1.5); c.fillStyle = 'rgba(255,255,255,0.13)'; c.fillRect(0, 1.5, TILE, 1); }
     if (!(mask & 4)) { c.fillStyle = 'rgba(8,4,18,0.42)'; c.fillRect(0, TILE - 3, TILE, 3); }
     if (!(mask & 8)) { c.fillStyle = 'rgba(255,255,255,0.14)'; c.fillRect(0, 0, 1, TILE); }
     if (!(mask & 2)) { c.fillStyle = 'rgba(8,4,18,0.3)'; c.fillRect(TILE - 1, 0, 1, TILE); }
@@ -136,8 +142,8 @@
       c.beginPath();
       c.rect(sd[1], sd[2], sd[3], sd[4]);
       c.clip();
-      c.strokeStyle = 'rgba(10,5,20,0.5)';
-      c.lineWidth = 2;
+      c.strokeStyle = 'rgba(10,5,20,0.55)';
+      c.lineWidth = 1.5;
       tilePath(c, mask, v);
       c.stroke();
       c.restore();
@@ -717,7 +723,7 @@
         if (!m) continue;
         any = true;
         const v = (U.hash2(cx + i, cy + j) * 4) | 0;
-        c.drawImage(matShape(m, 15, v), i * TILE, j * TILE);
+        c.drawImage(matShape(m, 15, v), i * TILE, j * TILE, TILE, TILE);
       }
     }
     if (!any) return null;
@@ -842,12 +848,12 @@
         const mm2 = D.MAT[m];
 
         // 1. the band's own rock, so cut corners never show through to space
-        ctx.drawImage(baseShape(this.strata[this.stratum[i]].tint, mask, v), sx, sy);
+        ctx.drawImage(baseShape(this.strata[this.stratum[i]].tint, mask, v), sx, sy, TILE, TILE);
         // 2. this material as a blob against its own kind
         const mmask = (up === m ? 1 : 0) | (rt === m ? 2 : 0) | (dn === m ? 4 : 0) | (lf === m ? 8 : 0);
-        ctx.drawImage(matShape(m, mmask, v), sx, sy);
+        ctx.drawImage(matShape(m, mmask, v), sx, sy, TILE, TILE);
         // 3. light and rim, only where the tile faces open space
-        if (mask !== 15) ctx.drawImage(lightShape(mask, v), sx, sy);
+        if (mask !== 15) ctx.drawImage(lightShape(mask, v), sx, sy, TILE, TILE);
 
         // rolling soil lip along any open surface: the ground line waves
         if (!up) {
