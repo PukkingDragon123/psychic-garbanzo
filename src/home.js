@@ -11,6 +11,7 @@
   const D = PD.data;
   const AH = PD.arthome;
   const G = PD.glyph;
+  const X = PD.pxd;
 
   const VW = 480, VH = 270;
   const ROOM_W = 1040;
@@ -190,9 +191,19 @@
     const sky = ctx.createLinearGradient(0, 0, 0, HORIZON + 30);
     sky.addColorStop(0, '#0d0826'); sky.addColorStop(0.55, '#1e1140'); sky.addColorStop(1, '#3a1c4e');
     ctx.fillStyle = sky; ctx.fillRect(0, 0, VW, HORIZON + 40);
-    const neb = ctx.createRadialGradient(320 - cam * 0.15, 60, 6, 320 - cam * 0.15, 60, 150);
-    neb.addColorStop(0, 'rgba(255,138,216,0.22)'); neb.addColorStop(1, 'rgba(255,138,216,0)');
-    ctx.fillStyle = neb; ctx.fillRect(0, 0, VW, HORIZON + 20);
+    // nebula: dithered blobs, shaped, never a rectangle of noise
+    const nx = 320 - cam * 0.15;
+    ctx.save();
+    for (let i = 4; i >= 1; i--) {
+      ctx.globalAlpha = 0.05 + (4 - i) * 0.012;
+      ctx.beginPath();
+      X.octPath(ctx, nx + (i % 2 ? 10 : -10), 62 + i * 3, i * 26);
+      ctx.clip();
+      X.dither(ctx, nx - 130, 0, 260, 160, '#ff8ad8', i % 2);
+      ctx.restore(); ctx.save();
+    }
+    ctx.restore();
+    ctx.globalAlpha = 1;
     for (const s of star) {
       const sx = (((s.x - cam * 0.25) % ROOM_W) + ROOM_W) % ROOM_W;
       if (sx > VW + 4) continue;
@@ -214,21 +225,23 @@
     ctx.beginPath(); ctx.moveTo(0, VH);
     for (let x = 0; x <= VW; x += 8) { const wx = x + cam * 0.45; ctx.lineTo(x, HORIZON - 16 + Math.sin(wx * 0.008) * 10 + Math.sin(wx * 0.021 + 2) * 5); }
     ctx.lineTo(VW, VH); ctx.closePath(); ctx.fill();
-    ctx.beginPath(); ctx.moveTo(0, VH);
-    for (let x = 0; x <= VW; x += 4) ctx.lineTo(x, groundY(x + cam));
-    ctx.lineTo(VW, VH); ctx.closePath();
-    const gr = ctx.createLinearGradient(0, HORIZON - 20, 0, VH);
-    gr.addColorStop(0, '#6b6480'); gr.addColorStop(0.25, '#544d6b'); gr.addColorStop(1, '#2e2842');
-    ctx.fillStyle = gr; ctx.fill();
-    ctx.strokeStyle = '#a89ac4'; ctx.lineWidth = 2;
-    ctx.beginPath();
-    for (let x = 0; x <= VW; x += 4) { const y = groundY(x + cam); if (x) ctx.lineTo(x, y); else ctx.moveTo(x, y); }
-    ctx.stroke();
+    // the surface, quantised into 2px stairs and banded by depth
+    const BAND = ['#6b6480', '#5f5875', '#544d6b', '#494360', '#3d3854', '#332e4a', '#2e2842'];
+    for (let x = 0; x <= VW; x += 2) {
+      const y = Math.round(groundY(x + cam) / 2) * 2;
+      for (let i = 0; i < BAND.length; i++) {
+        const y0 = y + (i === 0 ? 0 : 4 + (i - 1) * 10);
+        const h = i === 0 ? 4 : (i === BAND.length - 1 ? VH - y0 : 10);
+        if (h > 0) X.rect(ctx, x, y0, 2, h, BAND[i]);
+      }
+      X.rect(ctx, x, y, 2, 2, '#a89ac4');
+      if ((x + Math.round(cam)) % 8 === 0) X.rect(ctx, x, y + 4, 1, 1, '#8e86a8');
+    }
     for (const c of CRATERS) {
       const x = c.x - cam; if (x < -60 || x > VW + 60) continue;
       const y = groundY(c.x);
-      ctx.fillStyle = '#453e5e'; ctx.beginPath(); ctx.ellipse(x, y + c.r * 0.28, c.r, c.r * 0.3, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#8e86a8'; ctx.beginPath(); ctx.ellipse(x, y + c.r * 0.18, c.r * 0.94, c.r * 0.22, 0, Math.PI, Math.PI * 2); ctx.fill();
+      X.blob(ctx, x, y + c.r * 0.28, c.r, c.r * 0.3, '#453e5e');
+      X.blob(ctx, x, y + c.r * 0.1, c.r * 0.94, c.r * 0.16, '#8e86a8');
     }
   }
 
@@ -278,13 +291,11 @@
       const ax = a.x - cam, bx2 = b2.x - cam;
       if (bx2 < -40 || ax > VW + 40) continue;
       const ay = groundY(a.x) - 54, by2 = groundY(b2.x) - 54;
-      ctx.strokeStyle = '#4a4460';
-      ctx.beginPath(); ctx.moveTo(ax, ay); ctx.quadraticCurveTo((ax + bx2) / 2, (ay + by2) / 2 + 18, bx2, by2); ctx.stroke();
+      X.curve(ctx, ax, ay, (ax + bx2) / 2, (ay + by2) / 2 + 18, bx2, by2, '#4a4460', 1, 12);
       for (let k = 1; k < 6; k++) {
         const f = k / 6, lx = ax + (bx2 - ax) * f, ly = ay + (by2 - ay) * f + Math.sin(Math.PI * f) * 18;
-        ctx.fillStyle = ['#ffd34d', '#ff8ad8', '#8affa0', '#7ef9ff'][(i + k) % 4];
         ctx.globalAlpha = 0.55 + 0.45 * Math.sin(t * 3 + i + k);
-        ctx.fillRect(lx - 1, ly - 1, 2, 2);
+        X.rect(ctx, lx - 1, ly - 1, 2, 2, ['#ffd34d', '#ff8ad8', '#8affa0', '#7ef9ff'][(i + k) % 4]);
       }
       ctx.globalAlpha = 1;
     }
@@ -332,8 +343,8 @@
 
     for (const r of FORE) {
       const x = r.x - cam * 1.15; if (x < -40 || x > VW + 40) continue;
-      ctx.fillStyle = '#241a3a'; ctx.beginPath(); ctx.ellipse(x, r.y + r.s * 0.5, r.s, r.s * 0.62, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#31264f'; ctx.beginPath(); ctx.ellipse(x - r.s * 0.2, r.y + r.s * 0.2, r.s * 0.7, r.s * 0.34, 0, Math.PI, Math.PI * 2); ctx.fill();
+      X.blob(ctx, x, r.y + r.s * 0.5, r.s, r.s * 0.62, '#241a3a');
+      X.blob(ctx, x - r.s * 0.2, r.y + r.s * 0.24, r.s * 0.7, r.s * 0.28, '#31264f');
     }
 
     // the phone in your pocket, bottom right

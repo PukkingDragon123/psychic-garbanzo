@@ -771,8 +771,7 @@
       const x = d.x * vw * 1.2 - cam.x * d.p;
       const y = d.y * vh - cam.y * d.p * 0.6;
       ctx.globalAlpha = 0.5;
-      ctx.fillStyle = d.c;
-      ctx.beginPath(); ctx.arc(x | 0, y | 0, d.r, 0, U.TAU); ctx.fill();
+      PD.pxd.blob(ctx, x, y, d.r, d.r, d.c);
       ctx.globalAlpha = 1;
     }
 
@@ -784,13 +783,8 @@
       const m = this.moon;
       const x = m.x * vw - cam.x * m.p;
       const y = m.y * vh - cam.y * m.p * 0.8;
-      ctx.globalAlpha = 0.34;                       // halo
-      const hg = ctx.createRadialGradient(x + m.cv.width / 2, y + m.cv.height / 2, m.cv.width * 0.4,
-        x + m.cv.width / 2, y + m.cv.height / 2, m.cv.width * 0.85);
-      hg.addColorStop(0, this.body.tint);
-      hg.addColorStop(1, 'rgba(0,0,0,0)');
-      ctx.fillStyle = hg;
-      ctx.fillRect(x - m.cv.width * 0.4, y - m.cv.height * 0.4, m.cv.width * 1.8, m.cv.height * 1.8);
+      // halo as stepped bands
+      PD.pxd.glowBands(ctx, x + m.cv.width / 2, y + m.cv.height / 2, m.cv.width * 0.85, this.body.tint, 4, 0.3);
       ctx.globalAlpha = 0.95;
       ctx.drawImage(m.cv, x | 0, y | 0);
       ctx.globalAlpha = 1;
@@ -802,12 +796,7 @@
     const x = this.coreCenter.x - cam.x, y = this.coreCenter.y - cam.y;
     const frac = this.coreHp / this.coreMax;
     const r = this.coreR * (2.6 + 0.5 * Math.sin(time * 3)) * (1 + (1 - frac) * 0.5);
-    const grd = ctx.createRadialGradient(x, y, this.coreR * 0.4, x, y, r);
-    grd.addColorStop(0, 'rgba(255,220,150,0.55)');
-    grd.addColorStop(0.5, 'rgba(255,130,60,0.22)');
-    grd.addColorStop(1, 'rgba(255,90,40,0)');
-    ctx.fillStyle = grd;
-    ctx.fillRect(x - r, y - r, r * 2, r * 2);
+    PD.pxd.glowBands(ctx, x, y, r, '#ff8a3c', 5, 0.5);
   };
 
   World.prototype.draw = function (ctx, cam, vw, vh, time) {
@@ -857,13 +846,14 @@
 
         // rolling soil lip along any open surface: the ground line waves
         if (!up) {
-          const hL = (U.hash2(cx, cy * 3) - 0.5) * 3.4;
-          const hR = (U.hash2(cx + 1, cy * 3) - 0.5) * 3.4;
-          const hM = (U.hash2(cx * 2 + 7, cy) - 0.5) * 5;
+          const hL = Math.round((U.hash2(cx, cy * 3) - 0.5) * 3);
+          const hR = Math.round((U.hash2(cx + 1, cy * 3) - 0.5) * 3);
+          const hM = Math.round((U.hash2(cx * 2 + 7, cy) - 0.5) * 3);
           ctx.fillStyle = mm2.c[0];
           ctx.beginPath();
           ctx.moveTo(sx, sy + hL);
-          ctx.quadraticCurveTo(sx + TILE / 2, sy + hM - 1, sx + TILE, sy + hR);
+          ctx.lineTo(sx + TILE / 2, sy + Math.round(hM) - 1);
+          ctx.lineTo(sx + TILE, sy + hR);
           ctx.lineTo(sx + TILE, sy + 3.5);
           ctx.lineTo(sx, sy + 3.5);
           ctx.closePath();

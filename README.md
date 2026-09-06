@@ -24,21 +24,45 @@ node tools/build.js           # -> dist/planet-destroyer.html
 
 ## Close-ups
 
-Using a building zooms you into it, first person: your green mittens on the
-counter, the console filling the screen, cards big enough to tap. There are
-no floating panels anywhere in the game.
+Using a building zooms you into it, first person, with your green mittens on
+the counter and the console filling the screen. There are no floating panels
+anywhere in the game.
+
+The **multi-tool** is the best of them: you hold the device up in the corner
+of the screen in both mitts, its emitter throws a cone of light across the
+frame, and the building you have selected **turns slowly in the air** inside
+that cone -- a cyan, scanlined hologram of the real sprite, standing on a
+projector pad, with motes rising through it and a dotted base ring. Pick a
+different building and the hologram swaps. Print it and the beam collapses.
 
 | Building | What you see |
 | --- | --- |
-| **Multi-tool** (`Tab`) | The device held up in both hands. Five building cards with live thumbnails, level pips and a price. Tap one to print it from a hologram blueprint, or level it up |
-| **THE DOCKS** | Your pod on the lift, big, with its component slots hung off the hull, its numbers on the left, your parts in store below. Tap a part to fit it |
-| **TERMINAL** | A video desk: whoever is buying today on the left, talking; the book on the right with quantity, price and trend per rock; one SELL ALL |
-| **FABRICATOR** | The bench: recipe cards with ingredient chips (have/need), the printer bed on the right that builds the part in front of you when you craft |
+| **THE DOCKS** | Your pod on the lift, big, with component slots hung off the hull, its numbers on the left, parts in store below |
+| **TERMINAL** | A video desk: whoever is buying today as a big pixel bust that blinks and talks, the book beside it, one SELL ALL |
+| **FABRICATOR** | The bench: recipe cards with real ore chips for ingredients, and a printer bed that builds the part in front of you |
 | **THE MIND** | The brain tank. The skill tree is its wiring |
 | **OBSERVATORY** | The galaxy chart. Each level brings another sector into range |
 
-The docks, terminal and observatory are standing when you arrive. The
-fabricator and the Mind you print yourself.
+## Not one circle
+
+Everything drawn at runtime is pixel art now, built from a set of primitives
+that never produce a smooth curve: discs are **octagons**, shockwaves are
+**stepped rings**, wires and dendrites are **chains of integer segments**,
+orbits are **dotted stepped ellipses**, and soft radial light became
+**concentric octagon bands**. Plates and frames have cut pixel corners and a
+dithered edge. The old vector faces, hands, rounded rectangles, radial glows
+and vignettes are gone -- replaced by sprites or by banded, dithered pixels.
+
+## Ore has sprites
+
+All thirty materials have their own chunk, drawn at 2x and dispatched by
+class: cut **gems** with a table, a crown and a pointed pavilion; **metal**
+nuggets with a hard bevel and a glint; **rubble** with chipped corners and
+speckle; **ice** shards; raw **crystal** clusters; glowcap **mushrooms**;
+**bio** blobs with eyes; a coiled ammonite **fossil**; an ornate precursor
+**relic**. The same sprite is what pops out of the rock, what sits in your
+manifest, what fills the terminal's book, what the fabricator asks for, and
+what shows in a world's ore signature.
 
 ## One button
 

@@ -633,20 +633,119 @@
 
   /* ------------------------------------------------------------------ pickups
      One small gem sprite per material tint, plus a generic rubble nugget. */
-  function buildGem(cols) {
-    const p = pix(11, 11);
-    p.spike(5, 1, 9, 5, 1, cols[1]);
-    p.spike(5, 5, 9, 5, -1, cols[1]);
-    p.spike(5, 2, 5, 4, 1, cols[0]);
-    p.set(4, 4, C.white); p.set(5, 3, C.white);
-    p.outline(C.ink);
-    return p;
+  /* ------------------------------------------------------------------- ore
+     Every material gets its own chunk, drawn at 2x with real facets: cut gems
+     with a table and a crown, metal nuggets with a bevel and a glint, rubble
+     with chipped corners, ice shards, fossils, relics. All from the three
+     colours in the material table, so all thirty exist. */
+  const ORE_CLASS = {
+    crust: 'rock', stone: 'rock', basalt: 'rock', shell: 'rock', hull: 'plate',
+    iron: 'metal', copper: 'metal', silver: 'metal', gold: 'metal', titan: 'metal', star: 'metal',
+    ice: 'ice', frost: 'ice',
+    emerald: 'gem', sapphire: 'gem', ruby: 'gem', ameth: 'gem', diamond: 'gem', void: 'gem',
+    crystal: 'shard', obsid: 'shard', aether: 'shard', uran: 'shard',
+    fungus: 'cap', bio: 'bio', fossil: 'fossil', relic: 'relic'
+  };
+
+  function speck(p, w, h, seed, col, n) {
+    for (let i = 0; i < n; i++) {
+      const x = 2 + Math.floor(U.hash2(seed + i * 3, 11) * (w - 4));
+      const y = 2 + Math.floor(U.hash2(seed + i * 7, 23) * (h - 4));
+      p.set(x, y, col);
+    }
   }
-  function buildNugget(cols) {
-    const p = pix(10, 9);
-    p.ellipse(5, 5, 4, 3.4, cols[1]);
-    p.ellipse(4, 4, 2.2, 1.6, cols[0]);
-    p.set(3, 3, C.white);
+
+  function buildOre(m) {
+    const c = m.c, kind = ORE_CLASS[m.key] || 'rock';
+    const seed = m.id * 13 + 5;
+    const p = pix(24, 22);
+    const L = c[0], M = c[1], D2 = c[2];
+
+    if (kind === 'gem') {
+      // table on top, crown facets, pointed pavilion
+      p.rect(6, 5, 12, 2, L);                       // table
+      p.rect(5, 7, 14, 3, M);
+      for (let i = 0; i < 4; i++) { p.rect(5 + i, 4 + i, 14 - i * 2, 1, i ? M : L); }
+      p.spike(4, 10, 16, 10, 1, M);                 // pavilion
+      p.spike(7, 10, 10, 8, 1, L);
+      p.spike(10, 10, 4, 9, 1, D2);
+      p.line(5, 10, 12, 19, D2); p.line(18, 10, 12, 19, D2);
+      p.rect(7, 4, 4, 1, '#ffffff');                // sparkle on the table
+      p.set(8, 6, '#ffffff'); p.set(9, 6, '#ffffff');
+      p.set(15, 9, D2); p.set(16, 10, D2);
+    } else if (kind === 'shard') {
+      // a raw cluster: three uneven prisms
+      p.spike(3, 8, 7, 12, -1, D2);
+      p.spike(14, 6, 7, 14, -1, M);
+      p.spike(8, 2, 9, 18, -1, M);
+      p.rect(11, 5, 2, 12, L);
+      p.rect(5, 12, 2, 6, L); p.rect(16, 11, 2, 8, L);
+      p.rect(4, 18, 16, 2, D2);
+      p.set(11, 4, '#ffffff'); p.set(12, 6, '#ffffff');
+    } else if (kind === 'metal') {
+      // rounded nugget with a hard bevel and a glint
+      p.round(3, 6, 18, 12, 4, M);
+      p.round(4, 7, 15, 4, 3, L);
+      p.rect(5, 15, 14, 3, D2);
+      p.round(6, 8, 6, 3, 1, '#ffffff');
+      p.set(7, 12, L); p.set(13, 11, L); p.set(16, 13, D2); p.set(9, 15, D2);
+      speck(p, 24, 22, seed, D2, 3);
+      p.rect(8, 4, 3, 2, L); p.rect(15, 5, 2, 2, M);   // little lumps on top
+    } else if (kind === 'ice') {
+      p.spike(4, 4, 16, 16, 1, M);
+      p.spike(7, 4, 10, 12, 1, L);
+      p.rect(9, 6, 2, 9, '#ffffff');
+      p.rect(5, 16, 14, 3, D2);
+      p.set(14, 8, '#ffffff'); p.set(15, 10, L);
+    } else if (kind === 'plate') {
+      p.round(3, 7, 18, 10, 2, M);
+      p.rect(4, 8, 16, 2, L);
+      p.rect(4, 14, 16, 2, D2);
+      for (let i = 0; i < 4; i++) p.set(6 + i * 4, 11, D2);
+      p.rect(2, 10, 2, 4, D2); p.rect(20, 10, 2, 4, D2);
+    } else if (kind === 'cap') {
+      p.rect(10, 12, 4, 7, D2);                    // stalk
+      p.round(4, 5, 16, 8, 4, M);
+      p.round(5, 6, 13, 3, 3, L);
+      p.set(8, 9, L); p.set(14, 8, L); p.set(11, 10, L);
+      p.rect(8, 18, 8, 2, D2);
+    } else if (kind === 'bio') {
+      p.round(4, 6, 16, 13, 6, M);
+      p.round(6, 7, 11, 4, 3, L);
+      p.rect(8, 12, 3, 4, C.eye); p.rect(14, 12, 3, 4, C.eye);
+      p.set(8, 12, '#ffffff'); p.set(14, 12, '#ffffff');
+      p.rect(10, 17, 5, 1, D2);
+      speck(p, 24, 22, seed, L, 4);
+    } else if (kind === 'fossil') {
+      // a coiled ammonite in a chip of stone
+      p.round(3, 5, 18, 15, 4, D2);
+      p.round(4, 6, 16, 4, 3, M);
+      const spiral = [[12, 12], [12, 10], [14, 10], [15, 12], [14, 14], [11, 15], [8, 13], [8, 10], [10, 7], [14, 6], [17, 9]];
+      for (let i = 0; i < spiral.length; i++) p.set(spiral[i][0], spiral[i][1], i % 2 ? L : '#ffffff');
+      for (let i = 0; i < spiral.length - 1; i++) p.line(spiral[i][0], spiral[i][1], spiral[i + 1][0], spiral[i + 1][1], L);
+      p.set(12, 12, '#ffffff');
+    } else if (kind === 'relic') {
+      // an ornate little idol on a base
+      p.rect(6, 17, 12, 3, D2);
+      p.rect(8, 14, 8, 3, M);
+      p.round(7, 6, 10, 9, 3, M);
+      p.rect(9, 8, 6, 2, D2);
+      p.rect(11, 10, 2, 4, L);
+      p.spike(8, 2, 8, 5, -1, L);
+      p.set(12, 3, '#ffffff');
+      p.rect(4, 8, 2, 6, L); p.rect(18, 8, 2, 6, L);
+      p.set(5, 7, '#ffffff'); p.set(19, 7, '#ffffff');
+    } else {
+      // rubble: a chipped chunk with a flat lit top
+      p.round(3, 7, 18, 12, 3, M);
+      p.rect(4, 8, 15, 3, L);
+      p.rect(5, 16, 14, 3, D2);
+      p.set(6, 12, D2); p.set(15, 13, D2); p.set(10, 14, L);
+      p.rect(2, 11, 2, 3, M); p.rect(20, 12, 2, 3, M);
+      speck(p, 24, 22, seed, D2, 5);
+      p.set(8, 6, M); p.set(14, 5, M);
+    }
+    if (m.glow) { p.set(12, 8, '#ffffff'); p.set(11, 9, '#ffffff'); }
     p.outline(C.ink);
     return p;
   }
@@ -655,10 +754,16 @@
   function gemFor(matId) {
     if (gemSprites[matId]) return gemSprites[matId];
     const m = PD.data.MAT[matId];
-    const build = m.shine ? buildGem : buildNugget;
-    const cv = build(m.c).toCanvas();
-    gemSprites[matId] = { frames: [cv], w: cv.width, h: cv.height, ox: cv.width / 2, oy: cv.height / 2 };
+    const cv = buildOre(m).toCanvas();
+    gemSprites[matId] = { frames: [cv], w: cv.width / 2, h: cv.height / 2, hd: 2, ox: cv.width / 4, oy: cv.height / 4 };
     return gemSprites[matId];
+  }
+  /* Small ore chip for lists: the same sprite, drawn to fit a row. */
+  function oreChip(ctx, matId, x, y, size) {
+    const s = gemFor(matId);
+    const cv = s.frames[0];
+    const k = (size || 11) / (cv.width / 2);
+    ctx.drawImage(cv, Math.round(x), Math.round(y), Math.round(cv.width / 2 * k), Math.round(cv.height / 2 * k));
   }
 
   /* ---------------------------------------------------------------- ui icons */
@@ -734,5 +839,5 @@
     return set;
   }
 
-  PD.art = { C, sprites, gemFor, ICON, skinFor, optOf, reg, blit, pixOf: pix };
+  PD.art = { C, sprites, gemFor, oreChip, buildOre, ICON, skinFor, optOf, reg, blit, pixOf: pix };
 })(window.PD);

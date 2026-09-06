@@ -8,6 +8,7 @@
   const D = PD.data;
   const A = PD.audio;
   const G = PD.galaxy;
+  const X = PD.pxd;
   const VW = 480, VH = 270;
 
   const S = {
@@ -122,15 +123,7 @@
 
   /* ------------------------------------------------------------------ draw */
   function ring(ctx, x, y, r, col, alpha, dash) {
-    ctx.save();
-    ctx.globalAlpha = alpha;
-    ctx.strokeStyle = col;
-    ctx.lineWidth = 1;
-    if (dash) ctx.setLineDash([3, 4]);
-    ctx.beginPath();
-    ctx.ellipse(x, y, r, r * 0.34, 0, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.restore();
+    X.orbit(ctx, x, y, r, r * 0.34, col, dash ? 5 : 2, alpha);
   }
 
   function panel(ctx, x, y, w, h, col) {
@@ -178,13 +171,7 @@
       const open = zoneOpen(g, i);
       ctx.save();
       ctx.globalAlpha = open ? 0.55 : 0.25;
-      ctx.strokeStyle = open ? '#7ef9ff' : '#5a4d80';
-      ctx.lineWidth = 1;
-      if (!open) ctx.setLineDash([3, 5]);
-      ctx.beginPath();
-      ctx.moveTo(a.x, a.y);
-      ctx.quadraticCurveTo((a.x + b.x) / 2, (a.y + b.y) / 2 - 30, b.x, b.y);
-      ctx.stroke();
+      X.curve(ctx, a.x, a.y, (a.x + b.x) / 2, (a.y + b.y) / 2 - 30, b.x, b.y, open ? '#7ef9ff' : '#5a4d80', 1, open ? 16 : 7);
       ctx.restore();
     }
 
@@ -203,8 +190,7 @@
         const a = t * (0.3 + k * 0.12) + k * 2.1;
         const px = z.x + Math.cos(a) * 26, py = z.y + Math.sin(a) * 26 * 0.34;
         const bi = z.bodies[k];
-        ctx.fillStyle = g.save.destroyed[bi] ? '#5a4d80' : D.BODIES[bi].tint;
-        ctx.beginPath(); ctx.arc(px, py, 2.6, 0, Math.PI * 2); ctx.fill();
+        X.rect(ctx, px - 2, py - 2, 4, 4, g.save.destroyed[bi] ? '#5a4d80' : D.BODIES[bi].tint);
       }
       ctx.restore();
 
@@ -251,14 +237,7 @@
     ctx.drawImage(sp, 34 - sp.width / 2, 132 - sp.height / 2);
     for (let k = 0; k < list.length; k++) {
       const p = bodyPos(k, list.length);
-      ctx.save();
-      ctx.globalAlpha = zo * 0.3;
-      ctx.strokeStyle = z.star;
-      ctx.setLineDash([2, 4]);
-      ctx.beginPath();
-      ctx.ellipse(34, 132, p.x - 34, (p.x - 34) * 0.42, 0, -0.7, 0.7);
-      ctx.stroke();
-      ctx.restore();
+      X.orbit(ctx, 34, 132, p.x - 34, (p.x - 34) * 0.42, z.star, 4, zo * 0.35);
     }
 
     for (let k = 0; k < list.length; k++) {
@@ -284,14 +263,11 @@
       }
       F.draw(ctx, D.BODIES[i].name.toUpperCase(), p.x, p.y + bob + size * 0.7 + 6, sel ? '#ffd34d' : '#9c8ec4', { center: true });
       if (sel) {
-        const r = size * 0.62 + 6 + Math.sin(t * 4) * 1.5;
-        ctx.strokeStyle = '#ffd34d';
-        ctx.lineWidth = 1;
-        for (let a = 0; a < 4; a++) {
-          const ang = t * 0.6 + a * Math.PI / 2;
-          ctx.beginPath();
-          ctx.arc(p.x, p.y + bob, r, ang, ang + 0.5);
-          ctx.stroke();
+        // pixel corner brackets instead of a spinning circle
+        const r = Math.round(size * 0.62 + 7 + Math.sin(t * 4) * 1.5);
+        for (const sx of [-1, 1]) for (const sy of [-1, 1]) {
+          X.rect(ctx, p.x + sx * r - (sx < 0 ? 0 : 7), p.y + bob + sy * r - (sy < 0 ? 0 : 1), 7, 2, '#ffd34d');
+          X.rect(ctx, p.x + sx * r - (sx < 0 ? 0 : 2), p.y + bob + sy * r - (sy < 0 ? 0 : 7), 2, 7, '#ffd34d');
         }
       }
     }
@@ -311,13 +287,7 @@
     let ox = 16;
     F.draw(ctx, 'ORE', ox, VH - 22, '#9c8ec4', { shadow: false });
     ox += 24;
-    for (const pair of b.ores.slice(0, 8)) {
-      const m = D.MAT[pair[0]];
-      ctx.fillStyle = m.c[1]; ctx.fillRect(ox, VH - 23, 8, 8);
-      ctx.fillStyle = m.c[0]; ctx.fillRect(ox, VH - 23, 8, 2);
-      ctx.fillStyle = '#0a0616'; ctx.fillRect(ox, VH - 15, 8, 1);
-      ox += 11;
-    }
+    for (const pair of b.ores.slice(0, 8)) { PD.art.oreChip(ctx, pair[0], ox, VH - 26, 14); ox += 15; }
     if (g.save.destroyed[S.selBody]) F.draw(ctx, 'ALREADY DESTROYED', ox + 10, VH - 22, '#ff6b8a', { shadow: false });
     if (open) {
       const bw = 110, bx = VW - bw - 12, by = VH - 30;

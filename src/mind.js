@@ -9,6 +9,7 @@
   const D = PD.data;
   const A = PD.audio;
   const G = PD.glyph;
+  const X = PD.pxd;
   const VW = 480, VH = 270;
 
   const CX = 176, CY = 138;                // brain centre on screen
@@ -98,8 +99,7 @@
     for (const b of S.bubbles) {
       const y = VH - ((b.y * VH + t * b.sp) % (VH - 30));
       const x = b.x * 320 + Math.sin(t * 2 + b.y * 10) * 3;
-      ctx.fillStyle = 'rgba(200,255,224,0.55)';
-      ctx.fillRect(x | 0, y | 0, b.r > 1.4 ? 2 : 1, b.r > 1.4 ? 2 : 1);
+      X.rect(ctx, x, y, b.r > 1.4 ? 2 : 1, b.r > 1.4 ? 2 : 1, 'rgba(200,255,224,0.55)');
     }
     // the brain, breathing
     const br = PD.arthome.S.brain;
@@ -125,19 +125,14 @@
         const q = pos(D.NEURON[l]);
         const lit = level(g, n.id) > 0 && level(g, l) > 0;
         const half = level(g, l) > 0;
-        ctx.strokeStyle = lit ? '#8affa0' : (half ? '#3fb85a' : '#1e4a34');
-        ctx.lineWidth = lit ? 2 : 1;
-        ctx.beginPath();
-        ctx.moveTo(q.x, q.y);
         const mx = (p.x + q.x) / 2 + Math.sin(t * 2 + n.a) * 3, my = (p.y + q.y) / 2 + Math.cos(t * 1.7 + n.a) * 3;
-        ctx.quadraticCurveTo(mx, my, p.x, p.y);
-        ctx.stroke();
+        X.curve(ctx, q.x, q.y, mx, my, p.x, p.y, lit ? '#8affa0' : (half ? '#3fb85a' : '#1e4a34'), lit ? 2 : 1, 10);
         if (lit) {
           // signal beads travelling along a live wire
           const f = (t * 0.6 + n.a / 360) % 1;
           const bx = (1 - f) * (1 - f) * q.x + 2 * (1 - f) * f * mx + f * f * p.x;
           const by = (1 - f) * (1 - f) * q.y + 2 * (1 - f) * f * my + f * f * p.y;
-          ctx.fillStyle = '#e8fff2'; ctx.fillRect((bx - 1) | 0, (by - 1) | 0, 2, 2);
+          X.rect(ctx, bx - 1, by - 1, 2, 2, '#e8fff2');
         }
       }
     }
@@ -153,13 +148,10 @@
       const isHover = m.inside && U.dist(m.x, m.y, p.x, p.y) < 12;
       if (isHover) hover = n;
       const r = 7 + (lvl > 0 ? 2 : 0) + (sel ? Math.sin(t * 6) * 1 : 0);
-      // soma
-      ctx.fillStyle = lvl > 0 ? '#8affa0' : (open ? '#2f7a56' : '#163826');
-      ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = sel ? '#ffffff' : (isHover ? '#c8ffe0' : (open ? '#63c48a' : '#1e4a34'));
-      ctx.lineWidth = sel ? 2 : 1;
-      ctx.stroke();
-      if (lvl > 0) { ctx.fillStyle = '#e8fff2'; ctx.beginPath(); ctx.arc(p.x - 2, p.y - 2, 2, 0, Math.PI * 2); ctx.fill(); }
+      // soma: an octagon of pixels, never a circle
+      X.oct(ctx, p.x, p.y, r, lvl > 0 ? '#8affa0' : (open ? '#2f7a56' : '#163826'),
+        sel ? '#ffffff' : (isHover ? '#c8ffe0' : (open ? '#63c48a' : '#1e4a34')), sel ? 2 : 1);
+      if (lvl > 0) X.rect(ctx, p.x - 4, p.y - 4, 3, 3, '#e8fff2');
       G.draw(ctx, iconOf(n.id), p.x - 6, p.y - 6, lvl > 0 ? '#06210f' : (open ? '#e8fff2' : '#2f5a44'), 'rgba(0,0,0,0)');
       if (lvl > 0) F.draw(ctx, String(lvl), p.x + 7, p.y + 3, '#ffffff', { shadow: true });
       if (!ringOpen(g, n)) G.draw(ctx, 'lock', p.x - 3, p.y + 4, '#5a4d80', 'rgba(0,0,0,0)');
@@ -168,10 +160,9 @@
     for (const pu of S.pulses) {
       const f = U.clamp(pu.t, 0, 1);
       const x = pu.from.x + (pu.to.x - pu.from.x) * f, y = pu.from.y + (pu.to.y - pu.from.y) * f;
-      ctx.fillStyle = '#ffffff';
       ctx.globalAlpha = 1 - Math.max(0, pu.t - 1) / 0.6;
-      ctx.beginPath(); ctx.arc(x, y, 3 + (pu.t > 1 ? (pu.t - 1) * 24 : 0), 0, Math.PI * 2);
-      if (pu.t > 1) { ctx.strokeStyle = '#8affa0'; ctx.lineWidth = 2; ctx.stroke(); } else ctx.fill();
+      if (pu.t > 1) X.ring(ctx, x, y, 3 + (pu.t - 1) * 24, '#8affa0', 2);
+      else X.oct(ctx, x, y, 3, '#ffffff', null, 1);
       ctx.globalAlpha = 1;
     }
 

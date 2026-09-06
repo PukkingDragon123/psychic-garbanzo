@@ -11,7 +11,7 @@ const OUT = process.argv[2] || path.join(ROOT, 'dist', 'planet-destroyer.html');
 
 /* Load order matters: each module reads the ones above it at definition time. */
 const SOURCES = [
-  'util', 'pix', 'glyph', 'data', 'art', 'arthome', 'galaxy', 'font', 'audio', 'input', 'touch',
+  'util', 'pix', 'glyph', 'pxd', 'data', 'art', 'arthome', 'galaxy', 'font', 'audio', 'input', 'touch',
   'fx', 'flora', 'world', 'entities', 'player', 'ui', 'starmap', 'mind', 'scenes', 'home', 'game'
 ];
 

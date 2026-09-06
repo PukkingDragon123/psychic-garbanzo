@@ -6,6 +6,7 @@
   const D = PD.data;
   const F = PD.font;
   const A = PD.audio;
+  const X = PD.pxd;
 
   const VW = 480, VH = 270;
 
@@ -136,12 +137,16 @@
     const t = g.time;
     const PW = 172, PH = 62;
 
-    ctx.fillStyle = 'rgba(10,6,24,0.7)';
-    ctx.beginPath();
-    ctx.moveTo(0, 0); ctx.lineTo(PW, 0); ctx.lineTo(PW, PH - 10); ctx.quadraticCurveTo(PW, PH, PW - 10, PH); ctx.lineTo(0, PH); ctx.closePath();
-    ctx.fill();
-    ctx.strokeStyle = 'rgba(166,125,240,0.45)'; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(PW + 0.5, 0); ctx.lineTo(PW + 0.5, PH - 10); ctx.quadraticCurveTo(PW + 0.5, PH + 0.5, PW - 10, PH + 0.5); ctx.lineTo(0, PH + 0.5); ctx.stroke();
+    // a stepped plate: the corner is cut in pixel stairs
+    X.rect(ctx, 0, 0, PW, PH - 8, 'rgba(10,6,24,0.72)');
+    X.rect(ctx, 0, PH - 8, PW - 8, 8, 'rgba(10,6,24,0.72)');
+    X.rect(ctx, PW - 8, PH - 8, 4, 4, 'rgba(10,6,24,0.72)');
+    X.rect(ctx, PW, 0, 1, PH - 8, 'rgba(166,125,240,0.5)');
+    X.rect(ctx, PW - 8, PH - 4, 1, 4, 'rgba(166,125,240,0.5)');
+    X.rect(ctx, PW - 4, PH - 8, 1, 4, 'rgba(166,125,240,0.5)');
+    X.rect(ctx, 0, PH, PW - 8, 1, 'rgba(166,125,240,0.5)');
+    X.rect(ctx, PW - 8, PH - 4, 4, 1, 'rgba(166,125,240,0.5)');
+    X.rect(ctx, PW - 4, PH - 8, 4, 1, 'rgba(166,125,240,0.5)');
 
     // --- air: a glass tank that empties
     const tx = 5, ty = 4, tw = 14, th = 44;
@@ -209,22 +214,24 @@
     let my = PH + 6;
     for (const k of entries) {
       const m = D.MAT[k];
-      ctx.fillStyle = 'rgba(8,4,18,0.5)'; ctx.fillRect(0, my - 1, 104, 10);
-      ctx.fillStyle = m.c[1]; ctx.fillRect(4, my + 1, 7, 7);
-      ctx.fillStyle = m.c[0]; ctx.fillRect(4, my + 1, 7, 2);
-      F.draw(ctx, m.name.toUpperCase().slice(0, 10), 15, my, COL.text, { shadow: false });
-      F.draw(ctx, String(p.cargo[k]), 100, my, COL.gold, { right: true, shadow: false });
-      my += 11;
+      X.rect(ctx, 0, my - 2, 106, 13, 'rgba(8,4,18,0.55)');
+      PD.art.oreChip(ctx, +k, 2, my - 3, 14);
+      F.draw(ctx, m.name.toUpperCase().slice(0, 10), 18, my + 1, COL.text, { shadow: false });
+      F.draw(ctx, String(p.cargo[k]), 102, my + 1, COL.gold, { right: true, shadow: false });
+      my += 13;
     }
     if (p.cargoValue() > 0) {
-      ctx.fillStyle = 'rgba(8,4,18,0.5)'; ctx.fillRect(0, my - 1, 104, 16);
+      X.rect(ctx, 0, my - 1, 106, 16, 'rgba(8,4,18,0.55)');
       Gd().draw(ctx, 'coin', 3, my, COL.gold, '#b8860b');
       F.draw(ctx, U.fmt(p.cargoValue()), 19, my + 1, COL.gold, { scale: 2, shadow: false });
     }
 
     // top right: credits + galaxy
-    ctx.fillStyle = 'rgba(10,6,24,0.7)';
-    ctx.beginPath(); ctx.moveTo(VW - 130, 0); ctx.lineTo(VW, 0); ctx.lineTo(VW, 34); ctx.lineTo(VW - 120, 34); ctx.quadraticCurveTo(VW - 130, 34, VW - 130, 24); ctx.closePath(); ctx.fill();
+    X.rect(ctx, VW - 130, 0, 130, 26, 'rgba(10,6,24,0.72)');
+    X.rect(ctx, VW - 122, 26, 122, 8, 'rgba(10,6,24,0.72)');
+    X.rect(ctx, VW - 126, 26, 4, 4, 'rgba(10,6,24,0.72)');
+    X.rect(ctx, VW - 130, 0, 1, 26, 'rgba(166,125,240,0.5)');
+    X.rect(ctx, VW - 122, 30, 122, 1, 'rgba(166,125,240,0.5)');
     F.draw(ctx, '$' + U.fmt(g.save.credits), VW - 8, 4, COL.gold, { right: true, scale: 2 });
     F.draw(ctx, 'GALAXY ' + g.save.dominion.toFixed(1) + '%', VW - 8, 22, COL.lineHi, { right: true });
   }
@@ -299,8 +306,9 @@
     ctx.fillRect(0, 20, VW, 1);
     Gd().draw(ctx, 'coin', 4, 3, COL.gold, '#b8860b');
     F.draw(ctx, '$' + U.fmt(g.save.credits), 20, 2, COL.gold, { scale: 2, shadow: false });
-    Gd().draw(ctx, 'ore', 150, 3, ore ? '#ffb03d' : COL.dim, '#5b3f96');
-    F.draw(ctx, ore + ' ORE' + (val > 0 ? '  $' + U.fmt(val) : ''), 166, 6, ore ? '#ffb03d' : COL.dim, { shadow: false });
+    const best = Object.keys(g.save.vault).sort((a, b) => D.MAT[b].cr - D.MAT[a].cr)[0];
+    if (best) PD.art.oreChip(ctx, +best, 148, 2, 16); else Gd().draw(ctx, 'ore', 150, 3, COL.dim, '#5b3f96');
+    F.draw(ctx, ore + ' ORE' + (val > 0 ? '  $' + U.fmt(val) : ''), 168, 6, ore ? '#ffb03d' : COL.dim, { shadow: false });
     if (g.save.artifacts > 0) {
       Gd().draw(ctx, 'star', 286, 3, COL.gold, '#b8860b');
       F.draw(ctx, g.save.artifacts + ' ARTIFACT' + (g.save.artifacts === 1 ? '' : 'S'), 302, 6, COL.gold, { shadow: false });
@@ -449,8 +457,7 @@
       ctx.strokeRect(22.5, y + 0.5, VW - 45, rh - 3);
 
       // little planet dot
-      ctx.fillStyle = unlocked ? b.tint : '#3a3050';
-      ctx.beginPath(); ctx.arc(32, y + 7, 4, 0, U.TAU); ctx.fill();
+      X.oct(ctx, 32, y + 7, 4, unlocked ? b.tint : '#3a3050', null, 1);
       if (done) { ctx.fillStyle = '#0d0720'; ctx.fillRect(29, y + 6, 6, 2); }
 
       const label = unlocked ? b.name : '?????? ??????';
@@ -524,16 +531,10 @@
     const px = 386, py = 246, r = 58;
 
     // the doomed planet
-    ctx.fillStyle = '#2b1c4a';
-    ctx.beginPath(); ctx.arc(px, py, r + 3, 0, U.TAU); ctx.fill();
-    ctx.fillStyle = '#4f7d6a';
-    ctx.beginPath(); ctx.arc(px, py, r, 0, U.TAU); ctx.fill();
-    ctx.fillStyle = '#3a5f55';
-    ctx.beginPath(); ctx.arc(px + 10, py + 12, r - 8, 0, U.TAU); ctx.fill();
-    ctx.fillStyle = '#6a9a80';
-    [[-26, -18, 9], [12, -30, 6], [-8, 6, 5], [26, -6, 7]].forEach(c => {
-      ctx.beginPath(); ctx.arc(px + c[0], py + c[1], c[2], 0, U.TAU); ctx.fill();
-    });
+    X.blob(ctx, px, py, r + 3, r + 3, '#2b1c4a');
+    X.blob(ctx, px, py, r, r, '#4f7d6a');
+    X.blob(ctx, px + 10, py + 12, r - 8, r - 8, '#3a5f55');
+    [[-26, -18, 9], [12, -30, 6], [-8, 6, 5], [26, -6, 7]].forEach(c => X.blob(ctx, px + c[0], py + c[1], c[2], c[2], '#6a9a80'));
 
     // glowing fissures, breathing in time with the drill
     const glow = 0.7 + 0.3 * Math.sin(t * 4);
@@ -559,11 +560,7 @@
       for (let i = 1; i < line.length; i++) ctx.lineTo(px + line[i][0], py + line[i][1]);
       ctx.stroke();
     }
-    const hg = ctx.createRadialGradient(px - 6, py - 56, 1, px - 6, py - 56, 22);
-    hg.addColorStop(0, 'rgba(255,240,190,' + glow.toFixed(2) + ')');
-    hg.addColorStop(1, 'rgba(255,140,40,0)');
-    ctx.fillStyle = hg;
-    ctx.fillRect(px - 28, py - 78, 56, 56);
+    X.glowBands(ctx, px - 6, py - 56, 22, '#ffe0a0', 4, glow * 0.8);
 
     // sparks off the bit
     for (let i = 0; i < 9; i++) {

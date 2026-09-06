@@ -1006,18 +1006,12 @@
       const frac = U.clamp(p.tetherFrac || 0, 0, 1);
       const px = p.x - cam.x - (Math.cos(p.aim) < 0 ? -6 : 6), py = p.y - cam.y - 2;
       const sag = (1 - frac) * 40;
-      ctx.strokeStyle = frac > 0.9 ? (Math.sin(t * 20) > 0 ? '#ff5a4d' : '#ffd34d') : '#c9c9dc';
-      ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(x, y + 12);
-      ctx.quadraticCurveTo((x + px) / 2, Math.max(y, py) + sag, px, py);
-      ctx.stroke();
-      ctx.strokeStyle = 'rgba(0,0,0,0.35)';
-      ctx.beginPath(); ctx.moveTo(x, y + 13);
-      ctx.quadraticCurveTo((x + px) / 2, Math.max(y, py) + sag + 1, px, py + 1);
-      ctx.stroke();
+      const wireCol = frac > 0.9 ? (Math.sin(t * 20) > 0 ? '#ff5a4d' : '#ffd34d') : '#c9c9dc';
+      PD.pxd.curve(ctx, x, y + 13, (x + px) / 2, Math.max(y, py) + sag + 1, px, py + 1, 'rgba(0,0,0,0.4)', 1, 16);
+      PD.pxd.curve(ctx, x, y + 12, (x + px) / 2, Math.max(y, py) + sag, px, py, wireCol, 1, 16);
       // reel gauge on the pod
-      ctx.fillStyle = '#0d0720'; ctx.fillRect(x - 16, y - 24, 32, 4);
-      ctx.fillStyle = frac > 0.9 ? '#ff5a4d' : '#7ef9ff'; ctx.fillRect(x - 16, y - 24, Math.round(32 * frac), 4);
+      PD.pxd.plate(ctx, x - 17, y - 25, 34, 6, '#0d0720', '#3a2c5e', '#000000', 2);
+      PD.pxd.rect(ctx, x - 16, y - 24, Math.round(32 * frac), 4, frac > 0.9 ? '#ff5a4d' : '#7ef9ff');
     }
 
     const pod = PD.art.skinFor(g.save.cos).pod;
@@ -1062,49 +1056,27 @@
     const gl = w.glows || [];
     for (let k = 0; k < gl.length; k += 4) {
       const gx = gl[k], gy = gl[k + 1], gr = gl[k + 2];
-      const gg = lctx.createRadialGradient(gx, gy, 1, gx, gy, gr);
-      gg.addColorStop(0, 'rgba(0,0,0,0.55)');
-      gg.addColorStop(1, 'rgba(0,0,0,0)');
-      lctx.fillStyle = gg;
-      lctx.fillRect(gx - gr, gy - gr, gr * 2, gr * 2);
+      PD.pxd.glowBands(lctx, gx, gy, gr, '#000000', 3, 0.5);
     }
     const lamp = p.stat('lamp');
     const px = p.x - cam.x, py = p.y - cam.y;
 
     // headlamp: broad halo plus a cone along the aim
-    let grd = lctx.createRadialGradient(px, py, 2, px, py, lamp);
-    grd.addColorStop(0, 'rgba(0,0,0,1)');
-    grd.addColorStop(0.45, 'rgba(0,0,0,0.75)');
-    grd.addColorStop(1, 'rgba(0,0,0,0)');
-    lctx.fillStyle = grd;
-    lctx.fillRect(px - lamp, py - lamp, lamp * 2, lamp * 2);
+    PD.pxd.glowBands(lctx, px, py, lamp, '#000000', 5, 1);
 
     const cx = px + Math.cos(p.aim) * lamp * 0.75, cy = py + Math.sin(p.aim) * lamp * 0.75;
-    grd = lctx.createRadialGradient(cx, cy, 2, cx, cy, lamp * 0.8);
-    grd.addColorStop(0, 'rgba(0,0,0,0.9)');
-    grd.addColorStop(1, 'rgba(0,0,0,0)');
-    lctx.fillStyle = grd;
-    lctx.fillRect(cx - lamp, cy - lamp, lamp * 2, lamp * 2);
+    PD.pxd.glowBands(lctx, cx, cy, lamp * 0.8, '#000000', 4, 0.85);
 
     // the core is its own furnace
     if (w.coreHp > 0) {
       const kx = w.coreCenter.x - cam.x, ky = w.coreCenter.y - cam.y;
-      const kr = w.chamberR * 1.5;
-      grd = lctx.createRadialGradient(kx, ky, 2, kx, ky, kr);
-      grd.addColorStop(0, 'rgba(0,0,0,1)');
-      grd.addColorStop(1, 'rgba(0,0,0,0)');
-      lctx.fillStyle = grd;
-      lctx.fillRect(kx - kr, ky - kr, kr * 2, kr * 2);
+      PD.pxd.glowBands(lctx, kx, ky, w.chamberR * 1.5, '#000000', 5, 1);
     }
 
     if (p.drilling) {
       const tip = p.drillTip();
       const tx = tip.x - cam.x, ty = tip.y - cam.y;
-      grd = lctx.createRadialGradient(tx, ty, 1, tx, ty, 30);
-      grd.addColorStop(0, 'rgba(0,0,0,0.8)');
-      grd.addColorStop(1, 'rgba(0,0,0,0)');
-      lctx.fillStyle = grd;
-      lctx.fillRect(tx - 30, ty - 30, 60, 60);
+      PD.pxd.glowBands(lctx, tx, ty, 30, '#000000', 3, 0.8);
     }
 
     lctx.globalCompositeOperation = 'source-over';
@@ -1185,11 +1157,16 @@
     const airF = g.player.o2 / g.player.stat('oxygen');
     if (airF < 0.3) {
       const a = (1 - airF / 0.3) * 0.45 * (0.7 + 0.3 * Math.sin(g.time * 7));
-      const grd = ctx.createRadialGradient(VW / 2, VH / 2, VH * 0.32, VW / 2, VH / 2, VH * 0.78);
-      grd.addColorStop(0, 'rgba(120,10,30,0)');
-      grd.addColorStop(1, 'rgba(120,10,30,' + a.toFixed(3) + ')');
-      ctx.fillStyle = grd;
-      ctx.fillRect(0, 0, VW, VH);
+      // dithered bands closing in from the edges, no soft vignette
+      for (let i = 0; i < 5; i++) {
+        const inset = i * 9;
+        ctx.globalAlpha = a * (1 - i / 5);
+        PD.pxd.dither(ctx, inset, inset, VW - inset * 2, 9, '#8a0a1e', i % 2);
+        PD.pxd.dither(ctx, inset, VH - inset - 9, VW - inset * 2, 9, '#8a0a1e', i % 2);
+        PD.pxd.dither(ctx, inset, inset, 9, VH - inset * 2, '#8a0a1e', i % 2);
+        PD.pxd.dither(ctx, VW - inset - 9, inset, 9, VH - inset * 2, '#8a0a1e', i % 2);
+      }
+      ctx.globalAlpha = 1;
     }
 
     if (g.state !== 'victory' && g.state !== 'ending') UI.hud(ctx, g);

@@ -529,6 +529,186 @@ window.PD = window.PD || {};
   PD.glyph = { draw, stat, hex, hexPath, hexProgress, names: Object.keys(builders), build };
 })(window.PD);
 
+/* ===== src/pxd.js ===== */
+/* Pixel drawing primitives for everything the game draws at runtime.
+   There is not a single smooth curve in here: discs are octagons, rings are
+   stepped bands, "curves" are chains of integer segments, and every edge lands
+   on a whole unit so it survives the upscale as real pixels. */
+(function (PD) {
+  'use strict';
+  const U = PD.util;
+
+  function rect(ctx, x, y, w, h, col) {
+    ctx.fillStyle = col;
+    ctx.fillRect(Math.round(x), Math.round(y), Math.max(1, Math.round(w)), Math.max(1, Math.round(h)));
+  }
+
+  /* A chunky plate: face, top-left light, bottom-right shadow, cut corners. */
+  function plate(ctx, x, y, w, h, face, light, dark, cut) {
+    x = Math.round(x); y = Math.round(y); w = Math.round(w); h = Math.round(h);
+    cut = cut === undefined ? 3 : cut;
+    ctx.fillStyle = face;
+    ctx.fillRect(x + cut, y, w - cut * 2, h);
+    ctx.fillRect(x, y + cut, w, h - cut * 2);
+    for (let i = 0; i < cut; i++) {
+      ctx.fillRect(x + cut - i - 1, y + i, 1, 1); ctx.fillRect(x + w - cut + i, y + i, 1, 1);
+      ctx.fillRect(x + cut - i - 1, y + h - i - 1, 1, 1); ctx.fillRect(x + w - cut + i, y + h - i - 1, 1, 1);
+    }
+    if (light) {
+      ctx.fillStyle = light;
+      ctx.fillRect(x + cut, y, w - cut * 2, 1);
+      ctx.fillRect(x, y + cut, 1, h - cut * 2);
+    }
+    if (dark) {
+      ctx.fillStyle = dark;
+      ctx.fillRect(x + cut, y + h - 1, w - cut * 2, 1);
+      ctx.fillRect(x + w - 1, y + cut, 1, h - cut * 2);
+    }
+  }
+
+  /* A hollow frame with notched corners -- the game's window border. */
+  function frame(ctx, x, y, w, h, col, accent) {
+    x = Math.round(x); y = Math.round(y); w = Math.round(w); h = Math.round(h);
+    ctx.fillStyle = col;
+    ctx.fillRect(x + 3, y, w - 6, 1); ctx.fillRect(x + 3, y + h - 1, w - 6, 1);
+    ctx.fillRect(x, y + 3, 1, h - 6); ctx.fillRect(x + w - 1, y + 3, 1, h - 6);
+    ctx.fillRect(x + 1, y + 1, 2, 1); ctx.fillRect(x + 1, y + 2, 1, 1);
+    ctx.fillRect(x + w - 3, y + 1, 2, 1); ctx.fillRect(x + w - 2, y + 2, 1, 1);
+    ctx.fillRect(x + 1, y + h - 2, 2, 1); ctx.fillRect(x + 1, y + h - 3, 1, 1);
+    ctx.fillRect(x + w - 3, y + h - 2, 2, 1); ctx.fillRect(x + w - 2, y + h - 3, 1, 1);
+    if (accent) {
+      ctx.fillStyle = accent;
+      ctx.fillRect(x + 3, y, 8, 1); ctx.fillRect(x, y + 3, 1, 8);
+      ctx.fillRect(x + w - 11, y + h - 1, 8, 1); ctx.fillRect(x + w - 1, y + h - 11, 1, 8);
+    }
+  }
+
+  /* Octagon: what a circle looks like when it is made of pixels. */
+  function octPath(ctx, x, y, r) {
+    x = Math.round(x); y = Math.round(y); r = Math.max(2, Math.round(r));
+    const c = Math.max(1, Math.round(r * 0.42));
+    ctx.beginPath();
+    ctx.moveTo(x - r + c, y - r); ctx.lineTo(x + r - c, y - r);
+    ctx.lineTo(x + r, y - r + c); ctx.lineTo(x + r, y + r - c);
+    ctx.lineTo(x + r - c, y + r); ctx.lineTo(x - r + c, y + r);
+    ctx.lineTo(x - r, y + r - c); ctx.lineTo(x - r, y - r + c);
+    ctx.closePath();
+  }
+  function oct(ctx, x, y, r, fill, edge, lw) {
+    octPath(ctx, x, y, r);
+    if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+    if (edge) { ctx.strokeStyle = edge; ctx.lineWidth = lw || 1; ctx.stroke(); }
+  }
+
+  /* A blob of solid pixels -- scanline octagon, no anti-aliasing anywhere. */
+  function blob(ctx, x, y, rx, ry, col) {
+    x = Math.round(x); y = Math.round(y);
+    rx = Math.max(1, Math.round(rx)); ry = Math.max(1, Math.round(ry));
+    ctx.fillStyle = col;
+    for (let j = -ry; j <= ry; j++) {
+      const f = 1 - (j * j) / ((ry + 0.4) * (ry + 0.4));
+      const w = Math.round(rx * Math.sqrt(Math.max(0, f)));
+      if (w <= 0) continue;
+      ctx.fillRect(x - w, y + j, w * 2 + 1, 1);
+    }
+  }
+
+  /* A ring that expands as stepped bands: the pixel version of a shockwave. */
+  function ring(ctx, x, y, r, col, thick) {
+    x = Math.round(x); y = Math.round(y); r = Math.max(1, Math.round(r));
+    thick = Math.max(1, Math.round(thick || 1));
+    const c = Math.max(1, Math.round(r * 0.42));
+    ctx.fillStyle = col;
+    // top / bottom runs
+    ctx.fillRect(x - r + c, y - r, (r - c) * 2 + 1, thick);
+    ctx.fillRect(x - r + c, y + r - thick + 1, (r - c) * 2 + 1, thick);
+    // left / right runs
+    ctx.fillRect(x - r, y - r + c, thick, (r - c) * 2 + 1);
+    ctx.fillRect(x + r - thick + 1, y - r + c, thick, (r - c) * 2 + 1);
+    // stepped diagonals
+    for (let i = 0; i < c; i++) {
+      const px = x - r + i, py = y - r + c - i;
+      ctx.fillRect(px, py, thick, thick);
+      ctx.fillRect(x + r - i - thick + 1, py, thick, thick);
+      ctx.fillRect(px, y + r - c + i, thick, thick);
+      ctx.fillRect(x + r - i - thick + 1, y + r - c + i, thick, thick);
+    }
+  }
+
+  /* Integer line, drawn as a run of blocks. */
+  function line(ctx, x0, y0, x1, y1, col, thick) {
+    x0 = Math.round(x0); y0 = Math.round(y0); x1 = Math.round(x1); y1 = Math.round(y1);
+    thick = Math.max(1, Math.round(thick || 1));
+    ctx.fillStyle = col;
+    const dx = Math.abs(x1 - x0), dy = Math.abs(y1 - y0);
+    const sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1;
+    let err = dx - dy, guard = 0;
+    for (;;) {
+      ctx.fillRect(x0, y0, thick, thick);
+      if ((x0 === x1 && y0 === y1) || ++guard > 4000) break;
+      const e2 = err * 2;
+      if (e2 > -dy) { err -= dy; x0 += sx; }
+      if (e2 < dx) { err += dx; y0 += sy; }
+    }
+  }
+
+  /* A quadratic sampled into integer segments, so wires and cables step. */
+  function curve(ctx, x0, y0, cx, cy, x1, y1, col, thick, steps) {
+    steps = steps || 14;
+    let px = x0, py = y0;
+    for (let i = 1; i <= steps; i++) {
+      const f = i / steps, g = 1 - f;
+      const x = g * g * x0 + 2 * g * f * cx + f * f * x1;
+      const y = g * g * y0 + 2 * g * f * cy + f * f * y1;
+      line(ctx, px, py, x, y, col, thick);
+      px = x; py = y;
+    }
+  }
+
+  /* A dotted stepped ellipse outline, for orbits. */
+  function orbit(ctx, x, y, rx, ry, col, gap, alpha) {
+    ctx.save();
+    if (alpha !== undefined) ctx.globalAlpha = alpha;
+    ctx.fillStyle = col;
+    gap = gap || 4;
+    const n = Math.max(16, Math.round((rx + ry) * 0.7));
+    for (let i = 0; i < n; i++) {
+      if (i % gap > 1) continue;
+      const a = i / n * Math.PI * 2;
+      ctx.fillRect(Math.round(x + Math.cos(a) * rx), Math.round(y + Math.sin(a) * ry), 1, 1);
+    }
+    ctx.restore();
+  }
+
+  /* Banded radial falloff: concentric octagons instead of a soft gradient. */
+  function glowBands(ctx, x, y, r, col, steps, peak) {
+    steps = steps || 6;
+    for (let i = steps; i >= 1; i--) {
+      const f = i / steps;
+      ctx.globalAlpha = (peak === undefined ? 0.5 : peak) * Math.pow(1 - f, 1.4);
+      octPath(ctx, x, y, r * f);
+      ctx.fillStyle = col;
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function scanlines(ctx, x, y, w, h, col, phase, gap) {
+    gap = gap || 4;
+    ctx.fillStyle = col;
+    for (let yy = Math.round(y) + (Math.floor(phase || 0) % gap); yy < y + h; yy += gap) ctx.fillRect(Math.round(x), yy, Math.round(w), 1);
+  }
+
+  /* Checkerboard dither between two shades: the classic way to fake a mid-tone. */
+  function dither(ctx, x, y, w, h, col, odd) {
+    ctx.fillStyle = col;
+    x = Math.round(x); y = Math.round(y); w = Math.round(w); h = Math.round(h);
+    for (let j = 0; j < h; j++) for (let i = (j + (odd ? 1 : 0)) % 2; i < w; i += 2) ctx.fillRect(x + i, y + j, 1, 1);
+  }
+
+  PD.pxd = { rect, plate, frame, oct, octPath, blob, ring, line, curve, orbit, glowBands, scanlines, dither };
+})(window.PD);
+
 /* ===== src/data.js ===== */
 /* Static game data: materials, celestial bodies, upgrades, enemy stats. */
 (function (PD) {
@@ -1846,20 +2026,119 @@ window.PD = window.PD || {};
 
   /* ------------------------------------------------------------------ pickups
      One small gem sprite per material tint, plus a generic rubble nugget. */
-  function buildGem(cols) {
-    const p = pix(11, 11);
-    p.spike(5, 1, 9, 5, 1, cols[1]);
-    p.spike(5, 5, 9, 5, -1, cols[1]);
-    p.spike(5, 2, 5, 4, 1, cols[0]);
-    p.set(4, 4, C.white); p.set(5, 3, C.white);
-    p.outline(C.ink);
-    return p;
+  /* ------------------------------------------------------------------- ore
+     Every material gets its own chunk, drawn at 2x with real facets: cut gems
+     with a table and a crown, metal nuggets with a bevel and a glint, rubble
+     with chipped corners, ice shards, fossils, relics. All from the three
+     colours in the material table, so all thirty exist. */
+  const ORE_CLASS = {
+    crust: 'rock', stone: 'rock', basalt: 'rock', shell: 'rock', hull: 'plate',
+    iron: 'metal', copper: 'metal', silver: 'metal', gold: 'metal', titan: 'metal', star: 'metal',
+    ice: 'ice', frost: 'ice',
+    emerald: 'gem', sapphire: 'gem', ruby: 'gem', ameth: 'gem', diamond: 'gem', void: 'gem',
+    crystal: 'shard', obsid: 'shard', aether: 'shard', uran: 'shard',
+    fungus: 'cap', bio: 'bio', fossil: 'fossil', relic: 'relic'
+  };
+
+  function speck(p, w, h, seed, col, n) {
+    for (let i = 0; i < n; i++) {
+      const x = 2 + Math.floor(U.hash2(seed + i * 3, 11) * (w - 4));
+      const y = 2 + Math.floor(U.hash2(seed + i * 7, 23) * (h - 4));
+      p.set(x, y, col);
+    }
   }
-  function buildNugget(cols) {
-    const p = pix(10, 9);
-    p.ellipse(5, 5, 4, 3.4, cols[1]);
-    p.ellipse(4, 4, 2.2, 1.6, cols[0]);
-    p.set(3, 3, C.white);
+
+  function buildOre(m) {
+    const c = m.c, kind = ORE_CLASS[m.key] || 'rock';
+    const seed = m.id * 13 + 5;
+    const p = pix(24, 22);
+    const L = c[0], M = c[1], D2 = c[2];
+
+    if (kind === 'gem') {
+      // table on top, crown facets, pointed pavilion
+      p.rect(6, 5, 12, 2, L);                       // table
+      p.rect(5, 7, 14, 3, M);
+      for (let i = 0; i < 4; i++) { p.rect(5 + i, 4 + i, 14 - i * 2, 1, i ? M : L); }
+      p.spike(4, 10, 16, 10, 1, M);                 // pavilion
+      p.spike(7, 10, 10, 8, 1, L);
+      p.spike(10, 10, 4, 9, 1, D2);
+      p.line(5, 10, 12, 19, D2); p.line(18, 10, 12, 19, D2);
+      p.rect(7, 4, 4, 1, '#ffffff');                // sparkle on the table
+      p.set(8, 6, '#ffffff'); p.set(9, 6, '#ffffff');
+      p.set(15, 9, D2); p.set(16, 10, D2);
+    } else if (kind === 'shard') {
+      // a raw cluster: three uneven prisms
+      p.spike(3, 8, 7, 12, -1, D2);
+      p.spike(14, 6, 7, 14, -1, M);
+      p.spike(8, 2, 9, 18, -1, M);
+      p.rect(11, 5, 2, 12, L);
+      p.rect(5, 12, 2, 6, L); p.rect(16, 11, 2, 8, L);
+      p.rect(4, 18, 16, 2, D2);
+      p.set(11, 4, '#ffffff'); p.set(12, 6, '#ffffff');
+    } else if (kind === 'metal') {
+      // rounded nugget with a hard bevel and a glint
+      p.round(3, 6, 18, 12, 4, M);
+      p.round(4, 7, 15, 4, 3, L);
+      p.rect(5, 15, 14, 3, D2);
+      p.round(6, 8, 6, 3, 1, '#ffffff');
+      p.set(7, 12, L); p.set(13, 11, L); p.set(16, 13, D2); p.set(9, 15, D2);
+      speck(p, 24, 22, seed, D2, 3);
+      p.rect(8, 4, 3, 2, L); p.rect(15, 5, 2, 2, M);   // little lumps on top
+    } else if (kind === 'ice') {
+      p.spike(4, 4, 16, 16, 1, M);
+      p.spike(7, 4, 10, 12, 1, L);
+      p.rect(9, 6, 2, 9, '#ffffff');
+      p.rect(5, 16, 14, 3, D2);
+      p.set(14, 8, '#ffffff'); p.set(15, 10, L);
+    } else if (kind === 'plate') {
+      p.round(3, 7, 18, 10, 2, M);
+      p.rect(4, 8, 16, 2, L);
+      p.rect(4, 14, 16, 2, D2);
+      for (let i = 0; i < 4; i++) p.set(6 + i * 4, 11, D2);
+      p.rect(2, 10, 2, 4, D2); p.rect(20, 10, 2, 4, D2);
+    } else if (kind === 'cap') {
+      p.rect(10, 12, 4, 7, D2);                    // stalk
+      p.round(4, 5, 16, 8, 4, M);
+      p.round(5, 6, 13, 3, 3, L);
+      p.set(8, 9, L); p.set(14, 8, L); p.set(11, 10, L);
+      p.rect(8, 18, 8, 2, D2);
+    } else if (kind === 'bio') {
+      p.round(4, 6, 16, 13, 6, M);
+      p.round(6, 7, 11, 4, 3, L);
+      p.rect(8, 12, 3, 4, C.eye); p.rect(14, 12, 3, 4, C.eye);
+      p.set(8, 12, '#ffffff'); p.set(14, 12, '#ffffff');
+      p.rect(10, 17, 5, 1, D2);
+      speck(p, 24, 22, seed, L, 4);
+    } else if (kind === 'fossil') {
+      // a coiled ammonite in a chip of stone
+      p.round(3, 5, 18, 15, 4, D2);
+      p.round(4, 6, 16, 4, 3, M);
+      const spiral = [[12, 12], [12, 10], [14, 10], [15, 12], [14, 14], [11, 15], [8, 13], [8, 10], [10, 7], [14, 6], [17, 9]];
+      for (let i = 0; i < spiral.length; i++) p.set(spiral[i][0], spiral[i][1], i % 2 ? L : '#ffffff');
+      for (let i = 0; i < spiral.length - 1; i++) p.line(spiral[i][0], spiral[i][1], spiral[i + 1][0], spiral[i + 1][1], L);
+      p.set(12, 12, '#ffffff');
+    } else if (kind === 'relic') {
+      // an ornate little idol on a base
+      p.rect(6, 17, 12, 3, D2);
+      p.rect(8, 14, 8, 3, M);
+      p.round(7, 6, 10, 9, 3, M);
+      p.rect(9, 8, 6, 2, D2);
+      p.rect(11, 10, 2, 4, L);
+      p.spike(8, 2, 8, 5, -1, L);
+      p.set(12, 3, '#ffffff');
+      p.rect(4, 8, 2, 6, L); p.rect(18, 8, 2, 6, L);
+      p.set(5, 7, '#ffffff'); p.set(19, 7, '#ffffff');
+    } else {
+      // rubble: a chipped chunk with a flat lit top
+      p.round(3, 7, 18, 12, 3, M);
+      p.rect(4, 8, 15, 3, L);
+      p.rect(5, 16, 14, 3, D2);
+      p.set(6, 12, D2); p.set(15, 13, D2); p.set(10, 14, L);
+      p.rect(2, 11, 2, 3, M); p.rect(20, 12, 2, 3, M);
+      speck(p, 24, 22, seed, D2, 5);
+      p.set(8, 6, M); p.set(14, 5, M);
+    }
+    if (m.glow) { p.set(12, 8, '#ffffff'); p.set(11, 9, '#ffffff'); }
     p.outline(C.ink);
     return p;
   }
@@ -1868,10 +2147,16 @@ window.PD = window.PD || {};
   function gemFor(matId) {
     if (gemSprites[matId]) return gemSprites[matId];
     const m = PD.data.MAT[matId];
-    const build = m.shine ? buildGem : buildNugget;
-    const cv = build(m.c).toCanvas();
-    gemSprites[matId] = { frames: [cv], w: cv.width, h: cv.height, ox: cv.width / 2, oy: cv.height / 2 };
+    const cv = buildOre(m).toCanvas();
+    gemSprites[matId] = { frames: [cv], w: cv.width / 2, h: cv.height / 2, hd: 2, ox: cv.width / 4, oy: cv.height / 4 };
     return gemSprites[matId];
+  }
+  /* Small ore chip for lists: the same sprite, drawn to fit a row. */
+  function oreChip(ctx, matId, x, y, size) {
+    const s = gemFor(matId);
+    const cv = s.frames[0];
+    const k = (size || 11) / (cv.width / 2);
+    ctx.drawImage(cv, Math.round(x), Math.round(y), Math.round(cv.width / 2 * k), Math.round(cv.height / 2 * k));
   }
 
   /* ---------------------------------------------------------------- ui icons */
@@ -1947,7 +2232,7 @@ window.PD = window.PD || {};
     return set;
   }
 
-  PD.art = { C, sprites, gemFor, ICON, skinFor, optOf, reg, blit, pixOf: pix };
+  PD.art = { C, sprites, gemFor, oreChip, buildOre, ICON, skinFor, optOf, reg, blit, pixOf: pix };
 })(window.PD);
 
 /* ===== src/arthome.js ===== */
@@ -2299,6 +2584,81 @@ window.PD = window.PD || {};
     return p;
   }
 
+  /* ------------------------------------------------------------- portraits
+     The people who buy your rocks, as pixel busts. Three frames each: mouth
+     shut, mouth open, blinking. */
+  function bust(who, f) {
+    const p = pix(96, 96);
+    const talk = f === 1, blink = f === 2;
+    const skin = { zaz: ['#c4a0ff', '#8455c4', '#e6d0ff'], broker: ['#ffb03d', '#c25c14', '#ffd9a0'],
+      synd: ['#ff5a4d', '#8a2a2a', '#ffb0a0'], mum: ['#8affa0', '#3fb85a', '#d6ffd6'] }[who];
+    const cloth = { zaz: '#3a2560', broker: '#2b3a66', synd: '#1b1b2e', mum: '#8a3a5e' }[who];
+    // shoulders
+    p.round(8, 70, 80, 30, 10, cloth);
+    p.rect(12, 74, 72, 3, '#ffffff');
+    p.round(38, 66, 20, 12, 4, skin[0]);                       // neck
+    p.shade(skin[0], skin[1], 0, 1);
+    // head
+    p.round(20, 14, 56, 56, 16, skin[0]);
+    p.shade(skin[0], skin[1], 0, 1);
+    p.round(26, 20, 40, 12, 6, skin[2]);                       // forehead light
+    // eyes
+    if (blink) { p.rect(28, 42, 14, 3, C.ink); p.rect(54, 42, 14, 3, C.ink); }
+    else {
+      p.round(28, 36, 14, 16, 5, '#ffffff');
+      p.round(54, 36, 14, 16, 5, '#ffffff');
+      p.round(32, 40, 8, 9, 3, C.eye); p.round(58, 40, 8, 9, 3, C.eye);
+      p.rect(33, 41, 3, 3, '#ffffff'); p.rect(59, 41, 3, 3, '#ffffff');
+    }
+    // brows, mouth, blush
+    p.rect(27, 31, 16, 3, skin[1]); p.rect(53, 30, 16, 3, skin[1]);
+    if (talk) { p.round(38, 56, 20, 10, 4, C.ink); p.rect(41, 58, 14, 3, '#ff8ab0'); }
+    else { p.rect(38, 58, 20, 3, C.ink); p.set(37, 57, C.ink); p.set(58, 57, C.ink); }
+    p.ellipse(24, 52, 6, 4, '#ff8ab0'); p.ellipse(72, 52, 6, 4, '#ff8ab0');
+    // who they are
+    if (who === 'zaz') {                                        // monocle and top hat
+      p.round(50, 30, 26, 26, 9, null);
+      for (let i = 0; i < 26; i++) { p.set(50 + i, 30, P.gold); p.set(50 + i, 55, P.gold); }
+      for (let j = 0; j < 26; j++) { p.set(50, 30 + j, P.gold); p.set(75, 30 + j, P.gold); }
+      p.line(75, 55, 84, 72, P.gold);
+      p.round(24, 0, 48, 16, 3, '#241a3a'); p.round(16, 12, 64, 6, 2, '#241a3a');
+    } else if (who === 'broker') {                              // visor and headset
+      p.round(22, 34, 52, 12, 4, '#39ffa6');
+      p.rect(24, 36, 48, 3, '#c8ffe0');
+      p.round(14, 30, 10, 22, 4, P.steelD); p.round(72, 30, 10, 22, 4, P.steelD);
+      p.round(66, 56, 14, 5, 2, P.steelD);                      // mic
+    } else if (who === 'synd') {                                // shades and collar
+      p.round(22, 36, 24, 14, 4, '#151233'); p.round(50, 36, 24, 14, 4, '#151233');
+      p.rect(46, 41, 4, 3, '#151233');
+      p.rect(24, 38, 8, 3, '#4a4a6a'); p.rect(52, 38, 8, 3, '#4a4a6a');
+      p.round(30, 66, 36, 10, 3, '#0f0f1c');
+    } else {                                                     // curls and earrings
+      p.round(14, 8, 20, 20, 8, skin[1]); p.round(62, 8, 20, 20, 8, skin[1]);
+      p.round(30, 2, 36, 18, 8, skin[1]);
+      p.disc(18, 52, 5, P.gold); p.disc(78, 52, 5, P.gold);
+    }
+    p.outline(P.ink);
+    return p;
+  }
+
+  /* Your own mitten, resting on a counter. Mirrored for the other side. */
+  function mitten(P2) {
+    const p = pix(96, 72);
+    const skin = P2 ? P2.skin : '#7ff08a', skinD = P2 ? P2.skinD : '#43ba5f';
+    p.round(6, 26, 84, 46, 16, '#2b3a66');                     // sleeve
+    p.shade('#2b3a66', '#1b2547', 0, 1);
+    p.round(10, 22, 76, 10, 4, '#f6f3ff');                     // cuff
+    p.round(14, 4, 68, 34, 14, skin);                          // mitten
+    p.shade(skin, skinD, 0, 1);
+    p.round(20, 8, 40, 10, 5, '#c4ffce');
+    p.round(2, 14, 20, 20, 8, skin);                           // thumb
+    p.shade(skin, skinD, 0, 1);
+    p.rect(30, 30, 34, 2, skinD);
+    p.disc(20, 28, 4, P.gold); p.set(19, 27, '#ffffff');       // cufflink
+    p.outline(P.ink);
+    return p;
+  }
+
   /* The handheld multi-purpose tool, for the corner of the screen. */
   function phone(on) {
     const p = pix(36, 56);
@@ -2311,6 +2671,40 @@ window.PD = window.PD || {};
     }
     p.disc(18, 47, 3.5, P.steel); p.rect(14, 5, 8, 1, P.steel);
     p.rect(34, 14, 2, 8, P.steelD);
+    p.outline(P.ink);
+    return p;
+  }
+
+  /* The tool as you hold it up: angled body, emitter horn, thumb on the dial. */
+  function toolBig(f) {
+    const p = pix(150, 120);
+    p.round(10, 22, 92, 92, 14, P.navyD);
+    p.round(16, 28, 80, 80, 12, P.navy);
+    p.round(22, 34, 68, 52, 8, '#07222b');                       // screen
+    for (let i = 0; i < 5; i++) p.rect(26, 38 + i * 9, 20 + i * 8, 4, i % 2 ? P.holo : P.glowD);
+    p.round(24, 92, 26, 12, 4, P.steelDD); p.round(28, 95, 18, 6, 3, f ? P.lime : P.steelD);
+    p.round(58, 90, 32, 16, 6, P.steelDD);                        // dial
+    p.disc(74, 98, 6, f ? P.amber : P.steelD);
+    p.rect(72, 92, 4, 6, P.gold);
+    // emitter horn on the top corner
+    p.round(88, 8, 34, 26, 6, P.steelD);
+    p.round(94, 12, 22, 16, 4, f ? P.holo : P.glowD);
+    p.rect(100, 2, 10, 10, P.steelDD);
+    p.disc(105, 6, 3, f ? '#ffffff' : P.glowD);
+    // grip ridges down the left
+    for (let i = 0; i < 6; i++) p.rect(6, 34 + i * 12, 8, 6, P.steelDD);
+    p.outline(P.ink);
+    return p;
+  }
+
+  /* A hexagonal projector pad the hologram stands on. */
+  function holoPad(f) {
+    const p = pix(120, 40);
+    for (let i = 0; i < 3; i++) {
+      const w = 100 - i * 14, x = 60 - w / 2, y = 10 + i * 8;
+      p.round(x, y, w, 10, 4, i === f % 3 ? P.holo : P.glowD);
+      p.round(x + 6, y + 2, w - 12, 5, 2, '#04141c');
+    }
     p.outline(P.ink);
     return p;
   }
@@ -2373,8 +2767,12 @@ window.PD = window.PD || {};
   reg('flag', [flag(0), flag(1)], 3);
   reg('phone', [phone(false), phone(true)], 9, 14);
   reg('brain', [brainBig()], 55, 42);
+  for (const who of ['zaz', 'broker', 'synd', 'mum']) reg('bust_' + who, [bust(who, 0), bust(who, 1), bust(who, 2)], 24, 48);
+  reg('mitten', [mitten()], 24, 0);
+  reg('toolBig', [toolBig(0), toolBig(1)], 0, 60);
+  reg('holoPad', [holoPad(0), holoPad(1), holoPad(2)], 30, 20);
 
-  PD.arthome = { S, P, buildMoon, blit, HD };
+  PD.arthome = { S, P, buildMoon, blit, HD, mitten, reg };
 })(window.PD);
 
 /* ===== src/galaxy.js ===== */
@@ -3460,11 +3858,7 @@ window.PD = window.PD || {};
     for (const r of rings) {
       const t = r.life / r.max;
       ctx.globalAlpha = t * t;
-      ctx.strokeStyle = r.color;
-      ctx.lineWidth = r.width;
-      ctx.beginPath();
-      ctx.arc(Math.round(r.x - cam.x), Math.round(r.y - cam.y), Math.max(1, r.r), 0, U.TAU);
-      ctx.stroke();
+      PD.pxd.ring(ctx, r.x - cam.x, r.y - cam.y, Math.max(1, r.r), r.color, r.width);
     }
     ctx.globalAlpha = 1;
   }
@@ -4502,8 +4896,7 @@ window.PD = window.PD || {};
       const x = d.x * vw * 1.2 - cam.x * d.p;
       const y = d.y * vh - cam.y * d.p * 0.6;
       ctx.globalAlpha = 0.5;
-      ctx.fillStyle = d.c;
-      ctx.beginPath(); ctx.arc(x | 0, y | 0, d.r, 0, U.TAU); ctx.fill();
+      PD.pxd.blob(ctx, x, y, d.r, d.r, d.c);
       ctx.globalAlpha = 1;
     }
 
@@ -4515,13 +4908,8 @@ window.PD = window.PD || {};
       const m = this.moon;
       const x = m.x * vw - cam.x * m.p;
       const y = m.y * vh - cam.y * m.p * 0.8;
-      ctx.globalAlpha = 0.34;                       // halo
-      const hg = ctx.createRadialGradient(x + m.cv.width / 2, y + m.cv.height / 2, m.cv.width * 0.4,
-        x + m.cv.width / 2, y + m.cv.height / 2, m.cv.width * 0.85);
-      hg.addColorStop(0, this.body.tint);
-      hg.addColorStop(1, 'rgba(0,0,0,0)');
-      ctx.fillStyle = hg;
-      ctx.fillRect(x - m.cv.width * 0.4, y - m.cv.height * 0.4, m.cv.width * 1.8, m.cv.height * 1.8);
+      // halo as stepped bands
+      PD.pxd.glowBands(ctx, x + m.cv.width / 2, y + m.cv.height / 2, m.cv.width * 0.85, this.body.tint, 4, 0.3);
       ctx.globalAlpha = 0.95;
       ctx.drawImage(m.cv, x | 0, y | 0);
       ctx.globalAlpha = 1;
@@ -4533,12 +4921,7 @@ window.PD = window.PD || {};
     const x = this.coreCenter.x - cam.x, y = this.coreCenter.y - cam.y;
     const frac = this.coreHp / this.coreMax;
     const r = this.coreR * (2.6 + 0.5 * Math.sin(time * 3)) * (1 + (1 - frac) * 0.5);
-    const grd = ctx.createRadialGradient(x, y, this.coreR * 0.4, x, y, r);
-    grd.addColorStop(0, 'rgba(255,220,150,0.55)');
-    grd.addColorStop(0.5, 'rgba(255,130,60,0.22)');
-    grd.addColorStop(1, 'rgba(255,90,40,0)');
-    ctx.fillStyle = grd;
-    ctx.fillRect(x - r, y - r, r * 2, r * 2);
+    PD.pxd.glowBands(ctx, x, y, r, '#ff8a3c', 5, 0.5);
   };
 
   World.prototype.draw = function (ctx, cam, vw, vh, time) {
@@ -4588,13 +4971,14 @@ window.PD = window.PD || {};
 
         // rolling soil lip along any open surface: the ground line waves
         if (!up) {
-          const hL = (U.hash2(cx, cy * 3) - 0.5) * 3.4;
-          const hR = (U.hash2(cx + 1, cy * 3) - 0.5) * 3.4;
-          const hM = (U.hash2(cx * 2 + 7, cy) - 0.5) * 5;
+          const hL = Math.round((U.hash2(cx, cy * 3) - 0.5) * 3);
+          const hR = Math.round((U.hash2(cx + 1, cy * 3) - 0.5) * 3);
+          const hM = Math.round((U.hash2(cx * 2 + 7, cy) - 0.5) * 3);
           ctx.fillStyle = mm2.c[0];
           ctx.beginPath();
           ctx.moveTo(sx, sy + hL);
-          ctx.quadraticCurveTo(sx + TILE / 2, sy + hM - 1, sx + TILE, sy + hR);
+          ctx.lineTo(sx + TILE / 2, sy + Math.round(hM) - 1);
+          ctx.lineTo(sx + TILE, sy + hR);
           ctx.lineTo(sx + TILE, sy + 3.5);
           ctx.lineTo(sx, sy + 3.5);
           ctx.closePath();
@@ -5817,12 +6201,8 @@ window.PD = window.PD || {};
     }
 
     if (this.recall > 0.1) {
-      ctx.strokeStyle = '#7ef9ff';
       ctx.globalAlpha = 0.4 + 0.4 * Math.sin(t * 22);
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.arc(px | 0, py | 0, 8 + (1 - this.recall / 1.4) * 20, 0, U.TAU);
-      ctx.stroke();
+      PD.pxd.ring(ctx, px, py, 8 + (1 - this.recall / 1.4) * 20, '#7ef9ff', 1);
       ctx.globalAlpha = 1;
     }
   };
@@ -5840,6 +6220,7 @@ window.PD = window.PD || {};
   const D = PD.data;
   const F = PD.font;
   const A = PD.audio;
+  const X = PD.pxd;
 
   const VW = 480, VH = 270;
 
@@ -5970,12 +6351,16 @@ window.PD = window.PD || {};
     const t = g.time;
     const PW = 172, PH = 62;
 
-    ctx.fillStyle = 'rgba(10,6,24,0.7)';
-    ctx.beginPath();
-    ctx.moveTo(0, 0); ctx.lineTo(PW, 0); ctx.lineTo(PW, PH - 10); ctx.quadraticCurveTo(PW, PH, PW - 10, PH); ctx.lineTo(0, PH); ctx.closePath();
-    ctx.fill();
-    ctx.strokeStyle = 'rgba(166,125,240,0.45)'; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(PW + 0.5, 0); ctx.lineTo(PW + 0.5, PH - 10); ctx.quadraticCurveTo(PW + 0.5, PH + 0.5, PW - 10, PH + 0.5); ctx.lineTo(0, PH + 0.5); ctx.stroke();
+    // a stepped plate: the corner is cut in pixel stairs
+    X.rect(ctx, 0, 0, PW, PH - 8, 'rgba(10,6,24,0.72)');
+    X.rect(ctx, 0, PH - 8, PW - 8, 8, 'rgba(10,6,24,0.72)');
+    X.rect(ctx, PW - 8, PH - 8, 4, 4, 'rgba(10,6,24,0.72)');
+    X.rect(ctx, PW, 0, 1, PH - 8, 'rgba(166,125,240,0.5)');
+    X.rect(ctx, PW - 8, PH - 4, 1, 4, 'rgba(166,125,240,0.5)');
+    X.rect(ctx, PW - 4, PH - 8, 1, 4, 'rgba(166,125,240,0.5)');
+    X.rect(ctx, 0, PH, PW - 8, 1, 'rgba(166,125,240,0.5)');
+    X.rect(ctx, PW - 8, PH - 4, 4, 1, 'rgba(166,125,240,0.5)');
+    X.rect(ctx, PW - 4, PH - 8, 4, 1, 'rgba(166,125,240,0.5)');
 
     // --- air: a glass tank that empties
     const tx = 5, ty = 4, tw = 14, th = 44;
@@ -6043,22 +6428,24 @@ window.PD = window.PD || {};
     let my = PH + 6;
     for (const k of entries) {
       const m = D.MAT[k];
-      ctx.fillStyle = 'rgba(8,4,18,0.5)'; ctx.fillRect(0, my - 1, 104, 10);
-      ctx.fillStyle = m.c[1]; ctx.fillRect(4, my + 1, 7, 7);
-      ctx.fillStyle = m.c[0]; ctx.fillRect(4, my + 1, 7, 2);
-      F.draw(ctx, m.name.toUpperCase().slice(0, 10), 15, my, COL.text, { shadow: false });
-      F.draw(ctx, String(p.cargo[k]), 100, my, COL.gold, { right: true, shadow: false });
-      my += 11;
+      X.rect(ctx, 0, my - 2, 106, 13, 'rgba(8,4,18,0.55)');
+      PD.art.oreChip(ctx, +k, 2, my - 3, 14);
+      F.draw(ctx, m.name.toUpperCase().slice(0, 10), 18, my + 1, COL.text, { shadow: false });
+      F.draw(ctx, String(p.cargo[k]), 102, my + 1, COL.gold, { right: true, shadow: false });
+      my += 13;
     }
     if (p.cargoValue() > 0) {
-      ctx.fillStyle = 'rgba(8,4,18,0.5)'; ctx.fillRect(0, my - 1, 104, 16);
+      X.rect(ctx, 0, my - 1, 106, 16, 'rgba(8,4,18,0.55)');
       Gd().draw(ctx, 'coin', 3, my, COL.gold, '#b8860b');
       F.draw(ctx, U.fmt(p.cargoValue()), 19, my + 1, COL.gold, { scale: 2, shadow: false });
     }
 
     // top right: credits + galaxy
-    ctx.fillStyle = 'rgba(10,6,24,0.7)';
-    ctx.beginPath(); ctx.moveTo(VW - 130, 0); ctx.lineTo(VW, 0); ctx.lineTo(VW, 34); ctx.lineTo(VW - 120, 34); ctx.quadraticCurveTo(VW - 130, 34, VW - 130, 24); ctx.closePath(); ctx.fill();
+    X.rect(ctx, VW - 130, 0, 130, 26, 'rgba(10,6,24,0.72)');
+    X.rect(ctx, VW - 122, 26, 122, 8, 'rgba(10,6,24,0.72)');
+    X.rect(ctx, VW - 126, 26, 4, 4, 'rgba(10,6,24,0.72)');
+    X.rect(ctx, VW - 130, 0, 1, 26, 'rgba(166,125,240,0.5)');
+    X.rect(ctx, VW - 122, 30, 122, 1, 'rgba(166,125,240,0.5)');
     F.draw(ctx, '$' + U.fmt(g.save.credits), VW - 8, 4, COL.gold, { right: true, scale: 2 });
     F.draw(ctx, 'GALAXY ' + g.save.dominion.toFixed(1) + '%', VW - 8, 22, COL.lineHi, { right: true });
   }
@@ -6133,8 +6520,9 @@ window.PD = window.PD || {};
     ctx.fillRect(0, 20, VW, 1);
     Gd().draw(ctx, 'coin', 4, 3, COL.gold, '#b8860b');
     F.draw(ctx, '$' + U.fmt(g.save.credits), 20, 2, COL.gold, { scale: 2, shadow: false });
-    Gd().draw(ctx, 'ore', 150, 3, ore ? '#ffb03d' : COL.dim, '#5b3f96');
-    F.draw(ctx, ore + ' ORE' + (val > 0 ? '  $' + U.fmt(val) : ''), 166, 6, ore ? '#ffb03d' : COL.dim, { shadow: false });
+    const best = Object.keys(g.save.vault).sort((a, b) => D.MAT[b].cr - D.MAT[a].cr)[0];
+    if (best) PD.art.oreChip(ctx, +best, 148, 2, 16); else Gd().draw(ctx, 'ore', 150, 3, COL.dim, '#5b3f96');
+    F.draw(ctx, ore + ' ORE' + (val > 0 ? '  $' + U.fmt(val) : ''), 168, 6, ore ? '#ffb03d' : COL.dim, { shadow: false });
     if (g.save.artifacts > 0) {
       Gd().draw(ctx, 'star', 286, 3, COL.gold, '#b8860b');
       F.draw(ctx, g.save.artifacts + ' ARTIFACT' + (g.save.artifacts === 1 ? '' : 'S'), 302, 6, COL.gold, { shadow: false });
@@ -6283,8 +6671,7 @@ window.PD = window.PD || {};
       ctx.strokeRect(22.5, y + 0.5, VW - 45, rh - 3);
 
       // little planet dot
-      ctx.fillStyle = unlocked ? b.tint : '#3a3050';
-      ctx.beginPath(); ctx.arc(32, y + 7, 4, 0, U.TAU); ctx.fill();
+      X.oct(ctx, 32, y + 7, 4, unlocked ? b.tint : '#3a3050', null, 1);
       if (done) { ctx.fillStyle = '#0d0720'; ctx.fillRect(29, y + 6, 6, 2); }
 
       const label = unlocked ? b.name : '?????? ??????';
@@ -6358,16 +6745,10 @@ window.PD = window.PD || {};
     const px = 386, py = 246, r = 58;
 
     // the doomed planet
-    ctx.fillStyle = '#2b1c4a';
-    ctx.beginPath(); ctx.arc(px, py, r + 3, 0, U.TAU); ctx.fill();
-    ctx.fillStyle = '#4f7d6a';
-    ctx.beginPath(); ctx.arc(px, py, r, 0, U.TAU); ctx.fill();
-    ctx.fillStyle = '#3a5f55';
-    ctx.beginPath(); ctx.arc(px + 10, py + 12, r - 8, 0, U.TAU); ctx.fill();
-    ctx.fillStyle = '#6a9a80';
-    [[-26, -18, 9], [12, -30, 6], [-8, 6, 5], [26, -6, 7]].forEach(c => {
-      ctx.beginPath(); ctx.arc(px + c[0], py + c[1], c[2], 0, U.TAU); ctx.fill();
-    });
+    X.blob(ctx, px, py, r + 3, r + 3, '#2b1c4a');
+    X.blob(ctx, px, py, r, r, '#4f7d6a');
+    X.blob(ctx, px + 10, py + 12, r - 8, r - 8, '#3a5f55');
+    [[-26, -18, 9], [12, -30, 6], [-8, 6, 5], [26, -6, 7]].forEach(c => X.blob(ctx, px + c[0], py + c[1], c[2], c[2], '#6a9a80'));
 
     // glowing fissures, breathing in time with the drill
     const glow = 0.7 + 0.3 * Math.sin(t * 4);
@@ -6393,11 +6774,7 @@ window.PD = window.PD || {};
       for (let i = 1; i < line.length; i++) ctx.lineTo(px + line[i][0], py + line[i][1]);
       ctx.stroke();
     }
-    const hg = ctx.createRadialGradient(px - 6, py - 56, 1, px - 6, py - 56, 22);
-    hg.addColorStop(0, 'rgba(255,240,190,' + glow.toFixed(2) + ')');
-    hg.addColorStop(1, 'rgba(255,140,40,0)');
-    ctx.fillStyle = hg;
-    ctx.fillRect(px - 28, py - 78, 56, 56);
+    X.glowBands(ctx, px - 6, py - 56, 22, '#ffe0a0', 4, glow * 0.8);
 
     // sparks off the bit
     for (let i = 0; i < 9; i++) {
@@ -6541,6 +6918,7 @@ window.PD = window.PD || {};
   const D = PD.data;
   const A = PD.audio;
   const G = PD.galaxy;
+  const X = PD.pxd;
   const VW = 480, VH = 270;
 
   const S = {
@@ -6655,15 +7033,7 @@ window.PD = window.PD || {};
 
   /* ------------------------------------------------------------------ draw */
   function ring(ctx, x, y, r, col, alpha, dash) {
-    ctx.save();
-    ctx.globalAlpha = alpha;
-    ctx.strokeStyle = col;
-    ctx.lineWidth = 1;
-    if (dash) ctx.setLineDash([3, 4]);
-    ctx.beginPath();
-    ctx.ellipse(x, y, r, r * 0.34, 0, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.restore();
+    X.orbit(ctx, x, y, r, r * 0.34, col, dash ? 5 : 2, alpha);
   }
 
   function panel(ctx, x, y, w, h, col) {
@@ -6711,13 +7081,7 @@ window.PD = window.PD || {};
       const open = zoneOpen(g, i);
       ctx.save();
       ctx.globalAlpha = open ? 0.55 : 0.25;
-      ctx.strokeStyle = open ? '#7ef9ff' : '#5a4d80';
-      ctx.lineWidth = 1;
-      if (!open) ctx.setLineDash([3, 5]);
-      ctx.beginPath();
-      ctx.moveTo(a.x, a.y);
-      ctx.quadraticCurveTo((a.x + b.x) / 2, (a.y + b.y) / 2 - 30, b.x, b.y);
-      ctx.stroke();
+      X.curve(ctx, a.x, a.y, (a.x + b.x) / 2, (a.y + b.y) / 2 - 30, b.x, b.y, open ? '#7ef9ff' : '#5a4d80', 1, open ? 16 : 7);
       ctx.restore();
     }
 
@@ -6736,8 +7100,7 @@ window.PD = window.PD || {};
         const a = t * (0.3 + k * 0.12) + k * 2.1;
         const px = z.x + Math.cos(a) * 26, py = z.y + Math.sin(a) * 26 * 0.34;
         const bi = z.bodies[k];
-        ctx.fillStyle = g.save.destroyed[bi] ? '#5a4d80' : D.BODIES[bi].tint;
-        ctx.beginPath(); ctx.arc(px, py, 2.6, 0, Math.PI * 2); ctx.fill();
+        X.rect(ctx, px - 2, py - 2, 4, 4, g.save.destroyed[bi] ? '#5a4d80' : D.BODIES[bi].tint);
       }
       ctx.restore();
 
@@ -6784,14 +7147,7 @@ window.PD = window.PD || {};
     ctx.drawImage(sp, 34 - sp.width / 2, 132 - sp.height / 2);
     for (let k = 0; k < list.length; k++) {
       const p = bodyPos(k, list.length);
-      ctx.save();
-      ctx.globalAlpha = zo * 0.3;
-      ctx.strokeStyle = z.star;
-      ctx.setLineDash([2, 4]);
-      ctx.beginPath();
-      ctx.ellipse(34, 132, p.x - 34, (p.x - 34) * 0.42, 0, -0.7, 0.7);
-      ctx.stroke();
-      ctx.restore();
+      X.orbit(ctx, 34, 132, p.x - 34, (p.x - 34) * 0.42, z.star, 4, zo * 0.35);
     }
 
     for (let k = 0; k < list.length; k++) {
@@ -6817,14 +7173,11 @@ window.PD = window.PD || {};
       }
       F.draw(ctx, D.BODIES[i].name.toUpperCase(), p.x, p.y + bob + size * 0.7 + 6, sel ? '#ffd34d' : '#9c8ec4', { center: true });
       if (sel) {
-        const r = size * 0.62 + 6 + Math.sin(t * 4) * 1.5;
-        ctx.strokeStyle = '#ffd34d';
-        ctx.lineWidth = 1;
-        for (let a = 0; a < 4; a++) {
-          const ang = t * 0.6 + a * Math.PI / 2;
-          ctx.beginPath();
-          ctx.arc(p.x, p.y + bob, r, ang, ang + 0.5);
-          ctx.stroke();
+        // pixel corner brackets instead of a spinning circle
+        const r = Math.round(size * 0.62 + 7 + Math.sin(t * 4) * 1.5);
+        for (const sx of [-1, 1]) for (const sy of [-1, 1]) {
+          X.rect(ctx, p.x + sx * r - (sx < 0 ? 0 : 7), p.y + bob + sy * r - (sy < 0 ? 0 : 1), 7, 2, '#ffd34d');
+          X.rect(ctx, p.x + sx * r - (sx < 0 ? 0 : 2), p.y + bob + sy * r - (sy < 0 ? 0 : 7), 2, 7, '#ffd34d');
         }
       }
     }
@@ -6844,13 +7197,7 @@ window.PD = window.PD || {};
     let ox = 16;
     F.draw(ctx, 'ORE', ox, VH - 22, '#9c8ec4', { shadow: false });
     ox += 24;
-    for (const pair of b.ores.slice(0, 8)) {
-      const m = D.MAT[pair[0]];
-      ctx.fillStyle = m.c[1]; ctx.fillRect(ox, VH - 23, 8, 8);
-      ctx.fillStyle = m.c[0]; ctx.fillRect(ox, VH - 23, 8, 2);
-      ctx.fillStyle = '#0a0616'; ctx.fillRect(ox, VH - 15, 8, 1);
-      ox += 11;
-    }
+    for (const pair of b.ores.slice(0, 8)) { PD.art.oreChip(ctx, pair[0], ox, VH - 26, 14); ox += 15; }
     if (g.save.destroyed[S.selBody]) F.draw(ctx, 'ALREADY DESTROYED', ox + 10, VH - 22, '#ff6b8a', { shadow: false });
     if (open) {
       const bw = 110, bx = VW - bw - 12, by = VH - 30;
@@ -6878,6 +7225,7 @@ window.PD = window.PD || {};
   const D = PD.data;
   const A = PD.audio;
   const G = PD.glyph;
+  const X = PD.pxd;
   const VW = 480, VH = 270;
 
   const CX = 176, CY = 138;                // brain centre on screen
@@ -6967,8 +7315,7 @@ window.PD = window.PD || {};
     for (const b of S.bubbles) {
       const y = VH - ((b.y * VH + t * b.sp) % (VH - 30));
       const x = b.x * 320 + Math.sin(t * 2 + b.y * 10) * 3;
-      ctx.fillStyle = 'rgba(200,255,224,0.55)';
-      ctx.fillRect(x | 0, y | 0, b.r > 1.4 ? 2 : 1, b.r > 1.4 ? 2 : 1);
+      X.rect(ctx, x, y, b.r > 1.4 ? 2 : 1, b.r > 1.4 ? 2 : 1, 'rgba(200,255,224,0.55)');
     }
     // the brain, breathing
     const br = PD.arthome.S.brain;
@@ -6994,19 +7341,14 @@ window.PD = window.PD || {};
         const q = pos(D.NEURON[l]);
         const lit = level(g, n.id) > 0 && level(g, l) > 0;
         const half = level(g, l) > 0;
-        ctx.strokeStyle = lit ? '#8affa0' : (half ? '#3fb85a' : '#1e4a34');
-        ctx.lineWidth = lit ? 2 : 1;
-        ctx.beginPath();
-        ctx.moveTo(q.x, q.y);
         const mx = (p.x + q.x) / 2 + Math.sin(t * 2 + n.a) * 3, my = (p.y + q.y) / 2 + Math.cos(t * 1.7 + n.a) * 3;
-        ctx.quadraticCurveTo(mx, my, p.x, p.y);
-        ctx.stroke();
+        X.curve(ctx, q.x, q.y, mx, my, p.x, p.y, lit ? '#8affa0' : (half ? '#3fb85a' : '#1e4a34'), lit ? 2 : 1, 10);
         if (lit) {
           // signal beads travelling along a live wire
           const f = (t * 0.6 + n.a / 360) % 1;
           const bx = (1 - f) * (1 - f) * q.x + 2 * (1 - f) * f * mx + f * f * p.x;
           const by = (1 - f) * (1 - f) * q.y + 2 * (1 - f) * f * my + f * f * p.y;
-          ctx.fillStyle = '#e8fff2'; ctx.fillRect((bx - 1) | 0, (by - 1) | 0, 2, 2);
+          X.rect(ctx, bx - 1, by - 1, 2, 2, '#e8fff2');
         }
       }
     }
@@ -7022,13 +7364,10 @@ window.PD = window.PD || {};
       const isHover = m.inside && U.dist(m.x, m.y, p.x, p.y) < 12;
       if (isHover) hover = n;
       const r = 7 + (lvl > 0 ? 2 : 0) + (sel ? Math.sin(t * 6) * 1 : 0);
-      // soma
-      ctx.fillStyle = lvl > 0 ? '#8affa0' : (open ? '#2f7a56' : '#163826');
-      ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = sel ? '#ffffff' : (isHover ? '#c8ffe0' : (open ? '#63c48a' : '#1e4a34'));
-      ctx.lineWidth = sel ? 2 : 1;
-      ctx.stroke();
-      if (lvl > 0) { ctx.fillStyle = '#e8fff2'; ctx.beginPath(); ctx.arc(p.x - 2, p.y - 2, 2, 0, Math.PI * 2); ctx.fill(); }
+      // soma: an octagon of pixels, never a circle
+      X.oct(ctx, p.x, p.y, r, lvl > 0 ? '#8affa0' : (open ? '#2f7a56' : '#163826'),
+        sel ? '#ffffff' : (isHover ? '#c8ffe0' : (open ? '#63c48a' : '#1e4a34')), sel ? 2 : 1);
+      if (lvl > 0) X.rect(ctx, p.x - 4, p.y - 4, 3, 3, '#e8fff2');
       G.draw(ctx, iconOf(n.id), p.x - 6, p.y - 6, lvl > 0 ? '#06210f' : (open ? '#e8fff2' : '#2f5a44'), 'rgba(0,0,0,0)');
       if (lvl > 0) F.draw(ctx, String(lvl), p.x + 7, p.y + 3, '#ffffff', { shadow: true });
       if (!ringOpen(g, n)) G.draw(ctx, 'lock', p.x - 3, p.y + 4, '#5a4d80', 'rgba(0,0,0,0)');
@@ -7037,10 +7376,9 @@ window.PD = window.PD || {};
     for (const pu of S.pulses) {
       const f = U.clamp(pu.t, 0, 1);
       const x = pu.from.x + (pu.to.x - pu.from.x) * f, y = pu.from.y + (pu.to.y - pu.from.y) * f;
-      ctx.fillStyle = '#ffffff';
       ctx.globalAlpha = 1 - Math.max(0, pu.t - 1) / 0.6;
-      ctx.beginPath(); ctx.arc(x, y, 3 + (pu.t > 1 ? (pu.t - 1) * 24 : 0), 0, Math.PI * 2);
-      if (pu.t > 1) { ctx.strokeStyle = '#8affa0'; ctx.lineWidth = 2; ctx.stroke(); } else ctx.fill();
+      if (pu.t > 1) X.ring(ctx, x, y, 3 + (pu.t - 1) * 24, '#8affa0', 2);
+      else X.oct(ctx, x, y, 3, '#ffffff', null, 1);
       ctx.globalAlpha = 1;
     }
 
@@ -7108,6 +7446,7 @@ window.PD = window.PD || {};
   const A = PD.audio;
   const G = PD.glyph;
   const AH = PD.arthome;
+  const X = PD.pxd;
   const VW = 480, VH = 270;
 
   const S = { mode: null, sel: 0, t: 0, msg: '', msgT: 0, printT: 0, printId: null, fitT: 0, fitId: null, talk: 0, blink: 0, feed: [], feedT: 0 };
@@ -7192,58 +7531,51 @@ window.PD = window.PD || {};
 
   /* ------------------------------------------------------------- widgets */
   function panel(ctx, x, y, w, h, col, fill) {
-    ctx.fillStyle = fill || 'rgba(6,10,26,0.82)';
-    ctx.fillRect(x, y, w, h);
-    ctx.strokeStyle = col; ctx.lineWidth = 1; ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
-    ctx.fillStyle = col;
-    ctx.fillRect(x, y, 10, 2); ctx.fillRect(x, y, 2, 10); ctx.fillRect(x + w - 10, y + h - 2, 10, 2); ctx.fillRect(x + w - 2, y + h - 10, 2, 10);
+    X.rect(ctx, x, y, w, h, fill || 'rgba(6,10,26,0.86)');
+    X.frame(ctx, x, y, w, h, col, col);
   }
   function button(ctx, r, label, on, t, col) {
     col = col || '#39ffa6';
-    ctx.fillStyle = on ? (Math.sin(t * 5) > 0 ? col : shade(col)) : '#141a30';
-    ctx.fillRect(r.x, r.y, r.w, r.h);
-    ctx.strokeStyle = on ? '#ffffff' : '#2a3350'; ctx.lineWidth = 1; ctx.strokeRect(r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1);
-    F.draw(ctx, label, r.x + r.w / 2, r.y + r.h / 2 - 7, on ? '#05170e' : '#3a4a6a', { center: true, shadow: false, scale: 2 });
+    const lit = on && Math.sin(t * 5) > 0;
+    X.plate(ctx, r.x, r.y, r.w, r.h, on ? (lit ? col : shade(col, 0.82)) : '#141a30',
+      on ? '#ffffff' : '#2a3350', on ? shade(col, 0.5) : '#0b1020', 3);
+    if (on) X.dither(ctx, r.x + 3, r.y + r.h - 4, r.w - 6, 2, shade(col, 0.6));
+    F.draw(ctx, label, r.x + r.w / 2, r.y + Math.round(r.h / 2) - 7, on ? '#05170e' : '#3a4a6a', { center: true, shadow: false, scale: 2 });
   }
-  function shade(hex) { const n = parseInt(hex.slice(1), 16); return 'rgb(' + (((n >> 16) & 255) * 0.8 | 0) + ',' + (((n >> 8) & 255) * 0.8 | 0) + ',' + ((n & 255) * 0.8 | 0) + ')'; }
+  function shade(hex, k) {
+    k = k === undefined ? 0.8 : k;
+    const n = parseInt(hex.slice(1), 16);
+    return 'rgb(' + (((n >> 16) & 255) * k | 0) + ',' + (((n >> 8) & 255) * k | 0) + ',' + ((n & 255) * k | 0) + ')';
+  }
   function header(ctx, title, sub, col) {
-    ctx.fillStyle = 'rgba(4,6,18,0.9)'; ctx.fillRect(0, 0, VW, 30);
-    ctx.fillStyle = col; ctx.fillRect(0, 30, VW, 1);
-    F.draw(ctx, title, 12, 8, '#ffffff', { shadow: false, scale: 2 });
+    X.rect(ctx, 0, 0, VW, 30, 'rgba(4,6,18,0.92)');
+    X.rect(ctx, 0, 30, VW, 1, col);
+    X.dither(ctx, 0, 27, VW, 3, shade(col, 0.35));
+    if (title) F.draw(ctx, title, 12, 8, '#ffffff', { shadow: false, scale: 2 });
     if (sub) F.draw(ctx, sub, 12 + F.width(title, 2) + 14, 14, col, { shadow: false });
-    ctx.fillStyle = '#1a2240'; ctx.fillRect(BACK.x, BACK.y, BACK.w, BACK.h);
-    ctx.strokeStyle = col; ctx.strokeRect(BACK.x + 0.5, BACK.y + 0.5, BACK.w - 1, BACK.h - 1);
+    X.plate(ctx, BACK.x, BACK.y, BACK.w, BACK.h, '#1a2240', col, '#0b1020', 2);
     F.draw(ctx, 'BACK', BACK.x + BACK.w / 2, BACK.y + 6, '#ffffff', { center: true, shadow: false });
   }
   function row(ctx, i, sel, col) {
     const y = LIST.y + i * LIST.rowH;
-    ctx.fillStyle = sel ? 'rgba(255,255,255,0.10)' : (i % 2 ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.15)');
-    ctx.fillRect(LIST.x, y, LIST.w, LIST.rowH - 2);
-    if (sel) { ctx.strokeStyle = col; ctx.lineWidth = 1; ctx.strokeRect(LIST.x + 0.5, y + 0.5, LIST.w - 1, LIST.rowH - 3); ctx.fillStyle = col; ctx.fillRect(LIST.x, y, 3, LIST.rowH - 2); }
+    if (sel) {
+      X.plate(ctx, LIST.x, y, LIST.w, LIST.rowH - 2, 'rgba(255,255,255,0.10)', col, shade(col, 0.4), 2);
+      X.rect(ctx, LIST.x, y, 3, LIST.rowH - 2, col);
+    } else {
+      X.rect(ctx, LIST.x, y, LIST.w, LIST.rowH - 2, i % 2 ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.18)');
+      X.rect(ctx, LIST.x, y + LIST.rowH - 3, LIST.w, 1, 'rgba(0,0,0,0.35)');
+    }
     return y;
   }
-  /* Your own green mittens, on the counter. */
+  /* Your own mittens on the counter, as sprites. */
   function hands(ctx, t, holding) {
-    const P = PD.art.skinFor(PD.game.save.cos).P;
-    const bob = Math.sin(t * 1.4) * 1.5;
-    const draw = (x, flip) => {
-      ctx.save(); ctx.translate(x, VH + 18 + bob); if (flip) ctx.scale(-1, 1);
-      ctx.fillStyle = '#2b3a66'; ctx.beginPath(); ctx.ellipse(0, 22, 34, 30, 0, 0, Math.PI * 2); ctx.fill();   // sleeve
-      ctx.fillStyle = '#f6f3ff'; ctx.fillRect(-26, -4, 52, 6);                                                // cuff
-      ctx.fillStyle = P.skin; ctx.beginPath(); ctx.ellipse(0, -12, 24, 18, 0, 0, Math.PI * 2); ctx.fill();   // mitten
-      ctx.fillStyle = P.skinD; ctx.beginPath(); ctx.ellipse(-16, -16, 8, 10, -0.4, 0, Math.PI * 2); ctx.fill(); // thumb
-      ctx.strokeStyle = '#1a1030'; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(0, -12, 24, 18, 0, 0, Math.PI * 2); ctx.stroke();
-      ctx.fillStyle = '#ffd34d'; ctx.beginPath(); ctx.arc(-18, -2, 2.5, 0, Math.PI * 2); ctx.fill();           // cufflink
-      ctx.restore();
-    };
-    if (holding) { draw(150, false); draw(330, true); }
-    else { draw(40, false); draw(VW - 40, true); }
+    const bob = Math.round(Math.sin(t * 1.4) * 1.5);
+    const s = AH.S.mitten;
+    const put = (x, flip) => blitScaled(ctx, s, 0, x, VH - 30 + bob, 1.1, flip);
+    if (holding) { put(126, false); put(VW - 106, true); }
+    else { put(58, false); put(VW - 58, true); }
   }
-  function orePip(ctx, x, y, mat) {
-    const m = D.MAT[mat];
-    ctx.fillStyle = m.c[1]; ctx.fillRect(x, y, 10, 10); ctx.fillStyle = m.c[0]; ctx.fillRect(x, y, 10, 3);
-    ctx.fillStyle = '#0a0616'; ctx.fillRect(x, y + 9, 10, 1);
-  }
+  function orePip(ctx, x, y, mat, size) { PD.art.oreChip(ctx, mat, x, y, size || 12); }
   function wrap(ctx, text, x, y, maxW, col, maxLines, scale) {
     scale = scale || 1;
     const words = text.toUpperCase().split(' ');
@@ -7256,10 +7588,37 @@ window.PD = window.PD || {};
     }
     if (line) F.draw(ctx, line, x, ly, col, { shadow: false, scale });
   }
+  function blitScaled(ctx, s, frame, x, y, k, flip) {
+    const cv = s.frames[frame % s.frames.length];
+    ctx.save();
+    ctx.translate(Math.round(x), Math.round(y));
+    if (flip) ctx.scale(-1, 1);
+    ctx.drawImage(cv, Math.round(-s.ox * k), Math.round(-s.oy * k), Math.round(s.w * k), Math.round(s.h * k));
+    ctx.restore();
+  }
   function spriteFit(ctx, s, x, y, maxW, maxH) {
     const cv = s.frames[0];
     const k = Math.min(maxW / s.w, maxH / s.h, 1);
-    ctx.drawImage(cv, x - s.w * k / 2, y - s.h * k, s.w * k, s.h * k);
+    ctx.drawImage(cv, Math.round(x - s.w * k / 2), Math.round(y - s.h * k), Math.round(s.w * k), Math.round(s.h * k));
+  }
+
+  /* A cyan, scanlined copy of any sprite frame: the hologram of a thing. */
+  const holoCache = new Map();
+  function holoOf(cv, tint) {
+    const key = cv;
+    let h = holoCache.get(key);
+    if (h) return h;
+    h = document.createElement('canvas');
+    h.width = cv.width; h.height = cv.height;
+    const c = h.getContext('2d');
+    c.drawImage(cv, 0, 0);
+    c.globalCompositeOperation = 'source-atop';
+    c.fillStyle = tint || '#58e8ff';
+    c.fillRect(0, 0, h.width, h.height);
+    c.globalCompositeOperation = 'destination-out';
+    for (let y = 0; y < h.height; y += 4) c.fillRect(0, y, h.width, 1);
+    holoCache.set(key, h);
+    return h;
   }
 
   /* --------------------------------------------------------------- scenes */
@@ -7277,81 +7636,89 @@ window.PD = window.PD || {};
     PD.touch.draw(ctx, 'ui');
   }
 
-  /* The multi-tool, held up in front of you. */
+  /* The multi-tool: you hold it up in the corner, its emitter throws a cone of
+     light, and the building you picked turns slowly in the air inside it. */
   function drawPhone(ctx, g, t) {
     const sky = ctx.createLinearGradient(0, 0, 0, VH);
-    sky.addColorStop(0, '#0d0826'); sky.addColorStop(1, '#2a1846');
+    sky.addColorStop(0, '#0b0722'); sky.addColorStop(1, '#241640');
     ctx.fillStyle = sky; ctx.fillRect(0, 0, VW, VH);
-    // moon horizon blurred behind the device
-    ctx.fillStyle = '#3a3450'; ctx.beginPath(); ctx.moveTo(0, 200); for (let x = 0; x <= VW; x += 8) ctx.lineTo(x, 200 + Math.sin(x * 0.02) * 8); ctx.lineTo(VW, VH); ctx.lineTo(0, VH); ctx.fill();
-    // the device
-    const px = 100, py = 14, pw = 280, ph = 250;
-    ctx.fillStyle = '#1b2547'; roundRect(ctx, px - 4, py - 4, pw + 8, ph + 8, 14); ctx.fill();
-    ctx.fillStyle = '#2b3a66'; roundRect(ctx, px, py, pw, ph, 12); ctx.fill();
-    ctx.fillStyle = '#9aa3c4'; ctx.fillRect(px + pw / 2 - 16, py + 5, 32, 3);
-    ctx.fillStyle = '#062a33'; roundRect(ctx, px + 10, py + 14, pw - 20, ph - 30, 6); ctx.fill();
-    // scanlines
-    ctx.fillStyle = 'rgba(88,232,255,0.05)';
-    for (let y = py + 14 + (Math.floor(t * 30) % 4); y < py + ph - 16; y += 4) ctx.fillRect(px + 10, y, pw - 20, 1);
-    F.draw(ctx, 'MULTI-TOOL', px + 20, py + 22, '#eafcff', { shadow: false, scale: 2 });
-    F.draw(ctx, '$' + U.fmt(g.save.credits), px + pw - 20, py + 26, '#ffd34d', { right: true, shadow: false });
-    F.draw(ctx, 'TAP A BUILDING. TAP AGAIN TO PRINT OR UPGRADE.', px + 20, py + 40, '#2f8fae', { shadow: false });
-    // building cards
+    for (let x = 0; x < VW; x += 2) {
+      const gy = Math.round(196 + Math.sin((x + 40) * 0.02) * 6);
+      X.rect(ctx, x, gy, 2, VH - gy, '#3a3450');
+      X.rect(ctx, x, gy, 2, 2, '#6b6480');
+    }
+    for (let i = 0; i < 30; i++) X.rect(ctx, (i * 79) % VW, (i * 37) % 180, 1, 1, i % 4 ? '#ffffff' : '#ffe9a8');
+
     const items = D.BUILDINGS;
-    const cardY = py + 52, cardH = 26;
-    LIST.x = px + 16; LIST.y = cardY; LIST.w = pw - 32; LIST.rowH = cardH; LIST.rows = 5;
+    const sel = items[S.sel] || items[0];
+    const lvl = g.buildLevel(sel.id);
+    const spr = AH.S[sel.id + (lvl <= 1 ? 0 : (lvl < 4 ? 1 : 2))];
+
+    // the projector cone, emitter to hologram
+    const ex = 172, ey = 190, hx = 254, hy = 110;
+    ctx.save();
+    ctx.globalAlpha = 0.10 + 0.03 * Math.sin(t * 6);
+    ctx.fillStyle = '#58e8ff';
+    ctx.beginPath();
+    ctx.moveTo(ex, ey); ctx.lineTo(hx - 62, hy - 46); ctx.lineTo(hx + 62, hy - 46); ctx.lineTo(ex + 10, ey);
+    ctx.closePath(); ctx.fill();
+    ctx.restore();
+
+    // the pad, and the building turning above it
+    AH.blit(ctx, AH.S.holoPad, Math.floor(t * 6) % 3, hx, hy + 54);
+    const cv = spr.frames[0];
+    const k = Math.min(96 / spr.w, 92 / spr.h, 1.6);
+    const w = Math.max(2, Math.round(spr.w * k * (Math.abs(Math.sin(t * 1.1)) * 0.55 + 0.45)));
+    const h = Math.round(spr.h * k);
+    const bob = Math.round(Math.sin(t * 1.6) * 3);
+    ctx.save();
+    ctx.globalAlpha = 0.92;
+    ctx.drawImage(holoOf(cv), Math.round(hx - w / 2), Math.round(hy + 44 - h + bob), w, h);
+    ctx.restore();
+    X.orbit(ctx, hx, hy + 46, 46, 12, '#58e8ff', 3, 0.5);
+    for (let i = 0; i < 10; i++) {
+      const f = ((t * 0.4 + i / 10) % 1);
+      X.rect(ctx, hx - 44 + ((i * 37) % 88), Math.round(hy + 48 - f * 96), 1, 2, i % 3 ? '#58e8ff' : '#ffffff');
+    }
+    F.draw(ctx, sel.name, hx, hy - 62, '#eafcff', { center: true, shadow: true, scale: 2 });
+    for (let i = 0; i < sel.max; i++) X.rect(ctx, hx - sel.max * 4 + i * 8, hy - 44, 6, 4, i < lvl ? '#58e8ff' : '#123a44');
+    const cost = D.buildCost(sel, lvl);
+    F.draw(ctx, lvl <= 0 ? 'NOT BUILT YET' : 'LEVEL ' + lvl + ' / ' + sel.max, hx, hy - 36, '#58e8ff', { center: true, shadow: true });
+    wrap(ctx, sel.blurb, hx - 96, hy + 64, 192, '#7ef9ff', 3);
+
+    // the tool, gripped in both mittens, filling the lower left
+    const wob = Math.round(Math.sin(t * 1.4) * 2);
+    blitScaled(ctx, AH.S.toolBig, Math.sin(t * 4) > 0 ? 1 : 0, 12, VH + 18 + wob, 1.7);
+    blitScaled(ctx, AH.S.mitten, 0, 40, VH - 52 + wob, 0.95, false);
+    blitScaled(ctx, AH.S.mitten, 0, 138, VH - 34 + wob, 0.95, true);
+
+    LIST.x = VW - 152; LIST.y = 42; LIST.w = 144; LIST.rowH = 26; LIST.rows = 5;
     items.forEach((b, i) => {
       const y = row(ctx, i, S.sel === i, '#58e8ff');
-      const lvl = g.buildLevel(b.id);
-      const s = AH.S[b.id + (lvl <= 1 ? 0 : (lvl < 4 ? 1 : 2))];
+      const bl = g.buildLevel(b.id);
+      const s2 = AH.S[b.id + (bl <= 1 ? 0 : (bl < 4 ? 1 : 2))];
       ctx.save();
-      if (lvl <= 0) ctx.globalAlpha = 0.45;
-      spriteFit(ctx, s, LIST.x + 22, y + cardH - 4, 34, 24);
+      if (bl <= 0) ctx.globalAlpha = 0.4;
+      spriteFit(ctx, s2, LIST.x + 18, y + LIST.rowH - 5, 28, 20);
       ctx.restore();
-      F.draw(ctx, b.name, LIST.x + 46, y + 5, '#eafcff', { shadow: false });
-      for (let k = 0; k < b.max; k++) { ctx.fillStyle = k < lvl ? '#58e8ff' : '#123a44'; ctx.fillRect(LIST.x + 46 + k * 7, y + 16, 5, 3); }
-      const cost = D.buildCost(b, lvl);
-      const txt = lvl <= 0 ? 'PRINT $' + U.fmt(cost) : (lvl >= b.max ? 'MAX' : 'UP $' + U.fmt(cost));
-      F.draw(ctx, txt, LIST.x + LIST.w - 8, y + 10, lvl >= b.max ? '#8affa0' : (g.save.credits >= cost ? '#ffd34d' : '#ff6b8a'), { right: true, shadow: false });
+      F.draw(ctx, b.name, LIST.x + 36, y + 4, S.sel === i ? '#ffffff' : '#9fd8e8', { shadow: false });
+      const c2 = D.buildCost(b, bl);
+      F.draw(ctx, bl <= 0 ? 'PRINT $' + U.fmt(c2) : (bl >= b.max ? 'MAX' : 'LV' + bl + ' $' + U.fmt(c2)),
+        LIST.x + 36, y + 14, bl >= b.max ? '#8affa0' : (g.save.credits >= c2 ? '#ffd34d' : '#ff6b8a'), { shadow: false });
     });
-    const sb = items[S.sel];
-    if (sb) wrap(ctx, sb.blurb, px + 20, py + ph - 56, pw - 40, '#58e8ff', 2);
-    const lvl = g.buildLevel(sb.id);
-    const cost = D.buildCost(sb, lvl);
-    BTN.x = px + 20; BTN.y = py + ph - 34; BTN.w = pw - 40; BTN.h = 20;
-    button(ctx, BTN, lvl <= 0 ? 'PRINT  $' + U.fmt(cost) : (lvl >= sb.max ? 'FULL SIZE' : 'UPGRADE  $' + U.fmt(cost)), lvl < sb.max && g.save.credits >= cost, t, '#58e8ff');
-    header(ctx, '', '', '#58e8ff');
-    ctx.fillStyle = 'rgba(0,0,0,0)';
-    hands(ctx, t, true);
+    BTN.x = VW - 152; BTN.y = VH - 44; BTN.w = 144; BTN.h = 28;
+    button(ctx, BTN, lvl <= 0 ? 'PRINT' : (lvl >= sel.max ? 'MAX' : 'UPGRADE'), lvl < sel.max && g.save.credits >= cost, t, '#58e8ff');
+    header(ctx, 'MULTI-TOOL', '$' + U.fmt(g.save.credits), '#58e8ff');
   }
 
-  function roundRect(ctx, x, y, w, h, r) {
-    ctx.beginPath();
-    ctx.moveTo(x + r, y); ctx.lineTo(x + w - r, y); ctx.quadraticCurveTo(x + w, y, x + w, y + r);
-    ctx.lineTo(x + w, y + h - r); ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-    ctx.lineTo(x + r, y + h); ctx.quadraticCurveTo(x, y + h, x, y + h - r);
-    ctx.lineTo(x, y + r); ctx.quadraticCurveTo(x, y, x + r, y); ctx.closePath();
+  /* The buyers, as pixel busts: mouth shut, mouth open, blinking. */
+  const BUST = { 'ZAZ': 'zaz', 'BROKER K': 'broker', 'THE SYNDICATE': 'synd', 'MUM': 'mum' };
+  function face(ctx, x, y, name, t, k) {
+    const s = AH.S['bust_' + (BUST[name] || 'zaz')];
+    const frame = S.blink < 0 ? 2 : (S.talk > 0 && Math.sin(t * 12) > 0 ? 1 : 0);
+    blitScaled(ctx, s, frame, x, y + Math.round(Math.sin(t * 2) * 1.5), k || 2.2);
   }
 
-  /* The terminal: a video desk. The buyer on the left, the book on the right. */
-  function face(ctx, x, y, name, t) {
-    const col = FACES[name] || ['#c4a0ff', '#8455c4'];
-    const talking = S.talk > 0;
-    const mouth = talking ? Math.abs(Math.sin(t * 16)) * 5 + 1 : 1;
-    const blink = S.blink < 0;
-    // shoulders, head
-    ctx.fillStyle = col[1]; ctx.beginPath(); ctx.ellipse(x, y + 58, 40, 22, 0, Math.PI, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = col[0]; ctx.beginPath(); ctx.ellipse(x, y + 10 + Math.sin(t * 2) * 1.5, 30, 34, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.strokeStyle = '#1a1030'; ctx.lineWidth = 2; ctx.stroke();
-    if (name === 'ZAZ') { ctx.strokeStyle = '#ffd34d'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x + 12, y + 6, 8, 0, Math.PI * 2); ctx.stroke(); }
-    ctx.fillStyle = '#151233';
-    if (blink) { ctx.fillRect(x - 18, y + 4, 12, 2); ctx.fillRect(x + 6, y + 4, 12, 2); }
-    else { ctx.beginPath(); ctx.ellipse(x - 12, y + 4, 5, 7, 0, 0, Math.PI * 2); ctx.ellipse(x + 12, y + 4, 5, 7, 0, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = '#fff'; ctx.fillRect(x - 14, y, 3, 3); ctx.fillRect(x + 10, y, 3, 3); }
-    ctx.fillStyle = '#1a1030'; ctx.beginPath(); ctx.ellipse(x, y + 24, 9, mouth, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#ff8ab0'; ctx.beginPath(); ctx.ellipse(x - 22, y + 16, 5, 3, 0, 0, Math.PI * 2); ctx.ellipse(x + 22, y + 16, 5, 3, 0, 0, Math.PI * 2); ctx.fill();
-    if (name === 'THE SYNDICATE') { ctx.fillStyle = '#151233'; ctx.fillRect(x - 32, y - 2, 64, 10); }   // shades
-    if (name === 'MUM') { ctx.fillStyle = '#ffd34d'; ctx.beginPath(); ctx.arc(x - 24, y - 22, 6, 0, Math.PI * 2); ctx.arc(x + 24, y - 22, 6, 0, Math.PI * 2); ctx.fill(); }
-  }
   function drawTerminal(ctx, g, t) {
     ctx.fillStyle = '#0a1a16'; ctx.fillRect(0, 0, VW, VH);
     // kiosk interior: warm wall panels
@@ -7362,12 +7729,11 @@ window.PD = window.PD || {};
     panel(ctx, vx, vy, vw, vh, '#39ffa6', '#04140f');
     const last = S.feed[S.feed.length - 1] || CHATTER[0];
     ctx.save(); ctx.beginPath(); ctx.rect(vx + 2, vy + 2, vw - 4, vh - 4); ctx.clip();
-    const bg = ctx.createLinearGradient(0, vy, 0, vy + vh); bg.addColorStop(0, '#1a3a52'); bg.addColorStop(1, '#0a1a2a');
-    ctx.fillStyle = bg; ctx.fillRect(vx, vy, vw, vh);
-    face(ctx, vx + vw / 2, vy + 40, last[0], t);
-    ctx.fillStyle = 'rgba(57,255,166,0.06)'; for (let y = vy + (Math.floor(t * 30) % 3); y < vy + vh; y += 3) ctx.fillRect(vx, y, vw, 1);
+    for (let i = 0; i < 8; i++) X.rect(ctx, vx, vy + i * (vh / 8), vw, vh / 8 + 1, ['#1e4260', '#1b3c58', '#183650', '#153048', '#122a40', '#102438', '#0d1e30', '#0a1828'][i]);
+    face(ctx, vx + vw / 2, vy + vh + 4, last[0], t, 2.3);
+    X.scanlines(ctx, vx, vy, vw, vh, 'rgba(57,255,166,0.07)', t * 30, 3);
     ctx.restore();
-    ctx.fillStyle = '#ff5a4d'; ctx.beginPath(); ctx.arc(vx + 10, vy + 10, 3 + Math.sin(t * 6), 0, Math.PI * 2); ctx.fill();
+    X.rect(ctx, vx + 7, vy + 7, 6, 6, Math.sin(t * 6) > 0 ? '#ff5a4d' : '#8a2a2a');
     F.draw(ctx, 'LIVE  -  ' + last[0], vx + 18, vy + 6, '#39ffa6', { shadow: false });
     // speech
     panel(ctx, vx, vy + vh + 6, vw, 52, '#1e9e68', 'rgba(4,20,15,0.9)');
@@ -7384,8 +7750,8 @@ window.PD = window.PD || {};
     keys.slice(0, 8).forEach((k, i) => {
       const y = by + 20 + i * 16;
       ctx.fillStyle = i % 2 ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0)'; ctx.fillRect(bx + 4, y - 2, bw - 8, 15);
-      orePip(ctx, bx + 8, y, +k);
-      F.draw(ctx, D.MAT[k].name.toUpperCase().slice(0, 14), bx + 22, y + 2, '#eafcff', { shadow: false });
+      orePip(ctx, bx + 5, y - 3, +k, 15);
+      F.draw(ctx, D.MAT[k].name.toUpperCase().slice(0, 13), bx + 24, y + 2, '#eafcff', { shadow: false });
       F.draw(ctx, String(g.save.vault[k]), bx + 130, y + 2, '#ffd34d', { shadow: false });
       F.draw(ctx, U.fmt(g.priceOf(+k)), bx + 162, y + 2, '#eafcff', { shadow: false });
       const pct = Math.round((g.demandFor(+k) - 1) * 100);
@@ -7418,8 +7784,8 @@ window.PD = window.PD || {};
       let mx = LIST.x + 36;
       for (const key in r.mats) {
         const mat = D.M[key], have = g.save.vault[mat] || 0, need = r.mats[key];
-        orePip(ctx, mx, y + 15, mat);
-        F.draw(ctx, have + '/' + need, mx + 12, y + 17, have >= need ? '#8affa0' : '#ff6b8a', { shadow: false });
+        orePip(ctx, mx, y + 11, mat, 14);
+        F.draw(ctx, have + '/' + need, mx + 16, y + 17, have >= need ? '#8affa0' : '#ff6b8a', { shadow: false });
         mx += 44;
       }
       F.draw(ctx, 'x' + (g.save.parts[r.id] || 0), LIST.x + LIST.w - 8, y + 10, '#ffd34d', { right: true, shadow: false });
@@ -7470,8 +7836,8 @@ window.PD = window.PD || {};
     const pod = PD.art.skinFor(g.save.cos).pod;
     const cx = 300, cy = VH - 74 + Math.sin(t * 1.4) * 2;
     ctx.fillStyle = '#39405e'; ctx.fillRect(cx - 60, VH - 70, 120, 6); ctx.fillRect(cx - 8, VH - 64, 16, 20);
-    ctx.save(); ctx.translate(cx, cy); ctx.scale(2.4, 2.4);
-    ctx.drawImage(pod.frames[Math.floor(t * 3) % 2], -pod.ox, -pod.oy + 2, pod.w, pod.h);
+    ctx.save(); ctx.translate(Math.round(cx), Math.round(cy)); ctx.scale(2, 2);
+    ctx.drawImage(pod.frames[Math.floor(t * 3) % 2], -pod.ox | 0, (-pod.oy + 2) | 0, pod.w, pod.h);
     ctx.restore();
     // slots as hexes hung off the hull
     const slots = g.slots();
@@ -7480,10 +7846,9 @@ window.PD = window.PD || {};
     for (let i = 0; i < slots; i++) {
       const a = Math.PI * 1.15 + i * (Math.PI * 0.7 / Math.max(1, slots - 1));
       const sx = cx + Math.cos(a) * 92, sy = cy - 44 + Math.sin(a) * 40;
-      ctx.strokeStyle = inst[i] ? '#58e8ff' : '#2b3a66'; ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(cx + Math.cos(a) * 40, cy - 40 + Math.sin(a) * 20); ctx.stroke();
+      X.line(ctx, sx, sy, cx + Math.cos(a) * 40, cy - 40 + Math.sin(a) * 20, inst[i] ? '#58e8ff' : '#2b3a66', 1);
       const flash = S.fitT > 0 && inst[i] === S.fitId && i === inst.lastIndexOf(S.fitId);
-      G.hex(ctx, sx, sy, 12, inst[i] ? (flash ? '#ffffff' : '#123a44') : '#0c1020', inst[i] ? '#58e8ff' : '#2b3a66', 1);
+      X.plate(ctx, sx - 12, sy - 12, 24, 24, inst[i] ? (flash ? '#ffffff' : '#123a44') : '#0c1020', inst[i] ? '#58e8ff' : '#2b3a66', '#06101c', 4);
       if (inst[i]) G.draw(ctx, D.RECIPE[inst[i]].glyph, sx - 6, sy - 6, '#eafcff', 'rgba(0,0,0,0)');
       else F.draw(ctx, String(i + 1), sx, sy - 3, '#2b3a66', { center: true, shadow: false });
     }
@@ -7530,6 +7895,7 @@ window.PD = window.PD || {};
   const D = PD.data;
   const AH = PD.arthome;
   const G = PD.glyph;
+  const X = PD.pxd;
 
   const VW = 480, VH = 270;
   const ROOM_W = 1040;
@@ -7709,9 +8075,19 @@ window.PD = window.PD || {};
     const sky = ctx.createLinearGradient(0, 0, 0, HORIZON + 30);
     sky.addColorStop(0, '#0d0826'); sky.addColorStop(0.55, '#1e1140'); sky.addColorStop(1, '#3a1c4e');
     ctx.fillStyle = sky; ctx.fillRect(0, 0, VW, HORIZON + 40);
-    const neb = ctx.createRadialGradient(320 - cam * 0.15, 60, 6, 320 - cam * 0.15, 60, 150);
-    neb.addColorStop(0, 'rgba(255,138,216,0.22)'); neb.addColorStop(1, 'rgba(255,138,216,0)');
-    ctx.fillStyle = neb; ctx.fillRect(0, 0, VW, HORIZON + 20);
+    // nebula: dithered blobs, shaped, never a rectangle of noise
+    const nx = 320 - cam * 0.15;
+    ctx.save();
+    for (let i = 4; i >= 1; i--) {
+      ctx.globalAlpha = 0.05 + (4 - i) * 0.012;
+      ctx.beginPath();
+      X.octPath(ctx, nx + (i % 2 ? 10 : -10), 62 + i * 3, i * 26);
+      ctx.clip();
+      X.dither(ctx, nx - 130, 0, 260, 160, '#ff8ad8', i % 2);
+      ctx.restore(); ctx.save();
+    }
+    ctx.restore();
+    ctx.globalAlpha = 1;
     for (const s of star) {
       const sx = (((s.x - cam * 0.25) % ROOM_W) + ROOM_W) % ROOM_W;
       if (sx > VW + 4) continue;
@@ -7733,21 +8109,23 @@ window.PD = window.PD || {};
     ctx.beginPath(); ctx.moveTo(0, VH);
     for (let x = 0; x <= VW; x += 8) { const wx = x + cam * 0.45; ctx.lineTo(x, HORIZON - 16 + Math.sin(wx * 0.008) * 10 + Math.sin(wx * 0.021 + 2) * 5); }
     ctx.lineTo(VW, VH); ctx.closePath(); ctx.fill();
-    ctx.beginPath(); ctx.moveTo(0, VH);
-    for (let x = 0; x <= VW; x += 4) ctx.lineTo(x, groundY(x + cam));
-    ctx.lineTo(VW, VH); ctx.closePath();
-    const gr = ctx.createLinearGradient(0, HORIZON - 20, 0, VH);
-    gr.addColorStop(0, '#6b6480'); gr.addColorStop(0.25, '#544d6b'); gr.addColorStop(1, '#2e2842');
-    ctx.fillStyle = gr; ctx.fill();
-    ctx.strokeStyle = '#a89ac4'; ctx.lineWidth = 2;
-    ctx.beginPath();
-    for (let x = 0; x <= VW; x += 4) { const y = groundY(x + cam); if (x) ctx.lineTo(x, y); else ctx.moveTo(x, y); }
-    ctx.stroke();
+    // the surface, quantised into 2px stairs and banded by depth
+    const BAND = ['#6b6480', '#5f5875', '#544d6b', '#494360', '#3d3854', '#332e4a', '#2e2842'];
+    for (let x = 0; x <= VW; x += 2) {
+      const y = Math.round(groundY(x + cam) / 2) * 2;
+      for (let i = 0; i < BAND.length; i++) {
+        const y0 = y + (i === 0 ? 0 : 4 + (i - 1) * 10);
+        const h = i === 0 ? 4 : (i === BAND.length - 1 ? VH - y0 : 10);
+        if (h > 0) X.rect(ctx, x, y0, 2, h, BAND[i]);
+      }
+      X.rect(ctx, x, y, 2, 2, '#a89ac4');
+      if ((x + Math.round(cam)) % 8 === 0) X.rect(ctx, x, y + 4, 1, 1, '#8e86a8');
+    }
     for (const c of CRATERS) {
       const x = c.x - cam; if (x < -60 || x > VW + 60) continue;
       const y = groundY(c.x);
-      ctx.fillStyle = '#453e5e'; ctx.beginPath(); ctx.ellipse(x, y + c.r * 0.28, c.r, c.r * 0.3, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#8e86a8'; ctx.beginPath(); ctx.ellipse(x, y + c.r * 0.18, c.r * 0.94, c.r * 0.22, 0, Math.PI, Math.PI * 2); ctx.fill();
+      X.blob(ctx, x, y + c.r * 0.28, c.r, c.r * 0.3, '#453e5e');
+      X.blob(ctx, x, y + c.r * 0.1, c.r * 0.94, c.r * 0.16, '#8e86a8');
     }
   }
 
@@ -7797,13 +8175,11 @@ window.PD = window.PD || {};
       const ax = a.x - cam, bx2 = b2.x - cam;
       if (bx2 < -40 || ax > VW + 40) continue;
       const ay = groundY(a.x) - 54, by2 = groundY(b2.x) - 54;
-      ctx.strokeStyle = '#4a4460';
-      ctx.beginPath(); ctx.moveTo(ax, ay); ctx.quadraticCurveTo((ax + bx2) / 2, (ay + by2) / 2 + 18, bx2, by2); ctx.stroke();
+      X.curve(ctx, ax, ay, (ax + bx2) / 2, (ay + by2) / 2 + 18, bx2, by2, '#4a4460', 1, 12);
       for (let k = 1; k < 6; k++) {
         const f = k / 6, lx = ax + (bx2 - ax) * f, ly = ay + (by2 - ay) * f + Math.sin(Math.PI * f) * 18;
-        ctx.fillStyle = ['#ffd34d', '#ff8ad8', '#8affa0', '#7ef9ff'][(i + k) % 4];
         ctx.globalAlpha = 0.55 + 0.45 * Math.sin(t * 3 + i + k);
-        ctx.fillRect(lx - 1, ly - 1, 2, 2);
+        X.rect(ctx, lx - 1, ly - 1, 2, 2, ['#ffd34d', '#ff8ad8', '#8affa0', '#7ef9ff'][(i + k) % 4]);
       }
       ctx.globalAlpha = 1;
     }
@@ -7851,8 +8227,8 @@ window.PD = window.PD || {};
 
     for (const r of FORE) {
       const x = r.x - cam * 1.15; if (x < -40 || x > VW + 40) continue;
-      ctx.fillStyle = '#241a3a'; ctx.beginPath(); ctx.ellipse(x, r.y + r.s * 0.5, r.s, r.s * 0.62, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#31264f'; ctx.beginPath(); ctx.ellipse(x - r.s * 0.2, r.y + r.s * 0.2, r.s * 0.7, r.s * 0.34, 0, Math.PI, Math.PI * 2); ctx.fill();
+      X.blob(ctx, x, r.y + r.s * 0.5, r.s, r.s * 0.62, '#241a3a');
+      X.blob(ctx, x - r.s * 0.2, r.y + r.s * 0.24, r.s * 0.7, r.s * 0.28, '#31264f');
     }
 
     // the phone in your pocket, bottom right
@@ -8950,18 +9326,12 @@ window.PD = window.PD || {};
       const frac = U.clamp(p.tetherFrac || 0, 0, 1);
       const px = p.x - cam.x - (Math.cos(p.aim) < 0 ? -6 : 6), py = p.y - cam.y - 2;
       const sag = (1 - frac) * 40;
-      ctx.strokeStyle = frac > 0.9 ? (Math.sin(t * 20) > 0 ? '#ff5a4d' : '#ffd34d') : '#c9c9dc';
-      ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(x, y + 12);
-      ctx.quadraticCurveTo((x + px) / 2, Math.max(y, py) + sag, px, py);
-      ctx.stroke();
-      ctx.strokeStyle = 'rgba(0,0,0,0.35)';
-      ctx.beginPath(); ctx.moveTo(x, y + 13);
-      ctx.quadraticCurveTo((x + px) / 2, Math.max(y, py) + sag + 1, px, py + 1);
-      ctx.stroke();
+      const wireCol = frac > 0.9 ? (Math.sin(t * 20) > 0 ? '#ff5a4d' : '#ffd34d') : '#c9c9dc';
+      PD.pxd.curve(ctx, x, y + 13, (x + px) / 2, Math.max(y, py) + sag + 1, px, py + 1, 'rgba(0,0,0,0.4)', 1, 16);
+      PD.pxd.curve(ctx, x, y + 12, (x + px) / 2, Math.max(y, py) + sag, px, py, wireCol, 1, 16);
       // reel gauge on the pod
-      ctx.fillStyle = '#0d0720'; ctx.fillRect(x - 16, y - 24, 32, 4);
-      ctx.fillStyle = frac > 0.9 ? '#ff5a4d' : '#7ef9ff'; ctx.fillRect(x - 16, y - 24, Math.round(32 * frac), 4);
+      PD.pxd.plate(ctx, x - 17, y - 25, 34, 6, '#0d0720', '#3a2c5e', '#000000', 2);
+      PD.pxd.rect(ctx, x - 16, y - 24, Math.round(32 * frac), 4, frac > 0.9 ? '#ff5a4d' : '#7ef9ff');
     }
 
     const pod = PD.art.skinFor(g.save.cos).pod;
@@ -9006,49 +9376,27 @@ window.PD = window.PD || {};
     const gl = w.glows || [];
     for (let k = 0; k < gl.length; k += 4) {
       const gx = gl[k], gy = gl[k + 1], gr = gl[k + 2];
-      const gg = lctx.createRadialGradient(gx, gy, 1, gx, gy, gr);
-      gg.addColorStop(0, 'rgba(0,0,0,0.55)');
-      gg.addColorStop(1, 'rgba(0,0,0,0)');
-      lctx.fillStyle = gg;
-      lctx.fillRect(gx - gr, gy - gr, gr * 2, gr * 2);
+      PD.pxd.glowBands(lctx, gx, gy, gr, '#000000', 3, 0.5);
     }
     const lamp = p.stat('lamp');
     const px = p.x - cam.x, py = p.y - cam.y;
 
     // headlamp: broad halo plus a cone along the aim
-    let grd = lctx.createRadialGradient(px, py, 2, px, py, lamp);
-    grd.addColorStop(0, 'rgba(0,0,0,1)');
-    grd.addColorStop(0.45, 'rgba(0,0,0,0.75)');
-    grd.addColorStop(1, 'rgba(0,0,0,0)');
-    lctx.fillStyle = grd;
-    lctx.fillRect(px - lamp, py - lamp, lamp * 2, lamp * 2);
+    PD.pxd.glowBands(lctx, px, py, lamp, '#000000', 5, 1);
 
     const cx = px + Math.cos(p.aim) * lamp * 0.75, cy = py + Math.sin(p.aim) * lamp * 0.75;
-    grd = lctx.createRadialGradient(cx, cy, 2, cx, cy, lamp * 0.8);
-    grd.addColorStop(0, 'rgba(0,0,0,0.9)');
-    grd.addColorStop(1, 'rgba(0,0,0,0)');
-    lctx.fillStyle = grd;
-    lctx.fillRect(cx - lamp, cy - lamp, lamp * 2, lamp * 2);
+    PD.pxd.glowBands(lctx, cx, cy, lamp * 0.8, '#000000', 4, 0.85);
 
     // the core is its own furnace
     if (w.coreHp > 0) {
       const kx = w.coreCenter.x - cam.x, ky = w.coreCenter.y - cam.y;
-      const kr = w.chamberR * 1.5;
-      grd = lctx.createRadialGradient(kx, ky, 2, kx, ky, kr);
-      grd.addColorStop(0, 'rgba(0,0,0,1)');
-      grd.addColorStop(1, 'rgba(0,0,0,0)');
-      lctx.fillStyle = grd;
-      lctx.fillRect(kx - kr, ky - kr, kr * 2, kr * 2);
+      PD.pxd.glowBands(lctx, kx, ky, w.chamberR * 1.5, '#000000', 5, 1);
     }
 
     if (p.drilling) {
       const tip = p.drillTip();
       const tx = tip.x - cam.x, ty = tip.y - cam.y;
-      grd = lctx.createRadialGradient(tx, ty, 1, tx, ty, 30);
-      grd.addColorStop(0, 'rgba(0,0,0,0.8)');
-      grd.addColorStop(1, 'rgba(0,0,0,0)');
-      lctx.fillStyle = grd;
-      lctx.fillRect(tx - 30, ty - 30, 60, 60);
+      PD.pxd.glowBands(lctx, tx, ty, 30, '#000000', 3, 0.8);
     }
 
     lctx.globalCompositeOperation = 'source-over';
@@ -9129,11 +9477,16 @@ window.PD = window.PD || {};
     const airF = g.player.o2 / g.player.stat('oxygen');
     if (airF < 0.3) {
       const a = (1 - airF / 0.3) * 0.45 * (0.7 + 0.3 * Math.sin(g.time * 7));
-      const grd = ctx.createRadialGradient(VW / 2, VH / 2, VH * 0.32, VW / 2, VH / 2, VH * 0.78);
-      grd.addColorStop(0, 'rgba(120,10,30,0)');
-      grd.addColorStop(1, 'rgba(120,10,30,' + a.toFixed(3) + ')');
-      ctx.fillStyle = grd;
-      ctx.fillRect(0, 0, VW, VH);
+      // dithered bands closing in from the edges, no soft vignette
+      for (let i = 0; i < 5; i++) {
+        const inset = i * 9;
+        ctx.globalAlpha = a * (1 - i / 5);
+        PD.pxd.dither(ctx, inset, inset, VW - inset * 2, 9, '#8a0a1e', i % 2);
+        PD.pxd.dither(ctx, inset, VH - inset - 9, VW - inset * 2, 9, '#8a0a1e', i % 2);
+        PD.pxd.dither(ctx, inset, inset, 9, VH - inset * 2, '#8a0a1e', i % 2);
+        PD.pxd.dither(ctx, VW - inset - 9, inset, 9, VH - inset * 2, '#8a0a1e', i % 2);
+      }
+      ctx.globalAlpha = 1;
     }
 
     if (g.state !== 'victory' && g.state !== 'ending') UI.hud(ctx, g);

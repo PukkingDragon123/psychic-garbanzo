@@ -188,11 +188,7 @@
     for (const r of rings) {
       const t = r.life / r.max;
       ctx.globalAlpha = t * t;
-      ctx.strokeStyle = r.color;
-      ctx.lineWidth = r.width;
-      ctx.beginPath();
-      ctx.arc(Math.round(r.x - cam.x), Math.round(r.y - cam.y), Math.max(1, r.r), 0, U.TAU);
-      ctx.stroke();
+      PD.pxd.ring(ctx, r.x - cam.x, r.y - cam.y, Math.max(1, r.r), r.color, r.width);
     }
     ctx.globalAlpha = 1;
   }

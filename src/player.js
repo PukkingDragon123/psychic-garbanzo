@@ -545,12 +545,8 @@
     }
 
     if (this.recall > 0.1) {
-      ctx.strokeStyle = '#7ef9ff';
       ctx.globalAlpha = 0.4 + 0.4 * Math.sin(t * 22);
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.arc(px | 0, py | 0, 8 + (1 - this.recall / 1.4) * 20, 0, U.TAU);
-      ctx.stroke();
+      PD.pxd.ring(ctx, px, py, 8 + (1 - this.recall / 1.4) * 20, '#7ef9ff', 1);
       ctx.globalAlpha = 1;
     }
   };

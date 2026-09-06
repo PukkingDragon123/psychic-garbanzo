@@ -346,6 +346,81 @@
     return p;
   }
 
+  /* ------------------------------------------------------------- portraits
+     The people who buy your rocks, as pixel busts. Three frames each: mouth
+     shut, mouth open, blinking. */
+  function bust(who, f) {
+    const p = pix(96, 96);
+    const talk = f === 1, blink = f === 2;
+    const skin = { zaz: ['#c4a0ff', '#8455c4', '#e6d0ff'], broker: ['#ffb03d', '#c25c14', '#ffd9a0'],
+      synd: ['#ff5a4d', '#8a2a2a', '#ffb0a0'], mum: ['#8affa0', '#3fb85a', '#d6ffd6'] }[who];
+    const cloth = { zaz: '#3a2560', broker: '#2b3a66', synd: '#1b1b2e', mum: '#8a3a5e' }[who];
+    // shoulders
+    p.round(8, 70, 80, 30, 10, cloth);
+    p.rect(12, 74, 72, 3, '#ffffff');
+    p.round(38, 66, 20, 12, 4, skin[0]);                       // neck
+    p.shade(skin[0], skin[1], 0, 1);
+    // head
+    p.round(20, 14, 56, 56, 16, skin[0]);
+    p.shade(skin[0], skin[1], 0, 1);
+    p.round(26, 20, 40, 12, 6, skin[2]);                       // forehead light
+    // eyes
+    if (blink) { p.rect(28, 42, 14, 3, C.ink); p.rect(54, 42, 14, 3, C.ink); }
+    else {
+      p.round(28, 36, 14, 16, 5, '#ffffff');
+      p.round(54, 36, 14, 16, 5, '#ffffff');
+      p.round(32, 40, 8, 9, 3, C.eye); p.round(58, 40, 8, 9, 3, C.eye);
+      p.rect(33, 41, 3, 3, '#ffffff'); p.rect(59, 41, 3, 3, '#ffffff');
+    }
+    // brows, mouth, blush
+    p.rect(27, 31, 16, 3, skin[1]); p.rect(53, 30, 16, 3, skin[1]);
+    if (talk) { p.round(38, 56, 20, 10, 4, C.ink); p.rect(41, 58, 14, 3, '#ff8ab0'); }
+    else { p.rect(38, 58, 20, 3, C.ink); p.set(37, 57, C.ink); p.set(58, 57, C.ink); }
+    p.ellipse(24, 52, 6, 4, '#ff8ab0'); p.ellipse(72, 52, 6, 4, '#ff8ab0');
+    // who they are
+    if (who === 'zaz') {                                        // monocle and top hat
+      p.round(50, 30, 26, 26, 9, null);
+      for (let i = 0; i < 26; i++) { p.set(50 + i, 30, P.gold); p.set(50 + i, 55, P.gold); }
+      for (let j = 0; j < 26; j++) { p.set(50, 30 + j, P.gold); p.set(75, 30 + j, P.gold); }
+      p.line(75, 55, 84, 72, P.gold);
+      p.round(24, 0, 48, 16, 3, '#241a3a'); p.round(16, 12, 64, 6, 2, '#241a3a');
+    } else if (who === 'broker') {                              // visor and headset
+      p.round(22, 34, 52, 12, 4, '#39ffa6');
+      p.rect(24, 36, 48, 3, '#c8ffe0');
+      p.round(14, 30, 10, 22, 4, P.steelD); p.round(72, 30, 10, 22, 4, P.steelD);
+      p.round(66, 56, 14, 5, 2, P.steelD);                      // mic
+    } else if (who === 'synd') {                                // shades and collar
+      p.round(22, 36, 24, 14, 4, '#151233'); p.round(50, 36, 24, 14, 4, '#151233');
+      p.rect(46, 41, 4, 3, '#151233');
+      p.rect(24, 38, 8, 3, '#4a4a6a'); p.rect(52, 38, 8, 3, '#4a4a6a');
+      p.round(30, 66, 36, 10, 3, '#0f0f1c');
+    } else {                                                     // curls and earrings
+      p.round(14, 8, 20, 20, 8, skin[1]); p.round(62, 8, 20, 20, 8, skin[1]);
+      p.round(30, 2, 36, 18, 8, skin[1]);
+      p.disc(18, 52, 5, P.gold); p.disc(78, 52, 5, P.gold);
+    }
+    p.outline(P.ink);
+    return p;
+  }
+
+  /* Your own mitten, resting on a counter. Mirrored for the other side. */
+  function mitten(P2) {
+    const p = pix(96, 72);
+    const skin = P2 ? P2.skin : '#7ff08a', skinD = P2 ? P2.skinD : '#43ba5f';
+    p.round(6, 26, 84, 46, 16, '#2b3a66');                     // sleeve
+    p.shade('#2b3a66', '#1b2547', 0, 1);
+    p.round(10, 22, 76, 10, 4, '#f6f3ff');                     // cuff
+    p.round(14, 4, 68, 34, 14, skin);                          // mitten
+    p.shade(skin, skinD, 0, 1);
+    p.round(20, 8, 40, 10, 5, '#c4ffce');
+    p.round(2, 14, 20, 20, 8, skin);                           // thumb
+    p.shade(skin, skinD, 0, 1);
+    p.rect(30, 30, 34, 2, skinD);
+    p.disc(20, 28, 4, P.gold); p.set(19, 27, '#ffffff');       // cufflink
+    p.outline(P.ink);
+    return p;
+  }
+
   /* The handheld multi-purpose tool, for the corner of the screen. */
   function phone(on) {
     const p = pix(36, 56);
@@ -358,6 +433,40 @@
     }
     p.disc(18, 47, 3.5, P.steel); p.rect(14, 5, 8, 1, P.steel);
     p.rect(34, 14, 2, 8, P.steelD);
+    p.outline(P.ink);
+    return p;
+  }
+
+  /* The tool as you hold it up: angled body, emitter horn, thumb on the dial. */
+  function toolBig(f) {
+    const p = pix(150, 120);
+    p.round(10, 22, 92, 92, 14, P.navyD);
+    p.round(16, 28, 80, 80, 12, P.navy);
+    p.round(22, 34, 68, 52, 8, '#07222b');                       // screen
+    for (let i = 0; i < 5; i++) p.rect(26, 38 + i * 9, 20 + i * 8, 4, i % 2 ? P.holo : P.glowD);
+    p.round(24, 92, 26, 12, 4, P.steelDD); p.round(28, 95, 18, 6, 3, f ? P.lime : P.steelD);
+    p.round(58, 90, 32, 16, 6, P.steelDD);                        // dial
+    p.disc(74, 98, 6, f ? P.amber : P.steelD);
+    p.rect(72, 92, 4, 6, P.gold);
+    // emitter horn on the top corner
+    p.round(88, 8, 34, 26, 6, P.steelD);
+    p.round(94, 12, 22, 16, 4, f ? P.holo : P.glowD);
+    p.rect(100, 2, 10, 10, P.steelDD);
+    p.disc(105, 6, 3, f ? '#ffffff' : P.glowD);
+    // grip ridges down the left
+    for (let i = 0; i < 6; i++) p.rect(6, 34 + i * 12, 8, 6, P.steelDD);
+    p.outline(P.ink);
+    return p;
+  }
+
+  /* A hexagonal projector pad the hologram stands on. */
+  function holoPad(f) {
+    const p = pix(120, 40);
+    for (let i = 0; i < 3; i++) {
+      const w = 100 - i * 14, x = 60 - w / 2, y = 10 + i * 8;
+      p.round(x, y, w, 10, 4, i === f % 3 ? P.holo : P.glowD);
+      p.round(x + 6, y + 2, w - 12, 5, 2, '#04141c');
+    }
     p.outline(P.ink);
     return p;
   }
@@ -420,6 +529,10 @@
   reg('flag', [flag(0), flag(1)], 3);
   reg('phone', [phone(false), phone(true)], 9, 14);
   reg('brain', [brainBig()], 55, 42);
+  for (const who of ['zaz', 'broker', 'synd', 'mum']) reg('bust_' + who, [bust(who, 0), bust(who, 1), bust(who, 2)], 24, 48);
+  reg('mitten', [mitten()], 24, 0);
+  reg('toolBig', [toolBig(0), toolBig(1)], 0, 60);
+  reg('holoPad', [holoPad(0), holoPad(1), holoPad(2)], 30, 20);
 
-  PD.arthome = { S, P, buildMoon, blit, HD };
+  PD.arthome = { S, P, buildMoon, blit, HD, mitten, reg };
 })(window.PD);
