@@ -575,7 +575,11 @@
         X.rect(ctx, x - 16, FLOOR - 14, 32, 14, '#5a4a3a');
         X.rect(ctx, x - 16, FLOOR - 14, 32, 2, '#7a6a52');
         AH.blit(ctx, s, Math.floor(t * 4) % 2, x, FLOOR - 14);
-        const note = D.MIX[Math.floor(t * 0.25) % D.MIX.length].slice(0, 16);
+        // a scrolling marquee: the window is 16 characters, the song is not,
+        // so the title crawls through it instead of being chopped in half
+        const song = D.MIX[Math.floor(t * 0.09) % D.MIX.length] + '   *   ';
+        const off = Math.floor(t * 5) % song.length;
+        const note = (song + song).substr(off, 16);
         F.draw(ctx, note, x, FLOOR - 44 + Math.sin(t * 2) * 2, '#ff8ad8', { center: true });
         continue;
       }

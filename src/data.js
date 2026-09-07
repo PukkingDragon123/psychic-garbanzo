@@ -160,7 +160,7 @@
     'Frozen mid-scream. The Krael insist it was always like that.',
     'A Gilded foundry moon. They fired everyone for using the wrong gold.',
     'The Collection bid on this whole world. The Curator was outbid by a mining guild. He is still cross.',
-    'Somebody’s dead moon. The Reavers use it to settle arguments.',
+    'Somebody\'s dead moon. The Reavers use it to settle arguments.',
     'Alive, allegedly. It hums when you drill it and the Krael call that a coincidence.',
     'A furnace world the Ascendancy uses to test how loud a person can scream.',
     'One enormous cut stone. The Gilded consider looking at it a crime.',
@@ -181,8 +181,8 @@
 
   /* The pod's tape deck. */
   const MIX = [
-    'HOOKED ON A CEILING', 'AIN’T NO MOUNTAIN LOW ENOUGH', 'COME AND GET YOUR ORE',
-    'MOONAGE DRILLDREAM', 'O-O-H CHILD, THAT’S URANIUM', 'FOOLED AROUND AND BROKE A PLANET',
+    'HOOKED ON A CEILING', "AIN'T NO MOUNTAIN LOW ENOUGH", 'COME AND GET YOUR ORE',
+    'MOONAGE DRILLDREAM', "O-O-H CHILD, THAT'S URANIUM", 'FOOLED AROUND AND BROKE A PLANET',
     'ESCAPE (THE ORE-COLADA SONG)', 'CHERRY BOMB CRATER'
   ];
 

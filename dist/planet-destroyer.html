@@ -909,7 +909,7 @@ window.PD = window.PD || {};
     'Frozen mid-scream. The Krael insist it was always like that.',
     'A Gilded foundry moon. They fired everyone for using the wrong gold.',
     'The Collection bid on this whole world. The Curator was outbid by a mining guild. He is still cross.',
-    'Somebody’s dead moon. The Reavers use it to settle arguments.',
+    'Somebody\'s dead moon. The Reavers use it to settle arguments.',
     'Alive, allegedly. It hums when you drill it and the Krael call that a coincidence.',
     'A furnace world the Ascendancy uses to test how loud a person can scream.',
     'One enormous cut stone. The Gilded consider looking at it a crime.',
@@ -930,8 +930,8 @@ window.PD = window.PD || {};
 
   /* The pod's tape deck. */
   const MIX = [
-    'HOOKED ON A CEILING', 'AIN’T NO MOUNTAIN LOW ENOUGH', 'COME AND GET YOUR ORE',
-    'MOONAGE DRILLDREAM', 'O-O-H CHILD, THAT’S URANIUM', 'FOOLED AROUND AND BROKE A PLANET',
+    'HOOKED ON A CEILING', "AIN'T NO MOUNTAIN LOW ENOUGH", 'COME AND GET YOUR ORE',
+    'MOONAGE DRILLDREAM', "O-O-H CHILD, THAT'S URANIUM", 'FOOLED AROUND AND BROKE A PLANET',
     'ESCAPE (THE ORE-COLADA SONG)', 'CHERRY BOMB CRATER'
   ];
 
@@ -6766,7 +6766,9 @@ window.PD = window.PD || {};
     ctx.strokeStyle = '#6b4a2e'; ctx.strokeRect(x0 - 3.5, y0 - 3.5, MW + 7, MH + 7);
     X.rect(ctx, x0 - 8, y0 - 7, 18, 7, 'rgba(226,208,132,0.8)');
     X.rect(ctx, x0 + MW - 10, y0 + MH, 18, 7, 'rgba(226,208,132,0.8)');
-    F.draw(ctx, 'WHERE I DUG', x0 + MW / 2, y0 + MH + 6, '#a8845e', { center: true, shadow: false });
+    // the caption clears the strip of tape at the bottom corner; at y0+MH+6 the
+    // tape sat straight across the middle of the word
+    F.draw(ctx, 'WHERE I DUG', x0 + MW / 2, y0 + MH + 10, '#a8845e', { center: true, shadow: false });
     ctx.imageSmoothingEnabled = false;
     ctx.drawImage(mmCv, 0, 0, w.w, w.h, ox, oy, w.w * sc, w.h * sc);
 
@@ -8915,7 +8917,11 @@ window.PD = window.PD || {};
         X.rect(ctx, x - 16, FLOOR - 14, 32, 14, '#5a4a3a');
         X.rect(ctx, x - 16, FLOOR - 14, 32, 2, '#7a6a52');
         AH.blit(ctx, s, Math.floor(t * 4) % 2, x, FLOOR - 14);
-        const note = D.MIX[Math.floor(t * 0.25) % D.MIX.length].slice(0, 16);
+        // a scrolling marquee: the window is 16 characters, the song is not,
+        // so the title crawls through it instead of being chopped in half
+        const song = D.MIX[Math.floor(t * 0.09) % D.MIX.length] + '   *   ';
+        const off = Math.floor(t * 5) % song.length;
+        const note = (song + song).substr(off, 16);
         F.draw(ctx, note, x, FLOOR - 44 + Math.sin(t * 2) * 2, '#ff8ad8', { center: true });
         continue;
       }
@@ -10096,6 +10102,12 @@ window.PD = window.PD || {};
   function render() {
     const sh = FX.shakeOffset();
     const cam = { x: Math.round(g.cam.x + sh.x), y: Math.round(g.cam.y + sh.y) };
+
+    // One thrown frame must not disfigure every frame after it. A clip left on
+    // the state stack survives setTransform and clearRect, so the screen would
+    // stay half-drawn forever. Unwind to a clean slate first.
+    if (ctx.reset) ctx.reset();
+    else for (let i = 0; i < 24; i++) ctx.restore();
 
     ctx.setTransform(HD, 0, 0, HD, 0, 0);
     ctx.imageSmoothingEnabled = false;

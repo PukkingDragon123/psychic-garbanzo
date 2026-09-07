@@ -367,7 +367,9 @@
     ctx.strokeStyle = '#6b4a2e'; ctx.strokeRect(x0 - 3.5, y0 - 3.5, MW + 7, MH + 7);
     X.rect(ctx, x0 - 8, y0 - 7, 18, 7, 'rgba(226,208,132,0.8)');
     X.rect(ctx, x0 + MW - 10, y0 + MH, 18, 7, 'rgba(226,208,132,0.8)');
-    F.draw(ctx, 'WHERE I DUG', x0 + MW / 2, y0 + MH + 6, '#a8845e', { center: true, shadow: false });
+    // the caption clears the strip of tape at the bottom corner; at y0+MH+6 the
+    // tape sat straight across the middle of the word
+    F.draw(ctx, 'WHERE I DUG', x0 + MW / 2, y0 + MH + 10, '#a8845e', { center: true, shadow: false });
     ctx.imageSmoothingEnabled = false;
     ctx.drawImage(mmCv, 0, 0, w.w, w.h, ox, oy, w.w * sc, w.h * sc);
 

@@ -1034,6 +1034,12 @@
     const sh = FX.shakeOffset();
     const cam = { x: Math.round(g.cam.x + sh.x), y: Math.round(g.cam.y + sh.y) };
 
+    // One thrown frame must not disfigure every frame after it. A clip left on
+    // the state stack survives setTransform and clearRect, so the screen would
+    // stay half-drawn forever. Unwind to a clean slate first.
+    if (ctx.reset) ctx.reset();
+    else for (let i = 0; i < 24; i++) ctx.restore();
+
     ctx.setTransform(HD, 0, 0, HD, 0, 0);
     ctx.imageSmoothingEnabled = false;
     ctx.clearRect(0, 0, VW, VH);
