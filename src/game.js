@@ -51,6 +51,7 @@
       vault: {},                                  // ore waiting on the moon
       cos: { suit: 'rose', skin: 'green', glass: 'sky', drill: 'steel', trim: 'stock' },
       pet: 0,                                     // whether the rat is yours yet
+      thots: 0, thotFrac: 0, neur: {},            // what the brain in the jar has grown
       artifacts: 0,                               // relics hauled home
       seenIntro: 1
     };
@@ -82,6 +83,9 @@
       if (flat) { for (const u of D.UPGRADES) if (flat[u.id] !== undefined) base.upg[u.id] = U.clamp(+flat[u.id] || 0, 0, u.max); }
       base.artifacts = +s.artifacts || 0;
       base.pet = s.pet ? 1 : 0;
+      base.thots = Math.max(0, +s.thots || 0);
+      base.thotFrac = Math.max(0, +s.thotFrac || 0);
+      if (s.neur) for (const k in s.neur) if (D.NEUR[k]) base.neur[k] = U.clamp(+s.neur[k] || 0, 0, D.NEUR[k].max);
     }
     g.save = base;
     recompute();
@@ -91,6 +95,8 @@
   function recompute() {
     const sv = g.save;
     for (const u of D.UPGRADES) sv.upg[u.id] = U.clamp(sv.upg[u.id] || 0, 0, u.max);
+    if (!sv.neur) sv.neur = {};
+    for (const n of D.NEURONS) if (sv.neur[n.id]) sv.neur[n.id] = U.clamp(sv.neur[n.id], 0, n.max);
     if (g.player) { g.player.o2 = Math.min(g.player.o2, g.player.stat('oxygen')); }
   }
   g.recompute = recompute;
@@ -109,6 +115,31 @@
   g.wipeSave = wipeSave;
 
   g.valueMult = function () { return 1 + g.save.bonus / 100 + g.save.dominion * 0.004; };
+
+  /* ---------------------------------------------------------------- the brain
+     Neuron levels, what they are worth, and the THOTS that pay for them. */
+  g.brain = function (id) { return (g.save.neur && g.save.neur[id]) || 0; };
+  /* A neuron only lights up once one of the neurons it is wired to is on. */
+  g.brainWired = function (n) { return !n.links.length || n.links.some(l => g.brain(l) > 0); };
+  g.brainCost = function (id) { return D.neuronCost(D.NEUR[id], g.brain(id)); };
+  g.brainBuy = function (id) {
+    const n = D.NEUR[id];
+    if (!n) return false;
+    const lvl = g.brain(id);
+    if (lvl >= n.max || !g.brainWired(n)) return false;
+    const c = g.brainCost(id);
+    if (g.save.thots < c) return false;
+    g.save.thots -= c;
+    g.save.neur[id] = lvl + 1;
+    recompute();
+    saveGame();
+    return true;
+  };
+  /* THOTS come out of work: rock you break, and worlds you finish off. */
+  g.earnThots = function (n) {
+    g.save.thotFrac = (g.save.thotFrac || 0) + n;
+    while (g.save.thotFrac >= 1) { g.save.thotFrac -= 1; g.save.thots++; }
+  };
   g.droneIncome = function () {
     const n = g.save.upg.drones || 0;
     if (!n) return 0;
@@ -131,12 +162,19 @@
     const u = D.UPG[id];
     return Math.min(it ? it.max : 0, u ? u.max : 0);
   };
+  /* KNOW A GUY: the brain has leverage over someone at Abay. */
+  g.abayPrice = function (id) {
+    const it = D.ABAYX[id];
+    if (!it) return 0;
+    const lvl = g.save.upg[id] || 0;
+    return Math.max(10, Math.round(D.abayCost(it, lvl) * (1 - g.brain('know') * 0.05)));
+  };
   g.abayBuy = function (id) {
     const it = D.ABAYX[id];
     if (!it) { A.sfx.deny(); return false; }
     const lvl = g.save.upg[id] || 0;
     if (lvl >= g.abayMax(id)) { A.sfx.deny(); return false; }
-    const cost = D.abayCost(it, lvl);
+    const cost = g.abayPrice(id);
     if (g.save.credits < cost) { A.sfx.deny(); return false; }
     g.save.credits -= cost;
     g.save.upg[id] = lvl + 1;
@@ -289,7 +327,8 @@
   }
   g.demandFor = function (mat) { return g.demand[mat] === undefined ? 1 : g.demand[mat]; };
   g.saleMult = function () {
-    return g.valueMult() * D.UPG.crew.value(g.save.upg.crew || 0) * D.UPG.refine.value(g.save.upg.refine || 0) * D.UPG.greed.value(g.save.upg.greed || 0);
+    return g.valueMult() * D.UPG.crew.value(g.save.upg.crew || 0) * D.UPG.refine.value(g.save.upg.refine || 0) * D.UPG.greed.value(g.save.upg.greed || 0)
+      * (1 + g.brain('haggle') * 0.07);
   };
   g.priceOf = function (mat) { return Math.max(1, Math.round(D.MAT[mat].cr * g.saleMult() * g.demandFor(mat))); };
   g.vaultCount = function (mat) { return g.save.vault[mat] || 0; };
@@ -371,6 +410,11 @@
     const val = Math.round(m.cr * g.valueMult());
     if (m.cr >= 60) FX.text(x, y - 6, '+$' + U.fmt(val), m.c[0], 0);
     FX.burst(x, y, m.shine ? 7 : 3, [m.c[0], '#ffffff'], 60, !!m.shine);
+    // he grabs at it, and it pops out of the world into his pocket
+    const dirx = Math.sign(p.x - x) || 1;
+    FX.pop(x, y, m.c[0], dirx, -0.4);
+    PD.rig.grab(p.rig, x - p.x, y - p.y, Math.cos(p.aim) >= 0);
+    if (m.shine) FX.ring(x, y, 2, 26, 0.5, '#ffffff', 1);
     A.sfx.ore(m.cr);
     return true;
   };
@@ -395,14 +439,26 @@
     g.chain.n++; g.chain.t = 1.3;
     FX.dust(x, y, m.shine ? 9 : 6, m.c[2], 55);
     FX.burst(x, y, 3 + Math.min(6, g.chain.n >> 2), m.c, 70 + Math.min(60, g.chain.n * 4));
+    // DEBRIS EVERYWHERE: the tile comes apart into chips that bounce off the
+    // shaft walls and lie on the floor for a second before they crumble
+    const dir = byDrill && g.player ? g.player.aim : undefined;
+    FX.shards(x, y, m, m.shine ? 14 : 11, dir);
+    FX.crumble(x, y, m);
     A.sfx.break_(U.clamp(m.hp / 255, 0, 1));
     A.sfx.tone(440 + Math.min(20, g.chain.n) * 28, { type: 'triangle', dur: 0.05, vol: 0.05 });
     FX.shake(1.2 + Math.min(1.5, g.chain.n * 0.05));
     if (g.chain.n % 10 === 0) { FX.text(x, y - 14, 'x' + g.chain.n + ' CHAIN', '#ffd34d', 2); FX.hitStop(0.03); A.sfx.coin(g.chain.n / 10 | 0); }
     if (m.cr >= 300) { FX.hitStop(0.04); FX.ring(x, y, 4, 22, 0.4, m.c[0], 2); }
 
-    if (g.pickups.length < 160) g.pickups.push(new PD.ent.Pickup(x, y, mat));
-    else g.collect(mat, x, y);
+    // the brain feeds on work
+    g.earnThots(0.04 + (m.cr >= 300 ? 0.2 : 0));
+    // GREEDY LUCK: sometimes the rock was secretly two rocks
+    const twice = U.chance(g.brain('rich') * 0.06) ? 2 : 1;
+    for (let q = 0; q < twice; q++) {
+      if (g.pickups.length < 160) g.pickups.push(new PD.ent.Pickup(x, y, mat, U.rand(-40, 40), U.rand(-90, -20)));
+      else g.collect(mat, x, y);
+    }
+    if (twice > 1) FX.text(x, y - 18, 'TWO!', '#8affa0', 1);
 
     // cave-ins: loosened rock above comes down
     if (byDrill && g.boulders.length < 14) {
@@ -739,6 +795,11 @@
       PD.desk.update(dt, g);
       return;
     }
+    if (g.state === 'mind') {
+      PD.mind.update(dt, g);
+      FX.update(dt, null);
+      return;
+    }
 
     g.combo.t -= dt;
     if (g.chain && g.chain.t > 0) { g.chain.t -= dt; if (g.chain.t <= 0) g.chain.n = 0; }
@@ -749,6 +810,9 @@
     if (g.state === 'title' || g.state === 'ending') return;
 
     if (g.state === 'victory') {
+      // only reachable through beginDestruction; if something has put us here
+      // without it, go home rather than throwing every frame from now on
+      if (!g.victory) { g.state = 'home'; PD.home.enter(g); return; }
       g.victory.t += dt;
       FX.update(dt, g.world);
       updateCamera(dt, true);
@@ -1054,6 +1118,15 @@
 
     if (g.state === 'desk') {
       PD.desk.draw(ctx, g, g.time);
+      PD.touch.draw(ctx, 'ui', g);
+      UI.endFrame();
+      blit();
+      return;
+    }
+
+    if (g.state === 'mind') {
+      PD.mind.draw(ctx, g, g.time);
+      FX.drawOverlay(ctx, VW, VH);
       PD.touch.draw(ctx, 'ui', g);
       UI.endFrame();
       blit();

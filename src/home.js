@@ -1,9 +1,13 @@
 /* HOME.
 
-   Two places. OUTSIDE is an empty moon with your rock house standing on it and
-   your dumb UFO parked alongside. INSIDE is one room with a dumb bed and the
-   stolen computer, and nothing else except the mess. Walk to the door and
-   press E to go through, either way.
+   Two places. OUTSIDE is a small round moon -- a ball a couple of hundred
+   pixels across, floating whole in the middle of the screen with stars either
+   side of it, your rock house on top and your dumb UFO parked alongside. You
+   walk over the curve of it and the horizon falls away at both ends.
+
+   INSIDE is one very small room: the stolen computer, and a brain in a jar of
+   acid that knows everything and will sell you some of it. Nothing else except
+   the mess. No bed. Walk to the door and press E to go through, either way.
 
    The first time you go in there is a very fat rat eating your cheese. Give it
    the cheese and it is yours forever. */
@@ -18,19 +22,43 @@
   const X = PD.pxd;
 
   const VW = 480, VH = 270;
-  const OUT_W = 860, IN_W = 470;
-  const FLOOR = 214;                 // the moon surface / the room floor
-  const CEIL = 56;                   // the underside of the rock roof, inside
+  /* THE MOON IS A BALL. Its centre is a long way below the bottom of the
+     screen, so the arc across the top is the bit you can walk on: 344 pixels
+     of it end to end, and space on both sides. Outside is exactly one screen
+     wide and never scrolls -- the moon is an object you look at, not a
+     corridor you travel down. */
+  const MOON = { cx: 240, cy: 314, r: 172 };
+  const OUT_W = 480, IN_W = 232;
+  const WALK = 102;                  // how far round the curve he can get
+  const FLOOR = 216;                 // the room floor, inside
+  const CEIL = 124;                  // the underside of the rock roof, inside
   const GRAV = 300;                  // low: everything here is bouncy
 
   const S = { scene: 'out', t: 0, ratSeen: 0, sleep: 0, swing: 0 };
 
   function roomW() { return S.scene === 'out' ? OUT_W : IN_W; }
+  /* A room narrower than the screen sits in the middle of it. */
+  function camWant() {
+    const w = roomW();
+    if (w <= VW) return (w - VW) / 2;
+    return U.clamp(P.x - VW / 2, 0, w - VW);
+  }
+  function bounds() {
+    return S.scene === 'out' ? [MOON.cx - WALK, MOON.cx + WALK] : [20, IN_W - 20];
+  }
 
-  /* Flat indoors; lumpy regolith outside. */
+  /* Flat indoors. Outside it is the top of a circle, rasterised to whole
+     pixels so the ground he stands on is exactly the ground you can see. */
   function groundY(x) {
     if (S.scene === 'in') return FLOOR;
-    return FLOOR + Math.sin(x * 0.019) * 5 + Math.sin(x * 0.043 + 1.3) * 3;
+    const dx = x - MOON.cx;
+    if (Math.abs(dx) >= MOON.r) return 1e4;
+    return Math.round(MOON.cy - Math.sqrt(MOON.r * MOON.r - dx * dx));
+  }
+  /* The slope under his feet, for dust and for standing on a hill. */
+  function slopeAt(x) {
+    const dx = U.clamp(x - MOON.cx, -MOON.r + 1, MOON.r - 1);
+    return dx / Math.sqrt(Math.max(1, MOON.r * MOON.r - dx * dx));
   }
 
   const P = {
@@ -42,71 +70,72 @@
 
   /* ------------------------------------------------------------------ spots */
   const OUT_SPOTS = [
-    { id: 'door', x: 300, r: 50, name: 'THE ROCK HOUSE', sub: 'GO INSIDE' },
-    { id: 'ufo', x: 640, r: 58, name: 'YOUR DUMB UFO', sub: 'GO AND HIT A PLANET' }
+    { id: 'door', x: 196, r: 36, name: 'THE ROCK HOUSE', sub: 'GO INSIDE' },
+    { id: 'ufo', x: 300, r: 40, name: 'YOUR DUMB UFO', sub: 'GO AND HIT A PLANET' }
   ];
   const IN_SPOTS = [
-    { id: 'pc', x: 132, r: 46, name: 'THE COMPUTER', sub: 'ABAY IS ON IT' },
-    { id: 'bed', x: 286, r: 38, name: 'YOUR DUMB BED', sub: 'IT IS MOSS. HAVE A LIE DOWN' },
-    { id: 'exit', x: 424, r: 44, name: 'THE DOOR', sub: 'GO OUTSIDE' }
+    { id: 'pc', x: 40, r: 32, name: 'THE COMPUTER', sub: 'ABAY IS ON IT' },
+    { id: 'brain', x: 146, r: 34, name: 'THE BRAIN IN THE JAR', sub: 'IT KNOWS THINGS. BUY SOME' },
+    { id: 'exit', x: 212, r: 22, name: 'THE DOOR', sub: 'GO OUTSIDE' }
   ];
-  const RAT_SPOT = { id: 'rat', x: 208, r: 46, name: 'A VERY FAT RAT', sub: 'GIVE HIM THE CHEESE' };
+  const RAT_SPOT = { id: 'rat', x: 76, r: 26, name: 'A VERY FAT RAT', sub: 'GIVE HIM THE CHEESE' };
   const SPOTS = OUT_SPOTS;                    // game.js docks you next to the UFO
 
   /* --------------------------------------------------------------- scenery */
   const OUT_ROCKS = [];
-  for (let i = 0; i < 20; i++) OUT_ROCKS.push({ x: 20 + U.hash2(i, 3) * (OUT_W - 40), k: (U.hash2(i, 9) * 3) | 0 });
+  for (let i = 0; i < 16; i++) OUT_ROCKS.push({ x: MOON.cx + (U.hash2(i, 3) * 2 - 1) * 158, k: (U.hash2(i, 9) * 3) | 0 });
   const CRATERS = [];
-  for (let i = 0; i < 12; i++) CRATERS.push({ x: 30 + U.hash2(i, 21) * (OUT_W - 60), r: 8 + U.hash2(i, 33) * 20 });
-  const RUINS = [{ x: 70, k: 2 }, { x: 780, k: 1 }];
+  for (let i = 0; i < 10; i++) CRATERS.push({ x: MOON.cx + (U.hash2(i, 21) * 2 - 1) * 150, r: 5 + U.hash2(i, 33) * 13 });
+  const RUINS = [{ x: 118, k: 2 }, { x: 372, k: 1 }];
   const MOTES = [];
   for (let i = 0; i < 26; i++) MOTES.push({ x: U.hash2(i, 61), y: 60 + U.hash2(i, 67) * 150, r: U.hash2(i, 71), sp: 2 + U.hash2(i, 73) * 7 });
 
   /* Inside: the mess, and where each piece of it lies. */
   const IN_PROPS = [
-    { s: 'bed', x: 286 },
-    { s: 'fridge', x: 350 },
-    { s: 'junk0', x: 60 },
-    { s: 'junk1', x: 196 },
-    { s: 'junk2', x: 388 },
-    { s: 'litter0', x: 100 },
-    { s: 'litter1', x: 246 },
-    { s: 'litter2', x: 330 },
-    { s: 'litter3', x: 168 },
-    { s: 'litter0', x: 408 },
-    { s: 'tape', x: 240, lift: 14 }
+    { s: 'fridge', x: 100 },
+    { s: 'junk0', x: 8 },
+    { s: 'junk1', x: 72 },
+    { s: 'junk2', x: 226 },
+    { s: 'litter0', x: 26 },
+    { s: 'litter1', x: 60 },
+    { s: 'litter2', x: 134 },
+    { s: 'litter3', x: 104 },
+    { s: 'litter0', x: 190 },
+    { s: 'litter2', x: 84 },
+    { s: 'tape', x: 76, lift: 13 }
   ];
-  const POSTERS = [{ k: 0, x: 84, y: 96 }, { k: 1, x: 250, y: 84 }, { k: 2, x: 398, y: 104 }];
-  const DRIPS = [{ x: 330, t: 0 }, { x: 118, t: 1.7 }];
+  const POSTERS = [{ k: 0, x: 22, y: 148 }, { k: 1, x: 64, y: 144 }, { k: 2, x: 196, y: 152 }];
+  const DRIPS = [{ x: 130, t: 0 }, { x: 34, t: 1.7 }];
 
   /* ---------------------------------------------------------------- the rat */
-  const rat = { x: 214, y: FLOOR, vx: 0, t: 0, face: -1, hop: 0, chew: 0 };
+  const rat = { x: RAT_SPOT.x, y: FLOOR, vx: 0, t: 0, face: -1, hop: 0, chew: 0 };
 
   let star = null;
 
   function enter(g, atX) {
     S.scene = 'out';
-    place(g, atX === undefined ? 400 : atX);
+    place(g, atX === undefined ? OUT_SPOTS[1].x : atX);
     if (!star) {
       star = [];
-      for (let i = 0; i < 150; i++) star.push({ x: U.hash2(i, 11), y: U.hash2(i, 17) * 190, b: U.hash2(i, 23) });
+      for (let i = 0; i < 220; i++) star.push({ x: U.hash2(i, 11), y: U.hash2(i, 17), b: U.hash2(i, 23) });
     }
   }
 
   function place(g, atX) {
-    P.x = U.clamp(atX, 26, roomW() - 26);
+    const bd = bounds();
+    P.x = U.clamp(atX, bd[0], bd[1]);
     P.y = groundY(P.x); P.vx = 0; P.vy = 0;
     P.target = null; P.autoUse = null; P.roll = 0; P.hop = 0;
     P.lock = 0.28;
     UI.mode = null;
-    g.intCam = U.clamp(P.x - VW / 2, 0, roomW() - VW);
-    rat.x = g.save.pet ? P.x - 40 : RAT_SPOT.x;
+    g.intCam = camWant();
+    rat.x = g.save.pet ? P.x - 30 : RAT_SPOT.x;
     rat.y = groundY(rat.x);
   }
 
   function goIn(g) {
     S.scene = 'in';
-    place(g, IN_SPOTS[2].x - 40);
+    place(g, IN_SPOTS[2].x - 26);
     A.sfx.tone(150, { type: 'square', to: 90, dur: 0.2, vol: 0.08 });
     if (!g.save.pet && !S.ratSeen) {
       S.ratSeen = 1;
@@ -116,7 +145,7 @@
   }
   function goOut(g) {
     S.scene = 'out';
-    place(g, OUT_SPOTS[0].x + 10);
+    place(g, OUT_SPOTS[0].x + 34);
     A.sfx.tone(220, { type: 'square', to: 420, dur: 0.2, vol: 0.08 });
   }
 
@@ -147,7 +176,7 @@
       A.sfx.tone(160, { type: 'square', to: 320, dur: 0.12, vol: 0.07 });
       return;
     }
-    if (s.id === 'bed') { sleep(g); return; }
+    if (s.id === 'brain') { PD.mind.open(g); return; }
     if (s.id === 'rat') { feedRat(g); return; }
   }
 
@@ -166,20 +195,12 @@
     FX.ring(rat.x, rat.y - 14, 4, 38, 0.7, '#ff9ecb', 2);
   }
 
-  /* A lie down. Nothing heals, but the ore market moves while you are out. */
-  function sleep(g) {
-    if (S.sleep > 0) return;
-    S.sleep = 2.2;
-    A.sfx.tone(200, { type: 'triangle', to: 120, dur: 0.6, vol: 0.08 });
-    if (g.player) { g.player.hull = g.player.stat('hull'); g.player.o2 = g.player.stat('oxygen'); }
-  }
-
   function leaveDesk(g) {
     g.state = 'home';
     S.scene = 'in';
     P.lock = 0.32;
-    P.x = IN_SPOTS[0].x + 34; P.y = groundY(P.x); P.vx = 0; P.vy = 0; P.face = -1;
-    g.intCam = U.clamp(P.x - VW / 2, 0, roomW() - VW);
+    P.x = IN_SPOTS[0].x + 26; P.y = groundY(P.x); P.vx = 0; P.vy = 0; P.face = -1;
+    g.intCam = camWant();
   }
 
   /* ---------------------------------------------------------------- update */
@@ -210,7 +231,8 @@
       const wx = m.x + g.intCam;
       let hit = null;
       for (const s of spots(g)) if (Math.abs(s.x - wx) < s.r) hit = s;
-      P.target = hit ? hit.x : U.clamp(wx, 26, roomW() - 26);
+      const bd0 = bounds();
+      P.target = hit ? hit.x : U.clamp(wx, bd0[0], bd0[1]);
       P.autoUse = hit;
       A.sfx.click();
     }
@@ -239,7 +261,8 @@
       if (ix) P.face = ix;
       P.vx = U.damp(P.vx, ix * 104, 0.3, dt);
     }
-    P.x = U.clamp(P.x + P.vx * dt, 26, roomW() - 26);
+    const bd = bounds();
+    P.x = U.clamp(P.x + P.vx * dt, bd[0], bd[1]);
     P.walk += Math.abs(P.vx) * dt * 0.1;
 
     if (IN.hit('up') && grounded && P.roll <= 0) {
@@ -252,7 +275,7 @@
     P.y += P.vy * dt;
 
     // the ceiling is out of reach, but the junk hanging off the beam is not
-    const roof = S.scene === 'in' ? 134 : -600;
+    const roof = S.scene === 'in' ? CEIL + 14 : -600;
     if (P.y < roof) {
       P.y = roof;
       if (P.vy < 0) {
@@ -281,7 +304,7 @@
     if (P.near && P.near !== was) A.sfx.tone(900, { type: 'square', dur: 0.03, vol: 0.03 });
     if (use_) use(g, P.near);
 
-    g.intCam = U.damp(g.intCam, U.clamp(P.x - VW / 2, 0, roomW() - VW), 0.16, dt);
+    g.intCam = U.damp(g.intCam, camWant(), 0.16, dt);
   }
 
   /* Before he is yours he stands over the cheese. After, he never shuts up
@@ -296,13 +319,14 @@
       if (U.chance(dt * 1.4)) { rat.chew = 0.3; A.sfx.tone(240, { type: 'square', dur: 0.03, vol: 0.02 }); }
       return;
     }
-    const want = P.x - P.face * 34;
+    const want = P.x - P.face * 26;
     const d = want - rat.x;
     if (Math.abs(d) > 14) {
       rat.vx = U.damp(rat.vx, U.clamp(d * 2.6, -120, 120), 0.14, dt);
       rat.face = Math.sign(rat.vx) || rat.face;
     } else rat.vx = U.damp(rat.vx, 0, 0.3, dt);
-    rat.x = U.clamp(rat.x + rat.vx * dt, 20, roomW() - 20);
+    const rbd = bounds();
+    rat.x = U.clamp(rat.x + rat.vx * dt, rbd[0] - 16, rbd[1] + 16);
     // he is far too fat to walk, so he bounces
     rat.hop = Math.abs(rat.vx) > 12 ? (rat.hop + dt * 9) : U.damp(rat.hop, 0, 0.2, dt);
     rat.y = groundY(rat.x);
@@ -327,78 +351,116 @@
     ctx.restore();
     ctx.globalAlpha = 1;
     for (const s of star) {
-      const sx = s.x * OUT_W - cam * 0.3;
-      if (sx < -4 || sx > VW + 4) continue;
+      const sx = s.x * VW;
       const tw = 0.5 + 0.5 * Math.sin(t * 2 + s.b * 30);
       ctx.fillStyle = s.b > 0.86 ? '#ffe9a8' : '#ffffff';
       ctx.globalAlpha = 0.22 + s.b * 0.6 * tw;
-      ctx.fillRect(sx | 0, s.y | 0, 1, 1);
+      ctx.fillRect(sx | 0, (s.y * VH) | 0, 1, 1);
     }
     ctx.globalAlpha = 1;
-    // the dead Celestial your moon is made of, out on the horizon
+    // the dead Celestial your moon was chipped off, adrift out to one side
     const sk = AH.S.skull;
-    const skx = Math.round(150 - cam * 0.4);
-    ctx.globalAlpha = 0.85;
-    ctx.drawImage(sk.frames[0], skx - Math.round(sk.w * 0.8), FLOOR + 8 - Math.round(sk.h * 1.6), Math.round(sk.w * 1.6), Math.round(sk.h * 1.6));
+    ctx.globalAlpha = 0.6;
+    ctx.drawImage(sk.frames[0], 6, 12 + Math.round(Math.sin(t * 0.4) * 2), Math.round(sk.w * 0.85), Math.round(sk.h * 0.85));
     ctx.globalAlpha = 1;
     // the world you are about to ruin
     const icon = g.navIcon(g.save.bodyIndex || 0);
-    const px = 700 - cam * 0.42, py = 60 + Math.sin(t * 0.5) * 3;
-    if (px > -70 && px < VW + 70) ctx.drawImage(icon, Math.round(px - icon.width * 0.9), Math.round(py - icon.height * 0.9), Math.round(icon.width * 1.8), Math.round(icon.height * 1.8));
+    const px = 404, py = 52 + Math.sin(t * 0.5) * 3;
+    ctx.drawImage(icon, Math.round(px - icon.width * 0.8), Math.round(py - icon.height * 0.8), Math.round(icon.width * 1.6), Math.round(icon.height * 1.6));
+    void cam;
   }
 
-  function drawRegolith(ctx, t, cam) {
-    const BAND = ['#6b6480', '#5f5875', '#544d6b', '#494360', '#3d3854', '#332e4a', '#2e2842'];
-    for (let sx = 0; sx <= VW; sx += 2) {
-      const wx = sx + cam;
-      const y = Math.round(groundY(wx) / 2) * 2;
+  /* THE BALL. Drawn as a stack of two-pixel columns hung off the curve, so
+     the silhouette IS the circle and the crust bands follow it round. Nothing
+     smooth anywhere: every column is a whole number of pixels tall. */
+  function drawBall(ctx, t, cam) {
+    const BAND = ['#9a92b4', '#8e86a8', '#7a7290', '#6b6480', '#5a5470', '#4a4460', '#3a3450', '#2e2842', '#241f36', '#1b172a'];
+    const DEPTH = [0, 3, 9, 17, 27, 40, 56, 76, 100, 130];
+    // an ordered 2x2 dither, not noise: the terminator wants a clean checker
+    const DITH = [[0.25, 0.75], [0.75, 0.25]];
+    const x0 = Math.ceil(MOON.cx - MOON.r), x1 = Math.floor(MOON.cx + MOON.r);
+    for (let sx = x0 - (x0 % 2); sx <= x1; sx += 2) {
+      const wx = sx + cam + 1;
+      const y = groundY(wx);
+      if (y > VH) continue;
+      /* The star is off to the left, so the crust is pale on that limb and
+         nearly black on the other. The step between shades is DITHERED by a
+         stable per-column hash, which is how you get a curved, shaded ball
+         out of nothing but flat runs of colour. */
+      const nx = (wx - MOON.cx) / MOON.r;
+      const lv = U.clamp(1.55 - nx * 1.15 - Math.abs(nx) * 0.5, 0, 2.2);
+      const frac = lv % 1;
+      const base = 1 - Math.floor(lv);
+      // the dither is per band as well as per column, so the terminator breaks
+      // up into a checker instead of banding the ball into vertical stripes
+      const dcol = DITH[(sx >> 1) & 1];
+      const offAt = (k) => U.clamp(base - (frac > dcol[k & 1] ? 1 : 0), -1, BAND.length - 1);
+      // the strata thicken with depth, so the whole visible body of the ball
+      // is layered rather than one flat mass under a thin crust
       for (let i = 0; i < BAND.length; i++) {
-        const y0 = y + (i === 0 ? 0 : 4 + (i - 1) * 9);
-        const h = i === 0 ? 4 : (i === BAND.length - 1 ? VH - y0 : 9);
-        if (h > 0) X.rect(ctx, sx, y0, 2, h, BAND[i]);
+        const y0 = y + DEPTH[i];
+        const h = i === BAND.length - 1 ? VH - y0 : DEPTH[i + 1] - DEPTH[i];
+        if (h <= 0) continue;
+        X.rect(ctx, sx, y0, 2, h, BAND[U.clamp(i + offAt(i), 0, BAND.length - 1)]);
       }
-      X.rect(ctx, sx, y, 2, 2, '#a89ac4');
+      const off = offAt(0);
+      X.rect(ctx, sx, y, 2, 2, BAND[U.clamp(off, 0, 3)]);
+      // grit and boulders half-buried in the crust, stable frame to frame
+      if (U.hash2(sx, 7) > 0.8) X.rect(ctx, sx, y + 5 + ((U.hash2(sx, 9) * 26) | 0), 2, 2, BAND[U.clamp(1 + off, 0, 9)]);
+      if (U.hash2(sx, 29) > 0.94) {
+        const by = y + 12 + ((U.hash2(sx, 31) * 40) | 0);
+        X.rect(ctx, sx - 2, by, 6, 4, BAND[U.clamp(2 + off, 0, 9)]);
+        X.rect(ctx, sx - 2, by, 6, 1, BAND[U.clamp(off, 0, 9)]);
+      }
     }
+    // craters, sunk into the curve
     for (const c of CRATERS) {
-      const x = c.x - cam; if (x < -50 || x > VW + 50) continue;
-      X.blob(ctx, x, groundY(c.x) + c.r * 0.28, c.r, c.r * 0.3, '#453e5e');
-      X.blob(ctx, x, groundY(c.x) + c.r * 0.1, c.r * 0.94, c.r * 0.16, '#8e86a8');
+      const x = c.x - cam;
+      const gy = groundY(c.x);
+      if (gy > VH) continue;
+      X.blob(ctx, x, gy + c.r * 0.3, c.r, c.r * 0.32, '#453e5e');
+      X.blob(ctx, x, gy + c.r * 0.08, c.r * 0.9, c.r * 0.16, '#8e86a8');
     }
-    for (const r of RUINS) { const x = r.x - cam; if (x < -60 || x > VW + 60) continue; AH.blit(ctx, AH.S['ruin' + r.k], 0, x, groundY(r.x) + 2); }
-    for (const r of OUT_ROCKS) {
-      const x = r.x - cam; if (x < -24 || x > VW + 24) continue;
-      AH.blit(ctx, AH.S['rock' + r.k], 0, x, groundY(r.x) + 2);
+    for (const r of RUINS) { const gy = groundY(r.x); if (gy < VH) AH.blit(ctx, AH.S['ruin' + r.k], 0, r.x - cam, gy + 2); }
+    for (const r of OUT_ROCKS) { const gy = groundY(r.x); if (gy < VH) AH.blit(ctx, AH.S['rock' + r.k], 0, r.x - cam, gy + 2); }
+    // a rim of dust hanging off the limb, so the edge reads as curved
+    ctx.globalAlpha = 0.3;
+    for (let a = -1.35; a < 1.36; a += 0.045) {
+      const rx = MOON.cx + Math.sin(a) * (MOON.r + 3), ry = MOON.cy - Math.cos(a) * (MOON.r + 3);
+      if (ry > VH) continue;
+      X.rect(ctx, rx, ry, 2, 2, '#6b6480');
     }
+    ctx.globalAlpha = 1;
+    void t;
   }
 
   function drawOutside(ctx, g, t, cam) {
     drawSpace(ctx, g, t, cam);
-    drawRegolith(ctx, t, cam);
+    drawBall(ctx, t, cam);
 
-    // the house, standing on the regolith with light in the window
+    // the house, standing on the curve with light in the window
     const hx = OUT_SPOTS[0].x - cam;
-    if (hx > -180 && hx < VW + 180) {
-      const gy = groundY(OUT_SPOTS[0].x);
-      X.blob(ctx, hx, gy + 2, 84, 6, '#241f36');
-      AH.blit(ctx, AH.S.house, 1, hx, gy + 3);
-      F.draw(ctx, 'MY HOUSE', hx - 1, gy - 52, '#ffe9a8', { center: true });
-      // smoke out of the chimney, in fat stepped puffs
-      for (let i = 0; i < 6; i++) {
-        const f = ((t * 0.3 + i / 6) % 1);
-        ctx.globalAlpha = (1 - f) * 0.45;
-        X.blob(ctx, hx + 46 + Math.sin(f * 5 + i) * 8, gy - 98 - f * 56, 4 + f * 12, 3 + f * 10, '#6b6480');
-      }
-      ctx.globalAlpha = 1;
+    const gy = groundY(OUT_SPOTS[0].x);
+    X.blob(ctx, hx, gy + 2, 46, 4, '#241f36');
+    AH.blit(ctx, AH.S.house, 1, hx, gy + 3);
+    F.draw(ctx, 'MY HOUSE', hx - 1, gy - 82, '#ffe9a8', { center: true });
+    // smoke out of the chimney, in fat stepped puffs
+    for (let i = 0; i < 6; i++) {
+      const f = ((t * 0.3 + i / 6) % 1);
+      ctx.globalAlpha = (1 - f) * 0.45;
+      X.blob(ctx, hx + 27 + Math.sin(f * 5 + i) * 7, gy - 70 - f * 44, 3 + f * 9, 2 + f * 8, '#6b6480');
     }
+    ctx.globalAlpha = 1;
 
     // the UFO, up on its bricks, bobbing because nothing here sits still
     const ux = OUT_SPOTS[1].x - cam;
-    if (ux > -110 && ux < VW + 110) {
-      const gy = groundY(OUT_SPOTS[1].x);
-      X.blob(ctx, ux, gy + 1, 48, 5, '#241f36');
-      AH.blit(ctx, AH.S.saucer, Math.floor(t * 3) % 2, ux, gy + 2 + Math.sin(t * 1.6) * 1);
-      AH.blit(ctx, AH.S.flag, Math.floor(t * 4) % 2, ux + 86, groundY(OUT_SPOTS[1].x + 86) + 2);
-    }
+    const uy = groundY(OUT_SPOTS[1].x);
+    X.blob(ctx, ux, uy + 1, 40, 4, '#241f36');
+    AH.blit(ctx, AH.S.saucer, Math.floor(t * 3) % 2, ux, uy + 2 + Math.sin(t * 1.6) * 1);
+    const fx = OUT_SPOTS[1].x + 54;
+    AH.blit(ctx, AH.S.flag, Math.floor(t * 4) % 2, fx - cam, groundY(fx) + 2);
+    const svx = OUT_SPOTS[0].x - 66;
+    AH.blit(ctx, AH.S.survey, 0, svx - cam, groundY(svx) + 2);
   }
 
   function rockEdge(ctx, x0, x1, y, dir, col, colD, amp) {
@@ -410,13 +472,33 @@
   }
 
   function drawInside(ctx, g, t, cam) {
-    X.rect(ctx, 0, 0, VW, VH, '#15111f');
+    /* The room is a hole knocked in a moon. Solid rock fills the screen and
+       the room is clipped out of the middle of it, which is what makes it read
+       as SMALL: you can see the walls end. */
+    X.rect(ctx, 0, 0, VW, VH, '#0c0916');
     const wall = AH.S.wall;
+    ctx.globalAlpha = 0.32;
+    for (let y = -wall.h; y < VH + wall.h; y += wall.h) {
+      for (let x = -20; x < VW + wall.w; x += wall.w) AH.blit(ctx, wall, 0, x, y);
+    }
+    ctx.globalAlpha = 1;
+    for (let x = 0; x < VW; x += 3) {
+      if (U.hash2(x, 3) > 0.7) X.rect(ctx, x, 0, 3, VH, 'rgba(4,2,10,0.35)');
+    }
+
+    /* The room is only 92 pixels tall and 232 across. Clipping to exactly that
+       is what sells it: rock above, rock either side, and a little lit box in
+       the middle of a dead moon. */
+    const rx0 = -cam, rw = IN_W, ry0 = CEIL - 26;
+    ctx.save();
+    ctx.beginPath(); ctx.rect(rx0, ry0, rw, VH - ry0); ctx.clip();
+
+    X.rect(ctx, rx0, ry0, rw, VH - ry0, '#15111f');
     for (let y = CEIL; y < FLOOR + 4; y += wall.h) {
       for (let x = -cam - 40; x < VW + wall.w; x += wall.w) AH.blit(ctx, wall, 0, x, y);
     }
     // a crack he has been meaning to look at
-    let kx = 70 - cam, ky = CEIL + 6;
+    let kx = 40 - cam, ky = CEIL + 6;
     for (let i = 0; i < 20; i++) {
       const w = 3 - (i % 3);
       X.rect(ctx, kx, ky, w, 4, '#241f36');
@@ -426,7 +508,7 @@
     // the warm pool the monitor throws over that end of the room
     for (let i = 0; i < 4; i++) {
       ctx.globalAlpha = 0.055;
-      X.dither(ctx, IN_SPOTS[0].x - cam - 80 + i * 9, CEIL + 4 + i * 7, 160 - i * 18, FLOOR - CEIL - i * 14, '#ffd39a', i % 2);
+      X.dither(ctx, IN_SPOTS[0].x - cam - 54 + i * 7, CEIL + 4 + i * 5, 108 - i * 14, FLOOR - CEIL - i * 10, '#ffd39a', i % 2);
     }
     ctx.globalAlpha = 1;
 
@@ -444,18 +526,18 @@
     X.rect(ctx, 0, CEIL - 16, VW, 1, '#9aa3c4');
     X.rect(ctx, 0, CEIL - 10, VW, 1, '#39405e');
     for (let i = 0; i < 10; i++) {
-      const x = 30 + i * 58 - cam; if (x < -20 || x > VW + 20) continue;
+      const x = 14 + i * 30 - cam; if (x < -20 || x > VW + 20) continue;
       X.rect(ctx, x, CEIL - 19, 6, 10, '#39405e');
       X.rect(ctx, x, CEIL - 19, 6, 1, '#9aa3c4');
     }
     const hang = [
-      { x: 66, k: 0, L: 62 }, { x: 168, k: 1, L: 74 }, { x: 262, k: 2, L: 68 },
-      { x: 336, k: 0, L: 80 }, { x: 404, k: 1, L: 58 }
+      { x: 22, k: 0, L: 26 }, { x: 74, k: 1, L: 34 }, { x: 116, k: 2, L: 28 },
+      { x: 160, k: 0, L: 38 }, { x: 214, k: 1, L: 24 }
     ];
     for (const h of hang) {
       const x = h.x - cam; if (x < -26 || x > VW + 26) continue;
       // they swing on their own, and much harder when you jump into them
-      const kick = S.swing * (1 - Math.min(1, Math.abs(h.x - P.x) / 80)) * 7;
+      const kick = S.swing * (1 - Math.min(1, Math.abs(h.x - P.x) / 50)) * 7;
       const sw = Math.sin(t * 1.1 + h.x) * 2 + Math.sin(t * 11 + h.x) * kick;
       const yb = CEIL - 9 + h.L;
       for (let j = 0; j < h.L; j += 3) X.rect(ctx, x + sw * (j / h.L), CEIL - 9 + j, 2, 3, j % 6 ? '#241f36' : '#3a3450');
@@ -476,7 +558,7 @@
       X.rect(ctx, x, CEIL + h - 1, 3, 1, '#332e4a');
     }
     for (let i = 0; i < 14; i++) {
-      const wx = 6 + i * 34 + U.hash2(i, 41) * 18, x = wx - cam;
+      const wx = 4 + i * 17 + U.hash2(i, 41) * 9, x = wx - cam;
       if (x < -14 || x > VW + 14) continue;
       if (U.hash2(i, 55) > 0.72) continue;              // gaps, so it is not a comb
       const h = 6 + U.hash2(i, 5) * 30, w0 = 4 + U.hash2(i, 17) * 6;
@@ -486,16 +568,16 @@
       }
     }
     // one bare bulb, flickering because he wired it
-    const bx = 210 - cam, flick = U.hash2((t * 8) | 0, 3) > 0.06;
-    X.rect(ctx, bx, CEIL - 9, 1, 70, '#191320');
-    X.rect(ctx, bx - 4, CEIL + 60, 9, 4, '#8e86a8');
-    X.rect(ctx, bx - 3, CEIL + 64, 7, 8, flick ? '#ffe9a8' : '#6b6450');
+    const bx = 88 - cam, flick = U.hash2((t * 8) | 0, 3) > 0.06;
+    X.rect(ctx, bx, CEIL - 9, 1, 30, '#191320');
+    X.rect(ctx, bx - 4, CEIL + 20, 9, 4, '#8e86a8');
+    X.rect(ctx, bx - 3, CEIL + 24, 7, 8, flick ? '#ffe9a8' : '#6b6450');
     if (flick) {
-      X.rect(ctx, bx - 2, CEIL + 65, 3, 3, '#ffffff');
+      X.rect(ctx, bx - 2, CEIL + 25, 3, 3, '#ffffff');
       for (let i = 3; i >= 0; i--) {
         ctx.globalAlpha = 0.05;
-        const w = 30 + i * 26;
-        X.dither(ctx, bx - w / 2, CEIL + 68, w, FLOOR - CEIL - 68 - i * 4, '#ffe9a8', i % 2);
+        const w = 26 + i * 22;
+        X.dither(ctx, bx - w / 2, CEIL + 30, w, FLOOR - CEIL - 30 - i * 3, '#ffe9a8', i % 2);
       }
       ctx.globalAlpha = 1;
     }
@@ -511,10 +593,10 @@
       X.rect(ctx, x + 12, FLOOR + 30, 22, 1, '#332e4a');
     }
     // a rug, worn through
-    const rx = 200 - cam;
-    X.rect(ctx, rx - 62, FLOOR + 1, 124, 8, '#7a3f4a');
-    X.rect(ctx, rx - 62, FLOOR + 1, 124, 2, '#9c5460');
-    for (let i = 0; i < 12; i++) X.rect(ctx, rx - 58 + i * 10, FLOOR + 4, 6, 3, i % 2 ? '#5e2f38' : '#8a4854');
+    const rx = 96 - cam;
+    X.rect(ctx, rx - 42, FLOOR + 1, 84, 8, '#7a3f4a');
+    X.rect(ctx, rx - 42, FLOOR + 1, 84, 2, '#9c5460');
+    for (let i = 0; i < 8; i++) X.rect(ctx, rx - 38 + i * 10, FLOOR + 4, 6, 3, i % 2 ? '#5e2f38' : '#8a4854');
 
     // posters, taped crooked
     for (const p of POSTERS) {
@@ -523,48 +605,48 @@
       X.rect(ctx, x - 8, p.y - 2, 16, 4, '#e8e05a');
     }
     // a tally of every world he has taken apart, scratched into the rock
-    const tx = 300 - cam, kills = g.save.destroyed.filter(Boolean).length;
-    if (tx > -60 && tx < VW + 60) {
-      F.draw(ctx, 'WORLDS I ATE', tx, 152, '#8e86a8', { shadow: false });
+    const tx = 96 - cam, kills = g.save.destroyed.filter(Boolean).length;
+    {
+      F.draw(ctx, 'WORLDS I ATE', tx, 138, '#8e86a8', { shadow: false });
       for (let i = 0; i < kills; i++) {
-        const gx = tx + (i % 10) * 7, gy = 164 + ((i / 10) | 0) * 12;
-        X.rect(ctx, gx, gy, 2, 9, '#c9bce8');
+        const gx = tx + (i % 10) * 7, gy = 150 + ((i / 10) | 0) * 11;
+        X.rect(ctx, gx, gy, 2, 8, '#c9bce8');
         if (i % 5 === 4) X.rect(ctx, gx - 26, gy + 3, 30, 2, '#c9bce8');
       }
-      if (!kills) F.draw(ctx, 'NONE YET', tx, 164, '#5f5680', { shadow: false });
+      if (!kills) F.draw(ctx, 'NONE YET', tx, 150, '#5f5680', { shadow: false });
     }
     // hooks with tools on them, and a shelf of rocks he is proud of
-    const hx = 150 - cam;
-    if (hx > -40 && hx < VW + 40) {
-      X.rect(ctx, hx - 40, 140, 62, 2, '#4a4260');
+    const hx = 22 - cam;
+    {
+      X.rect(ctx, hx - 12, 146, 54, 2, '#4a4260');
       for (let i = 0; i < 3; i++) {
-        X.rect(ctx, hx - 34 + i * 21, 142, 2, 6, '#8e86a8');
-        X.rect(ctx, hx - 38 + i * 21, 148, 11, 15, ['#8e86a8', '#c46a3a', '#5ad0e8'][i]);
-        X.rect(ctx, hx - 38 + i * 21, 148, 11, 2, '#c9bce8');
+        X.rect(ctx, hx - 6 + i * 19, 148, 2, 5, '#8e86a8');
+        X.rect(ctx, hx - 10 + i * 19, 153, 10, 13, ['#8e86a8', '#c46a3a', '#5ad0e8'][i]);
+        X.rect(ctx, hx - 10 + i * 19, 153, 10, 2, '#c9bce8');
       }
     }
-    const shx = 366 - cam;
-    if (shx > -40 && shx < VW + 40) {
-      X.rect(ctx, shx - 28, 166, 56, 3, '#7a5a3a');
-      X.rect(ctx, shx - 28, 166, 56, 1, '#9c7a52');
-      X.rect(ctx, shx - 26, 169, 3, 4, '#5a4028'); X.rect(ctx, shx + 23, 169, 3, 4, '#5a4028');
+    const shx = 174 - cam;
+    {
+      X.rect(ctx, shx - 26, 176, 52, 3, '#7a5a3a');
+      X.rect(ctx, shx - 26, 176, 52, 1, '#9c7a52');
+      X.rect(ctx, shx - 24, 179, 3, 4, '#5a4028'); X.rect(ctx, shx + 21, 179, 3, 4, '#5a4028');
       const shiny = [D.M.gold, D.M.emerald, D.M.iron];
-      for (let i = 0; i < 3; i++) PD.art.oreChip(ctx, shiny[i], shx - 24 + i * 17, 155, 11);
+      for (let i = 0; i < 3; i++) PD.art.oreChip(ctx, shiny[i], shx - 22 + i * 16, 165, 11);
     }
 
     // the door out, a rough arch with rubber strips
     const dx = IN_SPOTS[2].x - cam;
-    X.rect(ctx, dx - 26, CEIL + 10, 52, FLOOR - CEIL - 10, '#120e1c');
-    for (let i = 0; i < 8; i++) {
-      const cx2 = dx - 24 + i * 6, sw = Math.sin(t * 1.2 + i * 0.6) * 1.5;
-      const len = 46 + (i % 3) * 10;
-      for (let j = 0; j < len; j += 2) X.rect(ctx, cx2 + sw * (j / len), CEIL + 14 + j, 4, 2, j % 4 ? '#3f3856' : '#4a4260');
-      X.rect(ctx, cx2, CEIL + 14, 4, 2, '#8e86a8');
+    X.rect(ctx, dx - 20, CEIL + 12, 40, FLOOR - CEIL - 12, '#120e1c');
+    for (let i = 0; i < 7; i++) {
+      const cx2 = dx - 18 + i * 5, sw = Math.sin(t * 1.2 + i * 0.6) * 1.5;
+      const len = 40 + (i % 3) * 8;
+      for (let j = 0; j < len; j += 2) X.rect(ctx, cx2 + sw * (j / len), CEIL + 16 + j, 4, 2, j % 4 ? '#3f3856' : '#4a4260');
+      X.rect(ctx, cx2, CEIL + 16, 4, 2, '#8e86a8');
     }
-    rockEdge(ctx, (dx - 30) | 0, (dx + 30) | 0, CEIL + 10, 1, '#4a4260', '#241f36', 8);
-    X.rect(ctx, dx - 40, CEIL + 20, 30, 14, '#7a5a3a');
-    X.rect(ctx, dx - 40, CEIL + 20, 30, 2, '#9c7a52');
-    F.draw(ctx, 'OWT', dx - 25, CEIL + 24, '#ffe9a8', { center: true });
+    rockEdge(ctx, (dx - 24) | 0, (dx + 24) | 0, CEIL + 12, 1, '#4a4260', '#241f36', 8);
+    X.rect(ctx, dx - 13, CEIL - 2, 26, 12, '#7a5a3a');
+    X.rect(ctx, dx - 13, CEIL - 2, 26, 2, '#9c7a52');
+    F.draw(ctx, 'OWT', dx, CEIL + 1, '#ffe9a8', { center: true });
 
     // the mess
     for (const p of IN_PROPS) {
@@ -596,9 +678,23 @@
     }
     ctx.globalAlpha = 1;
 
+    // THE BRAIN IN THE JAR. The only clean thing in the house, and the only
+    // thing in it that knows anything. It stands in front of the mess.
+    const jx = IN_SPOTS[1].x - cam;
+    const jf = Math.floor(t * 2.4) % 3;
+    for (let i = 3; i >= 0; i--) {
+      ctx.globalAlpha = 0.05 + i * 0.01;
+      const w = 40 + i * 24;
+      X.dither(ctx, jx - w / 2, CEIL + 6, w, FLOOR - CEIL - 6, '#4cff9a', i % 2);
+    }
+    ctx.globalAlpha = 1;
+    X.blob(ctx, jx, FLOOR + 2, 30, 4, '#1a2a20');
+    AH.blit(ctx, AH.S.brainjar, jf, jx, FLOOR + 2);
+    if (U.chance(0.04)) FX.spawn({ x: jx + cam + U.rand(-14, 14), y: FLOOR - 88, vx: U.rand(-6, 6), vy: U.rand(-16, -5), life: 1.1, size: 2, color: '#8affd0', grav: -0.06, drag: 0.96, glow: 1 });
+
     // the cheese, until he takes it
     if (!g.save.pet) {
-      const cx3 = RAT_SPOT.x + 34 - cam;
+      const cx3 = RAT_SPOT.x + 16 - cam;
       AH.blit(ctx, AH.S.cheese, 0, cx3, FLOOR + 1);
     }
     // drips off the roof
@@ -608,6 +704,23 @@
       if (f < 0.7) X.rect(ctx, x, CEIL + 20 + f / 0.7 * (FLOOR - CEIL - 26), 1, 3, '#8affa0');
       else if (f < 0.78) X.rect(ctx, x - 3, FLOOR - 3, 7, 1, '#8affa0');
     }
+    ctx.restore();
+
+    // the rock the room was knocked out of, closing in on all four sides
+    const rx1 = rx0 + rw;
+    rockEdge(ctx, (rx0 - 8) | 0, (rx1 + 8) | 0, ry0, 1, '#3a3450', '#241f36', 9);
+    for (let y = ry0; y < VH; y += 4) {
+      const w = 3 + Math.round(U.hash2(y, 13) * 5);
+      X.rect(ctx, rx0 - 1, y, w, 4, '#241f36');
+      X.rect(ctx, rx0 + w - 2, y, 1, 4, '#4a4260');
+      const w2 = 3 + Math.round(U.hash2(y, 27) * 5);
+      X.rect(ctx, rx1 - w2 + 1, y, w2, 4, '#241f36');
+      X.rect(ctx, rx1 - w2 + 1, y, 1, 4, '#4a4260');
+    }
+    ctx.globalAlpha = 0.5;
+    X.rect(ctx, rx0 - 6, ry0, 6, VH - ry0, '#0c0916');
+    X.rect(ctx, rx1, ry0, 6, VH - ry0, '#0c0916');
+    ctx.globalAlpha = 1;
   }
 
   /* He is enormous, he bounces, and he squashes when he lands. */
@@ -632,7 +745,8 @@
     const s = P.near;
     if (!s) return;
     const x = Math.round(s.x - cam);
-    const lift = s.id === 'ufo' ? 74 : (s.id === 'door' ? 130 : 60);
+    const LIFTS = { ufo: 60, door: 88, brain: 96, pc: 54, exit: 74, rat: 44 };
+    const lift = LIFTS[s.id] || 60;
     const y = Math.round(groundY(s.x) - lift + Math.sin(t * 5) * 2);
     const w = Math.max(F.width(s.name, 1), F.width(s.sub, 1)) + 18;
     X.rect(ctx, x - w / 2 + 2, y + 2, w, 26, 'rgba(6,3,14,0.5)');
@@ -707,17 +821,21 @@
       if (U.chance(0.5)) FX.dust(P.x - P.face * 6, P.y, 1, '#8e86a8', 8);
       return;
     }
-    const set = air ? skin.alienFly : (walking ? skin.alienWalk : skin.alien);
-    const frame = air ? Math.floor(t * 8) % 2 : (walking ? Math.floor(P.walk * 1.1) % 4 : (Math.sin(t * 1.3) > 0.94 ? 4 : Math.floor(t * 7) % 4));
+    // the live rig: his legs plant and swing off his own speed, so walking
+    // across the moon is a real cycle rather than four pictures
+    if (!P.rig) P.rig = PD.rig.make();
+    const r = P.rig;
+    PD.rig.step(r, { dt: g.dt, vx: P.vx, vy: P.vy, ground: !air, drilling: false });
+    const frame = Math.sin(t * 1.3) > 0.94 ? 4 : Math.floor(t * 7) % 4;
     // BOUNCY: a deep squash on landing, a stretch on the way up, and a little
     // extra wobble the whole time so nothing in this game is ever rigid.
     const wob = walking ? Math.sin(P.walk * 2.2) * 0.05 : Math.sin(t * 3.4) * 0.022;
     const sq = P.land > 0 ? 1 + P.land * 1.5 : (air ? (P.vy < -60 ? 0.84 : (P.vy > 90 ? 1.1 : 1)) : 1 + wob);
-    ctx.save();
-    ctx.translate(x, y);
-    ctx.scale(P.face < 0 ? -sq : sq, 1 / sq);
-    ctx.drawImage(set.frames[frame], -set.ox, -set.oy, set.w, set.h);
-    ctx.restore();
+    PD.rig.draw(ctx, r, {
+      x, y, flip: P.face < 0, spr: skin.alienCore, frame,
+      drilling: false, twoHand: false, grip: null, aim: P.face < 0 ? Math.PI : 0,
+      ground: !air, vx: P.vx, vy: P.vy, squash: sq
+    }, skin.P, PD.art.BIZ);
     if (walking && !air && U.chance(0.2)) FX.dust(P.x - P.face * 5, P.y, 1, '#8e86a8', 10);
   }
 

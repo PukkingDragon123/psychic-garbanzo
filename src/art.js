@@ -82,7 +82,12 @@
     P = P || C;
     const sheet = pix(72, 104);
     const p = offsetPix(sheet, 4, 16);
-    const walk = pose === 'walk', fly = pose === 'fly', drill = pose === 'drill', roll = pose === 'roll';
+    // 'core' and 'coredrill' draw the body with NO arms and NO legs: the
+    // renderer builds those out of live limb segments instead, so they can
+    // swing, bend and stretch instead of stepping through four baked poses.
+    const bare = pose === 'core' || pose === 'coredrill';
+    const walk = pose === 'walk', fly = pose === 'fly', roll = pose === 'roll';
+    const drill = pose === 'drill' || pose === 'coredrill';
     const skin = P.skin, skinD = P.skinD, skinL = P.skinL;
 
     if (roll) {
@@ -120,7 +125,9 @@
     const hx = bx - (drill ? 1 : 0);
 
     /* ---- legs: long, knock-kneed, ending in enormous flat shoes ---- */
-    if (fly) {
+    if (bare) {
+      // nothing: the hips are bare and the renderer hangs live legs off them
+    } else if (fly) {
       p.round(21, 70, 8, 12, 3, BIZ.trousers); p.round(35, 72, 8, 10, 3, BIZ.trousers);
       p.round(13, 78, 20, 6, 3, BIZ.shoe); p.round(33, 79, 20, 6, 3, BIZ.shoe);
       p.rect(16, 79, 7, 2, BIZ.shoeL); p.rect(36, 80, 7, 2, BIZ.shoeL);
@@ -167,7 +174,9 @@
       p.rect(hx2 - 4, hy2 + 3, 2, 6, skin); p.rect(hx2 - 1, hy2 + 3, 2, 7, skin); p.rect(hx2 + 2, hy2 + 3, 2, 6, skin);
       p.set(hx2 - 4, hy2 + 8, skinD); p.set(hx2 - 1, hy2 + 9, skinD); p.set(hx2 + 2, hy2 + 8, skinD);
     };
-    if (drill) {
+    if (bare) {
+      // bare shoulders; the renderer hangs live arms off them
+    } else if (drill) {
       p.round(bx + 6 + jit, cy + 4, 21, 6, 3, BIZ.jacketD);
       p.round(bx + 4 + jit, cy + 12, 23, 6, 3, BIZ.jacketD);
       hand(bx + 28 + jit, cy + 6); hand(bx + 28 + jit, cy + 14);
@@ -264,6 +273,15 @@
     };
   }
 
+  /* The bare body, for the live rig. Four nose-jiggle frames plus a blink,
+     and three braced frames for when he is leaning on the drill. */
+  function coreSet(P) {
+    return {
+      core: [0, 1, 2, 3].map(i => buildAlien('core', i, P)).concat([buildAlien('core', 0, P, true)]),
+      coreDrill: [0, 1, 2].map(i => buildAlien('coredrill', i, P))
+    };
+  }
+
   const base = alienSet(C);
   const AOX = 18, AOY = 37;                         // logical anchor: the belt
   reg('alien', base.idle, AOX, AOY, 2);
@@ -271,6 +289,9 @@
   reg('alienFly', base.fly, AOX, AOY, 2);
   reg('alienDrill', base.drill, AOX, AOY, 2);
   reg('alienRoll', base.roll, AOX, 35, 2);
+  const baseCore = coreSet(C);
+  reg('alienCore', baseCore.core, AOX, AOY, 2);
+  reg('alienCoreDrill', baseCore.coreDrill, AOX, AOY, 2);
 
   /* ------------------------------------------------------------------- drill
      Horizontal, pointing right, anchored at the shoulder end. */
@@ -912,7 +933,10 @@
       return { frames, w: frames[0].width / k, h: frames[0].height / k, ox, oy, hd: k };
     };
     const frames = alienSet(P);
+    const cores = coreSet(P);
     const set = {
+      alienCore: mk(cores.core, AOX, AOY, 2),
+      alienCoreDrill: mk(cores.coreDrill, AOX, AOY, 2),
       alien: mk(frames.idle, AOX, AOY, 2),
       alienWalk: mk(frames.walk, AOX, AOY, 2),
       alienFly: mk(frames.fly, AOX, AOY, 2),
@@ -927,5 +951,5 @@
     return set;
   }
 
-  PD.art = { C, sprites, gemFor, oreChip, buildOre, ICON, skinFor, optOf, reg, blit, buildSaucer, pixOf: pix };
+  PD.art = { C, BIZ, sprites, gemFor, oreChip, buildOre, ICON, skinFor, optOf, reg, blit, buildSaucer, alienSet, coreSet, pixOf: pix };
 })(window.PD);

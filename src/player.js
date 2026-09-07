@@ -64,12 +64,25 @@
 
   /* A stat is its upgrade line, plus whatever perk the Mind has grown on it. */
   Player.prototype.stat = function (id) {
-    const upg = this.g.save.upg;
+    const g = this.g;
+    const upg = g.save.upg;
     const u = D.UPG[id];
     let v = u.value(upg[id] || 0);
     if (id === 'oxygen') v += D.UPG.lung.value(upg.lung || 0);
     if (id === 'cargo') v += D.UPG.belly.value(upg.belly || 0);
     if (id === 'hull') v += D.UPG.ironskin.value(upg.ironskin || 0);
+    // and then whatever the brain in the jar has grown on top of it
+    const b = g.brain;
+    if (!b) return v;
+    if (id === 'drill') v *= 1 + b('dig') * 0.09;
+    else if (id === 'oxygen') v += b('air') * 14;
+    else if (id === 'cargo') v += b('sack') * 5;
+    else if (id === 'hull') v += b('tough') * 8;
+    else if (id === 'scanner') v *= 1 + b('nose') * 0.16;
+    else if (id === 'tether') v *= 1 + b('deep') * 0.12;
+    else if (id === 'magnet') v *= 1 + b('pockets') * 0.18;
+    else if (id === 'dash' || id === 'thruster') v *= 1 + b('boots') * 0.07;
+    else if (id === 'pistol' || id === 'scatter' || id === 'lance') v *= 1 + b('brawn') * 0.11;
     return v;
   };
 
@@ -315,7 +328,11 @@
     A.drill(true, this.drillPitch);
 
     const broke = w.damage(bite.cx, bite.cy, power);
-    if (broke) g.onTileBroken(bite.cx, bite.cy, broke, true);
+    if (broke) {
+      g.onTileBroken(bite.cx, bite.cy, broke, true);
+      // the bite lands in his shoulders: the whole rig kicks back off it
+      PD.rig.hit(this.rig, U.clamp(D.MAT[broke].hp / 160, 0.5, 1.4));
+    }
 
     // The bore is always wider than the bit: a one-tile shaft is narrower
     // than the player, so a single-tile tunnel would wedge you in place.
@@ -471,10 +488,14 @@
   /* ----------------------------------------------------------------- drawing */
   Player.prototype.draw = function (ctx, cam, t) {
     const skin = PD.art.skinFor(this.g.save.cos);
+    const B = PD.art.BIZ;
     const moving = Math.hypot(this.vx, this.vy) > 20 || this.thrusting.x || this.thrusting.y;
     const drilling = this.drilling && this.drillT > 0.05;
-    const spr = drilling ? skin.alienDrill : (moving || !this.onGround(this.g.world) ? skin.alienFly : skin.alien);
-    this.anim += 1 / 60 * (moving ? 8 : 3);
+    const ground = this.onGround(this.g.world);
+    if (!this.rig) this.rig = PD.rig.make();
+    const r = this.rig;
+    PD.rig.step(r, { dt: this.g.dt, vx: this.vx, vy: this.vy, ground, drilling });
+
     const drill = skin.drill;
     const gun = PD.art.sprites[this.weapon === 'pistol' ? 'gun' : this.weapon];
     const flip = Math.cos(this.aim) < 0;
@@ -484,10 +505,38 @@
     const jy = drilling ? Math.round(Math.cos(t * 70) * 1) : 0;
     const px = this.x - cam.x - Math.cos(this.aim) * kick + jx, py = this.y - cam.y - Math.sin(this.aim) * kick * 0.5 + jy;
 
+    // the body he is wearing this frame: bare torso, and the limbs live
+    const spr = drilling ? skin.alienCoreDrill : skin.alienCore;
+    this.anim += 1 / 60 * (moving ? 8 : 3);
+    let frame;
+    if (drilling) frame = Math.floor(t * 30) % 3;
+    else frame = this.blink < 0 ? 4 : Math.floor(t * 7) % 4;   // the nose never settles
+
+    // where the tool sits in his hands
+    const hx = px + Math.cos(this.aim) * (drilling ? 11 : 8), hy = py + Math.sin(this.aim) * (drilling ? 11 : 8) + 1;
+    // squash and stretch off the vertical: falling stretches him, landing squashes
+    const airsq = ground ? 1 : U.clamp(1 + this.vy * 0.0007, 0.86, 1.13);
+    const drawTool = (c) => {
+      c.save();
+      c.translate(hx | 0, hy | 0);
+      c.rotate(this.aim);
+      if (flip) c.scale(1, -1);
+      if (drilling) c.translate(U.rand(-1.5, 1.5), U.rand(-1, 1));
+      const df = drill.frames[Math.floor(this.drillSpin) % drill.frames.length];
+      c.drawImage(df, -drill.ox, -drill.oy, drill.w, drill.h);
+      c.restore();
+    };
+    const body = {
+      x: px, y: py - 1, flip, spr, frame, drilling, twoHand: drilling,
+      grip: { x: hx, y: hy }, aim: this.aim, ground, vx: this.vx, vy: this.vy,
+      squash: airsq, tint: this.hurtT > 0.15, tool: drawTool
+    };
+
     if (this.dashT > 0) {
-      ctx.globalAlpha = 0.35;
-      for (let k = 1; k <= 3; k++) {
-        PD.ent.drawSprite(ctx, spr, 0, px - this.vx * k * 0.012, py - this.vy * k * 0.012 - 1, flip, true);
+      ctx.globalAlpha = 0.3;
+      for (let k = 3; k >= 1; k--) {
+        const gx = px - this.vx * k * 0.012, gy = py - this.vy * k * 0.012 - 1;
+        PD.rig.draw(ctx, r, Object.assign({}, body, { x: gx, y: gy, tint: true }), skin.P, B);
       }
       ctx.globalAlpha = 1;
     } else if (this.invuln > 0 && Math.sin(this.invuln * 40) < -0.2) return;
@@ -504,29 +553,10 @@
       ctx.restore();
     }
 
-    // the body first, then the drill in his hands
-    let frame;
-    if (drilling) frame = Math.floor(t * 30) % 3;
-    else if (spr === skin.alien) frame = this.blink < 0 ? 4 : Math.floor(t * 7) % 4;   // the nose never settles
-    else frame = Math.floor(this.anim) % 2;
-    PD.ent.drawSprite(ctx, spr, frame, px, py - 1, flip, this.hurtT > 0.15);
+    // the body, the tool in its grip and the hands over it, in one pass
+    PD.rig.draw(ctx, r, body, skin.P, B);
 
-    // drill: gripped at the hands, pointing where he aims
-    const hx = px + Math.cos(this.aim) * (drilling ? 11 : 8), hy = py + Math.sin(this.aim) * (drilling ? 11 : 8) + 1;
-    ctx.save();
-    ctx.translate(hx | 0, hy | 0);
-    ctx.rotate(this.aim);
-    if (flip) ctx.scale(1, -1);
-    if (drilling) ctx.translate(U.rand(-1.5, 1.5), U.rand(-1, 1));
-    const df = drill.frames[Math.floor(this.drillSpin) % drill.frames.length];
-    ctx.drawImage(df, -drill.ox, -drill.oy, drill.w, drill.h);
-    ctx.restore();
-    if (!drilling) {
-      // the idle arm reaching to the tool
-      ctx.strokeStyle = '#2b3a66'; ctx.lineWidth = 3;
-      ctx.beginPath(); ctx.moveTo(px + (flip ? -4 : 4), py - 1); ctx.lineTo(hx, hy); ctx.stroke();
-      ctx.fillStyle = skin.P.skin; ctx.fillRect(hx - 2, hy - 2, 4, 4);
-    } else {
+    if (drilling) {
       // hot sparks and grit off the bit
       if (U.chance(0.45)) {
         const tx = hx + Math.cos(this.aim) * 24, ty = hy + Math.sin(this.aim) * 24;

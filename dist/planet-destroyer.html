@@ -514,21 +514,18 @@ window.PD = window.PD || {};
     }
     ctx.closePath();
   }
+  /* Hard-edged: scanline fill and an outline of integer runs, never a stroke.
+     A stroked hexagon leaves anti-aliased pixels down every diagonal, which is
+     what made the touch pad look blurry next to the rest of the game. */
   function hex(ctx, x, y, r, fill, stroke, lw) {
-    hexPath(ctx, x, y, r);
-    if (fill) { ctx.fillStyle = fill; ctx.fill(); }
-    if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = lw || 1; ctx.stroke(); }
+    PD.pxd.hex(ctx, x, y, r, fill, stroke, lw);
   }
-  /* Six-segment progress ring drawn as hex arcs. */
+  /* Six-segment progress ring drawn as hex edges. */
   function hexProgress(ctx, x, y, r, frac, col) {
-    ctx.strokeStyle = col; ctx.lineWidth = 2;
     const segs = Math.round(U.clamp(frac, 0, 1) * 6);
     for (let i = 0; i < segs; i++) {
       const a0 = -Math.PI / 2 + i * Math.PI / 3, a1 = a0 + Math.PI / 3;
-      ctx.beginPath();
-      ctx.moveTo(x + Math.cos(a0) * r, y + Math.sin(a0) * r);
-      ctx.lineTo(x + Math.cos(a1) * r, y + Math.sin(a1) * r);
-      ctx.stroke();
+      PD.pxd.line(ctx, x + Math.cos(a0) * r, y + Math.sin(a0) * r, x + Math.cos(a1) * r, y + Math.sin(a1) * r, col, 2);
     }
   }
 
@@ -589,6 +586,57 @@ window.PD = window.PD || {};
     }
   }
 
+  /* A HARD-EDGED convex polygon. Canvas path fills are anti-aliased, which on
+     a 45-degree edge leaves a row of half-lit pixels and makes the whole UI
+     look soft. This scanline-fills instead: one whole-pixel run per row, so
+     every shape in the game has a hard edge whatever angle it is cut at. */
+  function poly(ctx, pts, col) {
+    let y0 = 1e9, y1 = -1e9;
+    for (const p of pts) { if (p[1] < y0) y0 = p[1]; if (p[1] > y1) y1 = p[1]; }
+    y0 = Math.floor(y0); y1 = Math.ceil(y1);
+    ctx.fillStyle = col;
+    for (let y = y0; y <= y1; y++) {
+      const yc = y + 0.5;
+      let lo = 1e9, hi = -1e9;
+      for (let i = 0; i < pts.length; i++) {
+        const a = pts[i], b = pts[(i + 1) % pts.length];
+        if ((a[1] <= yc && b[1] > yc) || (b[1] <= yc && a[1] > yc)) {
+          const x = a[0] + (b[0] - a[0]) * (yc - a[1]) / (b[1] - a[1]);
+          if (x < lo) lo = x;
+          if (x > hi) hi = x;
+        }
+      }
+      if (hi < lo) continue;
+      const xa = Math.round(lo), xb = Math.round(hi);
+      if (xb > xa) ctx.fillRect(xa, y, xb - xa, 1);
+    }
+  }
+
+  /* Its outline, walked as integer runs rather than stroked. */
+  function polyEdge(ctx, pts, col, w) {
+    for (let i = 0; i < pts.length; i++) {
+      const a = pts[i], b = pts[(i + 1) % pts.length];
+      line(ctx, a[0], a[1], b[0], b[1], col, w || 1);
+    }
+  }
+
+  function octPts(x, y, r) {
+    x = Math.round(x); y = Math.round(y); r = Math.max(2, Math.round(r));
+    const c = Math.max(1, Math.round(r * 0.42));
+    return [[x - r + c, y - r], [x + r - c, y - r], [x + r, y - r + c], [x + r, y + r - c],
+      [x + r - c, y + r], [x - r + c, y + r], [x - r, y + r - c], [x - r, y - r + c]];
+  }
+
+  function hexPts(x, y, r) {
+    x = Math.round(x); y = Math.round(y); r = Math.max(2, Math.round(r));
+    const out = [];
+    for (let i = 0; i < 6; i++) {
+      const a = Math.PI / 180 * (60 * i - 30);
+      out.push([Math.round(x + Math.cos(a) * r), Math.round(y + Math.sin(a) * r)]);
+    }
+    return out;
+  }
+
   /* Octagon: what a circle looks like when it is made of pixels. */
   function octPath(ctx, x, y, r) {
     x = Math.round(x); y = Math.round(y); r = Math.max(2, Math.round(r));
@@ -601,9 +649,16 @@ window.PD = window.PD || {};
     ctx.closePath();
   }
   function oct(ctx, x, y, r, fill, edge, lw) {
-    octPath(ctx, x, y, r);
-    if (fill) { ctx.fillStyle = fill; ctx.fill(); }
-    if (edge) { ctx.strokeStyle = edge; ctx.lineWidth = lw || 1; ctx.stroke(); }
+    const pts = octPts(x, y, r);
+    if (fill) poly(ctx, pts, fill);
+    if (edge) polyEdge(ctx, pts, edge, lw);
+  }
+
+  /* A hexagon, the UI's other shape, drawn the same hard way. */
+  function hex(ctx, x, y, r, fill, edge, lw) {
+    const pts = hexPts(x, y, r);
+    if (fill) poly(ctx, pts, fill);
+    if (edge) polyEdge(ctx, pts, edge, lw);
   }
 
   /* A blob of solid pixels: a true octagon, cut on the diagonal. There is no
@@ -659,6 +714,40 @@ window.PD = window.PD || {};
     }
   }
 
+  /* A LIMB: a tapered tube of stamped blocks between two joints, with a dark
+     rim and a lit side. Everything lands on whole units, so an arm can swing
+     and stretch to any angle and still read as pixels rather than a smear.
+     Coordinates are in whatever space the caller has scaled to -- the player
+     draws limbs in sprite units so they match the density of his baked body. */
+  function limb(ctx, x0, y0, x1, y1, w0, w1, col, light, dark) {
+    const dx = x1 - x0, dy = y1 - y0;
+    const len = Math.max(1, Math.hypot(dx, dy));
+    const n = Math.max(1, Math.ceil(len));
+    // perpendicular, for the highlight running down the lit side
+    const px = -dy / len, py = dx / len;
+    const pass = (grow, col2, ox, oy) => {
+      if (!col2) return;
+      ctx.fillStyle = col2;
+      for (let i = 0; i <= n; i++) {
+        const t = i / n;
+        const w = Math.round(w0 + (w1 - w0) * t) + grow;
+        if (w <= 0) continue;
+        const cx2 = Math.round(x0 + dx * t + ox), cy2 = Math.round(y0 + dy * t + oy);
+        ctx.fillRect(cx2 - (w >> 1), cy2 - (w >> 1), w, w);
+      }
+    };
+    pass(2, dark, 0, 0);
+    pass(0, col, 0, 0);
+    pass(-3, light, Math.round(px * 1.2), Math.round(py * 1.2));
+  }
+
+  /* A knuckle or knee: a small solid octagon that hides the seam between two
+     limb segments. */
+  function knob(ctx, x, y, r, col, light) {
+    oct(ctx, x, y, r, col, null);
+    if (light) oct(ctx, x - Math.max(1, r * 0.3), y - Math.max(1, r * 0.3), Math.max(1, r * 0.45), light, null);
+  }
+
   /* A quadratic sampled into integer segments, so wires and cables step. */
   function curve(ctx, x0, y0, cx, cy, x1, y1, col, thick, steps) {
     steps = steps || 14;
@@ -702,9 +791,7 @@ window.PD = window.PD || {};
     for (let i = steps; i >= 1; i--) {
       const f = i / steps;
       ctx.globalAlpha = (peak === undefined ? 0.5 : peak) * Math.pow(1 - f, 1.4);
-      octPath(ctx, x, y, r * f);
-      ctx.fillStyle = col;
-      ctx.fill();
+      poly(ctx, octPts(x, y, r * f), col);
     }
     ctx.globalAlpha = 1;
   }
@@ -743,7 +830,7 @@ window.PD = window.PD || {};
     ctx.fillRect(x, y, w, h);
   }
 
-  PD.pxd = { rect, plate, frame, oct, octPath, blob, ring, line, curve, orbit, glowBands, scanlines, dither };
+  PD.pxd = { rect, plate, frame, oct, octPath, octPts, hex, hexPts, poly, polyEdge, blob, ring, line, limb, knob, curve, orbit, glowBands, scanlines, dither };
 })(window.PD);
 
 /* ===== src/data.js ===== */
@@ -993,6 +1080,48 @@ window.PD = window.PD || {};
     { id: 'warp', name: 'WARP THINGY', seller: 'bort_electronics', stars: 4,
       blurb: 'GO TO FURTHER SECTORS. BUY MORE FOR MORE FAR.', base: 4000, growth: 3.4, max: 3 }
   ];
+  /* ------------------------------------------------------------- the brain
+     A brain in a jar of acid, wired to a stolen keyboard. It knows everything
+     and it will sell you some of it, but it does not want money -- it wants
+     THOTS, which you generate by hitting rocks and by taking worlds apart.
+
+     Each neuron sits on a ring around the stem and has to be wired to a
+     neighbour before it will light up, so the lattice grows outward. */
+  const NEURONS = [
+    { id: 'dig',     ring: 0, a: 0,    max: 8,  cost: 3,  name: 'HIT IT HARDER',   blurb: 'DRILL DOES MORE. OBVIOUS ONE.',        show: n => '+' + (n * 9) + '% DRILL', links: [] },
+    { id: 'air',     ring: 1, a: -58,  max: 8,  cost: 4,  name: 'BIGGER LUNGS',    blurb: 'BREATHE FOR LONGER. GROWN IN JAR.',    show: n => '+' + (n * 14) + ' AIR', links: ['dig'] },
+    { id: 'sack',    ring: 1, a: 58,   max: 8,  cost: 4,  name: 'DEEPER POCKETS',  blurb: 'CARRY MORE ROCK BEFORE FULL.',         show: n => '+' + (n * 5) + ' KG', links: ['dig'] },
+    { id: 'tough',   ring: 1, a: 180,  max: 8,  cost: 4,  name: 'THICKER MEAT',    blurb: 'TAKE MORE BITING. LESS DYING.',        show: n => '+' + (n * 8) + ' HP', links: ['dig'] },
+    { id: 'nose',    ring: 2, a: -100, max: 6,  cost: 7,  name: 'SMELL FOR SHINY', blurb: 'THE FINDER BOX BEEPS FURTHER OUT.',    show: n => '+' + (n * 16) + '% FIND', links: ['air'] },
+    { id: 'deep',    ring: 2, a: -20,  max: 6,  cost: 7,  name: 'LONGER STRING',   blurb: 'GO FURTHER DOWN BEFORE IT PULLS.',     show: n => '+' + (n * 12) + '% ROPE', links: ['air', 'sack'] },
+    { id: 'pockets', ring: 2, a: 26,   max: 6,  cost: 7,  name: 'STICKY HANDS',    blurb: 'ROCKS COME TO YOU FROM FURTHER.',      show: n => '+' + (n * 18) + '% GRAB', links: ['sack'] },
+    { id: 'boots',   ring: 2, a: 128,  max: 6,  cost: 7,  name: 'SPRINGY FEET',    blurb: 'JUMP HIGHER. RUN AWAY FASTER.',        show: n => '+' + (n * 7) + '% LEGS', links: ['tough'] },
+    { id: 'haggle',  ring: 3, a: 0,    max: 6,  cost: 14, name: 'ARGUE BETTER',    blurb: 'EVERY ROCK SELLS FOR MORE ON ABAY.',   show: n => '+' + (n * 7) + '% SALE', links: ['deep', 'pockets'] },
+    { id: 'rich',    ring: 3, a: -66,  max: 5,  cost: 18, name: 'GREEDY LUCK',     blurb: 'SOMETIMES ONE ROCK IS SECRETLY TWO.',  show: n => (n * 6) + '% DOUBLE', links: ['nose', 'deep'] },
+    { id: 'brawn',   ring: 3, a: 150,  max: 5,  cost: 18, name: 'ANGRY ARMS',      blurb: 'THE ZAP GUN HURTS THINGS MORE.',       show: n => '+' + (n * 11) + '% GUN', links: ['boots', 'tough'] },
+    { id: 'know',    ring: 3, a: 96,   max: 4,  cost: 26, name: 'KNOW A GUY',      blurb: 'ABAY PRICES DROP. HE OWES THE BRAIN.', show: n => '-' + (n * 5) + '% COST', links: ['boots', 'haggle'] }
+  ];
+  const NEUR = {};
+  for (const n of NEURONS) NEUR[n.id] = n;
+  /* Each level of a neuron costs a little more than the last. */
+  function neuronCost(n, level) { return Math.round(n.cost * Math.pow(1.5, level)); }
+  /* What the brain says when you plug something in. */
+  const BRAIN_LINES = [
+    'THAT IS IN YOU NOW. NO REFUNDS.',
+    'I HAVE PUT IT WHERE YOUR SPINE WAS.',
+    'MMM. WARM. THANK YOU.',
+    'YOU ARE VERY SLIGHTLY LESS STUPID.',
+    'I FELT THAT. DO IT AGAIN.',
+    'THE ACID AGREES WITH THIS PURCHASE.'
+  ];
+  const BRAIN_IDLE = [
+    'I AM A BRAIN. I AM IN A JAR. ASK ME THINGS.',
+    'HIT MORE ROCKS. THINKING IS NOT FREE.',
+    'YOUR NOSE IS ON WRONG. I CANNOT FIX IT.',
+    'THE RAT IS CLEVERER THAN YOU. SORRY.',
+    'I KNOW EVERYTHING. MOST OF IT IS BORING.'
+  ];
+
   const ABAYX = {};
   for (const it of ABAY) ABAYX[it.id] = it;
   function abayCost(it, level) {
@@ -1451,7 +1580,7 @@ window.PD = window.PD || {};
   }
 
   PD.data = { MAT, M, ENEMY, BODIES, UPGRADES, UPG, upgradeCost, recipe, COSMETICS, COS, TITLES, titleFor, bountyFor,
-    STRATA, ZONES, zoneOf, FLORA, ABAY, ABAYX, abayCost, FACTIONS, LORE, ORB, MIX, MACHINES, METALS, GEMS, JUNK, goodOf, goodFromKey, NODES, appraiseSeconds, appraiseFee };
+    STRATA, ZONES, zoneOf, FLORA, ABAY, ABAYX, abayCost, NEURONS, NEUR, neuronCost, BRAIN_LINES, BRAIN_IDLE, FACTIONS, LORE, ORB, MIX, MACHINES, METALS, GEMS, JUNK, goodOf, goodFromKey, NODES, appraiseSeconds, appraiseFee };
 })(window.PD);
 
 /* ===== src/art.js ===== */
@@ -1539,7 +1668,12 @@ window.PD = window.PD || {};
     P = P || C;
     const sheet = pix(72, 104);
     const p = offsetPix(sheet, 4, 16);
-    const walk = pose === 'walk', fly = pose === 'fly', drill = pose === 'drill', roll = pose === 'roll';
+    // 'core' and 'coredrill' draw the body with NO arms and NO legs: the
+    // renderer builds those out of live limb segments instead, so they can
+    // swing, bend and stretch instead of stepping through four baked poses.
+    const bare = pose === 'core' || pose === 'coredrill';
+    const walk = pose === 'walk', fly = pose === 'fly', roll = pose === 'roll';
+    const drill = pose === 'drill' || pose === 'coredrill';
     const skin = P.skin, skinD = P.skinD, skinL = P.skinL;
 
     if (roll) {
@@ -1577,7 +1711,9 @@ window.PD = window.PD || {};
     const hx = bx - (drill ? 1 : 0);
 
     /* ---- legs: long, knock-kneed, ending in enormous flat shoes ---- */
-    if (fly) {
+    if (bare) {
+      // nothing: the hips are bare and the renderer hangs live legs off them
+    } else if (fly) {
       p.round(21, 70, 8, 12, 3, BIZ.trousers); p.round(35, 72, 8, 10, 3, BIZ.trousers);
       p.round(13, 78, 20, 6, 3, BIZ.shoe); p.round(33, 79, 20, 6, 3, BIZ.shoe);
       p.rect(16, 79, 7, 2, BIZ.shoeL); p.rect(36, 80, 7, 2, BIZ.shoeL);
@@ -1624,7 +1760,9 @@ window.PD = window.PD || {};
       p.rect(hx2 - 4, hy2 + 3, 2, 6, skin); p.rect(hx2 - 1, hy2 + 3, 2, 7, skin); p.rect(hx2 + 2, hy2 + 3, 2, 6, skin);
       p.set(hx2 - 4, hy2 + 8, skinD); p.set(hx2 - 1, hy2 + 9, skinD); p.set(hx2 + 2, hy2 + 8, skinD);
     };
-    if (drill) {
+    if (bare) {
+      // bare shoulders; the renderer hangs live arms off them
+    } else if (drill) {
       p.round(bx + 6 + jit, cy + 4, 21, 6, 3, BIZ.jacketD);
       p.round(bx + 4 + jit, cy + 12, 23, 6, 3, BIZ.jacketD);
       hand(bx + 28 + jit, cy + 6); hand(bx + 28 + jit, cy + 14);
@@ -1721,6 +1859,15 @@ window.PD = window.PD || {};
     };
   }
 
+  /* The bare body, for the live rig. Four nose-jiggle frames plus a blink,
+     and three braced frames for when he is leaning on the drill. */
+  function coreSet(P) {
+    return {
+      core: [0, 1, 2, 3].map(i => buildAlien('core', i, P)).concat([buildAlien('core', 0, P, true)]),
+      coreDrill: [0, 1, 2].map(i => buildAlien('coredrill', i, P))
+    };
+  }
+
   const base = alienSet(C);
   const AOX = 18, AOY = 37;                         // logical anchor: the belt
   reg('alien', base.idle, AOX, AOY, 2);
@@ -1728,6 +1875,9 @@ window.PD = window.PD || {};
   reg('alienFly', base.fly, AOX, AOY, 2);
   reg('alienDrill', base.drill, AOX, AOY, 2);
   reg('alienRoll', base.roll, AOX, 35, 2);
+  const baseCore = coreSet(C);
+  reg('alienCore', baseCore.core, AOX, AOY, 2);
+  reg('alienCoreDrill', baseCore.coreDrill, AOX, AOY, 2);
 
   /* ------------------------------------------------------------------- drill
      Horizontal, pointing right, anchored at the shoulder end. */
@@ -2369,7 +2519,10 @@ window.PD = window.PD || {};
       return { frames, w: frames[0].width / k, h: frames[0].height / k, ox, oy, hd: k };
     };
     const frames = alienSet(P);
+    const cores = coreSet(P);
     const set = {
+      alienCore: mk(cores.core, AOX, AOY, 2),
+      alienCoreDrill: mk(cores.coreDrill, AOX, AOY, 2),
       alien: mk(frames.idle, AOX, AOY, 2),
       alienWalk: mk(frames.walk, AOX, AOY, 2),
       alienFly: mk(frames.fly, AOX, AOY, 2),
@@ -2384,7 +2537,272 @@ window.PD = window.PD || {};
     return set;
   }
 
-  PD.art = { C, sprites, gemFor, oreChip, buildOre, ICON, skinFor, optOf, reg, blit, buildSaucer, pixOf: pix };
+  PD.art = { C, BIZ, sprites, gemFor, oreChip, buildOre, ICON, skinFor, optOf, reg, blit, buildSaucer, alienSet, coreSet, pixOf: pix };
+})(window.PD);
+
+/* ===== src/rig.js ===== */
+/* THE RIG. The alien's arms and legs are not drawn into his sprite sheet any
+   more -- only his body, head and nose are. His four limbs are built here out
+   of live segments every frame, so they swing, plant, brace, bend and STRETCH
+   instead of stepping through four baked poses.
+
+   Everything in here works in *sprite units*: two units to one logical pixel,
+   the same density the body is drawn at. The caller scales the context by a
+   half before handing over, so an arm at any angle still lands on whole device
+   pixels and reads as pixel art rather than a smear. */
+(function (PD) {
+  'use strict';
+  const U = PD.util;
+  const X = PD.pxd;
+  const TAU = U.TAU;
+
+  /* Where the limbs hang off the body, measured from the sprite's anchor (the
+     belt). Read straight off the drawing coordinates in art.js. */
+  const SH = [[8, -13], [-12, -13]];      // shoulders: [near side, far side]
+  const HIP = [[5, 10], [-9, 10]];        // hips
+  const FOOT_Y = 32;                      // where the shoes sit at rest
+  const UP = 11, FORE = 12;               // arm bones
+  const TH = 14, SHIN = 14;               // leg bones
+  const STRIDE = 20, LIFT = 10;           // walk: how far and how high
+  /* The body is lifted by this much so the longer legs have somewhere to be;
+     LIFT_Y + the extra leg length cancel out, so his shoes still meet the
+     ground exactly where the old baked sprite put them. */
+  const LIFT_Y = 3;
+
+  /* Two-bone solve. When the target is further away than the bones reach the
+     bones THEMSELVES stretch, up to `maxs` -- which is the whole point: an arm
+     reaching for the drill or a leg braced against a rock pulls long. */
+  function ik(ax, ay, bx, by, l1, l2, sign, maxs) {
+    const dx = bx - ax, dy = by - ay;
+    const d = Math.max(0.001, Math.hypot(dx, dy));
+    const s = d > l1 + l2 ? Math.min(maxs || 1.34, d / (l1 + l2)) : 1;
+    const a1 = l1 * s, a2 = l2 * s;
+    const dc = Math.min(d, a1 + a2 - 0.001);
+    const cos = (dc * dc + a1 * a1 - a2 * a2) / (2 * dc * a1);
+    const ang = Math.atan2(dy, dx) + sign * Math.acos(U.clamp(cos, -1, 1));
+    return { x: ax + Math.cos(ang) * a1, y: ay + Math.sin(ang) * a1, s: s, reach: d, slack: a1 + a2 - d };
+  }
+
+  /* Three long fingers and no thumb worth the name, pointing where the hand
+     points. The direction is snapped to eight ways so the fingers stay
+     rectangular however the arm is waving about. */
+  function hand(ctx, x, y, ang, P) {
+    const q = Math.round(ang / (Math.PI / 4)) * (Math.PI / 4);
+    const fx = Math.cos(q), fy = Math.sin(q);
+    const px = -fy, py = fx;
+    X.knob(ctx, x, y, 4, P.skin, P.skinL);
+    for (let i = -1; i <= 1; i++) {
+      const bx = x + px * i * 3, by = y + py * i * 3;
+      X.limb(ctx, bx, by, bx + fx * (i ? 5 : 7), by + fy * (i ? 5 : 7), 3, 2, P.skin, null, P.skinD);
+    }
+  }
+
+  /* An enormous flat shoe. Axis-aligned always: a tilted shoe at this size is
+     just a grey smudge. */
+  function shoe(ctx, x, y, face, B) {
+    const w = 21, h = 6;
+    const x0 = Math.round(x - (face > 0 ? 7 : w - 7));
+    const y0 = Math.round(y - h + 1);
+    X.rect(ctx, x0, y0, w, h, B.shoe);
+    X.rect(ctx, x0 + 3, y0, w - 6, 2, B.shoeL);
+    X.rect(ctx, x0, y0 + h - 1, w, 2, '#12101a');
+  }
+
+  /* ------------------------------------------------------------------ state
+     One rig per body. Feet remember where they were planted so they stay put
+     while the hips move over them. */
+  function make() {
+    return {
+      phase: 0, bob: 0, jolt: 0, grab: null, grabT: 0,
+      lean: 0, brace: 0, recoil: 0, breathe: U.rand(0, TAU),
+      hand: [null, null], armS: [1, 1], legS: [1, 1]
+    };
+  }
+
+  /* Advance the rig. `o` describes the body this frame:
+       vx, vy      how fast it is moving, in logical px/s
+       ground      standing on something?
+       drilling    leaning on the drill?
+       dt          seconds
+  */
+  function step(r, o) {
+    const dt = Math.min(0.05, o.dt || 0.016);
+    const speed = Math.abs(o.vx || 0);
+    // the walk cycle is driven by ground covered, not by the clock, so his
+    // feet never skate
+    if (o.ground) r.phase += (o.vx || 0) * dt / (STRIDE * 0.5) * 0.5;
+    else r.phase += dt * 1.2;
+    r.breathe += dt * (o.drilling ? 7 : 2.2);
+    r.jolt = Math.max(0, r.jolt - dt * 6);
+    r.recoil = Math.max(0, r.recoil - dt * 9);
+    r.grabT = Math.max(0, r.grabT - dt * 5);
+    r.lean = U.damp(r.lean, o.drilling ? 1 : 0, 0.35, dt);
+    r.brace = U.damp(r.brace, o.drilling && o.ground ? 1 : 0, 0.3, dt);
+    r.walkAmt = U.damp(r.walkAmt === undefined ? 0 : r.walkAmt, o.ground ? U.clamp(speed / 70, 0, 1) : 0, 0.4, dt);
+    return r;
+  }
+
+  /* A drill bite landed: yank the whole rig backwards for a couple of frames. */
+  function hit(r, amt) { if (r) { r.jolt = 1; r.recoil = Math.max(r.recoil, amt === undefined ? 1 : amt); } }
+
+  /* He snatches at something he just picked up. The delta arrives in logical
+     world pixels; it is stored forward-relative so a mirrored body reaches the
+     right way. */
+  function grab(r, dx, dy, faceRight) {
+    if (!r) return;
+    r.grab = { x: dx * 2 * (faceRight ? 1 : -1), y: dy * 2 };
+    r.grabT = 1;
+  }
+
+  /* ------------------------------------------------------------------- draw
+     Called between the two halves of the body: back limbs, body, front limbs.
+     `half` is 1 for the far side (drawn behind) and 0 for the near side. */
+  function limbs(ctx, r, o, half, P, B) {
+    const flip = o.flip ? -1 : 1;
+    const face = flip;
+    const drilling = o.drilling;
+    const t = r.phase;
+    // limbs are drawn a shade LIGHTER than the jacket, not darker: against a
+    // dark green body a dark green arm is invisible
+    const dark = B.jacketD, mid = B.jacket, lit = B.jacketL;
+    const legc = '#4d4560', legl = '#6f6489';
+
+    /* ------------------------------------------------------------ the legs */
+    const i = half;
+    const hip = HIP[i];
+    const hx = hip[0] * flip, hy = hip[1] + r.bobY;
+    let fx, fy, planted = true;
+    if (!o.ground) {
+      // in the air the legs trail whichever way he is moving, knees tucked
+      const tuck = U.clamp((o.vy || 0) / 260, -1, 1);
+      fx = hx - face * (6 + i * 4) - U.clamp((o.vx || 0) / 26, -8, 8);
+      fy = FOOT_Y - 6 + tuck * 5 + i * 2;
+      planted = false;
+    } else if (drilling) {
+      // braced. Aiming along the ground he plants one foot forward and drives
+      // the other straight out behind, stretched against the recoil; aiming
+      // up or down there is nothing to brace against fore and aft, so the
+      // legs go wide instead and he squats over the hole.
+      const br = r.brace;
+      const push = r.recoil * 4;
+      const vert = Math.abs(Math.sin(o.aim));
+      const wide = (i ? -13 : 13) * vert;
+      fx = hx + (face * (i ? -15 - push : 12) * (1 - vert) + wide) * br;
+      fy = FOOT_Y - vert * 3 * br + (i ? -1 : 0);
+    } else if (r.walkAmt > 0.04) {
+      // a real cycle: the foot swings forward through the air, then holds
+      // still on the ground while the hips travel over it
+      const ph = ((t + i * 0.5) % 1 + 1) % 1;
+      const swing = Math.cos(ph * TAU);
+      fx = hx + swing * STRIDE * 0.5 * face * r.walkAmt;
+      const up = ph > 0.5 ? Math.sin((ph - 0.5) * 2 * Math.PI) : 0;
+      fy = FOOT_Y - up * LIFT * r.walkAmt;
+      planted = up < 0.05;
+    } else {
+      // standing: knock-kneed, weight on one side, breathing
+      fx = hx + face * (i ? -3 : 2);
+      fy = FOOT_Y + Math.sin(r.breathe) * 0.6;
+    }
+    const knee = ik(hx, hy, fx, fy, TH, SHIN, i ? -1 : 1, 1.3);
+    // knees pull inward: he has never once stood straight
+    const kin = face * (i ? 2 : -2);
+    X.limb(ctx, hx, hy, knee.x + kin, knee.y, 10, 9, legc, legl, '#221d2c');
+    X.limb(ctx, knee.x + kin, knee.y, fx, fy - 3, 9, 8, legc, legl, '#221d2c');
+    X.knob(ctx, knee.x + kin, knee.y, 4, legc, legl);
+    shoe(ctx, fx, fy, face, B);
+
+    /* ------------------------------------------------------------ the arms */
+    const sh = SH[i];
+    const sx = sh[0] * flip + r.lean * face * 3, sy = sh[1] + r.bobY;
+    let tx, ty, hang;
+    const holds = o.grip && (i === 0 || o.twoHand);
+    if (holds && !(r.grabT > 0.02 && i === 0 && !o.twoHand)) {
+      // a hand on the tool. Drilling, the far hand comes across to the front
+      // of the housing as well, so the arms cross and read as a real grip.
+      const g = o.grip;
+      const off = o.twoHand ? (i ? 8 : -4) : 0;
+      tx = g.x + Math.cos(o.aim) * off - r.recoil * 5 * Math.cos(o.aim);
+      ty = g.y + Math.sin(o.aim) * off - r.recoil * 5 * Math.sin(o.aim);
+      hang = o.aim;
+    } else if (r.grabT > 0.02 && i === 0) {
+      // snatching at an ore he has just picked up: the near arm shoots out,
+      // stretching if it has to, then springs back
+      const k = Math.sin(r.grabT * Math.PI);
+      tx = U.lerp(sx + 1, r.grab.x, k);
+      ty = U.lerp(sy + 21, r.grab.y, k);
+      hang = Math.atan2(ty - sy, tx - sx);
+    } else if (!o.ground) {
+      tx = sx - face * 4 + (i ? -3 : 3);
+      ty = sy + 16 - U.clamp((o.vy || 0) / 30, -6, 6);
+      hang = Math.PI / 2;
+    } else {
+      const ph = ((t + i * 0.5) % 1 + 1) % 1;
+      const sw = -Math.cos(ph * TAU) * 7 * r.walkAmt * face;
+      tx = sx + sw + (i ? -1 : 1);
+      ty = sy + 21 + Math.sin(r.breathe + i) * 0.8;
+      hang = Math.PI / 2 + sw * 0.04;
+    }
+    const elb = ik(sx, sy, tx, ty, UP, FORE, i ? 1 : -1, 1.38);
+    X.knob(ctx, sx, sy + 1, 6, mid, lit);                 // shoulder pad
+    X.limb(ctx, sx, sy, elb.x, elb.y, 9, 8, mid, lit, dark);
+    X.limb(ctx, elb.x, elb.y, tx, ty, 8, 7, mid, lit, dark);
+    X.knob(ctx, elb.x, elb.y, 4, mid, lit);
+    // a cuff, because the jacket is not his size
+    X.knob(ctx, tx - Math.cos(hang) * 4, ty - Math.sin(hang) * 4, 4, B.shirt, null);
+    hand(ctx, tx, ty, hang, P);
+    r.hand[i] = { x: tx, y: ty };
+  }
+
+  /* Draw a whole body: back limbs, the bare torso sprite, front limbs.
+     `o` needs: x, y (logical, the anchor), flip, spr (the core sprite), frame,
+     drilling, grip (logical, where the hands hold the tool), aim, ground,
+     vx, vy, squash, tint. */
+  function draw(ctx, r, o, P, B) {
+    const sq = o.squash || 1;
+    // the whole body breathes and takes the recoil; bobY is in sprite units
+    r.bobY = (o.ground ? -Math.abs(Math.cos(r.phase * TAU)) * 2 * (r.walkAmt || 0) : 0)
+      + Math.sin(r.breathe) * (o.drilling ? 1.2 : 0.5) + r.jolt * 1.5;
+    const ox = Math.round((o.x | 0) - (o.drilling ? Math.cos(o.aim) * r.recoil * 2 : 0));
+    const oy = Math.round((o.y | 0) - LIFT_Y - (o.drilling ? Math.sin(o.aim) * r.recoil : 0));
+
+    ctx.save();
+    ctx.translate(ox, oy);
+    if (sq !== 1) ctx.scale(sq, 1 / sq);
+    ctx.save();
+    ctx.scale(0.5, 0.5);
+    const grip = o.grip ? { x: (o.grip.x - ox) * 2 * (o.flip ? -1 : 1), y: (o.grip.y - oy) * 2 } : null;
+    void LIFT_Y;
+    const oo = {
+      flip: o.flip, drilling: o.drilling, twoHand: o.twoHand, aim: o.flip ? Math.PI - o.aim : o.aim,
+      grip: grip, ground: o.ground, vx: (o.flip ? -1 : 1) * (o.vx || 0), vy: o.vy || 0
+    };
+    // mirroring happens here, once, so the limb code only ever faces right
+    if (o.flip) ctx.scale(-1, 1);
+    oo.flip = false;
+    limbs(ctx, r, oo, 1, P, B);
+    ctx.restore();
+
+    const spr = o.spr;
+    const cv = spr.frames[(o.frame | 0) % spr.frames.length];
+    const k = spr.hd || 1;
+    ctx.save();
+    if (o.flip) ctx.scale(-1, 1);
+    const src = o.tint ? PD.ent.flashOf(cv) : cv;
+    ctx.drawImage(src, -spr.ox | 0, -spr.oy | 0, cv.width / k, cv.height / k);
+    ctx.restore();
+
+    // the tool goes on before the near hand, so his fingers close over the grip
+    if (o.tool) { ctx.save(); ctx.translate(-ox, -oy); o.tool(ctx); ctx.restore(); }
+
+    ctx.save();
+    ctx.scale(0.5, 0.5);
+    if (o.flip) ctx.scale(-1, 1);
+    limbs(ctx, r, oo, 0, P, B);
+    ctx.restore();
+    ctx.restore();
+  }
+
+  PD.rig = { make, step, hit, grab, draw, ik, SH, HIP, FOOT_Y, LIFT_Y };
 })(window.PD);
 
 /* ===== src/arthome.js ===== */
@@ -2996,9 +3414,154 @@ window.PD = window.PD || {};
   }
 
   /* The big brain for the Mind screen, drawn large. */
-  function brainBig() {
-    const p = pix(220, 170);
-    brainShape(p, 110, 90, 78, P.brain, P.brainD, P.brainL);
+  /* A brain. Lumpy, folded, faceted -- built out of overlapping bevelled
+     blocks rather than curves, with a crease down the middle and a stem. */
+  function brainLobes(p, cx, cy, r, c, cd, cl) {
+    const lump = (x, y, w, h) => {
+      p.round(x, y, w, h, Math.min(w, h) / 3 | 0, c);
+      p.rect(x + 2, y + 1, w - 4, 2, cl);
+      p.rect(x + 2, y + h - 2, w - 4, 1, cd);
+    };
+    lump(cx - r, cy - r * 0.72, r * 2, r * 1.5);
+    lump(cx - r * 0.86, cy - r, r * 0.92, r * 0.78);
+    lump(cx - r * 0.04, cy - r * 1.02, r * 0.9, r * 0.8);
+    lump(cx - r * 0.72, cy + r * 0.34, r * 0.8, r * 0.62);
+    lump(cx - r * 0.02, cy + r * 0.38, r * 0.78, r * 0.6);
+    // the crease, and the folds either side of it
+    p.rect(cx - 2, cy - r * 0.98, 4, r * 1.9, cd);
+    for (let i = 0; i < 5; i++) {
+      const yy = cy - r * 0.7 + i * r * 0.34;
+      p.rect(cx - r * 0.92, yy, r * 0.8, 2, cd);
+      p.rect(cx + r * 0.12, yy + 3, r * 0.8, 2, cd);
+      p.rect(cx - r * 0.9, yy + 2, r * 0.7, 1, cl);
+      p.rect(cx + r * 0.14, yy + 5, r * 0.7, 1, cl);
+    }
+    // the stem, dangling out of the bottom
+    p.round(cx - 5, cy + r * 0.92, 10, r * 0.5, 3, cd);
+    p.rect(cx - 3, cy + r * 0.96, 4, r * 0.4, c);
+  }
+
+  /* THE BRAIN IN THE JAR. It knows everything, it is in a bucket of acid, and
+     it is wired to a keyboard he cannot use. This is the skill tree.
+     Built like a piece of salvage: a heavy base, two posts, metal straps
+     across the glass and a bolted lid, so it reads as a tank and not as a
+     green rectangle. */
+  function brainJar(f) {
+    const p = pix(112, 150);
+    const base = 148;
+    const GL = '#cdeeff', GLD = '#4d7ea0';
+    const glassTop = 30, glassBot = base - 26;
+    // the plinth, on stubby feet
+    p.round(2, base - 24, 108, 20, 3, P.steelD);
+    p.rect(4, base - 22, 104, 3, P.steel);
+    p.rect(4, base - 8, 104, 4, P.steelDD);
+    p.rect(8, base - 4, 14, 4, P.steelDD);
+    p.rect(90, base - 4, 14, 4, P.steelDD);
+    // the acid, dark at the bottom where the sludge has settled
+    p.rect(20, glassTop, 72, glassBot - glassTop, P.acidD);
+    p.rect(23, glassTop + 3, 66, glassBot - glassTop - 6, P.acid);
+    p.rect(23, glassBot - 14, 66, 11, '#12503a');
+    p.rect(23, glassTop + 3 + (f % 2), 66, 3, '#a8ffd0');
+    brainLobes(p, 56, 66 + (f === 1 ? -2 : 0), 24, P.brain, P.brainD, P.brainL);
+    // bubbles, rising in whole-pixel steps
+    for (let i = 0; i < 8; i++) {
+      const bx = 26 + ((i * 27) % 58);
+      const by = glassBot - 16 - ((i * 19 + f * 15) % (glassBot - glassTop - 24));
+      p.round(bx, by, 4, 4, 1, '#d8fff0');
+      p.set(bx + 1, by + 1, '#ffffff');
+    }
+    // the glass itself: a bright column down one side, a dull one down the other
+    p.rect(24, glassTop + 6, 3, glassBot - glassTop - 20, GL);
+    p.rect(85, glassTop + 12, 2, glassBot - glassTop - 30, '#7ec0e0');
+    // two posts, front and back, holding the whole thing together
+    p.round(6, 26, 15, glassBot - 20, 3, P.steelD);
+    p.rect(9, 30, 4, glassBot - 30, P.steel);
+    p.round(91, 26, 15, glassBot - 20, 3, P.steelD);
+    p.rect(94, 30, 4, glassBot - 30, P.steelDD);
+    // metal straps across the glass -- the thing that makes it read as a tank
+    for (const sy of [glassTop + 4, glassBot - 18]) {
+      p.rect(14, sy, 84, 7, P.steelD);
+      p.rect(14, sy, 84, 2, P.steel);
+      p.rect(14, sy + 6, 84, 1, P.steelDD);
+      p.rect(18, sy + 2, 4, 3, P.steelDD);
+      p.rect(90, sy + 2, 4, 3, P.steelDD);
+    }
+    // the lid: bolted down, with a hose taped into it
+    p.round(2, 12, 108, 18, 4, P.steelD);
+    p.rect(4, 14, 104, 3, P.steel);
+    p.rect(4, 27, 104, 2, P.steelDD);
+    for (let i = 0; i < 6; i++) { p.rect(10 + i * 18, 18, 6, 6, P.steelDD); p.rect(10 + i * 18, 18, 6, 2, P.steel); }
+    p.round(44, 2, 22, 12, 3, P.steelDD);
+    p.rect(48, 4, 6, 8, P.steel);
+    girder(p, 66, 6, 104, 0);
+    // a dial that has never moved and a label nobody can read
+    p.round(6, glassBot - 14, 16, 16, 5, P.steelDD);
+    p.round(9, glassBot - 11, 10, 10, 3, P.warm);
+    p.line(14, glassBot - 6, 17, glassBot - 10, P.ink);
+    p.round(28, glassBot - 12, 44, 12, 3, P.warm);
+    p.rect(31, glassBot - 9, 38, 2, '#8a7a52');
+    p.rect(31, glassBot - 5, 26, 2, '#8a7a52');
+    // a stolen keyboard on a bracket, at brain height
+    p.round(74, glassBot - 12, 34, 9, 2, '#ded7bf');
+    p.rect(76, glassBot - 10, 30, 2, '#f4efdc');
+    for (let i = 0; i < 6; i++) p.rect(78 + i * 5, glassBot - 7, 3, 3, '#9d9682');
+    p.outline(P.ink);
+    return p;
+  }
+
+  /* A SMALL rock hut. The moon it stands on is only a couple of hundred
+     pixels across now, so the house had to come down with it. */
+  function houseSmall(lit) {
+    const p = pix(190, 150);
+    const R1 = '#6b6480', R2 = '#5a5474', R3 = '#4a4460', R4 = '#3a3450', RL = '#8e86a8';
+    const base = 148;
+    for (let row = 0; row < 7; row++) {
+      const y = base - 16 - row * 16;
+      const inset = row < 4 ? row * 5 : 20 + (row - 4) * 14;
+      const x0 = 18 + inset, x1 = 172 - inset;
+      for (let x = x0; x < x1; x += 26) {
+        const w = Math.min(24, x1 - x);
+        if (w < 6) continue;
+        const h = 15 + ((x + row) % 3);
+        const c = [R1, R2, R3][(x / 26 + row) % 3 | 0];
+        p.round(x, y, w, h, 3, c);
+        p.rect(x + 1, y + 1, w - 2, 2, RL);
+        p.rect(x + 1, y + h - 2, w - 2, 1, R4);
+      }
+    }
+    // a lumpy cap and a crooked chimney with a dish taped on
+    p.round(74, base - 132, 44, 18, 7, R2);
+    p.round(82, base - 137, 30, 12, 5, R1);
+    p.rect(86, base - 135, 22, 3, RL);
+    p.round(126, base - 116, 20, 34, 4, R2);
+    p.round(129, base - 123, 16, 11, 4, R3);
+    p.rect(138, base - 128, 3, 16, P.steelD);
+    p.round(132, base - 136, 18, 7, 3, '#8e86a8');
+    p.rect(135, base - 130, 10, 3, '#ffe98a');
+    // the doorway, with rubber strips
+    p.round(78, base - 58, 44, 58, 5, '#120e1c');
+    p.rect(76, base - 63, 48, 7, R4);
+    p.rect(76, base - 63, 48, 3, RL);
+    for (let i = 0; i < 6; i++) {
+      const cx2 = 80 + i * 7, len = 30 + (i % 3) * 8;
+      p.rect(cx2, base - 56, 5, len, i % 2 ? '#3f3856' : '#4a4260');
+      p.rect(cx2, base - 56, 5, 2, '#8e86a8');
+    }
+    if (lit) { p.rect(78, base - 18, 44, 18, '#3a3020'); p.rect(84, base - 10, 32, 10, '#4a3a22'); }
+    // one window, and the sign over the door
+    p.round(34, base - 84, 30, 26, 4, '#241f36');
+    p.round(37, base - 81, 24, 20, 3, lit ? '#ffe9a8' : '#2a2440');
+    if (lit) { p.rect(39, base - 79, 20, 3, '#fff7d8'); p.rect(39, base - 69, 9, 7, '#e0c96a'); }
+    p.rect(33, base - 72, 32, 3, R4);
+    p.round(72, base - 79, 56, 16, 3, '#7a5a3a');
+    p.rect(74, base - 77, 52, 3, '#9c7a52');
+    p.rect(74, base - 67, 52, 2, '#4a3020');
+    // junk piled against it
+    p.round(6, base - 26, 24, 26, 3, '#6b4530');
+    p.rect(8, base - 22, 20, 3, '#8a5a3a');
+    p.round(150, base - 22, 24, 22, 3, '#8a5a3a');
+    p.rect(152, base - 18, 20, 3, '#6b4530');
+    p.round(168, base - 15, 18, 15, 3, '#4a4260');
     p.outline(P.ink);
     return p;
   }
@@ -3085,7 +3648,9 @@ window.PD = window.PD || {};
   reg('survey', [survey()]);
   for (let i = 0; i < 3; i++) reg('ruin' + i, [ruin(i)]);
   for (let i = 0; i < 3; i++) reg('rock' + i, [rock(i)]);
-  reg('house', [houseOut(false), houseOut(true)]);
+  reg('house', [houseSmall(false), houseSmall(true)]);
+  reg('houseBig', [houseOut(false), houseOut(true)]);
+  reg('brainjar', [brainJar(0), brainJar(1), brainJar(2)]);
   reg('rat', [moonRat(0, false), moonRat(1, false)]);
   reg('ratFed', [moonRat(0, true), moonRat(1, true)]);
   reg('cheese', [cheese(false), cheese(true)]);
@@ -4154,6 +4719,59 @@ window.PD = window.PD || {};
     }
   }
 
+  /* DEBRIS. Real chips of the rock that just came apart: they tumble, they
+     bounce off the floor and the walls, they pile up for a moment and then
+     crumble away. Drawn as blocks with a lit top and a dark sole so a shard
+     reads as a solid lump of something rather than a dot. */
+  function shards(x, y, mat, n, ang) {
+    const cols = mat.c;
+    // when the screen is already full of rubble, throw less of it: a heavy
+    // chain of breaks should not be the thing that costs the frame
+    if (parts.length > 620) n = Math.max(3, n >> 1);
+    if (parts.length > 1000) n = Math.max(2, n >> 1);
+    for (let i = 0; i < n; i++) {
+      const a = ang === undefined ? U.rand(0, U.TAU) : ang + Math.PI + U.rand(-1.5, 1.5);
+      const sp = U.rand(40, 210);
+      parts.push({
+        x: x + U.rand(-4, 4), y: y + U.rand(-4, 4),
+        vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - U.rand(20, 90),
+        life: U.rand(0.7, 1.9), max: 1.9,
+        size: U.rand(2, 4.4), color: U.pick(cols),
+        lit: cols[0], dark: cols[2],
+        // only some of them test the world: two collision probes per shard per
+        // frame is the expensive part, and a few chips sailing through a wall
+        // in a shower of thirty is not something anyone sees
+        grav: 1.15, drag: 0.995, glow: 0, collide: i % 3 ? 1 : 0, bounce: U.rand(0.28, 0.55),
+        kind: 'shard', spin: 0
+      });
+      if (parts.length > MAXP) parts.shift();
+    }
+  }
+
+  /* A tile giving up: a puff of grit and a hard little shockwave. */
+  function crumble(x, y, mat) {
+    ring(x, y, 2, 18, 0.26, mat.c[0], 2);
+    // one white square where the tile used to be, gone in three frames
+    spawn({ x, y, vx: 0, vy: 0, life: 0.07, size: 11, color: '#ffffff', grav: 0, drag: 1 });
+    spawn({ x, y, vx: 0, vy: 0, life: 0.14, size: 9, color: mat.c[0], grav: 0, drag: 1 });
+    for (let i = 0; i < 7; i++) {
+      spawn({ x, y, vx: U.rand(-38, 38), vy: U.rand(-56, -10), life: U.rand(0.4, 1.2),
+        size: U.rand(3, 7), color: mat.c[2], grav: -0.05, drag: 0.9 });
+    }
+  }
+
+  /* An ore vanishing into a pocket: it pops, and the pop leaves a spark trail
+     pointing back the way it came. */
+  function pop(x, y, col, dirx, diry) {
+    ring(x, y, 1, 13, 0.3, '#ffffff', 1);
+    ring(x, y, 3, 20, 0.42, col, 1);
+    for (let i = 0; i < 8; i++) {
+      const a = U.rand(0, U.TAU);
+      spawn({ x, y, vx: Math.cos(a) * U.rand(20, 90) + (dirx || 0) * 40, vy: Math.sin(a) * U.rand(20, 90) + (diry || 0) * 40,
+        life: U.rand(0.16, 0.4), size: U.rand(1, 2.4), color: i % 2 ? '#ffffff' : col, grav: 0.2, drag: 0.85, glow: 1 });
+    }
+  }
+
   function smoke(x, y, n, color) {
     for (let i = 0; i < n; i++) {
       spawn({
@@ -4191,15 +4809,20 @@ window.PD = window.PD || {};
       const p = parts[i];
       p.life -= dt;
       if (p.life <= 0) { parts.splice(i, 1); continue; }
+      if (p.rest) continue;                       // lying on the floor: leave it there
       p.vy += p.grav * 260 * dt;
       const d = Math.pow(p.drag, dt * 60);
       p.vx *= d; p.vy *= d;
+      if (p.kind === 'shard') p.spin += (p.vx * 0.02) * dt * 60;
       const nx = p.x + p.vx * dt, ny = p.y + p.vy * dt;
       if (p.collide && world && world.solidAt(nx, ny)) {
-        if (!world.solidAt(p.x, ny)) { p.vx = -p.vx * 0.4; }
-        else if (!world.solidAt(nx, p.y)) { p.vy = -p.vy * 0.4; }
+        const b = p.bounce === undefined ? 0.4 : p.bounce;
+        if (!world.solidAt(p.x, ny)) { p.vx = -p.vx * b; p.y = ny; }
+        else if (!world.solidAt(nx, p.y)) { p.vy = -p.vy * b; p.vx *= 0.72; p.x = nx; }
         else { p.vx *= 0.3; p.vy *= 0.3; }
-        p.life -= dt * 2;
+        // a shard that has stopped moving is lying on the floor: let it lie
+        if (p.kind === 'shard' && Math.abs(p.vy) < 26 && Math.abs(p.vx) < 14) { p.vx = 0; p.vy = 0; p.grav = 0; p.rest = 1; }
+        else if (!p.rest) p.life -= dt * (p.kind === 'shard' ? 0.6 : 2);
       } else { p.x = nx; p.y = ny; }
     }
 
@@ -4262,6 +4885,17 @@ window.PD = window.PD || {};
 
     for (const p of parts) {
       const t = p.life / p.max;
+      if (p.kind === 'shard') {
+        const w = Math.max(2, Math.round(p.size));
+        const h = Math.max(1, Math.round(p.size * 0.72));
+        const sx = Math.round(p.x - cam.x) - (w >> 1), sy = Math.round(p.y - cam.y) - (h >> 1);
+        ctx.globalAlpha = t > 0.35 ? 1 : t / 0.35;
+        ctx.fillStyle = p.color; ctx.fillRect(sx, sy, w, h);
+        // a lump this small only has room for one lit edge
+        if (h > 2) { ctx.fillStyle = p.lit; ctx.fillRect(sx, sy, w - 1, 1); ctx.fillStyle = p.dark; ctx.fillRect(sx, sy + h - 1, w, 1); }
+        else { ctx.fillStyle = p.lit; ctx.fillRect(sx, sy, w - 1, 1); }
+        continue;
+      }
       const s = Math.max(1, Math.round(p.size * (0.4 + t * 0.7)));
       ctx.globalAlpha = t > 0.5 ? 1 : t * 2;
       if (p.glow) {
@@ -4311,7 +4945,7 @@ window.PD = window.PD || {};
   }
 
   PD.fx = {
-    reset, spawn, sparks, dust, burst, smoke, trail, text, ring, chunk,
+    reset, spawn, sparks, dust, burst, smoke, trail, text, ring, chunk, shards, crumble, pop,
     shake, flash, hitStop, update, tickFreeze, shakeOffset, drawWorld, drawFloaters, drawOverlay,
     get freeze() { return freeze; },
     get counts() { return { parts: parts.length, chunks: chunks.length }; }
@@ -4480,18 +5114,39 @@ window.PD = window.PD || {};
     return cv;
   }
 
+  /* Five stages of coming apart. A crack is a dark pixel with a pale one
+     beside it, so a damaged tile reads as fractured rather than dirty, and by
+     the last stage whole chips are missing out of it. */
+  const CRACK_STAGES = 5;
   function buildAtlas() {
     crackCv = [];
-    for (let stage = 0; stage < 3; stage++) {
+    for (let stage = 0; stage < CRACK_STAGES; stage++) {
       const cv = document.createElement('canvas');
       cv.width = TILE; cv.height = TILE;
       const c = cv.getContext('2d');
-      c.fillStyle = 'rgba(10,6,20,0.75)';
-      const n = 4 + stage * 5;
+      // fractures spreading from the middle outward
+      const n = 3 + stage * 6;
       for (let i = 0; i < n; i++) {
-        const x = Math.floor(U.hash2(i * 3 + stage * 41, 7) * TILE);
-        const y = Math.floor(U.hash2(i * 11 + 3, stage * 17) * TILE);
-        c.fillRect(x, y, 1 + (stage > 1 ? 1 : 0), 1);
+        const a = U.hash2(i * 3 + 7, 11) * Math.PI * 2;
+        const len = 1 + U.hash2(i * 5, stage * 13 + 3) * (2 + stage * 1.4);
+        let x = TILE / 2 + Math.cos(a) * 0.5, y = TILE / 2 + Math.sin(a) * 0.5;
+        for (let k = 0; k < len; k++) {
+          x += Math.cos(a) + (U.hash2(i * 17 + k, stage) - 0.5);
+          y += Math.sin(a) + (U.hash2(i * 23 + k, stage + 5) - 0.5);
+          if (x < 0 || y < 0 || x >= TILE || y >= TILE) break;
+          c.fillStyle = 'rgba(10,6,20,0.8)';
+          c.fillRect(x | 0, y | 0, 1, 1);
+          c.fillStyle = 'rgba(255,255,255,0.14)';
+          c.fillRect((x | 0) + 1, (y | 0) - 1, 1, 1);
+        }
+      }
+      // and by the end, chips knocked clean out of the corners
+      if (stage >= 3) {
+        c.globalCompositeOperation = 'source-over';
+        c.fillStyle = 'rgba(6,3,14,0.85)';
+        const k = stage - 2;
+        c.fillRect(0, 0, k, k);
+        c.fillRect(TILE - k - 1, TILE - k, k + 1, k);
       }
       crackCv.push(cv);
     }
@@ -5207,8 +5862,15 @@ window.PD = window.PD || {};
         const dmg = this.dmg[i];
         if (dmg > 0) {
           const f = dmg / this.tileHp(m, cx, cy);
-          const stage = f > 0.72 ? 2 : (f > 0.38 ? 1 : 0);
-          ctx.drawImage(crackCv[stage], sx, sy);
+          const stage = U.clamp(Math.floor(f * CRACK_STAGES), 0, CRACK_STAGES - 1);
+          // a tile about to give shudders in place: the last thing it does
+          if (stage >= 3) {
+            const jx = Math.round(Math.sin(time * 47 + cx * 3 + cy) * (stage - 2) * 0.6);
+            const jy = Math.round(Math.cos(time * 41 + cy * 3) * (stage - 2) * 0.4);
+            ctx.drawImage(crackCv[stage], sx + jx, sy + jy);
+            ctx.fillStyle = 'rgba(255,240,200,0.16)';
+            ctx.fillRect(sx, sy, TILE, 1);
+          } else ctx.drawImage(crackCv[stage], sx, sy);
         }
 
         const heat = this.heat[i];
@@ -5704,8 +6366,10 @@ window.PD = window.PD || {};
       this.vx = U.damp(this.vx, Math.cos(a) * force, 0.22, dt);
       this.vy = U.damp(this.vy, Math.sin(a) * force, 0.22, dt);
       this.rest = 0;
-      if (U.chance(dt * 10)) FX.trail(this.x, this.y, D.MAT[this.mat].c[0], 1.3);
+      this.pulled = 1;
+      if (U.chance(dt * 22)) FX.trail(this.x, this.y, D.MAT[this.mat].c[0], 1.6);
     } else {
+      this.pulled = 0;
       this.vy += g.world.gravityAt(this.y) * 1.1 * dt;
       this.vx *= Math.pow(0.96, dt * 60);
     }
@@ -5733,6 +6397,20 @@ window.PD = window.PD || {};
     const y = this.y - cam.y + Math.sin(t * 3 + this.bob) * 1.4;
     if (this.life < 4) {
       ctx.globalAlpha = (Math.sin(this.life * 14) > 0) ? 0.35 : 1;
+    }
+    // being hauled in by the magnet: it smears along its own flight path and
+    // trails light, so the moment of collection has a run-up to it
+    const sp = Math.hypot(this.vx, this.vy);
+    if (this.pulled && sp > 180) {
+      const k = U.clamp(sp / 700, 0, 0.5);
+      ctx.save();
+      ctx.translate((this.x - cam.x) | 0, y | 0);
+      ctx.rotate(Math.round(Math.atan2(this.vy, this.vx) / (Math.PI / 4)) * (Math.PI / 4));
+      ctx.scale(1 + k, 1 - k * 0.55);
+      drawSprite(ctx, this.spr, 0, 0, 0, false, false);
+      ctx.restore();
+      ctx.globalAlpha = 1;
+      return;
     }
     const sq = this.squash ? 1 + this.squash * 0.5 : 1;
     if (sq !== 1) {
@@ -5905,12 +6583,25 @@ window.PD = window.PD || {};
 
   /* A stat is its upgrade line, plus whatever perk the Mind has grown on it. */
   Player.prototype.stat = function (id) {
-    const upg = this.g.save.upg;
+    const g = this.g;
+    const upg = g.save.upg;
     const u = D.UPG[id];
     let v = u.value(upg[id] || 0);
     if (id === 'oxygen') v += D.UPG.lung.value(upg.lung || 0);
     if (id === 'cargo') v += D.UPG.belly.value(upg.belly || 0);
     if (id === 'hull') v += D.UPG.ironskin.value(upg.ironskin || 0);
+    // and then whatever the brain in the jar has grown on top of it
+    const b = g.brain;
+    if (!b) return v;
+    if (id === 'drill') v *= 1 + b('dig') * 0.09;
+    else if (id === 'oxygen') v += b('air') * 14;
+    else if (id === 'cargo') v += b('sack') * 5;
+    else if (id === 'hull') v += b('tough') * 8;
+    else if (id === 'scanner') v *= 1 + b('nose') * 0.16;
+    else if (id === 'tether') v *= 1 + b('deep') * 0.12;
+    else if (id === 'magnet') v *= 1 + b('pockets') * 0.18;
+    else if (id === 'dash' || id === 'thruster') v *= 1 + b('boots') * 0.07;
+    else if (id === 'pistol' || id === 'scatter' || id === 'lance') v *= 1 + b('brawn') * 0.11;
     return v;
   };
 
@@ -6156,7 +6847,11 @@ window.PD = window.PD || {};
     A.drill(true, this.drillPitch);
 
     const broke = w.damage(bite.cx, bite.cy, power);
-    if (broke) g.onTileBroken(bite.cx, bite.cy, broke, true);
+    if (broke) {
+      g.onTileBroken(bite.cx, bite.cy, broke, true);
+      // the bite lands in his shoulders: the whole rig kicks back off it
+      PD.rig.hit(this.rig, U.clamp(D.MAT[broke].hp / 160, 0.5, 1.4));
+    }
 
     // The bore is always wider than the bit: a one-tile shaft is narrower
     // than the player, so a single-tile tunnel would wedge you in place.
@@ -6312,10 +7007,14 @@ window.PD = window.PD || {};
   /* ----------------------------------------------------------------- drawing */
   Player.prototype.draw = function (ctx, cam, t) {
     const skin = PD.art.skinFor(this.g.save.cos);
+    const B = PD.art.BIZ;
     const moving = Math.hypot(this.vx, this.vy) > 20 || this.thrusting.x || this.thrusting.y;
     const drilling = this.drilling && this.drillT > 0.05;
-    const spr = drilling ? skin.alienDrill : (moving || !this.onGround(this.g.world) ? skin.alienFly : skin.alien);
-    this.anim += 1 / 60 * (moving ? 8 : 3);
+    const ground = this.onGround(this.g.world);
+    if (!this.rig) this.rig = PD.rig.make();
+    const r = this.rig;
+    PD.rig.step(r, { dt: this.g.dt, vx: this.vx, vy: this.vy, ground, drilling });
+
     const drill = skin.drill;
     const gun = PD.art.sprites[this.weapon === 'pistol' ? 'gun' : this.weapon];
     const flip = Math.cos(this.aim) < 0;
@@ -6325,10 +7024,38 @@ window.PD = window.PD || {};
     const jy = drilling ? Math.round(Math.cos(t * 70) * 1) : 0;
     const px = this.x - cam.x - Math.cos(this.aim) * kick + jx, py = this.y - cam.y - Math.sin(this.aim) * kick * 0.5 + jy;
 
+    // the body he is wearing this frame: bare torso, and the limbs live
+    const spr = drilling ? skin.alienCoreDrill : skin.alienCore;
+    this.anim += 1 / 60 * (moving ? 8 : 3);
+    let frame;
+    if (drilling) frame = Math.floor(t * 30) % 3;
+    else frame = this.blink < 0 ? 4 : Math.floor(t * 7) % 4;   // the nose never settles
+
+    // where the tool sits in his hands
+    const hx = px + Math.cos(this.aim) * (drilling ? 11 : 8), hy = py + Math.sin(this.aim) * (drilling ? 11 : 8) + 1;
+    // squash and stretch off the vertical: falling stretches him, landing squashes
+    const airsq = ground ? 1 : U.clamp(1 + this.vy * 0.0007, 0.86, 1.13);
+    const drawTool = (c) => {
+      c.save();
+      c.translate(hx | 0, hy | 0);
+      c.rotate(this.aim);
+      if (flip) c.scale(1, -1);
+      if (drilling) c.translate(U.rand(-1.5, 1.5), U.rand(-1, 1));
+      const df = drill.frames[Math.floor(this.drillSpin) % drill.frames.length];
+      c.drawImage(df, -drill.ox, -drill.oy, drill.w, drill.h);
+      c.restore();
+    };
+    const body = {
+      x: px, y: py - 1, flip, spr, frame, drilling, twoHand: drilling,
+      grip: { x: hx, y: hy }, aim: this.aim, ground, vx: this.vx, vy: this.vy,
+      squash: airsq, tint: this.hurtT > 0.15, tool: drawTool
+    };
+
     if (this.dashT > 0) {
-      ctx.globalAlpha = 0.35;
-      for (let k = 1; k <= 3; k++) {
-        PD.ent.drawSprite(ctx, spr, 0, px - this.vx * k * 0.012, py - this.vy * k * 0.012 - 1, flip, true);
+      ctx.globalAlpha = 0.3;
+      for (let k = 3; k >= 1; k--) {
+        const gx = px - this.vx * k * 0.012, gy = py - this.vy * k * 0.012 - 1;
+        PD.rig.draw(ctx, r, Object.assign({}, body, { x: gx, y: gy, tint: true }), skin.P, B);
       }
       ctx.globalAlpha = 1;
     } else if (this.invuln > 0 && Math.sin(this.invuln * 40) < -0.2) return;
@@ -6345,29 +7072,10 @@ window.PD = window.PD || {};
       ctx.restore();
     }
 
-    // the body first, then the drill in his hands
-    let frame;
-    if (drilling) frame = Math.floor(t * 30) % 3;
-    else if (spr === skin.alien) frame = this.blink < 0 ? 4 : Math.floor(t * 7) % 4;   // the nose never settles
-    else frame = Math.floor(this.anim) % 2;
-    PD.ent.drawSprite(ctx, spr, frame, px, py - 1, flip, this.hurtT > 0.15);
+    // the body, the tool in its grip and the hands over it, in one pass
+    PD.rig.draw(ctx, r, body, skin.P, B);
 
-    // drill: gripped at the hands, pointing where he aims
-    const hx = px + Math.cos(this.aim) * (drilling ? 11 : 8), hy = py + Math.sin(this.aim) * (drilling ? 11 : 8) + 1;
-    ctx.save();
-    ctx.translate(hx | 0, hy | 0);
-    ctx.rotate(this.aim);
-    if (flip) ctx.scale(1, -1);
-    if (drilling) ctx.translate(U.rand(-1.5, 1.5), U.rand(-1, 1));
-    const df = drill.frames[Math.floor(this.drillSpin) % drill.frames.length];
-    ctx.drawImage(df, -drill.ox, -drill.oy, drill.w, drill.h);
-    ctx.restore();
-    if (!drilling) {
-      // the idle arm reaching to the tool
-      ctx.strokeStyle = '#2b3a66'; ctx.lineWidth = 3;
-      ctx.beginPath(); ctx.moveTo(px + (flip ? -4 : 4), py - 1); ctx.lineTo(hx, hy); ctx.stroke();
-      ctx.fillStyle = skin.P.skin; ctx.fillRect(hx - 2, hy - 2, 4, 4);
-    } else {
+    if (drilling) {
       // hot sparks and grit off the bit
       if (U.chance(0.45)) {
         const tx = hx + Math.cos(this.aim) * 24, ty = hy + Math.sin(this.aim) * 24;
@@ -6517,16 +7225,11 @@ window.PD = window.PD || {};
   /* ----------------------------------------------------------- vitals pod
      Three readouts, no clutter: a glass air tank that empties, hull as a row
      of hex chips that shatter, and the hold as a filling tube. */
+  /* Hard-edged: scanline fill, run-drawn outline. A stroked hexagon leaves
+     anti-aliased pixels down every diagonal and the health chips are the most
+     looked-at thing on the screen. */
   function hexChip(ctx, x, y, r, fill, edge) {
-    ctx.beginPath();
-    for (let i = 0; i < 6; i++) {
-      const a = Math.PI / 180 * (60 * i - 30);
-      const px = x + Math.cos(a) * r, py = y + Math.sin(a) * r;
-      if (i) ctx.lineTo(px, py); else ctx.moveTo(px, py);
-    }
-    ctx.closePath();
-    if (fill) { ctx.fillStyle = fill; ctx.fill(); }
-    if (edge) { ctx.strokeStyle = edge; ctx.lineWidth = 1; ctx.stroke(); }
+    X.hex(ctx, x, y, r, fill, edge, 1);
   }
 
   function vitals(ctx, g) {
@@ -6546,10 +7249,19 @@ window.PD = window.PD || {};
     X.rect(ctx, PW - 4, PH - 8, 1, 4, '#6b4a2e');
     X.rect(ctx, PW - 8, PH - 4, 1, 4, '#6b4a2e');
     X.rect(ctx, PW - 4, PH - 8, 4, 1, '#6b4a2e');
+    // the grain of the cardboard, and the fibres coming off the cut edge
+    for (let gy = 2; gy < PH - 10; gy += 3) {
+      if (U.hash2(gy, 5) > 0.55) X.rect(ctx, 2, gy, PW - 6, 1, 'rgba(88,60,34,0.35)');
+    }
+    for (let gx = 4; gx < PW - 10; gx += 2) {
+      if (U.hash2(gx, 9) > 0.7) X.rect(ctx, gx, PH - 9, 2, 1 + ((U.hash2(gx, 11) * 3) | 0), 'rgba(120,84,48,0.5)');
+    }
     // masking tape, applied by someone with three fingers
     X.rect(ctx, PW - 22, -3, 22, 9, 'rgba(226,208,132,0.8)');
     X.rect(ctx, PW - 22, -3, 22, 1, 'rgba(246,232,168,0.8)');
+    for (let i = 0; i < 4; i++) X.rect(ctx, PW - 20 + i * 6, -3, 2, 9, 'rgba(206,188,112,0.5)');
     X.rect(ctx, -4, 30, 8, 16, 'rgba(226,208,132,0.8)');
+    X.rect(ctx, -4, 30, 8, 1, 'rgba(246,232,168,0.8)');
 
     // --- air: a glass tank that empties
     const tx = 5, ty = 4, tw = 14, th = 44;
@@ -6590,8 +7302,7 @@ window.PD = window.PD || {};
         ctx.restore();
         hexChip(ctx, x, y, 6.5, null, '#ffb0a0');
       } else {
-        ctx.strokeStyle = '#6b4a2e'; ctx.lineWidth = 1;
-        ctx.beginPath(); ctx.moveTo(x - 4, y - 3); ctx.lineTo(x + 3, y + 4); ctx.stroke();
+        X.line(ctx, x - 4, y - 3, x + 3, y + 4, '#6b4a2e', 1);
       }
     }
 
@@ -6638,6 +7349,12 @@ window.PD = window.PD || {};
     X.rect(ctx, VW - 130, -3, 18, 8, 'rgba(226,208,132,0.8)');
     F.draw(ctx, '$' + U.fmt(g.save.credits), VW - 8, 4, COL.gold, { right: true, scale: 2 });
     F.draw(ctx, 'GALAXY ATE ' + g.save.dominion.toFixed(1) + '%', VW - 8, 22, '#d8b48a', { right: true });
+    // and what the brain in the jar is owed, ticking up as you break rock
+    X.rect(ctx, VW - 78, 34, 78, 13, 'rgba(20,42,32,0.86)');
+    X.rect(ctx, VW - 78, 34, 78, 1, '#2fbf7a');
+    X.rect(ctx, VW - 78, 46, 78, 1, '#0e3a2c');
+    Gd().draw(ctx, 'star', VW - 76, 34, '#4cff9a', '#1e9e5c');
+    F.draw(ctx, U.fmt(g.save.thots) + ' THOTS', VW - 6, 37, '#8affd0', { right: true, shadow: false });
   }
   const meters = vitals;
 
@@ -8013,7 +8730,7 @@ window.PD = window.PD || {};
       const lvl = g.save.upg[it.id] || 0;
       const cap = g.abayMax(it.id);
       const maxed = lvl >= cap;
-      const cost = D.abayCost(it, lvl);
+      const cost = g.abayPrice(it.id);
       const afford = g.save.credits >= cost;
       const over = hot(bx, y, lw, ROW - 2);
 
@@ -8339,13 +9056,339 @@ window.PD = window.PD || {};
   PD.desk = { enter, update, draw, close, touchMode, S, SX, SY, SW, SH };
 })(window.PD);
 
+/* ===== src/mind.js ===== */
+/* THE BRAIN IN THE JAR.
+
+   A brain in a bucket of acid, wired to a keyboard, sitting in the corner of a
+   very small rock house. It knows everything. It does not want money -- money
+   is for Abay. It wants THOTS, which come out of hitting rocks, and it grows
+   them into you as neurons: rings of nodes around the stem, wired outward, one
+   dendrite at a time.
+
+   Opened by standing next to the jar and pressing E. ESC closes it. */
+(function (PD) {
+  'use strict';
+  const U = PD.util;
+  const F = PD.font;
+  const D = PD.data;
+  const A = PD.audio;
+  const G = PD.glyph;
+  const X = PD.pxd;
+
+  const VW = 480, VH = 270;
+  const CX = 240, CY = 132;                      // the stem, on screen
+  const RING = [0, 44, 82, 112];                 // how far out each ring sits
+  const RY = 0.62;                               // the lattice is wider than tall
+
+  const ICON = {
+    dig: 'drill', air: 'o2', sack: 'cargo', tough: 'hull', nose: 'scan',
+    deep: 'depth', pockets: 'hand', boots: 'speed', haggle: 'sell',
+    rich: 'coin', brawn: 'gun', know: 'crew'
+  };
+
+  const S = {
+    t: 0, sel: 'dig', hover: null, flash: 0, pulses: [], bub: [],
+    line: '', lineT: 0, shake: 0, grew: null, growT: 0
+  };
+  for (let i = 0; i < 46; i++) {
+    S.bub.push({ x: U.hash2(i, 3), y: U.hash2(i, 7), r: U.hash2(i, 11) > 0.7 ? 2 : 1, sp: 7 + U.hash2(i, 13) * 20 });
+  }
+
+  /* Node positions: an angle on a ring, snapped so the wires between them run
+     at clean pixel slopes. */
+  function pos(n) {
+    if (n.ring === 0) return { x: CX, y: CY };
+    const a = (n.a - 90) * Math.PI / 180;
+    return { x: Math.round(CX + Math.cos(a) * RING[n.ring]), y: Math.round(CY + Math.sin(a) * RING[n.ring] * RY) };
+  }
+
+  function say(m) { S.line = m; S.lineT = 4.2; }
+
+  function open(g) {
+    g.state = 'mind';
+    S.t = 0; S.sel = 'dig'; S.pulses.length = 0; S.flash = 0;
+    say(U.pick(D.BRAIN_IDLE));
+    A.sfx.tone(120, { type: 'sine', to: 380, dur: 0.55, vol: 0.1 });
+    A.sfx.tone(380, { type: 'triangle', to: 700, dur: 0.4, vol: 0.05, delay: 0.28 });
+  }
+
+  function close(g) {
+    g.state = 'home';
+    PD.home.P.lock = 0.28;
+    A.sfx.click();
+  }
+
+  function buy(g, n) {
+    const lvl = g.brain(n.id);
+    if (!g.brainWired(n)) { A.sfx.deny(); S.shake = 0.3; say('NOT PLUGGED IN. WIRE IT TO A NEIGHBOUR.'); return; }
+    if (lvl >= n.max) { A.sfx.deny(); say('THAT ONE IS FULL. YOUR HEAD IS SMALL.'); return; }
+    const c = g.brainCost(n.id);
+    if (g.save.thots < c) { A.sfx.deny(); S.shake = 0.3; say('NOT ENOUGH THOTS. GO AND HIT A ROCK.'); return; }
+    if (!g.brainBuy(n.id)) { A.sfx.deny(); return; }
+    if (g.player) { g.player.o2 = Math.min(g.player.o2, g.player.stat('oxygen')); g.player.hull = Math.min(g.player.hull, g.player.stat('hull')); }
+    // the pulse runs out from whichever neighbour is already lit
+    const from = n.links.length ? D.NEUR[n.links.find(l => g.brain(l) > 0) || n.links[0]] : null;
+    S.pulses.push({ a: from ? pos(from) : { x: CX, y: CY + 40 }, b: pos(n), t: 0 });
+    S.grew = n.id; S.growT = 1;
+    say(U.pick(D.BRAIN_LINES));
+    A.sfx.tone(200, { type: 'sine', to: 1100, dur: 0.32, vol: 0.11 });
+    A.sfx.tone(1100, { type: 'triangle', to: 1700, dur: 0.22, vol: 0.07, delay: 0.22 });
+    PD.fx.flash(0.18, '#4cff9a');
+  }
+
+  function update(dt, g) {
+    S.t += dt;
+    S.lineT = Math.max(0, S.lineT - dt);
+    S.flash = Math.max(0, S.flash - dt * 3);
+    S.shake = Math.max(0, S.shake - dt * 3);
+    S.growT = Math.max(0, S.growT - dt * 1.6);
+    for (let i = S.pulses.length - 1; i >= 0; i--) { S.pulses[i].t += dt * 2.1; if (S.pulses[i].t > 1.4) S.pulses.splice(i, 1); }
+
+    const IN = PD.input;
+    if (IN.hit('esc') || IN.hit('KeyQ')) { close(g); return; }
+
+    const m = IN.mouse;
+    S.hover = null;
+    for (const n of D.NEURONS) {
+      const p = pos(n);
+      if (U.dist(m.x, m.y, p.x, p.y) < 13) S.hover = n.id;
+    }
+    // the keyboard he cannot use: arrows walk the lattice, E plugs it in
+    if (IN.hit('right') || IN.hit('Tab')) { const l = D.NEURONS; S.sel = l[(l.findIndex(n => n.id === S.sel) + 1) % l.length].id; A.sfx.click(); }
+    if (IN.hit('left')) { const l = D.NEURONS; S.sel = l[(l.findIndex(n => n.id === S.sel) + l.length - 1) % l.length].id; A.sfx.click(); }
+    if (S.hover && m.leftPressed) {
+      if (S.sel === S.hover) buy(g, D.NEUR[S.hover]);
+      else { S.sel = S.hover; A.sfx.click(); }
+    }
+    if (IN.hit('KeyE') || IN.hit('space') || IN.hit('enter')) buy(g, D.NEUR[S.sel]);
+  }
+
+  /* ------------------------------------------------------------------- draw */
+  function drawJar(ctx, t) {
+    // the tank, filling the screen: straight glass, acid, a bevelled rim
+    X.rect(ctx, 0, 0, VW, VH, '#0b1a16');
+    const L = 14, R = VW - 14, TOP = 14, BOT = VH - 14;
+    X.rect(ctx, L, TOP, R - L, BOT - TOP, '#12503a');
+    X.rect(ctx, L + 4, TOP + 4, R - L - 8, BOT - TOP - 8, '#1e9e5c');
+    X.rect(ctx, L + 8, TOP + 8, R - L - 16, BOT - TOP - 16, '#177f4c');
+    // bands of settled acid
+    for (let i = 0; i < 7; i++) {
+      ctx.globalAlpha = 0.12;
+      X.dither(ctx, L + 8, TOP + 12 + i * 30, R - L - 16, 14, '#4cff9a', i % 2);
+    }
+    ctx.globalAlpha = 1;
+    // bubbles, in whole-pixel steps
+    for (const b of S.bub) {
+      const y = BOT - 12 - ((b.y * (BOT - TOP - 30) + t * b.sp) % (BOT - TOP - 30));
+      const x = L + 14 + b.x * (R - L - 28) + Math.sin(t * 2 + b.y * 30) * 3;
+      ctx.globalAlpha = 0.5;
+      X.rect(ctx, x, y, b.r * 2, b.r * 2, '#a8ffd0');
+      ctx.globalAlpha = 1;
+    }
+    // glass: highlight down one side, hard rim top and bottom
+    X.rect(ctx, L + 4, TOP + 12, 3, BOT - TOP - 40, '#cdeeff');
+    X.rect(ctx, R - 8, TOP + 24, 2, BOT - TOP - 60, '#7ec0e0');
+    X.rect(ctx, L, TOP - 8, R - L, 9, '#5e6688');
+    X.rect(ctx, L, TOP - 8, R - L, 3, '#9aa3c4');
+    X.rect(ctx, L, BOT, R - L, 10, '#5e6688');
+    X.rect(ctx, L, BOT, R - L, 2, '#9aa3c4');
+    for (let x = L + 6; x < R - 6; x += 22) { X.rect(ctx, x, TOP - 6, 8, 4, '#39405e'); X.rect(ctx, x, BOT + 3, 8, 4, '#39405e'); }
+  }
+
+  /* A BRAIN, filling most of the tank, so the neurons sit ON it rather than
+     floating in the acid beside it. Built out of ridges: rows of bevelled
+     bars, shorter towards the top and bottom, with a hard crease down the
+     middle and a shadow under every fold. No curves, no smoothing. */
+  function drawBrain(ctx, t) {
+    const wob = Math.round(Math.sin(t * 1.3) * 2);
+    const cx = CX, cy = CY + 6 + wob;
+    const RW = 172, RH = 104;                     // half-width, half-height
+    const C1 = '#d64f8a', C2 = '#ff9ecb', C3 = '#8a2a56', C4 = '#5e1638';
+
+    /* The silhouette. The half-width is quantised to eight-pixel steps, so the
+       outline comes out as a stack of facets rather than a smooth curve. */
+    const halfW = (y) => {
+      const f = Math.abs(y) / RH;
+      let w = RW * (1 - f * f * 0.66);
+      if (y < -RH * 0.6) w *= 0.9;                // flatter across the top
+      if (y > RH * 0.62) w *= 0.78;               // tucked under at the base
+      return Math.round(w / 8) * 8;
+    };
+    for (let y = -RH; y <= RH; y += 4) {
+      const w = halfW(y);
+      X.rect(ctx, cx - w, cy + y, w * 2, 4, C1);
+      X.rect(ctx, cx - w, cy + y, 3, 4, C3);
+      X.rect(ctx, cx + w - 3, cy + y, 3, 4, C4);
+    }
+    // a lit rim along the top of the mass
+    for (let y = -RH; y < -RH * 0.2; y += 4) {
+      const w = halfW(y), w2 = halfW(y + 4);
+      if (w2 > w) X.rect(ctx, cx - w2, cy + y + 2, (w2 - w) + 3, 3, C2);
+      if (w2 > w) X.rect(ctx, cx + w - 3, cy + y + 2, (w2 - w) + 3, 3, C2);
+    }
+    /* The folds: fat bevelled bars in two fans either side of the crease, each
+       with a lit top and a hard shadow under it. */
+    for (let side = -1; side <= 1; side += 2) {
+      for (let i = 0; i < 7; i++) {
+        const fy = (i / 6) * 1.72 - 0.86;
+        const y = Math.round(cy + fy * (RH - 12)) - 7;
+        // halfW works in offsets from the centre, not screen rows
+        const room = halfW(y + 7 - cy) - 10;
+        const inset = 4 + ((i * 11) % 26);
+        const w = room - inset;
+        if (w < 18) continue;
+        const x = side < 0 ? cx - 6 - w : cx + 6;
+        const h = 15;
+        X.rect(ctx, x, y, w, h, C1);
+        X.rect(ctx, x + 3, y, w - 6, 3, C2);               // lit top of the fold
+        X.rect(ctx, x + 4, y + 3, w - 8, 2, '#ffc4de');
+        X.rect(ctx, x, y + h - 3, w, 3, C3);               // shadow under it
+        X.rect(ctx, side < 0 ? x : x + w - 3, y + 2, 3, h - 4, C3);
+        // a nick out of the end, so no two folds end the same way
+        if (i % 2) X.rect(ctx, side < 0 ? x : x + w - 6, y + 4, 6, 6, C3);
+      }
+    }
+    // the crease
+    X.rect(ctx, cx - 4, cy - RH + 6, 9, RH * 2 - 12, C4);
+    X.rect(ctx, cx - 1, cy - RH + 8, 3, RH * 2 - 16, C3);
+    // the stem, running down out of the bottom of the picture
+    X.rect(ctx, cx - 12, cy + RH - 10, 25, 60, C3);
+    X.rect(ctx, cx - 7, cy + RH - 8, 9, 58, C1);
+    X.rect(ctx, cx - 18, cy + RH + 14, 37, 10, C4);
+    // one eye, grown on the side of it, which is watching you
+    const ex = cx + Math.round(RW * 0.56), ey = cy - RH + 30;
+    const blink = Math.sin(t * 0.6) > 0.96;
+    X.plate(ctx, ex - 13, ey - (blink ? 2 : 11), 26, blink ? 4 : 22, '#ffffff', '#ffffff', '#c4b0c0', 5);
+    if (!blink) {
+      const look = Math.round(Math.sin(t * 0.9) * 4);
+      X.oct(ctx, ex + look, ey, 7, '#151233', null);
+      X.rect(ctx, ex + look - 4, ey - 4, 3, 3, '#ffffff');
+    }
+    // and a few veins, because it is alive and it wants you to know
+    for (let i = 0; i < 5; i++) {
+      const vy = cy - RH + 20 + i * 42;
+      X.curve(ctx, cx - RW + 10, vy, cx - RW * 0.4, vy + 14, cx - 20, vy + 4, '#b03a70', 1, 8);
+      X.curve(ctx, cx + RW - 10, vy + 20, cx + RW * 0.4, vy + 30, cx + 20, vy + 22, '#b03a70', 1, 8);
+    }
+  }
+
+  function nodeState(g, n) {
+    const lvl = g.brain(n.id);
+    if (lvl >= n.max) return 'full';
+    if (!g.brainWired(n)) return 'dead';
+    return g.save.thots >= g.brainCost(n.id) ? 'ready' : 'poor';
+  }
+
+  function draw(ctx, g, t) {
+    drawJar(ctx, t);
+    const sh = S.shake > 0 ? Math.round(Math.sin(t * 70) * S.shake * 8) : 0;
+    ctx.save();
+    ctx.translate(sh, 0);
+    drawBrain(ctx, t);
+
+    // the dendrites first, so the nodes sit on top of them
+    for (const n of D.NEURONS) {
+      const p = pos(n);
+      for (const l of n.links) {
+        const q = pos(D.NEUR[l]);
+        const live = g.brain(n.id) > 0 && g.brain(l) > 0;
+        const half = !live && (g.brain(l) > 0 || g.brain(n.id) > 0);
+        X.line(ctx, q.x, q.y, p.x, p.y, live ? '#8affd0' : (half ? '#3f8f6e' : '#1d5c46'), live ? 2 : 1);
+        if (live) {
+          // a signal crawling along a wire that is plugged in at both ends
+          const f = ((t * 0.5 + (p.x + q.x) * 0.01) % 1);
+          X.rect(ctx, U.lerp(q.x, p.x, f), U.lerp(q.y, p.y, f), 3, 3, '#eafff4');
+        }
+      }
+    }
+    // the pulse from a fresh purchase
+    for (const p of S.pulses) {
+      const f = U.clamp(p.t, 0, 1);
+      X.line(ctx, p.a.x, p.a.y, U.lerp(p.a.x, p.b.x, f), U.lerp(p.a.y, p.b.y, f), '#ffffff', 3);
+      X.ring(ctx, U.lerp(p.a.x, p.b.x, f), U.lerp(p.a.y, p.b.y, f), 4 + f * 8, '#eafff4', 1);
+    }
+
+    for (const n of D.NEURONS) {
+      const p = pos(n);
+      const lvl = g.brain(n.id);
+      const st = nodeState(g, n);
+      const on = lvl > 0;
+      const sel = S.sel === n.id;
+      const grow = S.grew === n.id ? S.growT : 0;
+      const r = 11 + (sel ? 1 : 0) + Math.round(grow * 5);
+      const face = st === 'dead' ? '#243a4a' : (on ? '#186b4e' : '#1b3a44');
+      const edge = st === 'ready' ? '#ffd34d' : (on ? '#8affd0' : '#5f8f9e');
+      X.oct(ctx, p.x + 1, p.y + 2, r + 1, 'rgba(4,10,14,0.6)', null);
+      X.oct(ctx, p.x, p.y, r, face, edge, sel ? 2 : 1);
+      if (on) X.oct(ctx, p.x, p.y, r - 4, '#2fbf7a', null);
+      G.draw(ctx, ICON[n.id] || 'hex', p.x - 7, p.y - 7,
+        st === 'dead' ? '#4a6a7a' : (on ? '#eafff4' : '#a8d8e0'), on ? '#8affd0' : '#5f8f9e');
+      // the level, as pips round the rim
+      for (let i = 0; i < n.max; i++) {
+        const a = -Math.PI / 2 + (i / n.max) * Math.PI * 2;
+        const px = Math.round(p.x + Math.cos(a) * (r + 4)), py = Math.round(p.y + Math.sin(a) * (r + 4));
+        X.rect(ctx, px - 1, py - 1, 2, 2, i < lvl ? '#ffd34d' : '#1d5c46');
+      }
+      if (sel) {
+        const k = Math.round(Math.abs(Math.sin(t * 4)) * 2);
+        X.rect(ctx, p.x - 2, p.y - r - 8 - k, 4, 4, '#ffd34d');
+      }
+    }
+    ctx.restore();
+
+    /* ------------------------------------------------------------ the panels */
+    // THOTS, top left, on a plate bolted to the glass
+    X.plate(ctx, 20, 22, 152, 26, '#241f36', '#4a4260', '#120e1c', 4);
+    G.draw(ctx, 'star', 26, 28, '#4cff9a', '#1e9e5c');
+    F.draw(ctx, U.fmt(g.save.thots) + ' THOTS', 46, 26, '#8affd0');
+    F.draw(ctx, 'HIT ROCKS TO MAKE MORE', 46, 36, '#6fbf9e', { shadow: false });
+
+    // the selected neuron, bottom, on the brain's own stolen keyboard
+    const n = D.NEUR[S.sel];
+    const lvl = g.brain(n.id);
+    const st = nodeState(g, n);
+    const cost = g.brainCost(n.id);
+    X.plate(ctx, 8, VH - 62, VW - 16, 54, '#241f36', '#4a4260', '#120e1c', 5);
+    F.draw(ctx, n.name, 18, VH - 56, '#ffe9a8');
+    F.draw(ctx, n.blurb, 18, VH - 44, '#c9bce8', { shadow: false });
+    F.draw(ctx, 'NOW: ' + (lvl ? n.show(lvl) : 'NOTHING') + '   NEXT: ' + n.show(lvl + 1 > n.max ? n.max : lvl + 1),
+      18, VH - 30, '#8affd0', { shadow: false });
+    F.draw(ctx, 'LVL ' + lvl + '/' + n.max, VW - 20, VH - 56, '#c9bce8', { right: true });
+    if (st === 'full') F.draw(ctx, 'FULL', VW - 20, VH - 30, '#ffd34d', { right: true });
+    else if (st === 'dead') F.draw(ctx, 'NOT WIRED UP', VW - 20, VH - 30, '#ff8ad8', { right: true });
+    else {
+      const can = st === 'ready';
+      F.draw(ctx, cost + ' THOTS', VW - 20, VH - 42, can ? '#ffd34d' : '#8a5a5a', { right: true });
+      F.draw(ctx, can ? 'PRESS E TO GROW IT' : 'CANNOT AFFORD', VW - 20, VH - 30, can ? '#8affa0' : '#8a5a5a', { right: true });
+    }
+    F.draw(ctx, 'ESC TO LEAVE THE BRAIN ALONE', VW / 2, VH - 16, '#5f8f7e', { center: true, shadow: false });
+
+    // whatever it is currently saying, in a speech plate off its own eye
+    if (S.lineT > 0) {
+      const w = F.width(S.line, 1) + 16;
+      const bx = U.clamp(CX + 96, 20, VW - w - 20), by = 24;
+      ctx.globalAlpha = Math.min(1, S.lineT * 1.6);
+      X.plate(ctx, bx, by, w, 18, '#3a1f36', '#6a3f5c', '#1a0e18', 4);
+      F.draw(ctx, S.line, bx + 8, by + 5, '#ffb0d6', { shadow: false });
+      X.rect(ctx, bx + 10, by + 18, 6, 4, '#3a1f36');
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  PD.mind = { open, close, update, draw, S };
+})(window.PD);
+
 /* ===== src/home.js ===== */
 /* HOME.
 
-   Two places. OUTSIDE is an empty moon with your rock house standing on it and
-   your dumb UFO parked alongside. INSIDE is one room with a dumb bed and the
-   stolen computer, and nothing else except the mess. Walk to the door and
-   press E to go through, either way.
+   Two places. OUTSIDE is a small round moon -- a ball a couple of hundred
+   pixels across, floating whole in the middle of the screen with stars either
+   side of it, your rock house on top and your dumb UFO parked alongside. You
+   walk over the curve of it and the horizon falls away at both ends.
+
+   INSIDE is one very small room: the stolen computer, and a brain in a jar of
+   acid that knows everything and will sell you some of it. Nothing else except
+   the mess. No bed. Walk to the door and press E to go through, either way.
 
    The first time you go in there is a very fat rat eating your cheese. Give it
    the cheese and it is yours forever. */
@@ -8360,19 +9403,43 @@ window.PD = window.PD || {};
   const X = PD.pxd;
 
   const VW = 480, VH = 270;
-  const OUT_W = 860, IN_W = 470;
-  const FLOOR = 214;                 // the moon surface / the room floor
-  const CEIL = 56;                   // the underside of the rock roof, inside
+  /* THE MOON IS A BALL. Its centre is a long way below the bottom of the
+     screen, so the arc across the top is the bit you can walk on: 344 pixels
+     of it end to end, and space on both sides. Outside is exactly one screen
+     wide and never scrolls -- the moon is an object you look at, not a
+     corridor you travel down. */
+  const MOON = { cx: 240, cy: 314, r: 172 };
+  const OUT_W = 480, IN_W = 232;
+  const WALK = 102;                  // how far round the curve he can get
+  const FLOOR = 216;                 // the room floor, inside
+  const CEIL = 124;                  // the underside of the rock roof, inside
   const GRAV = 300;                  // low: everything here is bouncy
 
   const S = { scene: 'out', t: 0, ratSeen: 0, sleep: 0, swing: 0 };
 
   function roomW() { return S.scene === 'out' ? OUT_W : IN_W; }
+  /* A room narrower than the screen sits in the middle of it. */
+  function camWant() {
+    const w = roomW();
+    if (w <= VW) return (w - VW) / 2;
+    return U.clamp(P.x - VW / 2, 0, w - VW);
+  }
+  function bounds() {
+    return S.scene === 'out' ? [MOON.cx - WALK, MOON.cx + WALK] : [20, IN_W - 20];
+  }
 
-  /* Flat indoors; lumpy regolith outside. */
+  /* Flat indoors. Outside it is the top of a circle, rasterised to whole
+     pixels so the ground he stands on is exactly the ground you can see. */
   function groundY(x) {
     if (S.scene === 'in') return FLOOR;
-    return FLOOR + Math.sin(x * 0.019) * 5 + Math.sin(x * 0.043 + 1.3) * 3;
+    const dx = x - MOON.cx;
+    if (Math.abs(dx) >= MOON.r) return 1e4;
+    return Math.round(MOON.cy - Math.sqrt(MOON.r * MOON.r - dx * dx));
+  }
+  /* The slope under his feet, for dust and for standing on a hill. */
+  function slopeAt(x) {
+    const dx = U.clamp(x - MOON.cx, -MOON.r + 1, MOON.r - 1);
+    return dx / Math.sqrt(Math.max(1, MOON.r * MOON.r - dx * dx));
   }
 
   const P = {
@@ -8384,71 +9451,72 @@ window.PD = window.PD || {};
 
   /* ------------------------------------------------------------------ spots */
   const OUT_SPOTS = [
-    { id: 'door', x: 300, r: 50, name: 'THE ROCK HOUSE', sub: 'GO INSIDE' },
-    { id: 'ufo', x: 640, r: 58, name: 'YOUR DUMB UFO', sub: 'GO AND HIT A PLANET' }
+    { id: 'door', x: 196, r: 36, name: 'THE ROCK HOUSE', sub: 'GO INSIDE' },
+    { id: 'ufo', x: 300, r: 40, name: 'YOUR DUMB UFO', sub: 'GO AND HIT A PLANET' }
   ];
   const IN_SPOTS = [
-    { id: 'pc', x: 132, r: 46, name: 'THE COMPUTER', sub: 'ABAY IS ON IT' },
-    { id: 'bed', x: 286, r: 38, name: 'YOUR DUMB BED', sub: 'IT IS MOSS. HAVE A LIE DOWN' },
-    { id: 'exit', x: 424, r: 44, name: 'THE DOOR', sub: 'GO OUTSIDE' }
+    { id: 'pc', x: 40, r: 32, name: 'THE COMPUTER', sub: 'ABAY IS ON IT' },
+    { id: 'brain', x: 146, r: 34, name: 'THE BRAIN IN THE JAR', sub: 'IT KNOWS THINGS. BUY SOME' },
+    { id: 'exit', x: 212, r: 22, name: 'THE DOOR', sub: 'GO OUTSIDE' }
   ];
-  const RAT_SPOT = { id: 'rat', x: 208, r: 46, name: 'A VERY FAT RAT', sub: 'GIVE HIM THE CHEESE' };
+  const RAT_SPOT = { id: 'rat', x: 76, r: 26, name: 'A VERY FAT RAT', sub: 'GIVE HIM THE CHEESE' };
   const SPOTS = OUT_SPOTS;                    // game.js docks you next to the UFO
 
   /* --------------------------------------------------------------- scenery */
   const OUT_ROCKS = [];
-  for (let i = 0; i < 20; i++) OUT_ROCKS.push({ x: 20 + U.hash2(i, 3) * (OUT_W - 40), k: (U.hash2(i, 9) * 3) | 0 });
+  for (let i = 0; i < 16; i++) OUT_ROCKS.push({ x: MOON.cx + (U.hash2(i, 3) * 2 - 1) * 158, k: (U.hash2(i, 9) * 3) | 0 });
   const CRATERS = [];
-  for (let i = 0; i < 12; i++) CRATERS.push({ x: 30 + U.hash2(i, 21) * (OUT_W - 60), r: 8 + U.hash2(i, 33) * 20 });
-  const RUINS = [{ x: 70, k: 2 }, { x: 780, k: 1 }];
+  for (let i = 0; i < 10; i++) CRATERS.push({ x: MOON.cx + (U.hash2(i, 21) * 2 - 1) * 150, r: 5 + U.hash2(i, 33) * 13 });
+  const RUINS = [{ x: 118, k: 2 }, { x: 372, k: 1 }];
   const MOTES = [];
   for (let i = 0; i < 26; i++) MOTES.push({ x: U.hash2(i, 61), y: 60 + U.hash2(i, 67) * 150, r: U.hash2(i, 71), sp: 2 + U.hash2(i, 73) * 7 });
 
   /* Inside: the mess, and where each piece of it lies. */
   const IN_PROPS = [
-    { s: 'bed', x: 286 },
-    { s: 'fridge', x: 350 },
-    { s: 'junk0', x: 60 },
-    { s: 'junk1', x: 196 },
-    { s: 'junk2', x: 388 },
-    { s: 'litter0', x: 100 },
-    { s: 'litter1', x: 246 },
-    { s: 'litter2', x: 330 },
-    { s: 'litter3', x: 168 },
-    { s: 'litter0', x: 408 },
-    { s: 'tape', x: 240, lift: 14 }
+    { s: 'fridge', x: 100 },
+    { s: 'junk0', x: 8 },
+    { s: 'junk1', x: 72 },
+    { s: 'junk2', x: 226 },
+    { s: 'litter0', x: 26 },
+    { s: 'litter1', x: 60 },
+    { s: 'litter2', x: 134 },
+    { s: 'litter3', x: 104 },
+    { s: 'litter0', x: 190 },
+    { s: 'litter2', x: 84 },
+    { s: 'tape', x: 76, lift: 13 }
   ];
-  const POSTERS = [{ k: 0, x: 84, y: 96 }, { k: 1, x: 250, y: 84 }, { k: 2, x: 398, y: 104 }];
-  const DRIPS = [{ x: 330, t: 0 }, { x: 118, t: 1.7 }];
+  const POSTERS = [{ k: 0, x: 22, y: 148 }, { k: 1, x: 64, y: 144 }, { k: 2, x: 196, y: 152 }];
+  const DRIPS = [{ x: 130, t: 0 }, { x: 34, t: 1.7 }];
 
   /* ---------------------------------------------------------------- the rat */
-  const rat = { x: 214, y: FLOOR, vx: 0, t: 0, face: -1, hop: 0, chew: 0 };
+  const rat = { x: RAT_SPOT.x, y: FLOOR, vx: 0, t: 0, face: -1, hop: 0, chew: 0 };
 
   let star = null;
 
   function enter(g, atX) {
     S.scene = 'out';
-    place(g, atX === undefined ? 400 : atX);
+    place(g, atX === undefined ? OUT_SPOTS[1].x : atX);
     if (!star) {
       star = [];
-      for (let i = 0; i < 150; i++) star.push({ x: U.hash2(i, 11), y: U.hash2(i, 17) * 190, b: U.hash2(i, 23) });
+      for (let i = 0; i < 220; i++) star.push({ x: U.hash2(i, 11), y: U.hash2(i, 17), b: U.hash2(i, 23) });
     }
   }
 
   function place(g, atX) {
-    P.x = U.clamp(atX, 26, roomW() - 26);
+    const bd = bounds();
+    P.x = U.clamp(atX, bd[0], bd[1]);
     P.y = groundY(P.x); P.vx = 0; P.vy = 0;
     P.target = null; P.autoUse = null; P.roll = 0; P.hop = 0;
     P.lock = 0.28;
     UI.mode = null;
-    g.intCam = U.clamp(P.x - VW / 2, 0, roomW() - VW);
-    rat.x = g.save.pet ? P.x - 40 : RAT_SPOT.x;
+    g.intCam = camWant();
+    rat.x = g.save.pet ? P.x - 30 : RAT_SPOT.x;
     rat.y = groundY(rat.x);
   }
 
   function goIn(g) {
     S.scene = 'in';
-    place(g, IN_SPOTS[2].x - 40);
+    place(g, IN_SPOTS[2].x - 26);
     A.sfx.tone(150, { type: 'square', to: 90, dur: 0.2, vol: 0.08 });
     if (!g.save.pet && !S.ratSeen) {
       S.ratSeen = 1;
@@ -8458,7 +9526,7 @@ window.PD = window.PD || {};
   }
   function goOut(g) {
     S.scene = 'out';
-    place(g, OUT_SPOTS[0].x + 10);
+    place(g, OUT_SPOTS[0].x + 34);
     A.sfx.tone(220, { type: 'square', to: 420, dur: 0.2, vol: 0.08 });
   }
 
@@ -8489,7 +9557,7 @@ window.PD = window.PD || {};
       A.sfx.tone(160, { type: 'square', to: 320, dur: 0.12, vol: 0.07 });
       return;
     }
-    if (s.id === 'bed') { sleep(g); return; }
+    if (s.id === 'brain') { PD.mind.open(g); return; }
     if (s.id === 'rat') { feedRat(g); return; }
   }
 
@@ -8508,20 +9576,12 @@ window.PD = window.PD || {};
     FX.ring(rat.x, rat.y - 14, 4, 38, 0.7, '#ff9ecb', 2);
   }
 
-  /* A lie down. Nothing heals, but the ore market moves while you are out. */
-  function sleep(g) {
-    if (S.sleep > 0) return;
-    S.sleep = 2.2;
-    A.sfx.tone(200, { type: 'triangle', to: 120, dur: 0.6, vol: 0.08 });
-    if (g.player) { g.player.hull = g.player.stat('hull'); g.player.o2 = g.player.stat('oxygen'); }
-  }
-
   function leaveDesk(g) {
     g.state = 'home';
     S.scene = 'in';
     P.lock = 0.32;
-    P.x = IN_SPOTS[0].x + 34; P.y = groundY(P.x); P.vx = 0; P.vy = 0; P.face = -1;
-    g.intCam = U.clamp(P.x - VW / 2, 0, roomW() - VW);
+    P.x = IN_SPOTS[0].x + 26; P.y = groundY(P.x); P.vx = 0; P.vy = 0; P.face = -1;
+    g.intCam = camWant();
   }
 
   /* ---------------------------------------------------------------- update */
@@ -8552,7 +9612,8 @@ window.PD = window.PD || {};
       const wx = m.x + g.intCam;
       let hit = null;
       for (const s of spots(g)) if (Math.abs(s.x - wx) < s.r) hit = s;
-      P.target = hit ? hit.x : U.clamp(wx, 26, roomW() - 26);
+      const bd0 = bounds();
+      P.target = hit ? hit.x : U.clamp(wx, bd0[0], bd0[1]);
       P.autoUse = hit;
       A.sfx.click();
     }
@@ -8581,7 +9642,8 @@ window.PD = window.PD || {};
       if (ix) P.face = ix;
       P.vx = U.damp(P.vx, ix * 104, 0.3, dt);
     }
-    P.x = U.clamp(P.x + P.vx * dt, 26, roomW() - 26);
+    const bd = bounds();
+    P.x = U.clamp(P.x + P.vx * dt, bd[0], bd[1]);
     P.walk += Math.abs(P.vx) * dt * 0.1;
 
     if (IN.hit('up') && grounded && P.roll <= 0) {
@@ -8594,7 +9656,7 @@ window.PD = window.PD || {};
     P.y += P.vy * dt;
 
     // the ceiling is out of reach, but the junk hanging off the beam is not
-    const roof = S.scene === 'in' ? 134 : -600;
+    const roof = S.scene === 'in' ? CEIL + 14 : -600;
     if (P.y < roof) {
       P.y = roof;
       if (P.vy < 0) {
@@ -8623,7 +9685,7 @@ window.PD = window.PD || {};
     if (P.near && P.near !== was) A.sfx.tone(900, { type: 'square', dur: 0.03, vol: 0.03 });
     if (use_) use(g, P.near);
 
-    g.intCam = U.damp(g.intCam, U.clamp(P.x - VW / 2, 0, roomW() - VW), 0.16, dt);
+    g.intCam = U.damp(g.intCam, camWant(), 0.16, dt);
   }
 
   /* Before he is yours he stands over the cheese. After, he never shuts up
@@ -8638,13 +9700,14 @@ window.PD = window.PD || {};
       if (U.chance(dt * 1.4)) { rat.chew = 0.3; A.sfx.tone(240, { type: 'square', dur: 0.03, vol: 0.02 }); }
       return;
     }
-    const want = P.x - P.face * 34;
+    const want = P.x - P.face * 26;
     const d = want - rat.x;
     if (Math.abs(d) > 14) {
       rat.vx = U.damp(rat.vx, U.clamp(d * 2.6, -120, 120), 0.14, dt);
       rat.face = Math.sign(rat.vx) || rat.face;
     } else rat.vx = U.damp(rat.vx, 0, 0.3, dt);
-    rat.x = U.clamp(rat.x + rat.vx * dt, 20, roomW() - 20);
+    const rbd = bounds();
+    rat.x = U.clamp(rat.x + rat.vx * dt, rbd[0] - 16, rbd[1] + 16);
     // he is far too fat to walk, so he bounces
     rat.hop = Math.abs(rat.vx) > 12 ? (rat.hop + dt * 9) : U.damp(rat.hop, 0, 0.2, dt);
     rat.y = groundY(rat.x);
@@ -8669,78 +9732,116 @@ window.PD = window.PD || {};
     ctx.restore();
     ctx.globalAlpha = 1;
     for (const s of star) {
-      const sx = s.x * OUT_W - cam * 0.3;
-      if (sx < -4 || sx > VW + 4) continue;
+      const sx = s.x * VW;
       const tw = 0.5 + 0.5 * Math.sin(t * 2 + s.b * 30);
       ctx.fillStyle = s.b > 0.86 ? '#ffe9a8' : '#ffffff';
       ctx.globalAlpha = 0.22 + s.b * 0.6 * tw;
-      ctx.fillRect(sx | 0, s.y | 0, 1, 1);
+      ctx.fillRect(sx | 0, (s.y * VH) | 0, 1, 1);
     }
     ctx.globalAlpha = 1;
-    // the dead Celestial your moon is made of, out on the horizon
+    // the dead Celestial your moon was chipped off, adrift out to one side
     const sk = AH.S.skull;
-    const skx = Math.round(150 - cam * 0.4);
-    ctx.globalAlpha = 0.85;
-    ctx.drawImage(sk.frames[0], skx - Math.round(sk.w * 0.8), FLOOR + 8 - Math.round(sk.h * 1.6), Math.round(sk.w * 1.6), Math.round(sk.h * 1.6));
+    ctx.globalAlpha = 0.6;
+    ctx.drawImage(sk.frames[0], 6, 12 + Math.round(Math.sin(t * 0.4) * 2), Math.round(sk.w * 0.85), Math.round(sk.h * 0.85));
     ctx.globalAlpha = 1;
     // the world you are about to ruin
     const icon = g.navIcon(g.save.bodyIndex || 0);
-    const px = 700 - cam * 0.42, py = 60 + Math.sin(t * 0.5) * 3;
-    if (px > -70 && px < VW + 70) ctx.drawImage(icon, Math.round(px - icon.width * 0.9), Math.round(py - icon.height * 0.9), Math.round(icon.width * 1.8), Math.round(icon.height * 1.8));
+    const px = 404, py = 52 + Math.sin(t * 0.5) * 3;
+    ctx.drawImage(icon, Math.round(px - icon.width * 0.8), Math.round(py - icon.height * 0.8), Math.round(icon.width * 1.6), Math.round(icon.height * 1.6));
+    void cam;
   }
 
-  function drawRegolith(ctx, t, cam) {
-    const BAND = ['#6b6480', '#5f5875', '#544d6b', '#494360', '#3d3854', '#332e4a', '#2e2842'];
-    for (let sx = 0; sx <= VW; sx += 2) {
-      const wx = sx + cam;
-      const y = Math.round(groundY(wx) / 2) * 2;
+  /* THE BALL. Drawn as a stack of two-pixel columns hung off the curve, so
+     the silhouette IS the circle and the crust bands follow it round. Nothing
+     smooth anywhere: every column is a whole number of pixels tall. */
+  function drawBall(ctx, t, cam) {
+    const BAND = ['#9a92b4', '#8e86a8', '#7a7290', '#6b6480', '#5a5470', '#4a4460', '#3a3450', '#2e2842', '#241f36', '#1b172a'];
+    const DEPTH = [0, 3, 9, 17, 27, 40, 56, 76, 100, 130];
+    // an ordered 2x2 dither, not noise: the terminator wants a clean checker
+    const DITH = [[0.25, 0.75], [0.75, 0.25]];
+    const x0 = Math.ceil(MOON.cx - MOON.r), x1 = Math.floor(MOON.cx + MOON.r);
+    for (let sx = x0 - (x0 % 2); sx <= x1; sx += 2) {
+      const wx = sx + cam + 1;
+      const y = groundY(wx);
+      if (y > VH) continue;
+      /* The star is off to the left, so the crust is pale on that limb and
+         nearly black on the other. The step between shades is DITHERED by a
+         stable per-column hash, which is how you get a curved, shaded ball
+         out of nothing but flat runs of colour. */
+      const nx = (wx - MOON.cx) / MOON.r;
+      const lv = U.clamp(1.55 - nx * 1.15 - Math.abs(nx) * 0.5, 0, 2.2);
+      const frac = lv % 1;
+      const base = 1 - Math.floor(lv);
+      // the dither is per band as well as per column, so the terminator breaks
+      // up into a checker instead of banding the ball into vertical stripes
+      const dcol = DITH[(sx >> 1) & 1];
+      const offAt = (k) => U.clamp(base - (frac > dcol[k & 1] ? 1 : 0), -1, BAND.length - 1);
+      // the strata thicken with depth, so the whole visible body of the ball
+      // is layered rather than one flat mass under a thin crust
       for (let i = 0; i < BAND.length; i++) {
-        const y0 = y + (i === 0 ? 0 : 4 + (i - 1) * 9);
-        const h = i === 0 ? 4 : (i === BAND.length - 1 ? VH - y0 : 9);
-        if (h > 0) X.rect(ctx, sx, y0, 2, h, BAND[i]);
+        const y0 = y + DEPTH[i];
+        const h = i === BAND.length - 1 ? VH - y0 : DEPTH[i + 1] - DEPTH[i];
+        if (h <= 0) continue;
+        X.rect(ctx, sx, y0, 2, h, BAND[U.clamp(i + offAt(i), 0, BAND.length - 1)]);
       }
-      X.rect(ctx, sx, y, 2, 2, '#a89ac4');
+      const off = offAt(0);
+      X.rect(ctx, sx, y, 2, 2, BAND[U.clamp(off, 0, 3)]);
+      // grit and boulders half-buried in the crust, stable frame to frame
+      if (U.hash2(sx, 7) > 0.8) X.rect(ctx, sx, y + 5 + ((U.hash2(sx, 9) * 26) | 0), 2, 2, BAND[U.clamp(1 + off, 0, 9)]);
+      if (U.hash2(sx, 29) > 0.94) {
+        const by = y + 12 + ((U.hash2(sx, 31) * 40) | 0);
+        X.rect(ctx, sx - 2, by, 6, 4, BAND[U.clamp(2 + off, 0, 9)]);
+        X.rect(ctx, sx - 2, by, 6, 1, BAND[U.clamp(off, 0, 9)]);
+      }
     }
+    // craters, sunk into the curve
     for (const c of CRATERS) {
-      const x = c.x - cam; if (x < -50 || x > VW + 50) continue;
-      X.blob(ctx, x, groundY(c.x) + c.r * 0.28, c.r, c.r * 0.3, '#453e5e');
-      X.blob(ctx, x, groundY(c.x) + c.r * 0.1, c.r * 0.94, c.r * 0.16, '#8e86a8');
+      const x = c.x - cam;
+      const gy = groundY(c.x);
+      if (gy > VH) continue;
+      X.blob(ctx, x, gy + c.r * 0.3, c.r, c.r * 0.32, '#453e5e');
+      X.blob(ctx, x, gy + c.r * 0.08, c.r * 0.9, c.r * 0.16, '#8e86a8');
     }
-    for (const r of RUINS) { const x = r.x - cam; if (x < -60 || x > VW + 60) continue; AH.blit(ctx, AH.S['ruin' + r.k], 0, x, groundY(r.x) + 2); }
-    for (const r of OUT_ROCKS) {
-      const x = r.x - cam; if (x < -24 || x > VW + 24) continue;
-      AH.blit(ctx, AH.S['rock' + r.k], 0, x, groundY(r.x) + 2);
+    for (const r of RUINS) { const gy = groundY(r.x); if (gy < VH) AH.blit(ctx, AH.S['ruin' + r.k], 0, r.x - cam, gy + 2); }
+    for (const r of OUT_ROCKS) { const gy = groundY(r.x); if (gy < VH) AH.blit(ctx, AH.S['rock' + r.k], 0, r.x - cam, gy + 2); }
+    // a rim of dust hanging off the limb, so the edge reads as curved
+    ctx.globalAlpha = 0.3;
+    for (let a = -1.35; a < 1.36; a += 0.045) {
+      const rx = MOON.cx + Math.sin(a) * (MOON.r + 3), ry = MOON.cy - Math.cos(a) * (MOON.r + 3);
+      if (ry > VH) continue;
+      X.rect(ctx, rx, ry, 2, 2, '#6b6480');
     }
+    ctx.globalAlpha = 1;
+    void t;
   }
 
   function drawOutside(ctx, g, t, cam) {
     drawSpace(ctx, g, t, cam);
-    drawRegolith(ctx, t, cam);
+    drawBall(ctx, t, cam);
 
-    // the house, standing on the regolith with light in the window
+    // the house, standing on the curve with light in the window
     const hx = OUT_SPOTS[0].x - cam;
-    if (hx > -180 && hx < VW + 180) {
-      const gy = groundY(OUT_SPOTS[0].x);
-      X.blob(ctx, hx, gy + 2, 84, 6, '#241f36');
-      AH.blit(ctx, AH.S.house, 1, hx, gy + 3);
-      F.draw(ctx, 'MY HOUSE', hx - 1, gy - 52, '#ffe9a8', { center: true });
-      // smoke out of the chimney, in fat stepped puffs
-      for (let i = 0; i < 6; i++) {
-        const f = ((t * 0.3 + i / 6) % 1);
-        ctx.globalAlpha = (1 - f) * 0.45;
-        X.blob(ctx, hx + 46 + Math.sin(f * 5 + i) * 8, gy - 98 - f * 56, 4 + f * 12, 3 + f * 10, '#6b6480');
-      }
-      ctx.globalAlpha = 1;
+    const gy = groundY(OUT_SPOTS[0].x);
+    X.blob(ctx, hx, gy + 2, 46, 4, '#241f36');
+    AH.blit(ctx, AH.S.house, 1, hx, gy + 3);
+    F.draw(ctx, 'MY HOUSE', hx - 1, gy - 82, '#ffe9a8', { center: true });
+    // smoke out of the chimney, in fat stepped puffs
+    for (let i = 0; i < 6; i++) {
+      const f = ((t * 0.3 + i / 6) % 1);
+      ctx.globalAlpha = (1 - f) * 0.45;
+      X.blob(ctx, hx + 27 + Math.sin(f * 5 + i) * 7, gy - 70 - f * 44, 3 + f * 9, 2 + f * 8, '#6b6480');
     }
+    ctx.globalAlpha = 1;
 
     // the UFO, up on its bricks, bobbing because nothing here sits still
     const ux = OUT_SPOTS[1].x - cam;
-    if (ux > -110 && ux < VW + 110) {
-      const gy = groundY(OUT_SPOTS[1].x);
-      X.blob(ctx, ux, gy + 1, 48, 5, '#241f36');
-      AH.blit(ctx, AH.S.saucer, Math.floor(t * 3) % 2, ux, gy + 2 + Math.sin(t * 1.6) * 1);
-      AH.blit(ctx, AH.S.flag, Math.floor(t * 4) % 2, ux + 86, groundY(OUT_SPOTS[1].x + 86) + 2);
-    }
+    const uy = groundY(OUT_SPOTS[1].x);
+    X.blob(ctx, ux, uy + 1, 40, 4, '#241f36');
+    AH.blit(ctx, AH.S.saucer, Math.floor(t * 3) % 2, ux, uy + 2 + Math.sin(t * 1.6) * 1);
+    const fx = OUT_SPOTS[1].x + 54;
+    AH.blit(ctx, AH.S.flag, Math.floor(t * 4) % 2, fx - cam, groundY(fx) + 2);
+    const svx = OUT_SPOTS[0].x - 66;
+    AH.blit(ctx, AH.S.survey, 0, svx - cam, groundY(svx) + 2);
   }
 
   function rockEdge(ctx, x0, x1, y, dir, col, colD, amp) {
@@ -8752,13 +9853,33 @@ window.PD = window.PD || {};
   }
 
   function drawInside(ctx, g, t, cam) {
-    X.rect(ctx, 0, 0, VW, VH, '#15111f');
+    /* The room is a hole knocked in a moon. Solid rock fills the screen and
+       the room is clipped out of the middle of it, which is what makes it read
+       as SMALL: you can see the walls end. */
+    X.rect(ctx, 0, 0, VW, VH, '#0c0916');
     const wall = AH.S.wall;
+    ctx.globalAlpha = 0.32;
+    for (let y = -wall.h; y < VH + wall.h; y += wall.h) {
+      for (let x = -20; x < VW + wall.w; x += wall.w) AH.blit(ctx, wall, 0, x, y);
+    }
+    ctx.globalAlpha = 1;
+    for (let x = 0; x < VW; x += 3) {
+      if (U.hash2(x, 3) > 0.7) X.rect(ctx, x, 0, 3, VH, 'rgba(4,2,10,0.35)');
+    }
+
+    /* The room is only 92 pixels tall and 232 across. Clipping to exactly that
+       is what sells it: rock above, rock either side, and a little lit box in
+       the middle of a dead moon. */
+    const rx0 = -cam, rw = IN_W, ry0 = CEIL - 26;
+    ctx.save();
+    ctx.beginPath(); ctx.rect(rx0, ry0, rw, VH - ry0); ctx.clip();
+
+    X.rect(ctx, rx0, ry0, rw, VH - ry0, '#15111f');
     for (let y = CEIL; y < FLOOR + 4; y += wall.h) {
       for (let x = -cam - 40; x < VW + wall.w; x += wall.w) AH.blit(ctx, wall, 0, x, y);
     }
     // a crack he has been meaning to look at
-    let kx = 70 - cam, ky = CEIL + 6;
+    let kx = 40 - cam, ky = CEIL + 6;
     for (let i = 0; i < 20; i++) {
       const w = 3 - (i % 3);
       X.rect(ctx, kx, ky, w, 4, '#241f36');
@@ -8768,7 +9889,7 @@ window.PD = window.PD || {};
     // the warm pool the monitor throws over that end of the room
     for (let i = 0; i < 4; i++) {
       ctx.globalAlpha = 0.055;
-      X.dither(ctx, IN_SPOTS[0].x - cam - 80 + i * 9, CEIL + 4 + i * 7, 160 - i * 18, FLOOR - CEIL - i * 14, '#ffd39a', i % 2);
+      X.dither(ctx, IN_SPOTS[0].x - cam - 54 + i * 7, CEIL + 4 + i * 5, 108 - i * 14, FLOOR - CEIL - i * 10, '#ffd39a', i % 2);
     }
     ctx.globalAlpha = 1;
 
@@ -8786,18 +9907,18 @@ window.PD = window.PD || {};
     X.rect(ctx, 0, CEIL - 16, VW, 1, '#9aa3c4');
     X.rect(ctx, 0, CEIL - 10, VW, 1, '#39405e');
     for (let i = 0; i < 10; i++) {
-      const x = 30 + i * 58 - cam; if (x < -20 || x > VW + 20) continue;
+      const x = 14 + i * 30 - cam; if (x < -20 || x > VW + 20) continue;
       X.rect(ctx, x, CEIL - 19, 6, 10, '#39405e');
       X.rect(ctx, x, CEIL - 19, 6, 1, '#9aa3c4');
     }
     const hang = [
-      { x: 66, k: 0, L: 62 }, { x: 168, k: 1, L: 74 }, { x: 262, k: 2, L: 68 },
-      { x: 336, k: 0, L: 80 }, { x: 404, k: 1, L: 58 }
+      { x: 22, k: 0, L: 26 }, { x: 74, k: 1, L: 34 }, { x: 116, k: 2, L: 28 },
+      { x: 160, k: 0, L: 38 }, { x: 214, k: 1, L: 24 }
     ];
     for (const h of hang) {
       const x = h.x - cam; if (x < -26 || x > VW + 26) continue;
       // they swing on their own, and much harder when you jump into them
-      const kick = S.swing * (1 - Math.min(1, Math.abs(h.x - P.x) / 80)) * 7;
+      const kick = S.swing * (1 - Math.min(1, Math.abs(h.x - P.x) / 50)) * 7;
       const sw = Math.sin(t * 1.1 + h.x) * 2 + Math.sin(t * 11 + h.x) * kick;
       const yb = CEIL - 9 + h.L;
       for (let j = 0; j < h.L; j += 3) X.rect(ctx, x + sw * (j / h.L), CEIL - 9 + j, 2, 3, j % 6 ? '#241f36' : '#3a3450');
@@ -8818,7 +9939,7 @@ window.PD = window.PD || {};
       X.rect(ctx, x, CEIL + h - 1, 3, 1, '#332e4a');
     }
     for (let i = 0; i < 14; i++) {
-      const wx = 6 + i * 34 + U.hash2(i, 41) * 18, x = wx - cam;
+      const wx = 4 + i * 17 + U.hash2(i, 41) * 9, x = wx - cam;
       if (x < -14 || x > VW + 14) continue;
       if (U.hash2(i, 55) > 0.72) continue;              // gaps, so it is not a comb
       const h = 6 + U.hash2(i, 5) * 30, w0 = 4 + U.hash2(i, 17) * 6;
@@ -8828,16 +9949,16 @@ window.PD = window.PD || {};
       }
     }
     // one bare bulb, flickering because he wired it
-    const bx = 210 - cam, flick = U.hash2((t * 8) | 0, 3) > 0.06;
-    X.rect(ctx, bx, CEIL - 9, 1, 70, '#191320');
-    X.rect(ctx, bx - 4, CEIL + 60, 9, 4, '#8e86a8');
-    X.rect(ctx, bx - 3, CEIL + 64, 7, 8, flick ? '#ffe9a8' : '#6b6450');
+    const bx = 88 - cam, flick = U.hash2((t * 8) | 0, 3) > 0.06;
+    X.rect(ctx, bx, CEIL - 9, 1, 30, '#191320');
+    X.rect(ctx, bx - 4, CEIL + 20, 9, 4, '#8e86a8');
+    X.rect(ctx, bx - 3, CEIL + 24, 7, 8, flick ? '#ffe9a8' : '#6b6450');
     if (flick) {
-      X.rect(ctx, bx - 2, CEIL + 65, 3, 3, '#ffffff');
+      X.rect(ctx, bx - 2, CEIL + 25, 3, 3, '#ffffff');
       for (let i = 3; i >= 0; i--) {
         ctx.globalAlpha = 0.05;
-        const w = 30 + i * 26;
-        X.dither(ctx, bx - w / 2, CEIL + 68, w, FLOOR - CEIL - 68 - i * 4, '#ffe9a8', i % 2);
+        const w = 26 + i * 22;
+        X.dither(ctx, bx - w / 2, CEIL + 30, w, FLOOR - CEIL - 30 - i * 3, '#ffe9a8', i % 2);
       }
       ctx.globalAlpha = 1;
     }
@@ -8853,10 +9974,10 @@ window.PD = window.PD || {};
       X.rect(ctx, x + 12, FLOOR + 30, 22, 1, '#332e4a');
     }
     // a rug, worn through
-    const rx = 200 - cam;
-    X.rect(ctx, rx - 62, FLOOR + 1, 124, 8, '#7a3f4a');
-    X.rect(ctx, rx - 62, FLOOR + 1, 124, 2, '#9c5460');
-    for (let i = 0; i < 12; i++) X.rect(ctx, rx - 58 + i * 10, FLOOR + 4, 6, 3, i % 2 ? '#5e2f38' : '#8a4854');
+    const rx = 96 - cam;
+    X.rect(ctx, rx - 42, FLOOR + 1, 84, 8, '#7a3f4a');
+    X.rect(ctx, rx - 42, FLOOR + 1, 84, 2, '#9c5460');
+    for (let i = 0; i < 8; i++) X.rect(ctx, rx - 38 + i * 10, FLOOR + 4, 6, 3, i % 2 ? '#5e2f38' : '#8a4854');
 
     // posters, taped crooked
     for (const p of POSTERS) {
@@ -8865,48 +9986,48 @@ window.PD = window.PD || {};
       X.rect(ctx, x - 8, p.y - 2, 16, 4, '#e8e05a');
     }
     // a tally of every world he has taken apart, scratched into the rock
-    const tx = 300 - cam, kills = g.save.destroyed.filter(Boolean).length;
-    if (tx > -60 && tx < VW + 60) {
-      F.draw(ctx, 'WORLDS I ATE', tx, 152, '#8e86a8', { shadow: false });
+    const tx = 96 - cam, kills = g.save.destroyed.filter(Boolean).length;
+    {
+      F.draw(ctx, 'WORLDS I ATE', tx, 138, '#8e86a8', { shadow: false });
       for (let i = 0; i < kills; i++) {
-        const gx = tx + (i % 10) * 7, gy = 164 + ((i / 10) | 0) * 12;
-        X.rect(ctx, gx, gy, 2, 9, '#c9bce8');
+        const gx = tx + (i % 10) * 7, gy = 150 + ((i / 10) | 0) * 11;
+        X.rect(ctx, gx, gy, 2, 8, '#c9bce8');
         if (i % 5 === 4) X.rect(ctx, gx - 26, gy + 3, 30, 2, '#c9bce8');
       }
-      if (!kills) F.draw(ctx, 'NONE YET', tx, 164, '#5f5680', { shadow: false });
+      if (!kills) F.draw(ctx, 'NONE YET', tx, 150, '#5f5680', { shadow: false });
     }
     // hooks with tools on them, and a shelf of rocks he is proud of
-    const hx = 150 - cam;
-    if (hx > -40 && hx < VW + 40) {
-      X.rect(ctx, hx - 40, 140, 62, 2, '#4a4260');
+    const hx = 22 - cam;
+    {
+      X.rect(ctx, hx - 12, 146, 54, 2, '#4a4260');
       for (let i = 0; i < 3; i++) {
-        X.rect(ctx, hx - 34 + i * 21, 142, 2, 6, '#8e86a8');
-        X.rect(ctx, hx - 38 + i * 21, 148, 11, 15, ['#8e86a8', '#c46a3a', '#5ad0e8'][i]);
-        X.rect(ctx, hx - 38 + i * 21, 148, 11, 2, '#c9bce8');
+        X.rect(ctx, hx - 6 + i * 19, 148, 2, 5, '#8e86a8');
+        X.rect(ctx, hx - 10 + i * 19, 153, 10, 13, ['#8e86a8', '#c46a3a', '#5ad0e8'][i]);
+        X.rect(ctx, hx - 10 + i * 19, 153, 10, 2, '#c9bce8');
       }
     }
-    const shx = 366 - cam;
-    if (shx > -40 && shx < VW + 40) {
-      X.rect(ctx, shx - 28, 166, 56, 3, '#7a5a3a');
-      X.rect(ctx, shx - 28, 166, 56, 1, '#9c7a52');
-      X.rect(ctx, shx - 26, 169, 3, 4, '#5a4028'); X.rect(ctx, shx + 23, 169, 3, 4, '#5a4028');
+    const shx = 174 - cam;
+    {
+      X.rect(ctx, shx - 26, 176, 52, 3, '#7a5a3a');
+      X.rect(ctx, shx - 26, 176, 52, 1, '#9c7a52');
+      X.rect(ctx, shx - 24, 179, 3, 4, '#5a4028'); X.rect(ctx, shx + 21, 179, 3, 4, '#5a4028');
       const shiny = [D.M.gold, D.M.emerald, D.M.iron];
-      for (let i = 0; i < 3; i++) PD.art.oreChip(ctx, shiny[i], shx - 24 + i * 17, 155, 11);
+      for (let i = 0; i < 3; i++) PD.art.oreChip(ctx, shiny[i], shx - 22 + i * 16, 165, 11);
     }
 
     // the door out, a rough arch with rubber strips
     const dx = IN_SPOTS[2].x - cam;
-    X.rect(ctx, dx - 26, CEIL + 10, 52, FLOOR - CEIL - 10, '#120e1c');
-    for (let i = 0; i < 8; i++) {
-      const cx2 = dx - 24 + i * 6, sw = Math.sin(t * 1.2 + i * 0.6) * 1.5;
-      const len = 46 + (i % 3) * 10;
-      for (let j = 0; j < len; j += 2) X.rect(ctx, cx2 + sw * (j / len), CEIL + 14 + j, 4, 2, j % 4 ? '#3f3856' : '#4a4260');
-      X.rect(ctx, cx2, CEIL + 14, 4, 2, '#8e86a8');
+    X.rect(ctx, dx - 20, CEIL + 12, 40, FLOOR - CEIL - 12, '#120e1c');
+    for (let i = 0; i < 7; i++) {
+      const cx2 = dx - 18 + i * 5, sw = Math.sin(t * 1.2 + i * 0.6) * 1.5;
+      const len = 40 + (i % 3) * 8;
+      for (let j = 0; j < len; j += 2) X.rect(ctx, cx2 + sw * (j / len), CEIL + 16 + j, 4, 2, j % 4 ? '#3f3856' : '#4a4260');
+      X.rect(ctx, cx2, CEIL + 16, 4, 2, '#8e86a8');
     }
-    rockEdge(ctx, (dx - 30) | 0, (dx + 30) | 0, CEIL + 10, 1, '#4a4260', '#241f36', 8);
-    X.rect(ctx, dx - 40, CEIL + 20, 30, 14, '#7a5a3a');
-    X.rect(ctx, dx - 40, CEIL + 20, 30, 2, '#9c7a52');
-    F.draw(ctx, 'OWT', dx - 25, CEIL + 24, '#ffe9a8', { center: true });
+    rockEdge(ctx, (dx - 24) | 0, (dx + 24) | 0, CEIL + 12, 1, '#4a4260', '#241f36', 8);
+    X.rect(ctx, dx - 13, CEIL - 2, 26, 12, '#7a5a3a');
+    X.rect(ctx, dx - 13, CEIL - 2, 26, 2, '#9c7a52');
+    F.draw(ctx, 'OWT', dx, CEIL + 1, '#ffe9a8', { center: true });
 
     // the mess
     for (const p of IN_PROPS) {
@@ -8938,9 +10059,23 @@ window.PD = window.PD || {};
     }
     ctx.globalAlpha = 1;
 
+    // THE BRAIN IN THE JAR. The only clean thing in the house, and the only
+    // thing in it that knows anything. It stands in front of the mess.
+    const jx = IN_SPOTS[1].x - cam;
+    const jf = Math.floor(t * 2.4) % 3;
+    for (let i = 3; i >= 0; i--) {
+      ctx.globalAlpha = 0.05 + i * 0.01;
+      const w = 40 + i * 24;
+      X.dither(ctx, jx - w / 2, CEIL + 6, w, FLOOR - CEIL - 6, '#4cff9a', i % 2);
+    }
+    ctx.globalAlpha = 1;
+    X.blob(ctx, jx, FLOOR + 2, 30, 4, '#1a2a20');
+    AH.blit(ctx, AH.S.brainjar, jf, jx, FLOOR + 2);
+    if (U.chance(0.04)) FX.spawn({ x: jx + cam + U.rand(-14, 14), y: FLOOR - 88, vx: U.rand(-6, 6), vy: U.rand(-16, -5), life: 1.1, size: 2, color: '#8affd0', grav: -0.06, drag: 0.96, glow: 1 });
+
     // the cheese, until he takes it
     if (!g.save.pet) {
-      const cx3 = RAT_SPOT.x + 34 - cam;
+      const cx3 = RAT_SPOT.x + 16 - cam;
       AH.blit(ctx, AH.S.cheese, 0, cx3, FLOOR + 1);
     }
     // drips off the roof
@@ -8950,6 +10085,23 @@ window.PD = window.PD || {};
       if (f < 0.7) X.rect(ctx, x, CEIL + 20 + f / 0.7 * (FLOOR - CEIL - 26), 1, 3, '#8affa0');
       else if (f < 0.78) X.rect(ctx, x - 3, FLOOR - 3, 7, 1, '#8affa0');
     }
+    ctx.restore();
+
+    // the rock the room was knocked out of, closing in on all four sides
+    const rx1 = rx0 + rw;
+    rockEdge(ctx, (rx0 - 8) | 0, (rx1 + 8) | 0, ry0, 1, '#3a3450', '#241f36', 9);
+    for (let y = ry0; y < VH; y += 4) {
+      const w = 3 + Math.round(U.hash2(y, 13) * 5);
+      X.rect(ctx, rx0 - 1, y, w, 4, '#241f36');
+      X.rect(ctx, rx0 + w - 2, y, 1, 4, '#4a4260');
+      const w2 = 3 + Math.round(U.hash2(y, 27) * 5);
+      X.rect(ctx, rx1 - w2 + 1, y, w2, 4, '#241f36');
+      X.rect(ctx, rx1 - w2 + 1, y, 1, 4, '#4a4260');
+    }
+    ctx.globalAlpha = 0.5;
+    X.rect(ctx, rx0 - 6, ry0, 6, VH - ry0, '#0c0916');
+    X.rect(ctx, rx1, ry0, 6, VH - ry0, '#0c0916');
+    ctx.globalAlpha = 1;
   }
 
   /* He is enormous, he bounces, and he squashes when he lands. */
@@ -8974,7 +10126,8 @@ window.PD = window.PD || {};
     const s = P.near;
     if (!s) return;
     const x = Math.round(s.x - cam);
-    const lift = s.id === 'ufo' ? 74 : (s.id === 'door' ? 130 : 60);
+    const LIFTS = { ufo: 60, door: 88, brain: 96, pc: 54, exit: 74, rat: 44 };
+    const lift = LIFTS[s.id] || 60;
     const y = Math.round(groundY(s.x) - lift + Math.sin(t * 5) * 2);
     const w = Math.max(F.width(s.name, 1), F.width(s.sub, 1)) + 18;
     X.rect(ctx, x - w / 2 + 2, y + 2, w, 26, 'rgba(6,3,14,0.5)');
@@ -9049,17 +10202,21 @@ window.PD = window.PD || {};
       if (U.chance(0.5)) FX.dust(P.x - P.face * 6, P.y, 1, '#8e86a8', 8);
       return;
     }
-    const set = air ? skin.alienFly : (walking ? skin.alienWalk : skin.alien);
-    const frame = air ? Math.floor(t * 8) % 2 : (walking ? Math.floor(P.walk * 1.1) % 4 : (Math.sin(t * 1.3) > 0.94 ? 4 : Math.floor(t * 7) % 4));
+    // the live rig: his legs plant and swing off his own speed, so walking
+    // across the moon is a real cycle rather than four pictures
+    if (!P.rig) P.rig = PD.rig.make();
+    const r = P.rig;
+    PD.rig.step(r, { dt: g.dt, vx: P.vx, vy: P.vy, ground: !air, drilling: false });
+    const frame = Math.sin(t * 1.3) > 0.94 ? 4 : Math.floor(t * 7) % 4;
     // BOUNCY: a deep squash on landing, a stretch on the way up, and a little
     // extra wobble the whole time so nothing in this game is ever rigid.
     const wob = walking ? Math.sin(P.walk * 2.2) * 0.05 : Math.sin(t * 3.4) * 0.022;
     const sq = P.land > 0 ? 1 + P.land * 1.5 : (air ? (P.vy < -60 ? 0.84 : (P.vy > 90 ? 1.1 : 1)) : 1 + wob);
-    ctx.save();
-    ctx.translate(x, y);
-    ctx.scale(P.face < 0 ? -sq : sq, 1 / sq);
-    ctx.drawImage(set.frames[frame], -set.ox, -set.oy, set.w, set.h);
-    ctx.restore();
+    PD.rig.draw(ctx, r, {
+      x, y, flip: P.face < 0, spr: skin.alienCore, frame,
+      drilling: false, twoHand: false, grip: null, aim: P.face < 0 ? Math.PI : 0,
+      ground: !air, vx: P.vx, vy: P.vy, squash: sq
+    }, skin.P, PD.art.BIZ);
     if (walking && !air && U.chance(0.2)) FX.dust(P.x - P.face * 5, P.y, 1, '#8e86a8', 10);
   }
 
@@ -9120,6 +10277,7 @@ window.PD = window.PD || {};
       vault: {},                                  // ore waiting on the moon
       cos: { suit: 'rose', skin: 'green', glass: 'sky', drill: 'steel', trim: 'stock' },
       pet: 0,                                     // whether the rat is yours yet
+      thots: 0, thotFrac: 0, neur: {},            // what the brain in the jar has grown
       artifacts: 0,                               // relics hauled home
       seenIntro: 1
     };
@@ -9151,6 +10309,9 @@ window.PD = window.PD || {};
       if (flat) { for (const u of D.UPGRADES) if (flat[u.id] !== undefined) base.upg[u.id] = U.clamp(+flat[u.id] || 0, 0, u.max); }
       base.artifacts = +s.artifacts || 0;
       base.pet = s.pet ? 1 : 0;
+      base.thots = Math.max(0, +s.thots || 0);
+      base.thotFrac = Math.max(0, +s.thotFrac || 0);
+      if (s.neur) for (const k in s.neur) if (D.NEUR[k]) base.neur[k] = U.clamp(+s.neur[k] || 0, 0, D.NEUR[k].max);
     }
     g.save = base;
     recompute();
@@ -9160,6 +10321,8 @@ window.PD = window.PD || {};
   function recompute() {
     const sv = g.save;
     for (const u of D.UPGRADES) sv.upg[u.id] = U.clamp(sv.upg[u.id] || 0, 0, u.max);
+    if (!sv.neur) sv.neur = {};
+    for (const n of D.NEURONS) if (sv.neur[n.id]) sv.neur[n.id] = U.clamp(sv.neur[n.id], 0, n.max);
     if (g.player) { g.player.o2 = Math.min(g.player.o2, g.player.stat('oxygen')); }
   }
   g.recompute = recompute;
@@ -9178,6 +10341,31 @@ window.PD = window.PD || {};
   g.wipeSave = wipeSave;
 
   g.valueMult = function () { return 1 + g.save.bonus / 100 + g.save.dominion * 0.004; };
+
+  /* ---------------------------------------------------------------- the brain
+     Neuron levels, what they are worth, and the THOTS that pay for them. */
+  g.brain = function (id) { return (g.save.neur && g.save.neur[id]) || 0; };
+  /* A neuron only lights up once one of the neurons it is wired to is on. */
+  g.brainWired = function (n) { return !n.links.length || n.links.some(l => g.brain(l) > 0); };
+  g.brainCost = function (id) { return D.neuronCost(D.NEUR[id], g.brain(id)); };
+  g.brainBuy = function (id) {
+    const n = D.NEUR[id];
+    if (!n) return false;
+    const lvl = g.brain(id);
+    if (lvl >= n.max || !g.brainWired(n)) return false;
+    const c = g.brainCost(id);
+    if (g.save.thots < c) return false;
+    g.save.thots -= c;
+    g.save.neur[id] = lvl + 1;
+    recompute();
+    saveGame();
+    return true;
+  };
+  /* THOTS come out of work: rock you break, and worlds you finish off. */
+  g.earnThots = function (n) {
+    g.save.thotFrac = (g.save.thotFrac || 0) + n;
+    while (g.save.thotFrac >= 1) { g.save.thotFrac -= 1; g.save.thots++; }
+  };
   g.droneIncome = function () {
     const n = g.save.upg.drones || 0;
     if (!n) return 0;
@@ -9200,12 +10388,19 @@ window.PD = window.PD || {};
     const u = D.UPG[id];
     return Math.min(it ? it.max : 0, u ? u.max : 0);
   };
+  /* KNOW A GUY: the brain has leverage over someone at Abay. */
+  g.abayPrice = function (id) {
+    const it = D.ABAYX[id];
+    if (!it) return 0;
+    const lvl = g.save.upg[id] || 0;
+    return Math.max(10, Math.round(D.abayCost(it, lvl) * (1 - g.brain('know') * 0.05)));
+  };
   g.abayBuy = function (id) {
     const it = D.ABAYX[id];
     if (!it) { A.sfx.deny(); return false; }
     const lvl = g.save.upg[id] || 0;
     if (lvl >= g.abayMax(id)) { A.sfx.deny(); return false; }
-    const cost = D.abayCost(it, lvl);
+    const cost = g.abayPrice(id);
     if (g.save.credits < cost) { A.sfx.deny(); return false; }
     g.save.credits -= cost;
     g.save.upg[id] = lvl + 1;
@@ -9358,7 +10553,8 @@ window.PD = window.PD || {};
   }
   g.demandFor = function (mat) { return g.demand[mat] === undefined ? 1 : g.demand[mat]; };
   g.saleMult = function () {
-    return g.valueMult() * D.UPG.crew.value(g.save.upg.crew || 0) * D.UPG.refine.value(g.save.upg.refine || 0) * D.UPG.greed.value(g.save.upg.greed || 0);
+    return g.valueMult() * D.UPG.crew.value(g.save.upg.crew || 0) * D.UPG.refine.value(g.save.upg.refine || 0) * D.UPG.greed.value(g.save.upg.greed || 0)
+      * (1 + g.brain('haggle') * 0.07);
   };
   g.priceOf = function (mat) { return Math.max(1, Math.round(D.MAT[mat].cr * g.saleMult() * g.demandFor(mat))); };
   g.vaultCount = function (mat) { return g.save.vault[mat] || 0; };
@@ -9440,6 +10636,11 @@ window.PD = window.PD || {};
     const val = Math.round(m.cr * g.valueMult());
     if (m.cr >= 60) FX.text(x, y - 6, '+$' + U.fmt(val), m.c[0], 0);
     FX.burst(x, y, m.shine ? 7 : 3, [m.c[0], '#ffffff'], 60, !!m.shine);
+    // he grabs at it, and it pops out of the world into his pocket
+    const dirx = Math.sign(p.x - x) || 1;
+    FX.pop(x, y, m.c[0], dirx, -0.4);
+    PD.rig.grab(p.rig, x - p.x, y - p.y, Math.cos(p.aim) >= 0);
+    if (m.shine) FX.ring(x, y, 2, 26, 0.5, '#ffffff', 1);
     A.sfx.ore(m.cr);
     return true;
   };
@@ -9464,14 +10665,26 @@ window.PD = window.PD || {};
     g.chain.n++; g.chain.t = 1.3;
     FX.dust(x, y, m.shine ? 9 : 6, m.c[2], 55);
     FX.burst(x, y, 3 + Math.min(6, g.chain.n >> 2), m.c, 70 + Math.min(60, g.chain.n * 4));
+    // DEBRIS EVERYWHERE: the tile comes apart into chips that bounce off the
+    // shaft walls and lie on the floor for a second before they crumble
+    const dir = byDrill && g.player ? g.player.aim : undefined;
+    FX.shards(x, y, m, m.shine ? 14 : 11, dir);
+    FX.crumble(x, y, m);
     A.sfx.break_(U.clamp(m.hp / 255, 0, 1));
     A.sfx.tone(440 + Math.min(20, g.chain.n) * 28, { type: 'triangle', dur: 0.05, vol: 0.05 });
     FX.shake(1.2 + Math.min(1.5, g.chain.n * 0.05));
     if (g.chain.n % 10 === 0) { FX.text(x, y - 14, 'x' + g.chain.n + ' CHAIN', '#ffd34d', 2); FX.hitStop(0.03); A.sfx.coin(g.chain.n / 10 | 0); }
     if (m.cr >= 300) { FX.hitStop(0.04); FX.ring(x, y, 4, 22, 0.4, m.c[0], 2); }
 
-    if (g.pickups.length < 160) g.pickups.push(new PD.ent.Pickup(x, y, mat));
-    else g.collect(mat, x, y);
+    // the brain feeds on work
+    g.earnThots(0.04 + (m.cr >= 300 ? 0.2 : 0));
+    // GREEDY LUCK: sometimes the rock was secretly two rocks
+    const twice = U.chance(g.brain('rich') * 0.06) ? 2 : 1;
+    for (let q = 0; q < twice; q++) {
+      if (g.pickups.length < 160) g.pickups.push(new PD.ent.Pickup(x, y, mat, U.rand(-40, 40), U.rand(-90, -20)));
+      else g.collect(mat, x, y);
+    }
+    if (twice > 1) FX.text(x, y - 18, 'TWO!', '#8affa0', 1);
 
     // cave-ins: loosened rock above comes down
     if (byDrill && g.boulders.length < 14) {
@@ -9808,6 +11021,11 @@ window.PD = window.PD || {};
       PD.desk.update(dt, g);
       return;
     }
+    if (g.state === 'mind') {
+      PD.mind.update(dt, g);
+      FX.update(dt, null);
+      return;
+    }
 
     g.combo.t -= dt;
     if (g.chain && g.chain.t > 0) { g.chain.t -= dt; if (g.chain.t <= 0) g.chain.n = 0; }
@@ -9818,6 +11036,9 @@ window.PD = window.PD || {};
     if (g.state === 'title' || g.state === 'ending') return;
 
     if (g.state === 'victory') {
+      // only reachable through beginDestruction; if something has put us here
+      // without it, go home rather than throwing every frame from now on
+      if (!g.victory) { g.state = 'home'; PD.home.enter(g); return; }
       g.victory.t += dt;
       FX.update(dt, g.world);
       updateCamera(dt, true);
@@ -10123,6 +11344,15 @@ window.PD = window.PD || {};
 
     if (g.state === 'desk') {
       PD.desk.draw(ctx, g, g.time);
+      PD.touch.draw(ctx, 'ui', g);
+      UI.endFrame();
+      blit();
+      return;
+    }
+
+    if (g.state === 'mind') {
+      PD.mind.draw(ctx, g, g.time);
+      FX.drawOverlay(ctx, VW, VH);
       PD.touch.draw(ctx, 'ui', g);
       UI.endFrame();
       blit();

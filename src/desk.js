@@ -589,7 +589,7 @@
       const lvl = g.save.upg[it.id] || 0;
       const cap = g.abayMax(it.id);
       const maxed = lvl >= cap;
-      const cost = D.abayCost(it, lvl);
+      const cost = g.abayPrice(it.id);
       const afford = g.save.credits >= cost;
       const over = hot(bx, y, lw, ROW - 2);
 

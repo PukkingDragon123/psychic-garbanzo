@@ -51,6 +51,57 @@
     }
   }
 
+  /* A HARD-EDGED convex polygon. Canvas path fills are anti-aliased, which on
+     a 45-degree edge leaves a row of half-lit pixels and makes the whole UI
+     look soft. This scanline-fills instead: one whole-pixel run per row, so
+     every shape in the game has a hard edge whatever angle it is cut at. */
+  function poly(ctx, pts, col) {
+    let y0 = 1e9, y1 = -1e9;
+    for (const p of pts) { if (p[1] < y0) y0 = p[1]; if (p[1] > y1) y1 = p[1]; }
+    y0 = Math.floor(y0); y1 = Math.ceil(y1);
+    ctx.fillStyle = col;
+    for (let y = y0; y <= y1; y++) {
+      const yc = y + 0.5;
+      let lo = 1e9, hi = -1e9;
+      for (let i = 0; i < pts.length; i++) {
+        const a = pts[i], b = pts[(i + 1) % pts.length];
+        if ((a[1] <= yc && b[1] > yc) || (b[1] <= yc && a[1] > yc)) {
+          const x = a[0] + (b[0] - a[0]) * (yc - a[1]) / (b[1] - a[1]);
+          if (x < lo) lo = x;
+          if (x > hi) hi = x;
+        }
+      }
+      if (hi < lo) continue;
+      const xa = Math.round(lo), xb = Math.round(hi);
+      if (xb > xa) ctx.fillRect(xa, y, xb - xa, 1);
+    }
+  }
+
+  /* Its outline, walked as integer runs rather than stroked. */
+  function polyEdge(ctx, pts, col, w) {
+    for (let i = 0; i < pts.length; i++) {
+      const a = pts[i], b = pts[(i + 1) % pts.length];
+      line(ctx, a[0], a[1], b[0], b[1], col, w || 1);
+    }
+  }
+
+  function octPts(x, y, r) {
+    x = Math.round(x); y = Math.round(y); r = Math.max(2, Math.round(r));
+    const c = Math.max(1, Math.round(r * 0.42));
+    return [[x - r + c, y - r], [x + r - c, y - r], [x + r, y - r + c], [x + r, y + r - c],
+      [x + r - c, y + r], [x - r + c, y + r], [x - r, y + r - c], [x - r, y - r + c]];
+  }
+
+  function hexPts(x, y, r) {
+    x = Math.round(x); y = Math.round(y); r = Math.max(2, Math.round(r));
+    const out = [];
+    for (let i = 0; i < 6; i++) {
+      const a = Math.PI / 180 * (60 * i - 30);
+      out.push([Math.round(x + Math.cos(a) * r), Math.round(y + Math.sin(a) * r)]);
+    }
+    return out;
+  }
+
   /* Octagon: what a circle looks like when it is made of pixels. */
   function octPath(ctx, x, y, r) {
     x = Math.round(x); y = Math.round(y); r = Math.max(2, Math.round(r));
@@ -63,9 +114,16 @@
     ctx.closePath();
   }
   function oct(ctx, x, y, r, fill, edge, lw) {
-    octPath(ctx, x, y, r);
-    if (fill) { ctx.fillStyle = fill; ctx.fill(); }
-    if (edge) { ctx.strokeStyle = edge; ctx.lineWidth = lw || 1; ctx.stroke(); }
+    const pts = octPts(x, y, r);
+    if (fill) poly(ctx, pts, fill);
+    if (edge) polyEdge(ctx, pts, edge, lw);
+  }
+
+  /* A hexagon, the UI's other shape, drawn the same hard way. */
+  function hex(ctx, x, y, r, fill, edge, lw) {
+    const pts = hexPts(x, y, r);
+    if (fill) poly(ctx, pts, fill);
+    if (edge) polyEdge(ctx, pts, edge, lw);
   }
 
   /* A blob of solid pixels: a true octagon, cut on the diagonal. There is no
@@ -121,6 +179,40 @@
     }
   }
 
+  /* A LIMB: a tapered tube of stamped blocks between two joints, with a dark
+     rim and a lit side. Everything lands on whole units, so an arm can swing
+     and stretch to any angle and still read as pixels rather than a smear.
+     Coordinates are in whatever space the caller has scaled to -- the player
+     draws limbs in sprite units so they match the density of his baked body. */
+  function limb(ctx, x0, y0, x1, y1, w0, w1, col, light, dark) {
+    const dx = x1 - x0, dy = y1 - y0;
+    const len = Math.max(1, Math.hypot(dx, dy));
+    const n = Math.max(1, Math.ceil(len));
+    // perpendicular, for the highlight running down the lit side
+    const px = -dy / len, py = dx / len;
+    const pass = (grow, col2, ox, oy) => {
+      if (!col2) return;
+      ctx.fillStyle = col2;
+      for (let i = 0; i <= n; i++) {
+        const t = i / n;
+        const w = Math.round(w0 + (w1 - w0) * t) + grow;
+        if (w <= 0) continue;
+        const cx2 = Math.round(x0 + dx * t + ox), cy2 = Math.round(y0 + dy * t + oy);
+        ctx.fillRect(cx2 - (w >> 1), cy2 - (w >> 1), w, w);
+      }
+    };
+    pass(2, dark, 0, 0);
+    pass(0, col, 0, 0);
+    pass(-3, light, Math.round(px * 1.2), Math.round(py * 1.2));
+  }
+
+  /* A knuckle or knee: a small solid octagon that hides the seam between two
+     limb segments. */
+  function knob(ctx, x, y, r, col, light) {
+    oct(ctx, x, y, r, col, null);
+    if (light) oct(ctx, x - Math.max(1, r * 0.3), y - Math.max(1, r * 0.3), Math.max(1, r * 0.45), light, null);
+  }
+
   /* A quadratic sampled into integer segments, so wires and cables step. */
   function curve(ctx, x0, y0, cx, cy, x1, y1, col, thick, steps) {
     steps = steps || 14;
@@ -164,9 +256,7 @@
     for (let i = steps; i >= 1; i--) {
       const f = i / steps;
       ctx.globalAlpha = (peak === undefined ? 0.5 : peak) * Math.pow(1 - f, 1.4);
-      octPath(ctx, x, y, r * f);
-      ctx.fillStyle = col;
-      ctx.fill();
+      poly(ctx, octPts(x, y, r * f), col);
     }
     ctx.globalAlpha = 1;
   }
@@ -205,5 +295,5 @@
     ctx.fillRect(x, y, w, h);
   }
 
-  PD.pxd = { rect, plate, frame, oct, octPath, blob, ring, line, curve, orbit, glowBands, scanlines, dither };
+  PD.pxd = { rect, plate, frame, oct, octPath, octPts, hex, hexPts, poly, polyEdge, blob, ring, line, limb, knob, curve, orbit, glowBands, scanlines, dither };
 })(window.PD);

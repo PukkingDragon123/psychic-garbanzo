@@ -244,6 +244,48 @@
     { id: 'warp', name: 'WARP THINGY', seller: 'bort_electronics', stars: 4,
       blurb: 'GO TO FURTHER SECTORS. BUY MORE FOR MORE FAR.', base: 4000, growth: 3.4, max: 3 }
   ];
+  /* ------------------------------------------------------------- the brain
+     A brain in a jar of acid, wired to a stolen keyboard. It knows everything
+     and it will sell you some of it, but it does not want money -- it wants
+     THOTS, which you generate by hitting rocks and by taking worlds apart.
+
+     Each neuron sits on a ring around the stem and has to be wired to a
+     neighbour before it will light up, so the lattice grows outward. */
+  const NEURONS = [
+    { id: 'dig',     ring: 0, a: 0,    max: 8,  cost: 3,  name: 'HIT IT HARDER',   blurb: 'DRILL DOES MORE. OBVIOUS ONE.',        show: n => '+' + (n * 9) + '% DRILL', links: [] },
+    { id: 'air',     ring: 1, a: -58,  max: 8,  cost: 4,  name: 'BIGGER LUNGS',    blurb: 'BREATHE FOR LONGER. GROWN IN JAR.',    show: n => '+' + (n * 14) + ' AIR', links: ['dig'] },
+    { id: 'sack',    ring: 1, a: 58,   max: 8,  cost: 4,  name: 'DEEPER POCKETS',  blurb: 'CARRY MORE ROCK BEFORE FULL.',         show: n => '+' + (n * 5) + ' KG', links: ['dig'] },
+    { id: 'tough',   ring: 1, a: 180,  max: 8,  cost: 4,  name: 'THICKER MEAT',    blurb: 'TAKE MORE BITING. LESS DYING.',        show: n => '+' + (n * 8) + ' HP', links: ['dig'] },
+    { id: 'nose',    ring: 2, a: -100, max: 6,  cost: 7,  name: 'SMELL FOR SHINY', blurb: 'THE FINDER BOX BEEPS FURTHER OUT.',    show: n => '+' + (n * 16) + '% FIND', links: ['air'] },
+    { id: 'deep',    ring: 2, a: -20,  max: 6,  cost: 7,  name: 'LONGER STRING',   blurb: 'GO FURTHER DOWN BEFORE IT PULLS.',     show: n => '+' + (n * 12) + '% ROPE', links: ['air', 'sack'] },
+    { id: 'pockets', ring: 2, a: 26,   max: 6,  cost: 7,  name: 'STICKY HANDS',    blurb: 'ROCKS COME TO YOU FROM FURTHER.',      show: n => '+' + (n * 18) + '% GRAB', links: ['sack'] },
+    { id: 'boots',   ring: 2, a: 128,  max: 6,  cost: 7,  name: 'SPRINGY FEET',    blurb: 'JUMP HIGHER. RUN AWAY FASTER.',        show: n => '+' + (n * 7) + '% LEGS', links: ['tough'] },
+    { id: 'haggle',  ring: 3, a: 0,    max: 6,  cost: 14, name: 'ARGUE BETTER',    blurb: 'EVERY ROCK SELLS FOR MORE ON ABAY.',   show: n => '+' + (n * 7) + '% SALE', links: ['deep', 'pockets'] },
+    { id: 'rich',    ring: 3, a: -66,  max: 5,  cost: 18, name: 'GREEDY LUCK',     blurb: 'SOMETIMES ONE ROCK IS SECRETLY TWO.',  show: n => (n * 6) + '% DOUBLE', links: ['nose', 'deep'] },
+    { id: 'brawn',   ring: 3, a: 150,  max: 5,  cost: 18, name: 'ANGRY ARMS',      blurb: 'THE ZAP GUN HURTS THINGS MORE.',       show: n => '+' + (n * 11) + '% GUN', links: ['boots', 'tough'] },
+    { id: 'know',    ring: 3, a: 96,   max: 4,  cost: 26, name: 'KNOW A GUY',      blurb: 'ABAY PRICES DROP. HE OWES THE BRAIN.', show: n => '-' + (n * 5) + '% COST', links: ['boots', 'haggle'] }
+  ];
+  const NEUR = {};
+  for (const n of NEURONS) NEUR[n.id] = n;
+  /* Each level of a neuron costs a little more than the last. */
+  function neuronCost(n, level) { return Math.round(n.cost * Math.pow(1.5, level)); }
+  /* What the brain says when you plug something in. */
+  const BRAIN_LINES = [
+    'THAT IS IN YOU NOW. NO REFUNDS.',
+    'I HAVE PUT IT WHERE YOUR SPINE WAS.',
+    'MMM. WARM. THANK YOU.',
+    'YOU ARE VERY SLIGHTLY LESS STUPID.',
+    'I FELT THAT. DO IT AGAIN.',
+    'THE ACID AGREES WITH THIS PURCHASE.'
+  ];
+  const BRAIN_IDLE = [
+    'I AM A BRAIN. I AM IN A JAR. ASK ME THINGS.',
+    'HIT MORE ROCKS. THINKING IS NOT FREE.',
+    'YOUR NOSE IS ON WRONG. I CANNOT FIX IT.',
+    'THE RAT IS CLEVERER THAN YOU. SORRY.',
+    'I KNOW EVERYTHING. MOST OF IT IS BORING.'
+  ];
+
   const ABAYX = {};
   for (const it of ABAY) ABAYX[it.id] = it;
   function abayCost(it, level) {
@@ -702,5 +744,5 @@
   }
 
   PD.data = { MAT, M, ENEMY, BODIES, UPGRADES, UPG, upgradeCost, recipe, COSMETICS, COS, TITLES, titleFor, bountyFor,
-    STRATA, ZONES, zoneOf, FLORA, ABAY, ABAYX, abayCost, FACTIONS, LORE, ORB, MIX, MACHINES, METALS, GEMS, JUNK, goodOf, goodFromKey, NODES, appraiseSeconds, appraiseFee };
+    STRATA, ZONES, zoneOf, FLORA, ABAY, ABAYX, abayCost, NEURONS, NEUR, neuronCost, BRAIN_LINES, BRAIN_IDLE, FACTIONS, LORE, ORB, MIX, MACHINES, METALS, GEMS, JUNK, goodOf, goodFromKey, NODES, appraiseSeconds, appraiseFee };
 })(window.PD);

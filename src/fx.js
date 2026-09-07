@@ -67,6 +67,59 @@
     }
   }
 
+  /* DEBRIS. Real chips of the rock that just came apart: they tumble, they
+     bounce off the floor and the walls, they pile up for a moment and then
+     crumble away. Drawn as blocks with a lit top and a dark sole so a shard
+     reads as a solid lump of something rather than a dot. */
+  function shards(x, y, mat, n, ang) {
+    const cols = mat.c;
+    // when the screen is already full of rubble, throw less of it: a heavy
+    // chain of breaks should not be the thing that costs the frame
+    if (parts.length > 620) n = Math.max(3, n >> 1);
+    if (parts.length > 1000) n = Math.max(2, n >> 1);
+    for (let i = 0; i < n; i++) {
+      const a = ang === undefined ? U.rand(0, U.TAU) : ang + Math.PI + U.rand(-1.5, 1.5);
+      const sp = U.rand(40, 210);
+      parts.push({
+        x: x + U.rand(-4, 4), y: y + U.rand(-4, 4),
+        vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - U.rand(20, 90),
+        life: U.rand(0.7, 1.9), max: 1.9,
+        size: U.rand(2, 4.4), color: U.pick(cols),
+        lit: cols[0], dark: cols[2],
+        // only some of them test the world: two collision probes per shard per
+        // frame is the expensive part, and a few chips sailing through a wall
+        // in a shower of thirty is not something anyone sees
+        grav: 1.15, drag: 0.995, glow: 0, collide: i % 3 ? 1 : 0, bounce: U.rand(0.28, 0.55),
+        kind: 'shard', spin: 0
+      });
+      if (parts.length > MAXP) parts.shift();
+    }
+  }
+
+  /* A tile giving up: a puff of grit and a hard little shockwave. */
+  function crumble(x, y, mat) {
+    ring(x, y, 2, 18, 0.26, mat.c[0], 2);
+    // one white square where the tile used to be, gone in three frames
+    spawn({ x, y, vx: 0, vy: 0, life: 0.07, size: 11, color: '#ffffff', grav: 0, drag: 1 });
+    spawn({ x, y, vx: 0, vy: 0, life: 0.14, size: 9, color: mat.c[0], grav: 0, drag: 1 });
+    for (let i = 0; i < 7; i++) {
+      spawn({ x, y, vx: U.rand(-38, 38), vy: U.rand(-56, -10), life: U.rand(0.4, 1.2),
+        size: U.rand(3, 7), color: mat.c[2], grav: -0.05, drag: 0.9 });
+    }
+  }
+
+  /* An ore vanishing into a pocket: it pops, and the pop leaves a spark trail
+     pointing back the way it came. */
+  function pop(x, y, col, dirx, diry) {
+    ring(x, y, 1, 13, 0.3, '#ffffff', 1);
+    ring(x, y, 3, 20, 0.42, col, 1);
+    for (let i = 0; i < 8; i++) {
+      const a = U.rand(0, U.TAU);
+      spawn({ x, y, vx: Math.cos(a) * U.rand(20, 90) + (dirx || 0) * 40, vy: Math.sin(a) * U.rand(20, 90) + (diry || 0) * 40,
+        life: U.rand(0.16, 0.4), size: U.rand(1, 2.4), color: i % 2 ? '#ffffff' : col, grav: 0.2, drag: 0.85, glow: 1 });
+    }
+  }
+
   function smoke(x, y, n, color) {
     for (let i = 0; i < n; i++) {
       spawn({
@@ -104,15 +157,20 @@
       const p = parts[i];
       p.life -= dt;
       if (p.life <= 0) { parts.splice(i, 1); continue; }
+      if (p.rest) continue;                       // lying on the floor: leave it there
       p.vy += p.grav * 260 * dt;
       const d = Math.pow(p.drag, dt * 60);
       p.vx *= d; p.vy *= d;
+      if (p.kind === 'shard') p.spin += (p.vx * 0.02) * dt * 60;
       const nx = p.x + p.vx * dt, ny = p.y + p.vy * dt;
       if (p.collide && world && world.solidAt(nx, ny)) {
-        if (!world.solidAt(p.x, ny)) { p.vx = -p.vx * 0.4; }
-        else if (!world.solidAt(nx, p.y)) { p.vy = -p.vy * 0.4; }
+        const b = p.bounce === undefined ? 0.4 : p.bounce;
+        if (!world.solidAt(p.x, ny)) { p.vx = -p.vx * b; p.y = ny; }
+        else if (!world.solidAt(nx, p.y)) { p.vy = -p.vy * b; p.vx *= 0.72; p.x = nx; }
         else { p.vx *= 0.3; p.vy *= 0.3; }
-        p.life -= dt * 2;
+        // a shard that has stopped moving is lying on the floor: let it lie
+        if (p.kind === 'shard' && Math.abs(p.vy) < 26 && Math.abs(p.vx) < 14) { p.vx = 0; p.vy = 0; p.grav = 0; p.rest = 1; }
+        else if (!p.rest) p.life -= dt * (p.kind === 'shard' ? 0.6 : 2);
       } else { p.x = nx; p.y = ny; }
     }
 
@@ -175,6 +233,17 @@
 
     for (const p of parts) {
       const t = p.life / p.max;
+      if (p.kind === 'shard') {
+        const w = Math.max(2, Math.round(p.size));
+        const h = Math.max(1, Math.round(p.size * 0.72));
+        const sx = Math.round(p.x - cam.x) - (w >> 1), sy = Math.round(p.y - cam.y) - (h >> 1);
+        ctx.globalAlpha = t > 0.35 ? 1 : t / 0.35;
+        ctx.fillStyle = p.color; ctx.fillRect(sx, sy, w, h);
+        // a lump this small only has room for one lit edge
+        if (h > 2) { ctx.fillStyle = p.lit; ctx.fillRect(sx, sy, w - 1, 1); ctx.fillStyle = p.dark; ctx.fillRect(sx, sy + h - 1, w, 1); }
+        else { ctx.fillStyle = p.lit; ctx.fillRect(sx, sy, w - 1, 1); }
+        continue;
+      }
       const s = Math.max(1, Math.round(p.size * (0.4 + t * 0.7)));
       ctx.globalAlpha = t > 0.5 ? 1 : t * 2;
       if (p.glow) {
@@ -224,7 +293,7 @@
   }
 
   PD.fx = {
-    reset, spawn, sparks, dust, burst, smoke, trail, text, ring, chunk,
+    reset, spawn, sparks, dust, burst, smoke, trail, text, ring, chunk, shards, crumble, pop,
     shake, flash, hitStop, update, tickFreeze, shakeOffset, drawWorld, drawFloaters, drawOverlay,
     get freeze() { return freeze; },
     get counts() { return { parts: parts.length, chunks: chunks.length }; }

@@ -606,9 +606,154 @@
   }
 
   /* The big brain for the Mind screen, drawn large. */
-  function brainBig() {
-    const p = pix(220, 170);
-    brainShape(p, 110, 90, 78, P.brain, P.brainD, P.brainL);
+  /* A brain. Lumpy, folded, faceted -- built out of overlapping bevelled
+     blocks rather than curves, with a crease down the middle and a stem. */
+  function brainLobes(p, cx, cy, r, c, cd, cl) {
+    const lump = (x, y, w, h) => {
+      p.round(x, y, w, h, Math.min(w, h) / 3 | 0, c);
+      p.rect(x + 2, y + 1, w - 4, 2, cl);
+      p.rect(x + 2, y + h - 2, w - 4, 1, cd);
+    };
+    lump(cx - r, cy - r * 0.72, r * 2, r * 1.5);
+    lump(cx - r * 0.86, cy - r, r * 0.92, r * 0.78);
+    lump(cx - r * 0.04, cy - r * 1.02, r * 0.9, r * 0.8);
+    lump(cx - r * 0.72, cy + r * 0.34, r * 0.8, r * 0.62);
+    lump(cx - r * 0.02, cy + r * 0.38, r * 0.78, r * 0.6);
+    // the crease, and the folds either side of it
+    p.rect(cx - 2, cy - r * 0.98, 4, r * 1.9, cd);
+    for (let i = 0; i < 5; i++) {
+      const yy = cy - r * 0.7 + i * r * 0.34;
+      p.rect(cx - r * 0.92, yy, r * 0.8, 2, cd);
+      p.rect(cx + r * 0.12, yy + 3, r * 0.8, 2, cd);
+      p.rect(cx - r * 0.9, yy + 2, r * 0.7, 1, cl);
+      p.rect(cx + r * 0.14, yy + 5, r * 0.7, 1, cl);
+    }
+    // the stem, dangling out of the bottom
+    p.round(cx - 5, cy + r * 0.92, 10, r * 0.5, 3, cd);
+    p.rect(cx - 3, cy + r * 0.96, 4, r * 0.4, c);
+  }
+
+  /* THE BRAIN IN THE JAR. It knows everything, it is in a bucket of acid, and
+     it is wired to a keyboard he cannot use. This is the skill tree.
+     Built like a piece of salvage: a heavy base, two posts, metal straps
+     across the glass and a bolted lid, so it reads as a tank and not as a
+     green rectangle. */
+  function brainJar(f) {
+    const p = pix(112, 150);
+    const base = 148;
+    const GL = '#cdeeff', GLD = '#4d7ea0';
+    const glassTop = 30, glassBot = base - 26;
+    // the plinth, on stubby feet
+    p.round(2, base - 24, 108, 20, 3, P.steelD);
+    p.rect(4, base - 22, 104, 3, P.steel);
+    p.rect(4, base - 8, 104, 4, P.steelDD);
+    p.rect(8, base - 4, 14, 4, P.steelDD);
+    p.rect(90, base - 4, 14, 4, P.steelDD);
+    // the acid, dark at the bottom where the sludge has settled
+    p.rect(20, glassTop, 72, glassBot - glassTop, P.acidD);
+    p.rect(23, glassTop + 3, 66, glassBot - glassTop - 6, P.acid);
+    p.rect(23, glassBot - 14, 66, 11, '#12503a');
+    p.rect(23, glassTop + 3 + (f % 2), 66, 3, '#a8ffd0');
+    brainLobes(p, 56, 66 + (f === 1 ? -2 : 0), 24, P.brain, P.brainD, P.brainL);
+    // bubbles, rising in whole-pixel steps
+    for (let i = 0; i < 8; i++) {
+      const bx = 26 + ((i * 27) % 58);
+      const by = glassBot - 16 - ((i * 19 + f * 15) % (glassBot - glassTop - 24));
+      p.round(bx, by, 4, 4, 1, '#d8fff0');
+      p.set(bx + 1, by + 1, '#ffffff');
+    }
+    // the glass itself: a bright column down one side, a dull one down the other
+    p.rect(24, glassTop + 6, 3, glassBot - glassTop - 20, GL);
+    p.rect(85, glassTop + 12, 2, glassBot - glassTop - 30, '#7ec0e0');
+    // two posts, front and back, holding the whole thing together
+    p.round(6, 26, 15, glassBot - 20, 3, P.steelD);
+    p.rect(9, 30, 4, glassBot - 30, P.steel);
+    p.round(91, 26, 15, glassBot - 20, 3, P.steelD);
+    p.rect(94, 30, 4, glassBot - 30, P.steelDD);
+    // metal straps across the glass -- the thing that makes it read as a tank
+    for (const sy of [glassTop + 4, glassBot - 18]) {
+      p.rect(14, sy, 84, 7, P.steelD);
+      p.rect(14, sy, 84, 2, P.steel);
+      p.rect(14, sy + 6, 84, 1, P.steelDD);
+      p.rect(18, sy + 2, 4, 3, P.steelDD);
+      p.rect(90, sy + 2, 4, 3, P.steelDD);
+    }
+    // the lid: bolted down, with a hose taped into it
+    p.round(2, 12, 108, 18, 4, P.steelD);
+    p.rect(4, 14, 104, 3, P.steel);
+    p.rect(4, 27, 104, 2, P.steelDD);
+    for (let i = 0; i < 6; i++) { p.rect(10 + i * 18, 18, 6, 6, P.steelDD); p.rect(10 + i * 18, 18, 6, 2, P.steel); }
+    p.round(44, 2, 22, 12, 3, P.steelDD);
+    p.rect(48, 4, 6, 8, P.steel);
+    girder(p, 66, 6, 104, 0);
+    // a dial that has never moved and a label nobody can read
+    p.round(6, glassBot - 14, 16, 16, 5, P.steelDD);
+    p.round(9, glassBot - 11, 10, 10, 3, P.warm);
+    p.line(14, glassBot - 6, 17, glassBot - 10, P.ink);
+    p.round(28, glassBot - 12, 44, 12, 3, P.warm);
+    p.rect(31, glassBot - 9, 38, 2, '#8a7a52');
+    p.rect(31, glassBot - 5, 26, 2, '#8a7a52');
+    // a stolen keyboard on a bracket, at brain height
+    p.round(74, glassBot - 12, 34, 9, 2, '#ded7bf');
+    p.rect(76, glassBot - 10, 30, 2, '#f4efdc');
+    for (let i = 0; i < 6; i++) p.rect(78 + i * 5, glassBot - 7, 3, 3, '#9d9682');
+    p.outline(P.ink);
+    return p;
+  }
+
+  /* A SMALL rock hut. The moon it stands on is only a couple of hundred
+     pixels across now, so the house had to come down with it. */
+  function houseSmall(lit) {
+    const p = pix(190, 150);
+    const R1 = '#6b6480', R2 = '#5a5474', R3 = '#4a4460', R4 = '#3a3450', RL = '#8e86a8';
+    const base = 148;
+    for (let row = 0; row < 7; row++) {
+      const y = base - 16 - row * 16;
+      const inset = row < 4 ? row * 5 : 20 + (row - 4) * 14;
+      const x0 = 18 + inset, x1 = 172 - inset;
+      for (let x = x0; x < x1; x += 26) {
+        const w = Math.min(24, x1 - x);
+        if (w < 6) continue;
+        const h = 15 + ((x + row) % 3);
+        const c = [R1, R2, R3][(x / 26 + row) % 3 | 0];
+        p.round(x, y, w, h, 3, c);
+        p.rect(x + 1, y + 1, w - 2, 2, RL);
+        p.rect(x + 1, y + h - 2, w - 2, 1, R4);
+      }
+    }
+    // a lumpy cap and a crooked chimney with a dish taped on
+    p.round(74, base - 132, 44, 18, 7, R2);
+    p.round(82, base - 137, 30, 12, 5, R1);
+    p.rect(86, base - 135, 22, 3, RL);
+    p.round(126, base - 116, 20, 34, 4, R2);
+    p.round(129, base - 123, 16, 11, 4, R3);
+    p.rect(138, base - 128, 3, 16, P.steelD);
+    p.round(132, base - 136, 18, 7, 3, '#8e86a8');
+    p.rect(135, base - 130, 10, 3, '#ffe98a');
+    // the doorway, with rubber strips
+    p.round(78, base - 58, 44, 58, 5, '#120e1c');
+    p.rect(76, base - 63, 48, 7, R4);
+    p.rect(76, base - 63, 48, 3, RL);
+    for (let i = 0; i < 6; i++) {
+      const cx2 = 80 + i * 7, len = 30 + (i % 3) * 8;
+      p.rect(cx2, base - 56, 5, len, i % 2 ? '#3f3856' : '#4a4260');
+      p.rect(cx2, base - 56, 5, 2, '#8e86a8');
+    }
+    if (lit) { p.rect(78, base - 18, 44, 18, '#3a3020'); p.rect(84, base - 10, 32, 10, '#4a3a22'); }
+    // one window, and the sign over the door
+    p.round(34, base - 84, 30, 26, 4, '#241f36');
+    p.round(37, base - 81, 24, 20, 3, lit ? '#ffe9a8' : '#2a2440');
+    if (lit) { p.rect(39, base - 79, 20, 3, '#fff7d8'); p.rect(39, base - 69, 9, 7, '#e0c96a'); }
+    p.rect(33, base - 72, 32, 3, R4);
+    p.round(72, base - 79, 56, 16, 3, '#7a5a3a');
+    p.rect(74, base - 77, 52, 3, '#9c7a52');
+    p.rect(74, base - 67, 52, 2, '#4a3020');
+    // junk piled against it
+    p.round(6, base - 26, 24, 26, 3, '#6b4530');
+    p.rect(8, base - 22, 20, 3, '#8a5a3a');
+    p.round(150, base - 22, 24, 22, 3, '#8a5a3a');
+    p.rect(152, base - 18, 20, 3, '#6b4530');
+    p.round(168, base - 15, 18, 15, 3, '#4a4260');
     p.outline(P.ink);
     return p;
   }
@@ -695,7 +840,9 @@
   reg('survey', [survey()]);
   for (let i = 0; i < 3; i++) reg('ruin' + i, [ruin(i)]);
   for (let i = 0; i < 3; i++) reg('rock' + i, [rock(i)]);
-  reg('house', [houseOut(false), houseOut(true)]);
+  reg('house', [houseSmall(false), houseSmall(true)]);
+  reg('houseBig', [houseOut(false), houseOut(true)]);
+  reg('brainjar', [brainJar(0), brainJar(1), brainJar(2)]);
   reg('rat', [moonRat(0, false), moonRat(1, false)]);
   reg('ratFed', [moonRat(0, true), moonRat(1, true)]);
   reg('cheese', [cheese(false), cheese(true)]);

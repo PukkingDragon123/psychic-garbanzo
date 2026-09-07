@@ -432,8 +432,10 @@
       this.vx = U.damp(this.vx, Math.cos(a) * force, 0.22, dt);
       this.vy = U.damp(this.vy, Math.sin(a) * force, 0.22, dt);
       this.rest = 0;
-      if (U.chance(dt * 10)) FX.trail(this.x, this.y, D.MAT[this.mat].c[0], 1.3);
+      this.pulled = 1;
+      if (U.chance(dt * 22)) FX.trail(this.x, this.y, D.MAT[this.mat].c[0], 1.6);
     } else {
+      this.pulled = 0;
       this.vy += g.world.gravityAt(this.y) * 1.1 * dt;
       this.vx *= Math.pow(0.96, dt * 60);
     }
@@ -461,6 +463,20 @@
     const y = this.y - cam.y + Math.sin(t * 3 + this.bob) * 1.4;
     if (this.life < 4) {
       ctx.globalAlpha = (Math.sin(this.life * 14) > 0) ? 0.35 : 1;
+    }
+    // being hauled in by the magnet: it smears along its own flight path and
+    // trails light, so the moment of collection has a run-up to it
+    const sp = Math.hypot(this.vx, this.vy);
+    if (this.pulled && sp > 180) {
+      const k = U.clamp(sp / 700, 0, 0.5);
+      ctx.save();
+      ctx.translate((this.x - cam.x) | 0, y | 0);
+      ctx.rotate(Math.round(Math.atan2(this.vy, this.vx) / (Math.PI / 4)) * (Math.PI / 4));
+      ctx.scale(1 + k, 1 - k * 0.55);
+      drawSprite(ctx, this.spr, 0, 0, 0, false, false);
+      ctx.restore();
+      ctx.globalAlpha = 1;
+      return;
     }
     const sq = this.squash ? 1 + this.squash * 0.5 : 1;
     if (sq !== 1) {

@@ -92,21 +92,18 @@
     }
     ctx.closePath();
   }
+  /* Hard-edged: scanline fill and an outline of integer runs, never a stroke.
+     A stroked hexagon leaves anti-aliased pixels down every diagonal, which is
+     what made the touch pad look blurry next to the rest of the game. */
   function hex(ctx, x, y, r, fill, stroke, lw) {
-    hexPath(ctx, x, y, r);
-    if (fill) { ctx.fillStyle = fill; ctx.fill(); }
-    if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = lw || 1; ctx.stroke(); }
+    PD.pxd.hex(ctx, x, y, r, fill, stroke, lw);
   }
-  /* Six-segment progress ring drawn as hex arcs. */
+  /* Six-segment progress ring drawn as hex edges. */
   function hexProgress(ctx, x, y, r, frac, col) {
-    ctx.strokeStyle = col; ctx.lineWidth = 2;
     const segs = Math.round(U.clamp(frac, 0, 1) * 6);
     for (let i = 0; i < segs; i++) {
       const a0 = -Math.PI / 2 + i * Math.PI / 3, a1 = a0 + Math.PI / 3;
-      ctx.beginPath();
-      ctx.moveTo(x + Math.cos(a0) * r, y + Math.sin(a0) * r);
-      ctx.lineTo(x + Math.cos(a1) * r, y + Math.sin(a1) * r);
-      ctx.stroke();
+      PD.pxd.line(ctx, x + Math.cos(a0) * r, y + Math.sin(a0) * r, x + Math.cos(a1) * r, y + Math.sin(a1) * r, col, 2);
     }
   }
 

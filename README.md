@@ -24,26 +24,60 @@ python3 -m http.server 8000   # then visit http://localhost:8000
 node tools/build.js           # -> dist/planet-destroyer.html
 ```
 
-## Home is a rock house on an empty moon
+## Home is a very small round moon
 
-**Outside** is bare regolith, a few boulders, a flag nobody saluted, the eye
-sockets of a dead Celestial on the horizon — and two things worth walking to.
-One is **your rock house**: a heap of quarried slabs with a hole knocked in the
-front for a door, one lit window, a crooked chimney with a satellite dish taped
-to it, smoke going up, and every crate he could not be bothered to carry inside
-stacked against the walls. The other is **your dumb UFO**, up on two bricks
-with one leg that gave up years ago.
+**Outside** is a **ball**. Your moon is about three hundred pixels across and
+you can see the whole of it at once: a shaded, faceted little planetoid sitting
+in the middle of the screen with stars on both sides of it, the horizon falling
+away at either end, and a rim of dust hanging off the limb. The star is off to
+one side, so the crust is pale on that side and nearly black on the other, with
+the terminator between them dithered rather than drawn as a line. Nothing
+scrolls out here. The moon is an object you look at, not a corridor you walk
+down.
 
-**Inside** is one room and it is a tip: a dumb bed of moss, the stolen computer
-on a plank, a beam across the roof with coils of cable and a lamp that does not
-work hanging off it, a bare bulb he wired himself, empty cans, a stack of
-plates with something living on top, a bucket under a drip, one boot, a rug
-worn through, and a tally of every world he has eaten scratched into the rock.
+Standing on it: **your rock house**, a squat heap of quarried slabs with a hole
+knocked in the front for a door, one lit window, a crooked chimney with a
+satellite dish taped to it and smoke going up; **your dumb UFO**, up on two
+bricks with one leg that gave up years ago; a flag nobody saluted; a survey
+pole; and boulders half-buried in the regolith. The eye sockets of a dead
+Celestial drift past in the background, and the world you are about to take
+apart hangs in the top corner.
 
-Two things and a bed. Stand at any of them and press `E`.
+**Inside** is one very small room, and it is clipped out of solid rock: you can
+see the walls end. It holds exactly two things — the stolen computer on a
+plank, and **a brain in a jar of acid** — plus every bit of mess he owns: a
+beam across the roof with coils of cable and a lamp that does not work hanging
+off it, a bare bulb he wired himself, a fridge covered in notes, empty cans, a
+stack of plates with something living on top, a bucket under a drip, one boot, a
+rug worn through, a shelf of rocks he is proud of, hooks with tools on them, and
+a tally of every world he has eaten scratched into the rock.
+
+**There is no bed.** He does not sleep. Stand at the computer, the jar or the
+door and press `E`.
 
 The high jump reaches the junk hanging off the roof beam, and head-butting it
 sets the whole lot swinging.
+
+## The brain in the jar
+
+The other thing in the room is a **brain in a bucket of acid**, wired to a
+keyboard he cannot use, standing on a welded plinth with metal straps across
+the glass and a bolted lid. It knows everything. Most of it is boring.
+
+It is the skill tree, and it does not want money — money is for ABAY. It wants
+**THOTS**, which come out of work: a fraction of one for every tile you break
+and a fat chunk for anything valuable. Press `E` at the jar and the screen fills
+with the thing itself: a big faceted pink brain suspended in green acid,
+bubbles going up in whole-pixel steps, one eye grown on the side of it that
+follows you round, and **twelve neurons** wired across it in rings around the
+stem.
+
+A neuron only lights up once something it is wired to is already on, so the
+lattice has to grow outward from `HIT IT HARDER` in the middle. Buying one runs
+a pulse of light down the dendrite it grew along. They are all a little
+horrible: `BIGGER LUNGS`, `THICKER MEAT`, `STICKY HANDS`, `SPRINGY FEET`,
+`GREEDY LUCK` (sometimes one rock is secretly two), `ARGUE BETTER` (everything
+sells for more) and `KNOW A GUY` (ABAY prices drop; he owes the brain).
 
 ## Brenda
 
@@ -163,6 +197,27 @@ bite you. Floating numbers punch in past their own size before they settle.
 Touch keys sink when pressed and spring back bigger than they were. Brenda is
 too fat to walk, so he bounces.
 
+## Rock comes apart
+
+A tile does not blink out of existence. It **cracks** through five stages of
+fracture — each crack a dark pixel with a pale one beside it, so damage reads as
+broken rather than dirty — and by the last stages whole chips are missing out of
+its corners and the thing **shudders in place**, which is the last thing it does.
+
+Then it goes: one white flash where it stood, a hard little shockwave, a puff of
+grit that drifts upward, and **debris everywhere**. Every tile throws a dozen
+chips of itself, painted in its own colours with a lit top edge and a dark sole,
+and they are real: they tumble, they bounce off the walls and the floor of your
+own tunnel with their own restitution, and the ones that stop moving **lie
+there** for a second before they crumble away. Dig a long shaft and the floor
+behind you is covered in the rubble you made.
+
+The ore itself pops rather than fades: a white ring, a coloured ring, sparks
+thrown back along the path it came in on, and a plated `+$` number that
+overshoots before it settles. Anything shiny throws a second ring. On the way in
+it **smears along its own flight path**, stretched down the line it is
+travelling, trailing light — so the moment of collection has a run-up to it.
+
 ## The alien
 
 He is not cute. He is a tall lumpy head on a long thin neck on a pear-shaped
@@ -178,13 +233,45 @@ done up wrong, and shoes far too big for him, with a battered brass air tank
 gaffer-taped to his back.
 
 He is drawn at **twice the game's pixel density**, as are his hands on the
-keyboard, the pod, the terrain and every prop in the house. When he drills he
-plants his feet wide, leans his whole weight into the tool, grips it
-two-handed, grits his teeth, and the drill shakes him and the camera and throws
-sparks. At home he runs, jumps absurdly high in the low gravity, tucks into a
-**roll** (`Shift`), and bangs his head on his own ceiling. On a phone home has
-its own hex keys for jump, roll and use, and a held touch on the left half
-walks you.
+keyboard, the pod, the terrain and every prop in the house.
+
+## His arms and legs are not pictures
+
+His four limbs are not drawn into his sprite sheet. Only his body, head and
+nose are; the limbs are built out of live segments every frame by a small rig,
+so they swing, plant, brace, bend and **stretch** instead of stepping through
+four baked poses.
+
+Each limb is a two-bone solve. When the hand or foot is further away than the
+bones reach, **the bones themselves pull long** — up to about a third again —
+which is the whole point: an arm reaching for the drill or a leg braced against
+the recoil visibly stretches, then springs back.
+
+- **Walking** is a real cycle driven by ground covered rather than by the
+  clock, so his feet never skate: each foot swings forward through the air,
+  then holds still on the ground while his hips travel over it, and his whole
+  body bobs twice a stride.
+- **Drilling** braces him. Aiming along the ground he plants one foot forward
+  and drives the other straight out behind, stretched; aiming up or down there
+  is nothing to brace against, so his legs go wide and he squats over the hole.
+  Both hands come on to the tool, the far arm crossing to the front of the
+  housing, and his fingers close over the grip because the drill is drawn
+  *between* his two arms.
+- **Every bite kicks him.** When a tile gives, the whole rig recoils off it:
+  his shoulders go back, his braced leg stretches harder, his body jolts, and
+  the drill and the camera shake.
+- **Falling** stretches him and landing squashes him. In the air his legs trail
+  whichever way he is moving.
+- **Picking something up** makes him snatch at it: the near arm shoots out
+  towards the ore, stretching if it has to, and springs back.
+
+The limbs are drawn in *sprite units* — two to the logical pixel, the density
+his body is drawn at — with every block landing on a whole unit, so an arm at
+any angle is still pixels rather than a smear.
+
+At home he runs, jumps absurdly high in the low gravity, tucks into a **roll**
+(`Shift`), and bangs his head on his own ceiling. On a phone home has its own
+hex keys for jump, roll and use, and a held touch on the left half walks you.
 
 ## The pod and the wire
 
@@ -196,9 +283,7 @@ of light down on to the rock. On a dive it hovers over the dig site and you drop
 out on a **tether**.
 The wire is the leash: run out of reach and it snaps taut, flashes red and
 yanks you back. The `WIRE` bar shows the slack left, and the winch tower buys
-more reach. Press `E` under the pod to board and go home. The alien himself is
-small, round and extremely fat, with a fishbowl helmet, stubby limbs, a
-bobbing antenna and a walk that squashes and stretches.
+more reach. Press `E` under the pod to board and go home.
 
 ## The chart
 
@@ -229,8 +314,8 @@ tab shows the asking price per lot and flags the ones that have gone `HOT` or
 | `Q` / wheel | Swap weapon (pistol → scattergun → lance, as the gun shack grows) |
 | `Shift` / double-tap a direction | **Burst dash** with invulnerability frames (on the moon: roll) |
 | `Tab` | **Scanner ping** — paints ore on the minimap |
-| `E` | Board the pod / sit at the desk / get in the saucer / drop on a world |
-| `Esc` | Back out of the computer, or out of an app |
+| `E` | Board the pod / sit at the desk / talk to the brain / get in the saucer / drop on a world |
+| `Esc` | Back out of the computer, the brain, or an app |
 | Hold `R` | Emergency tractor beam home — costs 10% of your cargo |
 | `Esc` | Pause |
 
@@ -346,17 +431,20 @@ a line of history under its blurb.
 | --- | --- |
 | `src/util.js` | Math, `Math.imul` hash noise, fbm, and an inverse-normal quantile helper used to hit exact ore/cave densities |
 | `src/pix.js` | Tiny pixel-drawing surface, where every round primitive is really an octagon or a chamfer; `outline()` traces the dark cartoon border that gives everything its look |
+| `src/pxd.js` | Runtime pixel primitives: hard-edged scanline polygons (no anti-aliased diagonals anywhere), octagons, hexagons, stepped rings, tapering limb segments, and a cached dither pattern |
 | `src/art.js` | The alien at 2x in idle, walk, fly, drill and roll poses, the drill, the pod, guns, six enemies, ore chunks, UI icons — all procedural |
-| `src/arthome.js` | Home at 2x: the rock house seen from outside, wall and floor, the desk with the human computer, the moon rat, the cheese, the bed, the fridge, junk piles, litter, posters, ruins, and the cratered-moon generator |
+| `src/arthome.js` | Home at 2x: the small rock house seen from outside, wall and floor, the desk with the human computer, **the brain in the jar**, the moon rat, the cheese, the fridge, junk piles, litter, posters, ruins, and the cratered-moon generator |
+| `src/rig.js` | The limb rig: two-bone solves that stretch, a walk cycle driven by ground covered, the drilling brace, the recoil, the snatch, and hard-pixel limb segments |
+| `src/mind.js` | The brain in the jar: the acid tank, the faceted brain, the neuron lattice and what each neuron grows into you |
 | `src/font.js` | Hand-drawn 5×7 bitmap font, cached per colour |
 | `src/audio.js` | WebAudio synthesis — a drill loop that tracks rock hardness, jetpack noise, explosions, and a villainous little groove |
-| `src/data.js` | 30 materials, 9 enemy species, ten worlds in four sectors, nine strata templates, the ABAY catalogue, the factions and lore, the evil-title ladder |
+| `src/data.js` | 30 materials, 9 enemy species, ten worlds in four sectors, nine strata templates, the ABAY catalogue, **the twelve neurons**, the factions and lore, the evil-title ladder |
 | `src/world.js` | Tile grid; strata + pocket-biome generation, tunnels and caverns, veins on a rarity curve, magma lakes, geodes, fossil beds, ruins; fog of war; the three-layer rounded terrain renderer |
 | `src/entities.js` | Mobs with four AI kinds, bullets, ore pickups, falling boulders |
 | `src/player.js` | Movement, the drill, weapons, dash, air, cargo, damage, and the tether to the pod |
 | `src/fx.js` | Particles, floating numbers, shockwave rings, terrain chunks, screen shake, hit-stop |
 | `src/ui.js` | The cardboard-and-masking-tape HUD (air tank, hull chips, sack tube), the action strip, the plank over the door, pause, victory and title screens |
-| `src/home.js` | Both halves of home: the moon outside with the house and the saucer, the one room inside with the bed and the computer, and Brenda |
+| `src/home.js` | Both halves of home: the small round moon outside with the house and the saucer on the curve of it, the very small room inside with the computer and the jar, and Brenda |
 | `src/desk.js` | First person at the computer: hands, keyboard, CRT, the loose-spring pointer, ZORB OS and ABAY |
 | `src/glyph.js` | The icon language that rides alongside the text, and the hex primitives |
 | `src/galaxy.js` | Spiral-arm star band, nebulae, sun, ringed planets, shooting stars |

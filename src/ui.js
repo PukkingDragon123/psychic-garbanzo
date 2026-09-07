@@ -118,16 +118,11 @@
   /* ----------------------------------------------------------- vitals pod
      Three readouts, no clutter: a glass air tank that empties, hull as a row
      of hex chips that shatter, and the hold as a filling tube. */
+  /* Hard-edged: scanline fill, run-drawn outline. A stroked hexagon leaves
+     anti-aliased pixels down every diagonal and the health chips are the most
+     looked-at thing on the screen. */
   function hexChip(ctx, x, y, r, fill, edge) {
-    ctx.beginPath();
-    for (let i = 0; i < 6; i++) {
-      const a = Math.PI / 180 * (60 * i - 30);
-      const px = x + Math.cos(a) * r, py = y + Math.sin(a) * r;
-      if (i) ctx.lineTo(px, py); else ctx.moveTo(px, py);
-    }
-    ctx.closePath();
-    if (fill) { ctx.fillStyle = fill; ctx.fill(); }
-    if (edge) { ctx.strokeStyle = edge; ctx.lineWidth = 1; ctx.stroke(); }
+    X.hex(ctx, x, y, r, fill, edge, 1);
   }
 
   function vitals(ctx, g) {
@@ -147,10 +142,19 @@
     X.rect(ctx, PW - 4, PH - 8, 1, 4, '#6b4a2e');
     X.rect(ctx, PW - 8, PH - 4, 1, 4, '#6b4a2e');
     X.rect(ctx, PW - 4, PH - 8, 4, 1, '#6b4a2e');
+    // the grain of the cardboard, and the fibres coming off the cut edge
+    for (let gy = 2; gy < PH - 10; gy += 3) {
+      if (U.hash2(gy, 5) > 0.55) X.rect(ctx, 2, gy, PW - 6, 1, 'rgba(88,60,34,0.35)');
+    }
+    for (let gx = 4; gx < PW - 10; gx += 2) {
+      if (U.hash2(gx, 9) > 0.7) X.rect(ctx, gx, PH - 9, 2, 1 + ((U.hash2(gx, 11) * 3) | 0), 'rgba(120,84,48,0.5)');
+    }
     // masking tape, applied by someone with three fingers
     X.rect(ctx, PW - 22, -3, 22, 9, 'rgba(226,208,132,0.8)');
     X.rect(ctx, PW - 22, -3, 22, 1, 'rgba(246,232,168,0.8)');
+    for (let i = 0; i < 4; i++) X.rect(ctx, PW - 20 + i * 6, -3, 2, 9, 'rgba(206,188,112,0.5)');
     X.rect(ctx, -4, 30, 8, 16, 'rgba(226,208,132,0.8)');
+    X.rect(ctx, -4, 30, 8, 1, 'rgba(246,232,168,0.8)');
 
     // --- air: a glass tank that empties
     const tx = 5, ty = 4, tw = 14, th = 44;
@@ -191,8 +195,7 @@
         ctx.restore();
         hexChip(ctx, x, y, 6.5, null, '#ffb0a0');
       } else {
-        ctx.strokeStyle = '#6b4a2e'; ctx.lineWidth = 1;
-        ctx.beginPath(); ctx.moveTo(x - 4, y - 3); ctx.lineTo(x + 3, y + 4); ctx.stroke();
+        X.line(ctx, x - 4, y - 3, x + 3, y + 4, '#6b4a2e', 1);
       }
     }
 
@@ -239,6 +242,12 @@
     X.rect(ctx, VW - 130, -3, 18, 8, 'rgba(226,208,132,0.8)');
     F.draw(ctx, '$' + U.fmt(g.save.credits), VW - 8, 4, COL.gold, { right: true, scale: 2 });
     F.draw(ctx, 'GALAXY ATE ' + g.save.dominion.toFixed(1) + '%', VW - 8, 22, '#d8b48a', { right: true });
+    // and what the brain in the jar is owed, ticking up as you break rock
+    X.rect(ctx, VW - 78, 34, 78, 13, 'rgba(20,42,32,0.86)');
+    X.rect(ctx, VW - 78, 34, 78, 1, '#2fbf7a');
+    X.rect(ctx, VW - 78, 46, 78, 1, '#0e3a2c');
+    Gd().draw(ctx, 'star', VW - 76, 34, '#4cff9a', '#1e9e5c');
+    F.draw(ctx, U.fmt(g.save.thots) + ' THOTS', VW - 6, 37, '#8affd0', { right: true, shadow: false });
   }
   const meters = vitals;
 

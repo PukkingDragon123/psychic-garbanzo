@@ -159,18 +159,39 @@
     return cv;
   }
 
+  /* Five stages of coming apart. A crack is a dark pixel with a pale one
+     beside it, so a damaged tile reads as fractured rather than dirty, and by
+     the last stage whole chips are missing out of it. */
+  const CRACK_STAGES = 5;
   function buildAtlas() {
     crackCv = [];
-    for (let stage = 0; stage < 3; stage++) {
+    for (let stage = 0; stage < CRACK_STAGES; stage++) {
       const cv = document.createElement('canvas');
       cv.width = TILE; cv.height = TILE;
       const c = cv.getContext('2d');
-      c.fillStyle = 'rgba(10,6,20,0.75)';
-      const n = 4 + stage * 5;
+      // fractures spreading from the middle outward
+      const n = 3 + stage * 6;
       for (let i = 0; i < n; i++) {
-        const x = Math.floor(U.hash2(i * 3 + stage * 41, 7) * TILE);
-        const y = Math.floor(U.hash2(i * 11 + 3, stage * 17) * TILE);
-        c.fillRect(x, y, 1 + (stage > 1 ? 1 : 0), 1);
+        const a = U.hash2(i * 3 + 7, 11) * Math.PI * 2;
+        const len = 1 + U.hash2(i * 5, stage * 13 + 3) * (2 + stage * 1.4);
+        let x = TILE / 2 + Math.cos(a) * 0.5, y = TILE / 2 + Math.sin(a) * 0.5;
+        for (let k = 0; k < len; k++) {
+          x += Math.cos(a) + (U.hash2(i * 17 + k, stage) - 0.5);
+          y += Math.sin(a) + (U.hash2(i * 23 + k, stage + 5) - 0.5);
+          if (x < 0 || y < 0 || x >= TILE || y >= TILE) break;
+          c.fillStyle = 'rgba(10,6,20,0.8)';
+          c.fillRect(x | 0, y | 0, 1, 1);
+          c.fillStyle = 'rgba(255,255,255,0.14)';
+          c.fillRect((x | 0) + 1, (y | 0) - 1, 1, 1);
+        }
+      }
+      // and by the end, chips knocked clean out of the corners
+      if (stage >= 3) {
+        c.globalCompositeOperation = 'source-over';
+        c.fillStyle = 'rgba(6,3,14,0.85)';
+        const k = stage - 2;
+        c.fillRect(0, 0, k, k);
+        c.fillRect(TILE - k - 1, TILE - k, k + 1, k);
       }
       crackCv.push(cv);
     }
@@ -886,8 +907,15 @@
         const dmg = this.dmg[i];
         if (dmg > 0) {
           const f = dmg / this.tileHp(m, cx, cy);
-          const stage = f > 0.72 ? 2 : (f > 0.38 ? 1 : 0);
-          ctx.drawImage(crackCv[stage], sx, sy);
+          const stage = U.clamp(Math.floor(f * CRACK_STAGES), 0, CRACK_STAGES - 1);
+          // a tile about to give shudders in place: the last thing it does
+          if (stage >= 3) {
+            const jx = Math.round(Math.sin(time * 47 + cx * 3 + cy) * (stage - 2) * 0.6);
+            const jy = Math.round(Math.cos(time * 41 + cy * 3) * (stage - 2) * 0.4);
+            ctx.drawImage(crackCv[stage], sx + jx, sy + jy);
+            ctx.fillStyle = 'rgba(255,240,200,0.16)';
+            ctx.fillRect(sx, sy, TILE, 1);
+          } else ctx.drawImage(crackCv[stage], sx, sy);
         }
 
         const heat = this.heat[i];
