@@ -68,14 +68,15 @@
     if (edge) { ctx.strokeStyle = edge; ctx.lineWidth = lw || 1; ctx.stroke(); }
   }
 
-  /* A blob of solid pixels -- scanline octagon, no anti-aliasing anywhere. */
+  /* A blob of solid pixels: a true octagon, cut on the diagonal. There is no
+     round blob anywhere in the game -- rocks and craters are faceted stone. */
   function blob(ctx, x, y, rx, ry, col) {
     x = Math.round(x); y = Math.round(y);
     rx = Math.max(1, Math.round(rx)); ry = Math.max(1, Math.round(ry));
     ctx.fillStyle = col;
     for (let j = -ry; j <= ry; j++) {
-      const f = 1 - (j * j) / ((ry + 0.4) * (ry + 0.4));
-      const w = Math.round(rx * Math.sqrt(Math.max(0, f)));
+      const dy = Math.abs(j) / ry;
+      const w = Math.round(rx * Math.min(1, 1.42 - dy));
       if (w <= 0) continue;
       ctx.fillRect(x - w, y + j, w * 2 + 1, 1);
     }
@@ -133,17 +134,26 @@
     }
   }
 
-  /* A dotted stepped ellipse outline, for orbits. */
+  /* A dotted OCTAGON outline, for orbits. Eight straight runs, no ellipse. */
   function orbit(ctx, x, y, rx, ry, col, gap, alpha) {
     ctx.save();
     if (alpha !== undefined) ctx.globalAlpha = alpha;
     ctx.fillStyle = col;
     gap = gap || 4;
-    const n = Math.max(16, Math.round((rx + ry) * 0.7));
-    for (let i = 0; i < n; i++) {
-      if (i % gap > 1) continue;
-      const a = i / n * Math.PI * 2;
-      ctx.fillRect(Math.round(x + Math.cos(a) * rx), Math.round(y + Math.sin(a) * ry), 1, 1);
+    const cx2 = rx * 0.42, cy2 = ry * 0.42;
+    const pts = [
+      [-rx + cx2, -ry], [rx - cx2, -ry], [rx, -ry + cy2], [rx, ry - cy2],
+      [rx - cx2, ry], [-rx + cx2, ry], [-rx, ry - cy2], [-rx, -ry + cy2]
+    ];
+    let k = 0;
+    for (let i = 0; i < 8; i++) {
+      const a = pts[i], b = pts[(i + 1) % 8];
+      const steps = Math.max(2, Math.round(Math.hypot(b[0] - a[0], b[1] - a[1])));
+      for (let s2 = 0; s2 < steps; s2++, k++) {
+        if (k % gap > 1) continue;
+        const f = s2 / steps;
+        ctx.fillRect(Math.round(x + a[0] + (b[0] - a[0]) * f), Math.round(y + a[1] + (b[1] - a[1]) * f), 1, 1);
+      }
     }
     ctx.restore();
   }

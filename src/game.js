@@ -50,6 +50,7 @@
       totalMined: 0, totalEarned: 0, bodyIndex: 0, seen: {},
       vault: {},                                  // ore waiting on the moon
       cos: { suit: 'rose', skin: 'green', glass: 'sky', drill: 'steel', trim: 'stock' },
+      pet: 0,                                     // whether the rat is yours yet
       artifacts: 0,                               // relics hauled home
       seenIntro: 1
     };
@@ -80,6 +81,7 @@
       const flat = s.upg || s.neur;
       if (flat) { for (const u of D.UPGRADES) if (flat[u.id] !== undefined) base.upg[u.id] = U.clamp(+flat[u.id] || 0, 0, u.max); }
       base.artifacts = +s.artifacts || 0;
+      base.pet = s.pet ? 1 : 0;
     }
     g.save = base;
     recompute();
@@ -1159,15 +1161,18 @@
     g.dt = dt;
     g.fps = U.lerp(g.fps, 1 / Math.max(0.0001, dt), 0.05);
 
-    // convert pointer position into canvas and world space
+    // convert pointer position into canvas space
     const m = PD.input.mouse;
     m.x = U.clamp((m.sx - offX) / scale, 0, VW);
     m.y = U.clamp((m.sy - offY) / scale, 0, VH);
-    m.wx = m.x + g.cam.x;
-    m.wy = m.y + g.cam.y;
 
     FX.tickFreeze(dt);
+    // touch overwrites the pointer, so world space is resolved AFTER it -- get
+    // this the wrong way round and a finger drag aims at the top-left corner
+    // forever, which is exactly how the drill used to feel on a phone
     PD.touch.apply(g.state === 'play' ? 'play' : (g.state === 'home' ? PD.home.touchMode() : 'ui'));
+    m.wx = m.x + g.cam.x;
+    m.wy = m.y + g.cam.y;
 
     if (FX.freeze > 0) {
       // hit-stop: the world holds still but particles keep creeping

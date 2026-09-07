@@ -30,13 +30,19 @@
     return this;
   };
 
+  /* An OCTAGON inscribed in the box, not an ellipse. Nothing in this game is
+     allowed to be an oval: the corners come off at 45 degrees and the result
+     reads as a cut stone rather than a balloon. Same call signature as the
+     ellipse it replaced, so every sprite in the game turned faceted at once. */
   Pix.prototype.ellipse = function (cx, cy, rx, ry, c) {
     const x0 = Math.floor(cx - rx - 1), x1 = Math.ceil(cx + rx + 1);
     const y0 = Math.floor(cy - ry - 1), y1 = Math.ceil(cy + ry + 1);
     for (let y = y0; y <= y1; y++) {
       for (let x = x0; x <= x1; x++) {
-        const dx = (x + 0.5 - cx) / rx, dy = (y + 0.5 - cy) / ry;
-        if (dx * dx + dy * dy <= 1) this.set(x, y, c);
+        const dx = Math.abs(x + 0.5 - cx) / rx, dy = Math.abs(y + 0.5 - cy) / ry;
+        if (dx > 1 || dy > 1) continue;
+        if (dx + dy > 1.42) continue;                 // the four cut corners
+        this.set(x, y, c);
       }
     }
     return this;
@@ -44,13 +50,13 @@
 
   Pix.prototype.disc = function (cx, cy, r, c) { return this.ellipse(cx, cy, r, r, c); };
 
-  /* Rounded rectangle -- corners are simply clipped by a distance test. */
+  /* Bevelled rectangle: the corner is a straight 45-degree cut, never an arc. */
   Pix.prototype.round = function (x, y, w, h, r, c) {
     for (let j = 0; j < h; j++) {
       for (let i = 0; i < w; i++) {
         const px = i < r ? r - i - 0.5 : (i >= w - r ? i - (w - r) + 0.5 : 0);
         const py = j < r ? r - j - 0.5 : (j >= h - r ? j - (h - r) + 0.5 : 0);
-        if (px * px + py * py > r * r) continue;
+        if (px + py > r) continue;
         this.set(x + i, y + j, c);
       }
     }

@@ -83,7 +83,7 @@
   }
 
   function text(x, y, str, color, size) {
-    floaters.push({ x, y, vy: -26, life: 1.1, max: 1.1, str, color: color || '#fff', size: size || 1 });
+    floaters.push({ x, y, vy: -30, life: 1.1, max: 1.1, str, color: color || '#fff', size: size || 1, pop: 0 });
   }
 
   function ring(x, y, r0, r1, life, color, width) {
@@ -121,6 +121,8 @@
       f.life -= dt;
       f.y += f.vy * dt;
       f.vy *= Math.pow(0.94, dt * 60);
+      // BOUNCY: a number punches in past its own size before it settles
+      f.pop = Math.min(1, (f.pop || 0) + dt * 7);
       if (f.life <= 0) floaters.splice(i, 1);
     }
 
@@ -197,7 +199,17 @@
     for (const f of floaters) {
       const t = f.life / f.max;
       ctx.globalAlpha = t > 0.6 ? 1 : t / 0.6;
-      font(ctx, f.str, Math.round(f.x - cam.x), Math.round(f.y - cam.y), f.color, f.size, true);
+      // overshoot then settle: 1.45x at the peak of the pop
+      const pop = f.pop === undefined ? 1 : f.pop;
+      const k = pop < 1 ? 0.4 + Math.sin(pop * Math.PI) * 1.05 + pop * 0.6 : 1;
+      const x = Math.round(f.x - cam.x), y = Math.round(f.y - cam.y);
+      if (k > 1.04) {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.scale(k, k);
+        font(ctx, f.str, 0, 0, f.color, f.size, true);
+        ctx.restore();
+      } else font(ctx, f.str, x, y, f.color, f.size, true);
     }
     ctx.globalAlpha = 1;
   }

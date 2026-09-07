@@ -299,13 +299,19 @@ window.PD = window.PD || {};
     return this;
   };
 
+  /* An OCTAGON inscribed in the box, not an ellipse. Nothing in this game is
+     allowed to be an oval: the corners come off at 45 degrees and the result
+     reads as a cut stone rather than a balloon. Same call signature as the
+     ellipse it replaced, so every sprite in the game turned faceted at once. */
   Pix.prototype.ellipse = function (cx, cy, rx, ry, c) {
     const x0 = Math.floor(cx - rx - 1), x1 = Math.ceil(cx + rx + 1);
     const y0 = Math.floor(cy - ry - 1), y1 = Math.ceil(cy + ry + 1);
     for (let y = y0; y <= y1; y++) {
       for (let x = x0; x <= x1; x++) {
-        const dx = (x + 0.5 - cx) / rx, dy = (y + 0.5 - cy) / ry;
-        if (dx * dx + dy * dy <= 1) this.set(x, y, c);
+        const dx = Math.abs(x + 0.5 - cx) / rx, dy = Math.abs(y + 0.5 - cy) / ry;
+        if (dx > 1 || dy > 1) continue;
+        if (dx + dy > 1.42) continue;                 // the four cut corners
+        this.set(x, y, c);
       }
     }
     return this;
@@ -313,13 +319,13 @@ window.PD = window.PD || {};
 
   Pix.prototype.disc = function (cx, cy, r, c) { return this.ellipse(cx, cy, r, r, c); };
 
-  /* Rounded rectangle -- corners are simply clipped by a distance test. */
+  /* Bevelled rectangle: the corner is a straight 45-degree cut, never an arc. */
   Pix.prototype.round = function (x, y, w, h, r, c) {
     for (let j = 0; j < h; j++) {
       for (let i = 0; i < w; i++) {
         const px = i < r ? r - i - 0.5 : (i >= w - r ? i - (w - r) + 0.5 : 0);
         const py = j < r ? r - j - 0.5 : (j >= h - r ? j - (h - r) + 0.5 : 0);
-        if (px * px + py * py > r * r) continue;
+        if (px + py > r) continue;
         this.set(x + i, y + j, c);
       }
     }
@@ -600,14 +606,15 @@ window.PD = window.PD || {};
     if (edge) { ctx.strokeStyle = edge; ctx.lineWidth = lw || 1; ctx.stroke(); }
   }
 
-  /* A blob of solid pixels -- scanline octagon, no anti-aliasing anywhere. */
+  /* A blob of solid pixels: a true octagon, cut on the diagonal. There is no
+     round blob anywhere in the game -- rocks and craters are faceted stone. */
   function blob(ctx, x, y, rx, ry, col) {
     x = Math.round(x); y = Math.round(y);
     rx = Math.max(1, Math.round(rx)); ry = Math.max(1, Math.round(ry));
     ctx.fillStyle = col;
     for (let j = -ry; j <= ry; j++) {
-      const f = 1 - (j * j) / ((ry + 0.4) * (ry + 0.4));
-      const w = Math.round(rx * Math.sqrt(Math.max(0, f)));
+      const dy = Math.abs(j) / ry;
+      const w = Math.round(rx * Math.min(1, 1.42 - dy));
       if (w <= 0) continue;
       ctx.fillRect(x - w, y + j, w * 2 + 1, 1);
     }
@@ -665,17 +672,26 @@ window.PD = window.PD || {};
     }
   }
 
-  /* A dotted stepped ellipse outline, for orbits. */
+  /* A dotted OCTAGON outline, for orbits. Eight straight runs, no ellipse. */
   function orbit(ctx, x, y, rx, ry, col, gap, alpha) {
     ctx.save();
     if (alpha !== undefined) ctx.globalAlpha = alpha;
     ctx.fillStyle = col;
     gap = gap || 4;
-    const n = Math.max(16, Math.round((rx + ry) * 0.7));
-    for (let i = 0; i < n; i++) {
-      if (i % gap > 1) continue;
-      const a = i / n * Math.PI * 2;
-      ctx.fillRect(Math.round(x + Math.cos(a) * rx), Math.round(y + Math.sin(a) * ry), 1, 1);
+    const cx2 = rx * 0.42, cy2 = ry * 0.42;
+    const pts = [
+      [-rx + cx2, -ry], [rx - cx2, -ry], [rx, -ry + cy2], [rx, ry - cy2],
+      [rx - cx2, ry], [-rx + cx2, ry], [-rx, ry - cy2], [-rx, -ry + cy2]
+    ];
+    let k = 0;
+    for (let i = 0; i < 8; i++) {
+      const a = pts[i], b = pts[(i + 1) % 8];
+      const steps = Math.max(2, Math.round(Math.hypot(b[0] - a[0], b[1] - a[1])));
+      for (let s2 = 0; s2 < steps; s2++, k++) {
+        if (k % gap > 1) continue;
+        const f = s2 / steps;
+        ctx.fillRect(Math.round(x + a[0] + (b[0] - a[0]) * f), Math.round(y + a[1] + (b[1] - a[1]) * f), 1, 1);
+      }
     }
     ctx.restore();
   }
@@ -1502,9 +1518,27 @@ window.PD = window.PD || {};
     brass: '#b08a3a', brassL: '#e6c26a'
   };
 
+  /* Draw into a bigger sheet without touching a single hand-placed coordinate:
+     every call is forwarded with a constant offset. The alien grew hair and a
+     moustache that need headroom, and this buys it for free. */
+  function offsetPix(raw, ox, oy) {
+    return {
+      set: (x, y, c) => raw.set(x + ox, y + oy, c),
+      rect: (x, y, w, h, c) => raw.rect(x + ox, y + oy, w, h, c),
+      round: (x, y, w, h, r, c) => raw.round(x + ox, y + oy, w, h, r, c),
+      line: (a, b, c2, d, e) => raw.line(a + ox, b + oy, c2 + ox, d + oy, e),
+      spike: (x, y, w, h, d, c) => raw.spike(x + ox, y + oy, w, h, d, c),
+      disc: (x, y, r, c) => raw.disc(x + ox, y + oy, r, c),
+      ellipse: (x, y, rx, ry, c) => raw.ellipse(x + ox, y + oy, rx, ry, c),
+      shade: (a, b, dx, dy) => raw.shade(a, b, dx, dy),
+      outline: (c) => raw.outline(c)
+    };
+  }
+
   function buildAlien(pose, f, P, blink) {
     P = P || C;
-    const p = pix(64, 84);
+    const sheet = pix(72, 104);
+    const p = offsetPix(sheet, 4, 16);
     const walk = pose === 'walk', fly = pose === 'fly', drill = pose === 'drill', roll = pose === 'roll';
     const skin = P.skin, skinD = P.skinD, skinL = P.skinL;
 
@@ -1524,10 +1558,15 @@ window.PD = window.PD || {};
       p.rect(22, 58, 12, 2, C.ink);
       p.disc(50, 52, 5, skin); p.disc(14, 52, 5, skin);
       p.outline(C.ink);
-      return p;
+      return sheet;
     }
 
-    const bob = fly ? -2 : (walk ? [0, -1, 0, 1][f % 4] : (f === 1 ? 1 : 0));
+    // THE NOSE JIGGLES. It is the heaviest thing on him and it never quite
+    // settles: every frame of every pose shifts it, so it wobbles on its own
+    // even when he is standing perfectly still.
+    const nj = [0, 2, 3, 1][f % 4];              // how far it has drooped
+    const nx = [0, 1, 0, -1][f % 4];             // and which way it swung
+    const bob = fly ? -2 : (walk ? [0, -1, 0, 1][f % 4] : [0, 1, 1, 0][f % 4]);
     const lean = drill ? 4 : 0;
     const jit = drill ? (f % 2 ? 1 : -1) : 0;
     const hy = 15 + bob;                  // head centre
@@ -1609,7 +1648,7 @@ window.PD = window.PD || {};
     p.rect(bx - 6, ny + 11, 13, 1, '#b8b49c');
 
     /* ---- the head: tall, lumpy, hook-nosed, permanently unimpressed ---- */
-    p.round(hx - 12, hy - 14, 24, 30, 8, skin);
+    p.round(hx - 12, hy - 14, 24, 32, 8, skin);
     p.shade(skin, skinD, 0, 1);
     p.round(hx - 9, hy - 13, 14, 6, 3, skinL);           // a shiny bald dome
     p.round(hx - 15, hy - 2, 5, 10, 2, skin);            // ears, different heights
@@ -1627,37 +1666,54 @@ window.PD = window.PD || {};
       p.rect(hx - 11, hy - 8, 11, 1, skinD);
       p.rect(hx - 11, hy + 4, 11, 1, skinD);
     }
-    // the nose: a hooked wedge that arrives in the room before he does. It gets
-    // its own shadow so it stands off the face instead of sinking into it.
-    p.round(hx - 4, hy - 7, 11, 19, 4, skinD);
-    p.round(hx - 3, hy - 8, 9, 18, 4, skin);
-    p.round(hx - 2, hy - 7, 6, 15, 3, skinL);
-    p.round(hx - 3, hy + 3, 13, 8, 3, skin);            // the hook, swinging right
-    p.round(hx - 2, hy + 3, 10, 6, 3, skinL);
-    p.rect(hx - 3, hy + 10, 14, 1, skinD);
-    p.rect(hx + 10, hy + 3, 1, 8, skinD);
-    p.set(hx - 1, hy + 9, C.ink); p.set(hx + 4, hy + 9, C.ink);
-    // mouth: a flat line of disappointment, or gritted teeth when drilling
-    if (drill) { p.rect(hx - 9, hy + 12, 12, 4, C.ink); for (let i = 0; i < 4; i++) p.rect(hx - 8 + i * 3, hy + 13, 2, 2, C.white); }
-    else { p.rect(hx - 9, hy + 13, 11, 2, C.ink); p.set(hx - 10, hy + 12, C.ink); p.set(hx + 2, hy + 14, C.ink); }
-    p.rect(hx - 8, hy + 16, 13, 2, skinD);              // chin, the first of several
+    // THE NOSE: a hooked wedge that arrives in the room before he does, and it
+    // never holds still. nj/nx swing it a few pixels every frame, so it jiggles
+    // whatever he is doing. It gets its own cast shadow so it stands off the
+    // face instead of sinking into it.
+    const ny2 = hy + nj, nxx = hx + nx;
+    p.round(nxx - 5, ny2 - 7, 13, 20, 4, skinD);        // the shadow it throws
+    p.round(nxx - 4, ny2 - 8, 11, 19, 4, skin);
+    p.round(nxx - 3, ny2 - 7, 7, 16, 3, skinL);
+    p.round(nxx - 4, ny2 + 2, 18, 9, 3, skin);          // the hook, jutting past the cheek
+    p.round(nxx - 3, ny2 + 2, 13, 6, 3, skinL);
+    p.rect(nxx - 4, ny2 + 10, 19, 1, skinD);
+    p.rect(nxx + 14, ny2 + 2, 1, 9, skinD);
+    p.set(nxx - 1, ny2 + 9, C.ink); p.set(nxx + 4, ny2 + 9, C.ink);
+    // a MOUSTACHE, hung off the underside of it, swinging with the nose
+    const MO = '#2f3a22', MOL = '#4a5a35';
+    const my2 = ny2 + 10;
+    p.rect(nxx - 12, my2, 25, 4, MO);
+    p.rect(nxx - 14, my2 + 2, 4, 4, MO);
+    p.rect(nxx + 12, my2 + 2, 4, 4, MO);
+    p.rect(nxx - 11, my2 + 4, 7, 2, MO);
+    p.rect(nxx + 5, my2 + 4, 7, 2, MO);
+    p.rect(nxx - 11, my2, 23, 1, MOL);
+    p.set(nxx - 13, my2 + 5, MO); p.set(nxx + 15, my2 + 5, MO);
+    // mouth: a flat line of disappointment under it, or gritted teeth
+    if (drill) { p.rect(hx - 8, hy + 14, 11, 4, C.ink); for (let i = 0; i < 4; i++) p.rect(hx - 7 + i * 3, hy + 15, 2, 2, C.white); }
+    else { p.rect(hx - 8, hy + 15, 10, 2, C.ink); p.set(hx - 9, hy + 14, C.ink); p.set(hx + 2, hy + 16, C.ink); }
+    p.rect(hx - 8, hy + 17, 13, 2, skinD);              // chin, the first of several
     // one drooping antenna with a bulb that stopped working long ago
-    const aw = walk ? [2, 0, -2, 0][f % 4] : (f === 1 ? 1 : 0);
+    const aw = walk ? [2, 0, -2, 0][f % 4] : [0, 1, 1, 0][f % 4];
     p.line(hx + 3, hy - 14, hx + 7 + aw, hy - 21, skinD);
     p.line(hx + 7 + aw, hy - 21, hx + 11 + aw, hy - 19, skinD);
     p.disc(hx + 12 + aw, hy - 18, 2.4, f === 2 ? C.gold : '#6b6450');
-    // three stray hairs he is very proud of
-    p.set(hx - 6, hy - 16, skinD); p.set(hx - 7, hy - 18, skinD);
-    p.set(hx - 3, hy - 17, skinD); p.set(hx - 2, hy - 19, skinD);
-    p.set(hx + 1, hy - 16, skinD);
+    // EXACTLY THREE STRANDS OF HAIR, and he is very proud of all of them
+    const hw = [0, 1, 2, 1][f % 4];                      // they sway too
+    for (let i = 0; i < 3; i++) {
+      const sx2 = hx - 7 + i * 5, sh = 9 + i * 2, curl = (i % 2 ? 1 : -1);
+      p.line(sx2, hy - 14, sx2 + curl + hw * curl, hy - 14 - sh, skinD);
+      p.line(sx2 + 1, hy - 14, sx2 + 1 + curl + hw * curl, hy - 14 - sh, skinD);
+      p.set(sx2 + curl * 2 + hw * curl, hy - 15 - sh, skinL);
+    }
 
     p.outline(C.ink);
-    return p;
+    return sheet;
   }
 
   function alienSet(P) {
     return {
-      idle: [buildAlien('idle', 0, P), buildAlien('idle', 1, P), buildAlien('idle', 0, P, true)],
+      idle: [0, 1, 2, 3].map(i => buildAlien('idle', i, P)).concat([buildAlien('idle', 0, P, true)]),
       walk: [0, 1, 2, 3].map(i => buildAlien('walk', i, P)),
       fly: [buildAlien('fly', 0, P), buildAlien('fly', 1, P)],
       drill: [buildAlien('drill', 0, P), buildAlien('drill', 1, P), buildAlien('drill', 2, P)],
@@ -1666,12 +1722,12 @@ window.PD = window.PD || {};
   }
 
   const base = alienSet(C);
-  const AOX = 16, AOY = 30;                         // logical anchor: the belly
+  const AOX = 18, AOY = 37;                         // logical anchor: the belt
   reg('alien', base.idle, AOX, AOY, 2);
   reg('alienWalk', base.walk, AOX, AOY, 2);
   reg('alienFly', base.fly, AOX, AOY, 2);
   reg('alienDrill', base.drill, AOX, AOY, 2);
-  reg('alienRoll', base.roll, AOX, 28, 2);
+  reg('alienRoll', base.roll, AOX, 35, 2);
 
   /* ------------------------------------------------------------------- drill
      Horizontal, pointing right, anchored at the shoulder end. */
@@ -2034,46 +2090,78 @@ window.PD = window.PD || {};
      and one big thruster. Heads right. */
   /* The pod at 2x: little, fat, riveted, with a bubble dome you can see into,
      twin nacelles, landing skids and a working exhaust. */
-  function buildPod(phase, P) {
-    P = P || { met: C.met, metD: C.metD, metDD: C.metDD };
-    const p = pix(92, 64);
+  /* THE DUMB UFO. One saucer, built once, used everywhere: it is the thing
+     parked on bricks outside your house AND the thing hanging over the dig
+     site. Wonky, dented, a satellite dish gaffer-taped to the roof, one leg
+     that gave up years ago. Faceted throughout -- no ovals in it anywhere. */
+  function buildSaucer(phase, P, landed) {
+    P = P || { met: '#b6b0c8', metD: '#8e86a8', metDD: '#7d7396' };
+    const p = pix(132, 76);
     const f = phase ? 1 : 0;
-    // engine block and nacelles
-    p.round(0, 26, 24, 24, 8, P.metDD);
-    p.round(4, 30, 12, 16, 6, C.ink2);
-    p.round(5, 33 + f * 2, 8, 9, 3, f ? C.orange : C.orangeD);
-    p.round(6, 35 + f * 2, 5, 5, 2, f ? C.gold : C.orange);
-    p.round(12, 12, 16, 12, 6, P.metD); p.round(12, 48, 16, 12, 6, P.metD);
-    p.rect(13, 16, 4, 4, f ? C.cyan : P.metDD); p.rect(13, 52, 4, 4, f ? C.cyan : P.metDD);
-    // fat hull
-    p.round(16, 18, 68, 36, 18, P.met);
-    p.shade(P.met, P.metD, 0, 1);
-    p.round(22, 22, 54, 7, 3, C.white);
-    p.round(20, 42, 60, 10, 4, P.metD);
-    p.round(30, 44, 40, 5, 2, C.gold);
-    for (let i = 0; i < 7; i++) { p.disc(26 + i * 8, 40, 1.4, P.metDD); }
-    // dome and pilot seat
-    p.disc(46, 20, 16, C.glass);
-    p.disc(46, 22, 12, C.ink2);
-    p.ellipse(40, 14, 6, 3, C.glassL);
-    p.round(38, 24, 16, 10, 4, P.metDD);
-    p.round(40, 26, 12, 6, 3, '#ff5fa8');
-    // nose cowl and headlight
-    p.round(76, 28, 16, 16, 6, C.suit);
-    p.rect(88, 32, 4, 8, C.cyan);
-    p.disc(82, 36, 4, f ? '#fff6c8' : C.gold);
-    p.disc(83, 35, 1.5, C.white);
-    // skids
-    p.rect(26, 56, 6, 6, P.metDD); p.rect(62, 56, 6, 6, P.metDD);
-    p.round(20, 60, 20, 4, 2, P.metD); p.round(56, 60, 20, 4, 2, P.metD);
-    // running lights
-    p.disc(66, 26, 3, C.red); p.disc(28, 26, 3, C.lime);
+    const HULL = P.met, HULD = P.metD, HULDD = P.metDD;
+
+    // the skirt: a wide bevelled slab, widest at the rim
+    p.round(4, 30, 124, 14, 7, HULD);
+    p.round(10, 26, 112, 14, 7, HULL);
+    p.shade(HULL, HULDD, 0, 1);
+    p.round(22, 22, 88, 10, 5, '#d6d0e8');
+    p.rect(14, 36, 104, 2, HULDD);
+
+    // the dome, a cut-glass box with a pilot-shaped hole in it
+    p.round(44, 2, 44, 24, 10, C.glass);
+    p.round(50, 7, 32, 15, 6, '#2a2440');
+    p.rect(54, 10, 8, 3, '#eafcff');
+    p.rect(50, 5, 32, 2, C.glassL);
+
+    // dents: this thing has been reversed into a moon
+    p.round(2, 34, 22, 10, 4, '#8e86a8');
+    p.round(108, 34, 22, 10, 4, '#8e86a8');
+    p.rect(38, 28, 22, 3, '#c46a3a');                    // rust
+    p.rect(76, 30, 14, 2, '#c46a3a');
+    p.rect(28, 24, 10, 2, '#c46a3a');
+
+    // rim lights, chasing
+    for (let i = 0; i < 8; i++) {
+      const on = (i + f) % 2 === 0;
+      p.round(14 + i * 14, 38, 8, 6, 2, on ? '#ffd34d' : '#5a5474');
+      if (on) p.rect(15 + i * 14, 39, 6, 2, '#fff3c0');
+    }
+
+    // a satellite dish taped to the roof, aimed at nothing
+    p.rect(92, 2, 3, 22, P.metDD || '#39405e');
+    p.round(84, 0, 22, 8, 4, '#8e86a8');
+    p.round(88, 1, 14, 5, 2, '#c9c4b4');
+    p.rect(88, 10, 12, 3, '#ffe98a');                    // the tape
+    p.rect(90, 13, 8, 2, '#e0c96a');
+
+    if (landed) {
+      // up on two bricks, with one leg that has given up
+      p.round(20, 44, 24, 14, 3, '#8a5a3a');
+      p.round(88, 44, 24, 14, 3, '#8a5a3a');
+      p.rect(22, 48, 20, 2, '#6b4530');
+      p.rect(90, 48, 20, 2, '#6b4530');
+      p.rect(24, 54, 20, 2, '#6b4530');
+      p.round(60, 42, 8, 18, 3, '#39405e');
+      p.round(52, 58, 24, 6, 2, '#5e6688');
+      p.round(74, 50, 16, 5, 2, '#39405e');              // the collapsed one
+      p.rect(86, 54, 10, 3, '#5e6688');
+    } else {
+      // in flight: skids tucked, and a wash of light under the belly
+      p.round(26, 44, 14, 8, 3, '#39405e');
+      p.round(92, 44, 14, 8, 3, '#39405e');
+      const glow = f ? '#ffe08a' : '#ffb03d';
+      p.round(40, 44, 52, 8, 4, glow);
+      p.round(50, 48, 32, 8, 4, f ? '#ffd34d' : '#ff9b3d');
+      p.round(58, 54, 16, 8, 4, f ? '#fff6c8' : '#ffd34d');
+      p.rect(6, 40, 8, 3, f ? '#7ef9ff' : '#2f8fae');
+      p.rect(118, 40, 8, 3, f ? '#7ef9ff' : '#2f8fae');
+    }
     p.outline(C.ink);
     return p;
   }
+  PD.buildSaucer = buildSaucer;
 
-
-  reg('pod', [buildPod(0), buildPod(1)], 23, 18, 2);
+  reg('pod', [buildSaucer(0), buildSaucer(1)], 33, 22, 2);
 
   /* LOOT CRATE: precursor supply case. */
   function buildCrate(open) {
@@ -2286,17 +2374,17 @@ window.PD = window.PD || {};
       alienWalk: mk(frames.walk, AOX, AOY, 2),
       alienFly: mk(frames.fly, AOX, AOY, 2),
       alienDrill: mk(frames.drill, AOX, AOY, 2),
-      alienRoll: mk(frames.roll, AOX, 28, 2),
+      alienRoll: mk(frames.roll, AOX, 35, 2),
       drill: mk([0, 1, 2, 3].map(i => buildDrill(i, DP)), 5, 6, 2),
       ship: mk([buildShip(false, SP), buildShip(true, SP)], 42, 26),
-      pod: mk([buildPod(0, SP), buildPod(1, SP)], 23, 18, 2),
+      pod: mk([buildSaucer(0, SP), buildSaucer(1, SP)], 33, 22, 2),
       P: P
     };
     skinCache[key] = set;
     return set;
   }
 
-  PD.art = { C, sprites, gemFor, oreChip, buildOre, ICON, skinFor, optOf, reg, blit, pixOf: pix };
+  PD.art = { C, sprites, gemFor, oreChip, buildOre, ICON, skinFor, optOf, reg, blit, buildSaucer, pixOf: pix };
 })(window.PD);
 
 /* ===== src/arthome.js ===== */
@@ -2428,34 +2516,8 @@ window.PD = window.PD || {};
     p.outline(P.ink);
     return p;
   }
-  /* The dumb UFO: a wonky saucer up on bricks with a dish taped to it. */
-  function saucer(f) {
-    const p = pix(150, 86);
-    p.round(10, 34, 130, 26, 12, '#b6b0c8');               // hull
-    p.shade('#b6b0c8', '#7d7396', 0, 1);
-    p.round(20, 30, 110, 12, 6, '#d6d0e8');
-    p.round(52, 6, 46, 30, 14, C.glass);                   // dome
-    p.round(58, 12, 34, 18, 8, '#2a2440');
-    p.rect(62, 16, 8, 3, '#eafcff');
-    p.round(6, 44, 24, 12, 5, '#8e86a8');                  // dented rim
-    p.round(120, 44, 24, 12, 5, '#8e86a8');
-    for (let i = 0; i < 7; i++) p.disc(24 + i * 17, 52, 4, f && i % 2 ? '#ffd34d' : '#5a5474');
-    p.rect(30, 40, 90, 2, '#6b6480');
-    p.rect(44, 36, 24, 3, '#c46a3a');                      // rust patch
-    p.rect(88, 38, 16, 2, '#c46a3a');
-    // a dish taped on with an aerial
-    p.rect(104, 6, 3, 24, P.steelD);
-    p.ellipse(112, 6, 12, 6, P.steelD); p.ellipse(112, 5, 8, 4, '#c9c4b4');
-    p.rect(100, 14, 12, 2, '#ffe98a');                     // tape
-    // bricks under it
-    p.round(28, 60, 22, 12, 2, '#8a5a3a'); p.round(100, 60, 22, 12, 2, '#8a5a3a');
-    p.rect(30, 63, 18, 2, '#6b4530'); p.rect(102, 63, 18, 2, '#6b4530');
-    // a leg that gave up
-    p.round(66, 58, 8, 18, 3, P.steelDD);
-    p.round(60, 74, 20, 6, 2, P.steelD);
-    p.outline(P.ink);
-    return p;
-  }
+  /* The parked UFO is the same saucer that flies: see art.js. */
+
   /* Junk that lives in the room. */
   function fridge(f) {
     const p = pix(46, 78);
@@ -2507,6 +2569,179 @@ window.PD = window.PD || {};
     else if (k === 1) { p.round(10, 8, 14, 18, 6, '#e8dfc4'); p.rect(13, 14, 3, 4, '#2a2440'); p.rect(19, 14, 3, 4, '#2a2440'); }
     else { for (let i = 0; i < 4; i++) p.rect(5 + i * 7, 8 + (i % 2) * 6, 5, 16, '#c9c4b4'); }
     p.rect(4, 35, 26, 2, '#8a8478'); p.rect(4, 39, 16, 2, '#8a8478');
+    p.outline(P.ink);
+    return p;
+  }
+
+  /* ------------------------------------------------------- the rock house
+     Seen from outside on an empty moon: a heap of quarried slabs with a hole
+     knocked in the front for a door, a crooked chimney, one lit window, and
+     every bit of junk he could not be bothered to carry inside stacked
+     against the walls. */
+  function houseOut(lit) {
+    const p = pix(300, 210);
+    const R1 = '#6b6480', R2 = '#5a5474', R3 = '#4a4460', R4 = '#3a3450', RL = '#8e86a8';
+    const base = 208;
+    // the body: courses of big rough slabs, narrowing as they go up
+    for (let row = 0; row < 11; row++) {
+      const y = base - 18 - row * 16;
+      const inset = row < 7 ? row * 4 : 28 + (row - 7) * 12;
+      const x0 = 26 + inset, x1 = 274 - inset;
+      for (let x = x0; x < x1; x += 30) {
+        const w = Math.min(28, x1 - x);
+        const h = 15 + ((x + row) % 3);
+        const c = [R1, R2, R3][(x / 30 + row) % 3 | 0];
+        p.round(x, y, w, h, 3, c);
+        p.rect(x + 1, y + 1, w - 2, 2, RL);
+        p.rect(x + 1, y + h - 2, w - 2, 1, R4);
+      }
+    }
+    // a lumpy roof cap
+    p.round(120, base - 200, 60, 22, 8, R2);
+    p.round(128, base - 206, 44, 14, 6, R1);
+    p.rect(132, base - 204, 36, 3, RL);
+    // the doorway: a knocked-through hole with a heavy lintel
+    p.round(120, base - 76, 60, 76, 6, '#120e1c');
+    p.rect(118, base - 82, 64, 8, R4);
+    p.rect(118, base - 82, 64, 3, RL);
+    for (let i = 0; i < 5; i++) p.rect(120 + i * 13, base - 79, 10, 5, R2);
+    // rubber door strips
+    for (let i = 0; i < 7; i++) {
+      const cx2 = 124 + i * 8, len = 40 + (i % 3) * 10;
+      p.rect(cx2, base - 74, 6, len, i % 2 ? '#3f3856' : '#4a4260');
+      p.rect(cx2, base - 74, 6, 2, '#8e86a8');
+    }
+    // warm light spilling out of the door
+    if (lit) { p.rect(120, base - 22, 60, 22, '#3a3020'); p.rect(126, base - 12, 48, 12, '#4a3a22'); }
+    // one window, lit, with a bent frame
+    p.round(56, base - 112, 40, 34, 4, '#241f36');
+    p.round(60, base - 108, 32, 26, 3, lit ? '#ffe9a8' : '#2a2440');
+    if (lit) { p.rect(62, base - 106, 28, 4, '#fff7d8'); p.rect(62, base - 92, 12, 10, '#e0c96a'); }
+    p.rect(54, base - 96, 44, 3, R4);
+    p.rect(74, base - 112, 3, 34, R4);
+    // a crooked chimney with a dish taped to it
+    p.round(196, base - 168, 26, 44, 4, R2);
+    p.round(200, base - 176, 20, 12, 4, R3);
+    p.rect(202, base - 174, 16, 3, R4);
+    p.rect(214, base - 176, 3, 26, P.steelD);
+    p.round(206, base - 190, 22, 8, 4, '#8e86a8');
+    p.round(210, base - 189, 14, 5, 2, '#c9c4b4');
+    p.rect(210, base - 182, 12, 3, '#ffe98a');
+    // cables strung down the front and taped on
+    girder(p, 214, base - 150, 186, base - 100);
+    p.rect(184, base - 104, 10, 4, '#ffe98a');
+    // junk stacked against the walls: crates, a barrel, a dead television
+    p.round(10, base - 34, 32, 34, 3, '#6b4530');
+    p.rect(12, base - 30, 28, 3, '#8a5a3a'); p.rect(12, base - 18, 28, 3, '#8a5a3a');
+    p.round(4, base - 62, 26, 28, 3, '#5a4a3a');
+    p.rect(6, base - 58, 22, 2, '#7a6a52');
+    p.round(46, base - 26, 26, 26, 3, '#4a4260');
+    p.round(50, base - 22, 18, 14, 2, '#20201c');
+    p.rect(52, base - 20, 14, 2, '#4a4a3a');
+    p.rect(56, base - 34, 2, 10, P.steelD); p.rect(64, base - 38, 2, 14, P.steelD);
+    p.round(232, base - 30, 30, 30, 4, '#8a5a3a');
+    p.rect(234, base - 26, 26, 3, '#6b4530');
+    p.rect(234, base - 14, 26, 3, '#6b4530');
+    p.round(266, base - 20, 22, 20, 3, '#4a4260');
+    // a hand-painted sign nailed over the door
+    p.round(112, base - 104, 76, 20, 3, '#7a5a3a');
+    p.rect(114, base - 102, 72, 3, '#9c7a52');
+    p.rect(114, base - 88, 72, 2, '#4a3020');
+    p.rect(146, base - 84, 3, 4, '#4a4260');
+    p.outline(P.ink);
+    return p;
+  }
+
+  /* ---------------------------------------------------------- the moon rat
+     Enormously fat, permanently chewing, and the only other living thing for
+     four hundred million kilometres. */
+  function moonRat(f, fed) {
+    const p = pix(72, 48);
+    const FUR = '#9c94b4', FURD = '#6b6480', FURL = '#c9bce8', PINK = '#ff9ecb';
+    const squash = f === 1 ? 1 : 0;
+    // the tail, thick as an arm
+    p.line(8, 38 - squash, 2, 30, PINK); p.line(9, 39 - squash, 3, 31, PINK);
+    p.line(2, 30, 6, 22, PINK); p.line(3, 31, 7, 23, PINK);
+    // the body: a great faceted lump
+    p.ellipse(36, 30 + squash, 26, 16 - squash, FUR);
+    p.shade(FUR, FURD, 0, 1);
+    p.ellipse(34, 22 + squash, 18, 7, FURL);
+    // a belly that reaches the floor
+    p.ellipse(36, 40, 22, 7, FURD);
+    // stubby legs, mostly decorative
+    p.round(18, 42, 9, 6, 2, PINK); p.round(48, 42, 9, 6, 2, PINK);
+    // the head, wedged straight on to the body
+    p.ellipse(56, 26 + squash, 15, 13, FUR);
+    p.shade(FUR, FURD, 0, 1);
+    p.round(46, 14 + squash, 14, 13, 5, PINK);           // ears
+    p.round(58, 12 + squash, 14, 13, 5, PINK);
+    p.round(49, 17 + squash, 8, 7, 3, '#e8b0d0');
+    p.round(61, 15 + squash, 8, 7, 3, '#e8b0d0');
+    // a snout, two buck teeth and a very small brain behind it
+    p.round(62, 26 + squash, 10, 10, 4, FURL);
+    p.round(68, 30 + squash, 4, 4, 2, PINK);             // nose
+    p.rect(64, 34 + squash, 3, 5, '#ffffff');            // teeth
+    p.rect(68, 34 + squash, 3, 5, '#ffffff');
+    if (fed) {                                           // content, eyes shut
+      p.rect(52, 26 + squash, 7, 2, C.ink);
+      p.rect(63, 24 + squash, 6, 2, C.ink);
+    } else {
+      p.round(51, 23 + squash, 8, 9, 3, '#ffffff');
+      p.round(53, 25 + squash, 5, 6, 2, C.eye);
+      p.set(54, 26 + squash, '#ffffff');
+      p.round(63, 22 + squash, 6, 7, 2, '#ffffff');
+      p.round(64, 24 + squash, 4, 4, 2, C.eye);
+    }
+    // whiskers
+    p.line(60, 33 + squash, 70, 30 + squash, FURD);
+    p.line(60, 35 + squash, 71, 36 + squash, FURD);
+    p.line(60, 34 + squash, 69, 40 + squash, FURD);
+    p.outline(P.ink);
+    return p;
+  }
+
+  /* A wedge of something yellow he found in the pod. It is not cheese. */
+  function cheese(bitten) {
+    const p = pix(40, 30);
+    p.round(2, 8, 36, 20, 4, '#ffd34d');
+    p.round(4, 6, 32, 8, 3, '#ffe98a');
+    p.shade('#ffd34d', '#c99a1e', 0, 1);
+    p.round(8, 14, 7, 7, 3, '#c99a1e');
+    p.round(22, 18, 6, 6, 2, '#c99a1e');
+    p.round(28, 11, 5, 5, 2, '#c99a1e');
+    p.round(15, 22, 4, 4, 2, '#c99a1e');
+    if (bitten) { p.round(26, 4, 14, 14, 6, null); p.round(24, 6, 16, 12, 5, '#8a6a2a'); }
+    p.outline(P.ink);
+    return p;
+  }
+
+  /* Mess. He does not tidy, and there is nobody to tell him to. */
+  function litter(k) {
+    const p = pix(40, 26);
+    if (k === 0) {                                        // a heap of empty cans
+      for (let i = 0; i < 5; i++) {
+        const x = 2 + (i % 3) * 12, y = 14 - ((i / 3) | 0) * 9;
+        p.round(x, y, 9, 12, 2, i % 2 ? '#8e86a8' : '#c46a3a');
+        p.rect(x + 1, y + 1, 7, 2, '#c9bce8');
+        p.rect(x + 2, y + 6, 5, 1, '#5a5474');
+      }
+    } else if (k === 1) {                                 // a stack of dirty plates
+      for (let i = 0; i < 4; i++) {
+        p.round(4 + i, 20 - i * 4, 30 - i * 2, 5, 2, i % 2 ? '#c9c4b4' : '#e8dfc4');
+        p.rect(6 + i, 21 - i * 4, 26 - i * 2, 1, '#a89b78');
+      }
+      p.round(24, 2, 8, 8, 3, '#8affa0');                 // something living on top
+    } else if (k === 2) {                                 // a bucket under a drip
+      p.round(8, 8, 24, 18, 3, '#8e86a8');
+      p.round(10, 10, 20, 6, 2, '#3f5a2c');
+      p.rect(8, 12, 24, 2, '#c9bce8');
+      p.round(4, 4, 4, 10, 2, '#5a5474');
+    } else {                                              // a sock, and a boot
+      p.round(2, 12, 20, 12, 4, '#c4553a');
+      p.round(2, 8, 9, 8, 3, '#c4553a');
+      p.round(24, 14, 14, 10, 3, '#3a3348');
+      p.rect(24, 22, 16, 3, '#241f2e');
+    }
     p.outline(P.ink);
     return p;
   }
@@ -2773,10 +3008,11 @@ window.PD = window.PD || {};
      blown up: hard pixel steps all the way round, never a smooth circle. */
   function pxDisc(c, cx, cy, r, col) {
     c.fillStyle = col;
-    const r2 = r * r;
+    const r2 = r;
     for (let y = Math.ceil(cy - r); y <= Math.floor(cy + r); y++) {
-      const dy = y - cy + 0.5;
-      const w = Math.sqrt(Math.max(0, r2 - dy * dy));
+      const dy = Math.abs(y - cy + 0.5) / r2;
+      if (dy > 1) continue;
+      const w = r2 * Math.min(1, 1.42 - dy);
       const x0 = Math.round(cx - w), x1 = Math.round(cx + w);
       if (x1 > x0) c.fillRect(x0, y, x1 - x0, 1);
     }
@@ -2818,10 +3054,16 @@ window.PD = window.PD || {};
       c.fillRect(x, 0, 1, S);
     }
     c.restore();
-    c.fillStyle = shade(tint, 1.55);                    // lit limb
-    for (let i = 0; i < 34; i++) {
-      const a = -1.5 + i * 0.065;
-      c.fillRect(Math.round(cx + Math.cos(a) * r), Math.round(cy + Math.sin(a) * r), 1, 1);
+    c.fillStyle = shade(tint, 1.55);                    // lit limb, along the facets
+    const k2 = r * 0.42;
+    const lim = [[-r + k2, -r], [r - k2, -r], [r, -r + k2], [r, r - k2]];
+    for (let i = 0; i < lim.length - 1; i++) {
+      const a = lim[i], b = lim[i + 1];
+      const n = Math.max(2, Math.round(Math.hypot(b[0] - a[0], b[1] - a[1])));
+      for (let q = 0; q <= n; q++) {
+        const f = q / n;
+        c.fillRect(Math.round(cx + a[0] + (b[0] - a[0]) * f), Math.round(cy + a[1] + (b[1] - a[1]) * f), 1, 1);
+      }
     }
     const cv = document.createElement('canvas');
     cv.width = cv.height = S * K;
@@ -2835,7 +3077,7 @@ window.PD = window.PD || {};
   reg('wall', [houseWall(240, 160)], 0, 0);
   reg('floor', [floorSlab(240)], 0, 0);
   reg('desk', [deskProp(false), deskProp(true)]);
-  reg('saucer', [saucer(0), saucer(1)]);
+  reg('saucer', [PD.art.buildSaucer(0, null, true), PD.art.buildSaucer(1, null, true)]);
   reg('fridge', [fridge(0)]);
   reg('bed', [mossBed()]);
   for (let i = 0; i < 3; i++) reg('junk' + i, [junkPile(i)]);
@@ -2843,8 +3085,11 @@ window.PD = window.PD || {};
   reg('survey', [survey()]);
   for (let i = 0; i < 3; i++) reg('ruin' + i, [ruin(i)]);
   for (let i = 0; i < 3; i++) reg('rock' + i, [rock(i)]);
-  reg('critter', [critter(0, '#8affa0', '#3fb85a'), critter(1, '#8affa0', '#3fb85a')]);
-  reg('critter2', [critter(0, '#ff8ad8', '#b0459a'), critter(1, '#ff8ad8', '#b0459a')]);
+  reg('house', [houseOut(false), houseOut(true)]);
+  reg('rat', [moonRat(0, false), moonRat(1, false)]);
+  reg('ratFed', [moonRat(0, true), moonRat(1, true)]);
+  reg('cheese', [cheese(false), cheese(true)]);
+  for (let i = 0; i < 4; i++) reg('litter' + i, [litter(i)]);
   reg('flag', [flag(0), flag(1)], 3);
   reg('skull', [celestialHead()]);
   reg('tape', [tapeDeck(0), tapeDeck(1)]);
@@ -2874,10 +3119,11 @@ window.PD = window.PD || {};
   /* An integer scanline disc: every edge is a hard pixel step. */
   function pxDisc(c, cx, cy, r, col) {
     if (col) c.fillStyle = col;
-    const r2 = r * r;
+    const r2 = r;
     for (let y = Math.ceil(cy - r); y <= Math.floor(cy + r); y++) {
-      const dy = y - cy + 0.5;
-      const w = Math.sqrt(Math.max(0, r2 - dy * dy));
+      const dy = Math.abs(y - cy + 0.5) / r2;
+      if (dy > 1) continue;
+      const w = r2 * Math.min(1, 1.42 - dy);
       const x0 = Math.round(cx - w), x1 = Math.round(cx + w);
       if (x1 > x0) c.fillRect(x0, y, x1 - x0, 1);
     }
@@ -2985,8 +3231,9 @@ window.PD = window.PD || {};
     for (let y = 0; y < W; y++) {
       for (let x = 0; x < W; x++) {
         const dx = (x - cx + 0.5) / r, dy = (y - cy + 0.5) / r;
-        const d2 = dx * dx + dy * dy;
-        if (d2 > 1) continue;
+        const ax = Math.abs(dx), ay = Math.abs(dy);
+        if (ax > 1 || ay > 1 || ax + ay > 1.42) continue;   // an octagon, not a disc
+        const d2 = Math.min(0.999, dx * dx + dy * dy);
         const nz = Math.sqrt(1 - d2);
         let lam = -dx * 0.55 - dy * 0.5 + nz * 0.62;          // light from the upper left
         lam = U.clamp(lam, 0, 1);
@@ -3002,9 +3249,16 @@ window.PD = window.PD || {};
     }
     // lit limb, a single stepped pixel line on the sunward side
     c.fillStyle = shade(tint, 1.75);
-    for (let i = 0; i < 46; i++) {
-      const a2 = -2.5 + i * 0.062;
-      c.fillRect(Math.round(cx + Math.cos(a2) * (r - 0.5)), Math.round(cy + Math.sin(a2) * (r - 0.5)), 1, 1);
+    // the lit limb, traced along the octagon's own upper-left facets
+    const cc2 = r * 0.42;
+    const lim = [[-r + cc2, -r], [r - cc2, -r], [-r, -r + cc2], [-r, r - cc2], [-r + cc2, r]];
+    for (let i = 0; i < lim.length - 1; i += 1) {
+      const a3 = lim[i], b3 = lim[i + 1];
+      const n = Math.max(2, Math.round(Math.hypot(b3[0] - a3[0], b3[1] - a3[1])));
+      for (let k = 0; k <= n; k++) {
+        const f = k / n;
+        c.fillRect(Math.round(cx + a3[0] + (b3[0] - a3[0]) * f), Math.round(cy + a3[1] + (b3[1] - a3[1]) * f), 1, 1);
+      }
     }
     if (rings) for (let k = 0; k < 3; k++) pxRingBand(c, cx, cy, r * (1.45 + k * 0.26), 0.3, shade(tint, 1.4 - k * 0.16), 2, false);
     // a moon, shaded the same way
@@ -3027,7 +3281,9 @@ window.PD = window.PD || {};
     const cx = S / 2, cy = S / 2;
     for (let y = 0; y < S; y++) {
       for (let x = 0; x < S; x++) {
-        const d = Math.hypot(x - cx + 0.5, y - cy + 0.5) / R;
+        // octagonal falloff: |x|+|y| clipped, so even the corona is faceted
+        const ax2 = Math.abs(x - cx + 0.5) / R, ay2 = Math.abs(y - cy + 0.5) / R;
+        const d = Math.max(Math.max(ax2, ay2), (ax2 + ay2) / 1.42);
         if (d > 3.4) continue;
         let a, f;
         if (d <= 0.55) { a = 1; f = 1.7; }
@@ -3634,21 +3890,23 @@ window.PD = window.PD || {};
   'use strict';
   const U = PD.util;
   const G = PD.glyph;
+  const X = PD.pxd;
 
   const VW = 480, VH = 270;
 
+  /* Three keys, never more, each one big enough to hit without looking and
+     labelled with a word rather than a symbol you have to decode. */
   const cfg = {
     stick: { x: 62, y: VH - 60, r: 36, knob: 15 },
     play: {
-      dash: { x: VW - 34, y: VH - 74, r: 16, glyph: 'dash', col: '#ffd34d', key: 'shift' },
-      scan: { x: VW - 72, y: VH - 92, r: 13, glyph: 'scan', col: '#8affa0', key: 'Tab' },
-      use:  { x: VW - 30, y: VH - 116, r: 13, glyph: 'home', col: '#ffb03d', key: 'KeyE' },
-      beam: { x: VW - 76, y: VH - 130, r: 11, glyph: 'hole', col: '#ff5a4d', key: 'KeyR', hold: true }
+      dash: { x: VW - 40, y: VH - 44, r: 22, glyph: 'dash', col: '#ffd34d', key: 'shift', label: 'DASH' },
+      scan: { x: VW - 40, y: VH - 100, r: 20, glyph: 'scan', col: '#8affa0', key: 'Tab', label: 'FIND' },
+      use:  { x: VW - 40, y: VH - 152, r: 20, glyph: 'home', col: '#ffb03d', key: 'KeyE', label: 'SHIP' }
     },
     home: {
-      jump: { x: VW - 34, y: VH - 74, r: 18, glyph: 'up', col: '#7ef9ff', key: 'up' },
-      roll: { x: VW - 78, y: VH - 50, r: 14, glyph: 'dash', col: '#ffd34d', key: 'shift' },
-      use:  { x: VW - 78, y: VH - 92, r: 14, glyph: 'hand', col: '#ffb03d', key: 'KeyE' }
+      jump: { x: VW - 40, y: VH - 44, r: 24, glyph: 'up', col: '#7ef9ff', key: 'up', label: 'JUMP' },
+      use:  { x: VW - 40, y: VH - 104, r: 22, glyph: 'hand', col: '#ffb03d', key: 'KeyE', label: 'USE' },
+      roll: { x: VW - 40, y: VH - 158, r: 18, glyph: 'dash', col: '#ffd34d', key: 'shift', label: 'ROLL' }
     }
   };
 
@@ -3688,7 +3946,7 @@ window.PD = window.PD || {};
         }
         if (took) continue;
         if (state.mode === 'play') {
-          if (p.x < VW * 0.42) { state.stickId = tch.identifier; state.sx = p.x; state.sy = p.y; state.dx = state.dy = 0; }
+          if (p.x < VW * 0.44) { state.stickId = tch.identifier; state.sx = p.x; state.sy = p.y; state.dx = state.dy = 0; }
           else { state.aimId = tch.identifier; state.ax = p.x; state.ay = p.y; state.aiming = true; }
         } else if (state.mode === 'home' && p.x < VW * 0.5 && p.y > VH * 0.45) {
           // left half of the moon: a held touch walks you that way
@@ -3769,18 +4027,35 @@ window.PD = window.PD || {};
     const pressed = !!state.down[k];
     state.pressAnim[k] = U.damp(state.pressAnim[k] || 0, pressed ? 1 : 0, 0.3, 1 / 60);
     const a = state.pressAnim[k];
-    const r = c.r * (1 + a * 0.1);
-    G.hex(ctx, c.x, c.y, r + 2, 'rgba(8,4,18,0.72)', null);
-    ctx.globalAlpha = 0.18 + a * 0.5; G.hex(ctx, c.x, c.y, r, c.col, null); ctx.globalAlpha = 1;
-    G.hex(ctx, c.x, c.y, r, null, c.col, pressed ? 2 : 1);
-    G.draw(ctx, c.glyph, c.x - 7, c.y - 7, '#ffffff', c.col);
+    // BOUNCY: a key you press squashes and springs back past its own size
+    const r = c.r * (1 + a * 0.18 - (pressed ? 0.1 : 0));
+    G.hex(ctx, c.x, c.y + 2, r + 2, 'rgba(8,4,18,0.8)', null);
+    ctx.globalAlpha = 0.26 + a * 0.5; G.hex(ctx, c.x, c.y, r, c.col, null); ctx.globalAlpha = 1;
+    G.hex(ctx, c.x, c.y, r, null, pressed ? '#ffffff' : c.col, pressed ? 3 : 2);
+    G.draw(ctx, c.glyph, c.x - 7, c.y - 11, '#ffffff', c.col);
+    if (c.label) PD.font.draw(ctx, c.label, c.x, c.y + 4, '#ffffff', { center: true, shadow: '#0b0718' });
   }
 
   function draw(ctx, mode, g) {
     if (!state.enabled || mode === 'ui') return;
-    if (mode === 'home') { const keys = keysFor(mode); for (const k in keys) padKey(ctx, k, keys[k]); return; }
+    if (mode === 'home') {
+      const keys = keysFor(mode);
+      for (const k in keys) padKey(ctx, k, keys[k]);
+      PD.font.draw(ctx, 'TAP WHERE YOU WANT TO GO', 10, VH - 14, 'rgba(201,188,232,0.7)', { shadow: '#0b0718' });
+      return;
+    }
     const t = g ? g.time : 0;
     if (mode === 'play') {
+      // the drill is the whole right half: hold anywhere and aim with the same
+      // finger. It is the one thing you do most, so it gets the most screen.
+      const held = state.aiming;
+      ctx.globalAlpha = held ? 0.1 : 0.05;
+      X.dither(ctx, VW * 0.44, 26, VW * 0.56 - 76, VH - 52, held ? '#ffd34d' : '#c9bce8', 0);
+      ctx.globalAlpha = 1;
+      // the hint stops nagging the moment you have actually drilled something
+      if (!held && g && g.save && g.save.totalMined < 8) {
+        PD.font.draw(ctx, 'HOLD HERE TO AIM + DRILL', VW * 0.5 + 88, VH - 22, 'rgba(255,211,77,0.8)', { center: true, shadow: '#0b0718' });
+      }
       const s = cfg.stick;
       G.hex(ctx, s.x, s.y, s.r + 4, 'rgba(8,4,18,0.55)', null);
       G.hex(ctx, s.x, s.y, s.r, null, '#7ef9ff', 1);
@@ -3788,7 +4063,8 @@ window.PD = window.PD || {};
       for (let i = 0; i < 6; i++) { const a = i * Math.PI / 3 - Math.PI / 2; G.hex(ctx, s.x + Math.cos(a) * (s.r - 7), s.y + Math.sin(a) * (s.r - 7), 2, '#7ef9ff', null); }
       ctx.globalAlpha = 1;
       const kx = s.x + state.dx * (s.r - s.knob), ky = s.y + state.dy * (s.r - s.knob);
-      G.hex(ctx, kx, ky, s.knob, 'rgba(126,249,255,' + (state.stickId !== null ? 0.6 : 0.35) + ')', '#eafcff', 1);
+      G.hex(ctx, kx, ky, s.knob * (state.stickId !== null ? 1.12 : 1), 'rgba(126,249,255,' + (state.stickId !== null ? 0.65 : 0.35) + ')', '#eafcff', 2);
+      PD.font.draw(ctx, 'FLY', s.x, s.y + s.r + 6, 'rgba(126,249,255,0.8)', { center: true, shadow: '#0b0718' });
     }
     const keys = keysFor(mode);
     for (const k in keys) padKey(ctx, k, keys[k]);
@@ -3798,8 +4074,9 @@ window.PD = window.PD || {};
       G.hexProgress(ctx, cfg.play.scan.x, cfg.play.scan.y, cfg.play.scan.r + 4, 1 - p.scanCool / 4, '#8affa0');
     }
     if (state.aiming && mode === 'play') {
-      G.hex(ctx, state.ax, state.ay, 9, null, '#ffd34d', 1);
-      G.hex(ctx, state.ax, state.ay, 3, null, '#ffffff', 1);
+      const pu = 1 + Math.sin(t * 14) * 0.16;
+      G.hex(ctx, state.ax, state.ay, 11 * pu, null, '#ffd34d', 2);
+      G.hex(ctx, state.ax, state.ay, 4, null, '#ffffff', 2);
     }
   }
 
@@ -3893,7 +4170,7 @@ window.PD = window.PD || {};
   }
 
   function text(x, y, str, color, size) {
-    floaters.push({ x, y, vy: -26, life: 1.1, max: 1.1, str, color: color || '#fff', size: size || 1 });
+    floaters.push({ x, y, vy: -30, life: 1.1, max: 1.1, str, color: color || '#fff', size: size || 1, pop: 0 });
   }
 
   function ring(x, y, r0, r1, life, color, width) {
@@ -3931,6 +4208,8 @@ window.PD = window.PD || {};
       f.life -= dt;
       f.y += f.vy * dt;
       f.vy *= Math.pow(0.94, dt * 60);
+      // BOUNCY: a number punches in past its own size before it settles
+      f.pop = Math.min(1, (f.pop || 0) + dt * 7);
       if (f.life <= 0) floaters.splice(i, 1);
     }
 
@@ -4007,7 +4286,17 @@ window.PD = window.PD || {};
     for (const f of floaters) {
       const t = f.life / f.max;
       ctx.globalAlpha = t > 0.6 ? 1 : t / 0.6;
-      font(ctx, f.str, Math.round(f.x - cam.x), Math.round(f.y - cam.y), f.color, f.size, true);
+      // overshoot then settle: 1.45x at the peak of the pop
+      const pop = f.pop === undefined ? 1 : f.pop;
+      const k = pop < 1 ? 0.4 + Math.sin(pop * Math.PI) * 1.05 + pop * 0.6 : 1;
+      const x = Math.round(f.x - cam.x), y = Math.round(f.y - cam.y);
+      if (k > 1.04) {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.scale(k, k);
+        font(ctx, f.str, 0, 0, f.color, f.size, true);
+        ctx.restore();
+      } else font(ctx, f.str, x, y, f.color, f.size, true);
     }
     ctx.globalAlpha = 1;
   }
@@ -4063,31 +4352,38 @@ window.PD = window.PD || {};
     return 'rgb(' + r + ',' + g2 + ',' + b + ')';
   }
 
+  /* A tile is a CUT STONE: every exposed corner comes off as a straight
+     45-degree chamfer and every open face takes one shallow notch, so a rock
+     face reads as knapped flint. There is not an arc in it -- the game has no
+     ovals anywhere, and rock is the largest surface in it. */
   function tilePath(c, mask, v, rad) {
     const up = mask & 1, rt = mask & 2, dn = mask & 4, lf = mask & 8;
-    // open faces bow in or out a touch, and neighbouring tiles pick different
-    // bows, so a long rock face stops being a ruler-straight line
-    const bow = ((v === undefined ? 0 : v) - 1.5) * 0.9;
-    const B = (open, x0, y0, x1, y1, nx, ny) => {
-      if (open) c.quadraticCurveTo((x0 + x1) / 2 + nx * bow, (y0 + y1) / 2 + ny * bow, x1, y1);
-      else c.lineTo(x1, y1);
-    };
+    const notch = ((v === undefined ? 0 : v) % 2) ? 1 : 0;   // which side the kink sits
     const RR = rad === undefined ? R : rad;
     const tl = (!up && !lf) ? RR : 0;
     const tr = (!up && !rt) ? RR : 0;
     const br = (!dn && !rt) ? RR : 0;
     const bl = (!dn && !lf) ? RR : 0;
     const T = TILE;
+    // one kink part-way along an open face, alternating in and out per tile
+    const F = (open, x0, y0, x1, y1, nx, ny) => {
+      if (open) {
+        const k = notch ? 0.62 : 0.38;
+        const d = notch ? 0.8 : -0.8;
+        c.lineTo(x0 + (x1 - x0) * k + nx * d, y0 + (y1 - y0) * k + ny * d);
+      }
+      c.lineTo(x1, y1);
+    };
     c.beginPath();
     c.moveTo(tl, 0);
-    B(!up, tl, 0, T - tr, 0, 0, -1);
-    if (tr) c.arcTo(T, 0, T, tr, tr); else c.lineTo(T, 0);
-    B(!rt, T, tr, T, T - br, 1, 0);
-    if (br) c.arcTo(T, T, T - br, T, br); else c.lineTo(T, T);
-    B(!dn, T - br, T, bl, T, 0, 1);
-    if (bl) c.arcTo(0, T, 0, T - bl, bl); else c.lineTo(0, T);
-    B(!lf, 0, T - bl, 0, tl, -1, 0);
-    if (tl) c.arcTo(0, 0, tl, 0, tl); else c.lineTo(0, 0);
+    F(!up, tl, 0, T - tr, 0, 0, -1);
+    if (tr) c.lineTo(T, tr); else c.lineTo(T, 0);
+    F(!rt, T, tr, T, T - br, 1, 0);
+    if (br) c.lineTo(T - br, T); else c.lineTo(T, T);
+    F(!dn, T - br, T, bl, T, 0, 1);
+    if (bl) c.lineTo(0, T - bl); else c.lineTo(0, T);
+    F(!lf, 0, T - bl, 0, tl, -1, 0);
+    if (tl) c.lineTo(tl, 0); else c.lineTo(0, 0);
     c.closePath();
   }
 
@@ -4516,13 +4812,15 @@ window.PD = window.PD || {};
         // a soft mottle so caverns read as rooms
         c.fillStyle = lift(L0.tint, 1.15, 10);
         c.fillRect(0, 0, TILE, TILE);
-        for (let k = 0; k < 4; k++) {
+        for (let k = 0; k < 5; k++) {
           const h = U.hash2(v * 17 + k, si * 31 + k * 5);
           c.fillStyle = lift(L0.tint, h > 0.5 ? 1.5 : 0.75, h > 0.5 ? 18 : 0);
           c.globalAlpha = 0.5;
-          c.beginPath();
-          c.arc(h * TILE, U.hash2(k, v + si) * TILE, 1.6 + h * 2.4, 0, Math.PI * 2);
-          c.fill();
+          // chipped flecks, not soft dots
+          const bx = Math.floor(h * TILE), by = Math.floor(U.hash2(k, v + si) * TILE);
+          const bw = 1 + Math.floor(h * 3), bh = 1 + ((k + v) % 2);
+          c.fillRect(bx, by, bw, bh);
+          c.fillRect(bx + 1, by + bh, Math.max(1, bw - 2), 1);
         }
         c.globalAlpha = 1;
         variants.push(cv);
@@ -4881,15 +5179,13 @@ window.PD = window.PD || {};
           const hL = Math.round((U.hash2(cx, cy * 3) - 0.5) * 3);
           const hR = Math.round((U.hash2(cx + 1, cy * 3) - 0.5) * 3);
           const hM = Math.round((U.hash2(cx * 2 + 7, cy) - 0.5) * 3);
+          // a hard sawtooth crest, drawn as columns so it stays pixels
           ctx.fillStyle = mm2.c[0];
-          ctx.beginPath();
-          ctx.moveTo(sx, sy + hL);
-          ctx.lineTo(sx + TILE / 2, sy + Math.round(hM) - 1);
-          ctx.lineTo(sx + TILE, sy + hR);
-          ctx.lineTo(sx + TILE, sy + 3.5);
-          ctx.lineTo(sx, sy + 3.5);
-          ctx.closePath();
-          ctx.fill();
+          for (let k = 0; k < TILE; k += 2) {
+            const f = k / TILE;
+            const top = Math.round(f < 0.5 ? hL + (hM - hL) * (f * 2) : hM + (hR - hM) * ((f - 0.5) * 2));
+            ctx.fillRect(sx + k, sy + top, 2, 4 - top);
+          }
         }
 
         const mm = mm2;
@@ -5360,7 +5656,14 @@ window.PD = window.PD || {};
     }
     const winding = this.state === 'wind';
     const flash = this.hurtT > 0 || (winding && Math.sin(this.wind * 40) > 0);
-    drawSprite(ctx, this.spr, frame, this.x - cam.x, this.y - cam.y, this.facing < 0, flash);
+    // BOUNCY: everything alive squashes and stretches, harder when it winds up
+    const puff = winding ? 0.16 : (this.hurtT > 0 ? 0.22 : 0.055);
+    const sq = 1 + Math.sin(this.anim * (winding ? 9 : 2.4) + this.bob) * puff;
+    ctx.save();
+    ctx.translate((this.x - cam.x) | 0, (this.y - cam.y) | 0);
+    ctx.scale((this.facing < 0 ? -1 : 1) * sq, 1 / sq);
+    drawSprite(ctx, this.spr, frame, 0, 0, false, flash);
+    ctx.restore();
     if (winding) {
       PD.font.draw(ctx, '!', this.x - cam.x, this.y - cam.y - this.h / 2 - 14 + Math.sin(this.wind * 30) * 1.5,
         '#ff5a4d', { center: true, scale: 1 });
@@ -5411,16 +5714,34 @@ window.PD = window.PD || {};
       if (g.collect(this.mat, this.x, this.y)) { this.dead = true; return; }
     }
 
+    // BOUNCY: loose ore is rubber. It skips off the floor twice before it
+    // settles, and squashes flat every time it hits.
+    const pv = this.vy;
     const hit = moveBody(this, g.world, dt);
-    if (hit.ground) { this.vx *= 0.6; this.rest += dt; }
-    if (hit.x) this.vx *= -0.4;
+    this.squash = Math.max(0, (this.squash || 0) - dt * 5);
+    if (hit.ground) {
+      this.vx *= 0.7;
+      if (pv > 55 && (this.bounces || 0) < 3) {
+        this.vy = -pv * 0.52;
+        this.bounces = (this.bounces || 0) + 1;
+        this.squash = 1;
+      } else this.rest += dt;
+    }
+    if (hit.x) { this.vx *= -0.5; this.squash = 0.6; }
   };
   Pickup.prototype.draw = function (ctx, cam, t) {
     const y = this.y - cam.y + Math.sin(t * 3 + this.bob) * 1.4;
     if (this.life < 4) {
       ctx.globalAlpha = (Math.sin(this.life * 14) > 0) ? 0.35 : 1;
     }
-    drawSprite(ctx, this.spr, 0, this.x - cam.x, y, false, false);
+    const sq = this.squash ? 1 + this.squash * 0.5 : 1;
+    if (sq !== 1) {
+      ctx.save();
+      ctx.translate((this.x - cam.x) | 0, y | 0);
+      ctx.scale(sq, 1 / sq);
+      drawSprite(ctx, this.spr, 0, 0, 0, false, false);
+      ctx.restore();
+    } else drawSprite(ctx, this.spr, 0, this.x - cam.x, y, false, false);
     ctx.globalAlpha = 1;
   };
 
@@ -6027,7 +6348,7 @@ window.PD = window.PD || {};
     // the body first, then the drill in his hands
     let frame;
     if (drilling) frame = Math.floor(t * 30) % 3;
-    else if (spr === skin.alien) frame = this.blink < 0 ? 2 : (this.squish > 0.25 ? 1 : 0);
+    else if (spr === skin.alien) frame = this.blink < 0 ? 4 : Math.floor(t * 7) % 4;   // the nose never settles
     else frame = Math.floor(this.anim) % 2;
     PD.ent.drawSprite(ctx, spr, frame, px, py - 1, flip, this.hurtT > 0.15);
 
@@ -6415,7 +6736,8 @@ window.PD = window.PD || {};
   function minimap(ctx, g) {
     const w = g.world;
     const MW = 92, MH = 92;
-    const x0 = VW - MW - 8, y0 = 58;
+    // the touch keys own the right edge, so the map slides over for them
+    const x0 = VW - MW - (PD.touch && PD.touch.enabled ? 56 : 8), y0 = 58;
     const sc = Math.min(MW / w.w, MH / w.h);
     const ox = x0 + (MW - w.w * sc) / 2, oy = y0 + (MH - w.h * sc) / 2;
 
@@ -6665,18 +6987,20 @@ window.PD = window.PD || {};
       ctx.fillRect(px - 6 + Math.cos(a) * d | 0, py - 58 + Math.sin(a) * d | 0, 2, 2);
     }
 
-    // the culprit
+    // the culprit, stood on the limb of the thing he is ruining
     const bob = Math.sin(t * 2.2) * 3;
     const al = PD.art.sprites.alien, dr = PD.art.sprites.drill;
-    const ax = px - 34, ay = py - 96 + bob;
+    const K = 1.5;                                   // he is a big lad now
+    const feet = al.h - al.oy;                       // anchor-to-sole, in logical px
+    const ax = px - 34, ay = py - 54 - feet * K + bob;
     ctx.save();
-    ctx.translate(ax, ay);
+    ctx.translate(ax + 10, ay + 4);
     ctx.rotate(0.85);
     ctx.drawImage(dr.frames[Math.floor(t * 12) % dr.frames.length], 0, 0,
-      dr.w, dr.h, -dr.ox * 2, -dr.oy * 2, dr.w * 2, dr.h * 2);
+      dr.frames[0].width, dr.frames[0].height, -dr.ox * K, -dr.oy * K, dr.w * K, dr.h * K);
     ctx.restore();
-    ctx.drawImage(al.frames[0], 0, 0, al.w, al.h,
-      ax - al.ox * 2 | 0, ay - al.oy * 2 | 0, al.w * 2, al.h * 2);
+    ctx.drawImage(al.frames[Math.floor(t * 7) % 4], 0, 0, al.frames[0].width, al.frames[0].height,
+      Math.round(ax - al.ox * K), Math.round(ay - al.oy * K), Math.round(al.w * K), Math.round(al.h * K));
   }
 
   function title(ctx, g, t) {
@@ -7117,8 +7441,8 @@ window.PD = window.PD || {};
   const VW = 480, VH = 270;
 
   /* ----------------------------------------------------------- geometry */
-  const CX = 20, CY = 2, CW = 440, CH = 212;          // the beige case
-  const SX = 40, SY = 14, SW = 400, SH = 178;         // the glass
+  const CX = 20, CY = 2, CW = 440, CH = 202;          // the beige case
+  const SX = 40, SY = 14, SW = 400, SH = 168;         // the glass
   const BARY = SY + SH - 12;                          // task bar
   const WX = SX + 4, WY = SY + 10, WW = SW - 8, WH = SH - 22;
 
@@ -7144,43 +7468,57 @@ window.PD = window.PD || {};
     const key = P.skin;
     if (handCache[key]) return handCache[key];
     const s = P.skin, d = P.skinD, l = P.skinL;
+    const NAIL = '#efe6bd', NAILD = '#c9bb8a';
     const frames = [];
     for (let f = 0; f < 3; f++) {
-      const p = pix(128, 150);
-      // forearm, running down and out of frame towards you
-      p.round(30, 96, 74, 54, 20, d);
-      p.round(24, 108, 86, 42, 18, s);
-      p.round(30, 116, 74, 34, 14, d);
-      // the jacket cuff, too short for the arm inside it
-      p.round(20, 118, 94, 22, 7, '#4a5a3a');
-      p.rect(20, 118, 94, 4, '#63744c');
-      p.rect(20, 136, 94, 4, '#36432a');
-      for (let i = 0; i < 5; i++) p.rect(26 + i * 19, 122, 6, 14, '#3f4c32');
-      // wrist
-      p.round(28, 74, 66, 34, 14, s);
-      // the back of the hand: wide, lumpy, three knuckle ridges
-      p.round(18, 34, 86, 52, 18, s);
-      p.round(24, 30, 74, 28, 12, l);
-      for (let k = 0; k < 3; k++) p.round(26 + k * 26, 32, 22, 16, 8, l);
-      // three fat fingers, the middle one lifted when he types
-      const lift = [[0, 0, 0], [0, -9, 0], [-7, 0, -4]][f];
-      for (let k = 0; k < 3; k++) {
-        const fx = 22 + k * 26, fy = 6 + lift[k];
-        p.round(fx, fy, 22, 40, 10, s);
-        p.round(fx + 3, fy + 4, 15, 18, 7, l);
-        p.round(fx + 4, fy - 4, 14, 12, 5, '#efe6bd');           // a flat yellow claw
-        p.rect(fx + 5, fy - 2, 12, 6, '#cdbf8d');
-        p.rect(fx + 6, fy + 26, 10, 3, d);                       // knuckle crease
-      }
-      // warts, veins, one very old scar
-      p.round(38, 62, 9, 7, 3, l); p.round(66, 70, 7, 6, 3, l);
-      p.rect(34, 88, 22, 3, d); p.rect(62, 94, 18, 3, d);
-      p.line(30, 52, 52, 44, d); p.line(30, 53, 52, 45, d);
+      const p = pix(136, 158);
+      /* forearm, running down and out of frame towards you */
+      p.round(34, 100, 78, 58, 22, d);
+      p.round(28, 112, 90, 46, 20, s);
+      p.round(36, 122, 74, 36, 16, d);
+      /* the jacket cuff, three sizes too short for the arm inside it */
+      p.round(22, 122, 100, 24, 8, '#4a5a3a');
+      p.rect(22, 122, 100, 4, '#63744c');
+      p.rect(22, 142, 100, 4, '#36432a');
+      for (let i = 0; i < 5; i++) p.rect(28 + i * 20, 126, 7, 16, '#3f4c32');
+      p.round(30, 118, 12, 10, 4, '#63744c');            // a button, hanging on
+      /* wrist, then the back of the hand -- wide, meaty, faceted */
+      p.round(30, 78, 72, 38, 15, s);
+      p.round(20, 40, 92, 52, 18, s);
+      p.round(26, 34, 80, 26, 11, l);
       p.shade(s, d, 1, 1);
+      /* three knuckle ridges, each with its own little shadow under it */
+      for (let k = 0; k < 3; k++) {
+        const kx = 26 + k * 28;
+        p.round(kx, 34, 24, 18, 8, l);
+        p.round(kx + 3, 36, 18, 8, 4, '#d8f2df');
+        p.rect(kx + 2, 52, 20, 3, d);
+      }
+      /* tendons across the back of the hand */
+      for (let k = 0; k < 3; k++) p.rect(32 + k * 28, 58, 3, 26, d);
+      /* three fat fingers. The middle one lifts to type; the others drum. */
+      const lift = [[0, 0, 0], [0, -12, 0], [-8, 0, -5]][f];
+      for (let k = 0; k < 3; k++) {
+        const fx = 24 + k * 28, fy = 4 + lift[k];
+        p.round(fx, fy + 6, 24, 42, 11, s);              // the finger
+        p.round(fx + 3, fy + 10, 17, 20, 8, l);          // lit along the top
+        p.rect(fx + 4, fy + 30, 16, 3, d);               // the joint crease
+        p.rect(fx + 6, fy + 38, 12, 3, d);
+        p.round(fx + 4, fy, 16, 12, 5, NAIL);            // a flat, filthy claw
+        p.rect(fx + 5, fy + 2, 14, 6, '#f8f0d0');
+        p.rect(fx + 4, fy + 9, 16, 3, NAILD);
+        p.set(fx + 7, fy + 4, '#ffffff');
+      }
+      /* the warts, the veins and one very old scar */
+      p.round(40, 66, 10, 8, 4, l); p.round(72, 74, 8, 7, 3, l);
+      p.round(58, 90, 7, 6, 3, l);
+      p.rect(36, 94, 24, 3, d); p.rect(68, 100, 20, 3, d);
+      p.line(32, 56, 56, 46, d); p.line(32, 57, 56, 47, d);
+      p.line(33, 58, 57, 48, l);
       p.outline('#140f1e');
       frames.push(p.toCanvas());
     }
-    handCache[key] = { frames, w: 64, h: 75 };
+    handCache[key] = { frames, w: 68, h: 79 };
     return handCache[key];
   }
 
@@ -7505,10 +7843,8 @@ window.PD = window.PD || {};
     }
     pxDisc(ctx, wx + 12, wy + 14, 9, '#24406e');
     pxDisc(ctx, wx - 20, wy + 4, 6, '#24406e');
-    for (let a = 0; a < 30; a++) {                      // a stepped ring, on its side
-      const ang = a / 30 * Math.PI * 2;
-      X.rect(ctx, wx + Math.cos(ang) * 62, wy + 6 + Math.sin(ang) * 15, 2, 2, a < 15 ? '#7fa8dc' : '#4a6f9e');
-    }
+    X.orbit(ctx, wx, wy + 6, 62, 15, '#4a6f9e', 2, 0.9);   // a faceted ring, on its side
+    X.orbit(ctx, wx, wy + 4, 58, 13, '#7fa8dc', 3, 0.9);
     ctx.globalAlpha = 0.5;
     for (let i = 0; i < 40; i++) {
       const sx = SX + U.hash2(i, 3) * SW, sy = SY + U.hash2(i, 7) * SH;
@@ -7519,13 +7855,13 @@ window.PD = window.PD || {};
     F.draw(ctx, 'THIS COMPUTER IS MINE NOW', SX + SW / 2, SY + 138, '#5d729a', { center: true, shadow: false });
   }
 
-  /* A disc made of integer scanlines: hard pixel steps all the way round. */
+  /* An OCTAGON made of integer scanlines. Nothing on this machine is round. */
   function pxDisc(ctx, cx, cy, r, col) {
     ctx.fillStyle = col;
-    const r2 = r * r;
     for (let y = Math.ceil(cy - r); y <= Math.floor(cy + r); y++) {
-      const dy = y - cy + 0.5;
-      const w = Math.sqrt(Math.max(0, r2 - dy * dy));
+      const dy = Math.abs(y - cy + 0.5) / r;
+      if (dy > 1) continue;
+      const w = r * Math.min(1, 1.42 - dy);
       const x0 = Math.round(cx - w), x1 = Math.round(cx + w);
       if (x1 > x0) ctx.fillRect(x0, y, x1 - x0, 1);
     }
@@ -7901,7 +8237,7 @@ window.PD = window.PD || {};
 
   /* ----------------------------------------------------------- desk + keys */
   function drawDesk(ctx, g, t) {
-    const DY = 214;
+    const DY = 204;
     X.rect(ctx, 0, DY, VW, VH - DY, C.wood);
     X.rect(ctx, 0, DY, VW, 3, C.woodL);
     for (let x = 0; x < VW; x += 3) {
@@ -7924,7 +8260,7 @@ window.PD = window.PD || {};
     X.rect(ctx, 38, DY - 8, 4, 14, '#e8e2cc');
     X.rect(ctx, 36, DY - 10, 8, 4, '#e8e2cc');
     // keyboard: a slab of human keys, most of which he has never pressed
-    const KX = 92, KY = DY + 8, KW = 296, KH = 44;
+    const KX = 92, KY = DY + 10, KW = 296, KH = 46;
     X.rect(ctx, KX - 3, KY - 3, KW + 6, KH + 8, '#1b1620');
     X.plate(ctx, KX, KY, KW, KH, '#c4bda4', '#e2dbc2', '#847d6a', 3);
     X.rect(ctx, KX + 4, KY + 3, KW - 8, KH - 8, '#a9a28c');       // the sunk key well
@@ -7979,14 +8315,14 @@ window.PD = window.PD || {};
     const bang = S.press > 0.4 ? 3 : 0;
     // left hand, splayed over the keys
     ctx.save();
-    ctx.translate(146, 222 + bang);
+    ctx.translate(140, 214 + bang);
     ctx.rotate(0.1);
     ctx.scale(-1, 1);
     ctx.drawImage(H.frames[f], -H.w / 2, 0, H.w, H.h);
     ctx.restore();
     // right hand, riding the mouse it is far too big for
     ctx.save();
-    ctx.translate(374 + Math.round(Math.sin(t * 2) * 2), 218 + bang);
+    ctx.translate(378 + Math.round(Math.sin(t * 2) * 2), 210 + bang);
     ctx.rotate(-0.08);
     ctx.drawImage(H.frames[S.typeT > 0 ? 1 : 0], -H.w / 2, 0, H.w, H.h);
     ctx.restore();
@@ -8002,14 +8338,15 @@ window.PD = window.PD || {};
 })(window.PD);
 
 /* ===== src/home.js ===== */
-/* HOME: one room hacked out of a dead moon.
+/* HOME.
 
-   There is no station, no crew, no terminal. There is a rock house with a
-   stolen human computer on a plank, a bed of moss, a fridge with nothing in
-   it, and a doorway through which you can see your dumb UFO sitting on two
-   bricks. Walk left and right, jump absurdly high, tuck into a roll. Stand at
-   the desk and press E to sit down at it; stand at the saucer and press E to
-   go and hit a planet. That is the whole building. */
+   Two places. OUTSIDE is an empty moon with your rock house standing on it and
+   your dumb UFO parked alongside. INSIDE is one room with a dumb bed and the
+   stolen computer, and nothing else except the mess. Walk to the door and
+   press E to go through, either way.
+
+   The first time you go in there is a very fat rat eating your cheese. Give it
+   the cheese and it is yours forever. */
 (function (PD) {
   'use strict';
   const U = PD.util;
@@ -8021,74 +8358,118 @@ window.PD = window.PD || {};
   const X = PD.pxd;
 
   const VW = 480, VH = 270;
-  const ROOM_W = 700;
-  const FLOOR = 214;                 // the floor of the room
-  const CEIL = 84;                   // the underside of the rock roof
-  const DOOR_X = 430;                // where the room stops and the moon starts
-  const GRAV = 330;
+  const OUT_W = 860, IN_W = 470;
+  const FLOOR = 214;                 // the moon surface / the room floor
+  const CEIL = 56;                   // the underside of the rock roof, inside
+  const GRAV = 300;                  // low: everything here is bouncy
 
-  /* Flat indoors, lumpy once you are out on the regolith. */
+  const S = { scene: 'out', t: 0, ratSeen: 0, sleep: 0, swing: 0 };
+
+  function roomW() { return S.scene === 'out' ? OUT_W : IN_W; }
+
+  /* Flat indoors; lumpy regolith outside. */
   function groundY(x) {
-    if (x < DOOR_X) return FLOOR;
-    const f = U.clamp((x - DOOR_X) / 60, 0, 1);
-    const bump = Math.sin(x * 0.021) * 5 + Math.sin(x * 0.047 + 1.3) * 3;
-    return FLOOR + f * bump;
+    if (S.scene === 'in') return FLOOR;
+    return FLOOR + Math.sin(x * 0.019) * 5 + Math.sin(x * 0.043 + 1.3) * 3;
   }
 
   const P = {
     x: 240, y: FLOOR, vx: 0, vy: 0, face: 1, walk: 0,
     near: null, target: null, autoUse: null, lock: 0,
-    roll: 0, rollA: 0, land: 0, air: 0
+    roll: 0, rollA: 0, land: 0, air: 0, hop: 0
   };
   const UI = { mode: null, msg: '', msgT: 0 };
 
-  /* The two things in the world you can actually press E on. */
-  const SPOTS = [
-    { id: 'desk', x: 236, r: 44, name: 'THE COMPUTER', sub: 'ABAY IS ON IT' },
-    { id: 'ufo', x: 566, r: 56, name: 'YOUR DUMB UFO', sub: 'GO AND HIT A PLANET' }
+  /* ------------------------------------------------------------------ spots */
+  const OUT_SPOTS = [
+    { id: 'door', x: 300, r: 50, name: 'THE ROCK HOUSE', sub: 'GO INSIDE' },
+    { id: 'ufo', x: 640, r: 58, name: 'YOUR DUMB UFO', sub: 'GO AND HIT A PLANET' }
   ];
+  const IN_SPOTS = [
+    { id: 'pc', x: 132, r: 46, name: 'THE COMPUTER', sub: 'ABAY IS ON IT' },
+    { id: 'bed', x: 286, r: 38, name: 'YOUR DUMB BED', sub: 'IT IS MOSS. HAVE A LIE DOWN' },
+    { id: 'exit', x: 424, r: 44, name: 'THE DOOR', sub: 'GO OUTSIDE' }
+  ];
+  const RAT_SPOT = { id: 'rat', x: 208, r: 46, name: 'A VERY FAT RAT', sub: 'GIVE HIM THE CHEESE' };
+  const SPOTS = OUT_SPOTS;                    // game.js docks you next to the UFO
 
-  /* Furniture. He arranged it himself and it shows. */
-  const PROPS = [
-    { s: 'bed', x: 56 },
-    { s: 'fridge', x: 128 },
-    { s: 'junk0', x: 178 },
-    { s: 'junk1', x: 330 },
-    { s: 'junk2', x: 392 },
-    { s: 'tape', x: 300, lift: 16 }
-  ];
-  const POSTERS = [{ k: 0, x: 92, y: 108 }, { k: 1, x: 276, y: 100 }, { k: 2, x: 400, y: 112 }];
+  /* --------------------------------------------------------------- scenery */
   const OUT_ROCKS = [];
-  for (let i = 0; i < 12; i++) OUT_ROCKS.push({ x: DOOR_X + 20 + U.hash2(i, 3) * (ROOM_W - DOOR_X - 40), k: (U.hash2(i, 9) * 3) | 0 });
+  for (let i = 0; i < 20; i++) OUT_ROCKS.push({ x: 20 + U.hash2(i, 3) * (OUT_W - 40), k: (U.hash2(i, 9) * 3) | 0 });
   const CRATERS = [];
-  for (let i = 0; i < 7; i++) CRATERS.push({ x: DOOR_X + 30 + U.hash2(i, 21) * (ROOM_W - DOOR_X - 60), r: 8 + U.hash2(i, 33) * 16 });
+  for (let i = 0; i < 12; i++) CRATERS.push({ x: 30 + U.hash2(i, 21) * (OUT_W - 60), r: 8 + U.hash2(i, 33) * 20 });
+  const RUINS = [{ x: 70, k: 2 }, { x: 780, k: 1 }];
   const MOTES = [];
-  for (let i = 0; i < 30; i++) MOTES.push({ x: U.hash2(i, 61) * ROOM_W, y: 60 + U.hash2(i, 67) * 150, r: U.hash2(i, 71), sp: 2 + U.hash2(i, 73) * 7 });
-  const DRIPS = [{ x: 84, t: 0 }, { x: 206, t: 1.4 }, { x: 348, t: 2.6 }];
-  const critters = [
-    { x: 150, dir: 1, t: 0, spr: 'critter', speed: 13 },
-    { x: 340, dir: -1, t: 0.7, spr: 'critter2', speed: 9 }
+  for (let i = 0; i < 26; i++) MOTES.push({ x: U.hash2(i, 61), y: 60 + U.hash2(i, 67) * 150, r: U.hash2(i, 71), sp: 2 + U.hash2(i, 73) * 7 });
+
+  /* Inside: the mess, and where each piece of it lies. */
+  const IN_PROPS = [
+    { s: 'bed', x: 286 },
+    { s: 'fridge', x: 350 },
+    { s: 'junk0', x: 60 },
+    { s: 'junk1', x: 196 },
+    { s: 'junk2', x: 388 },
+    { s: 'litter0', x: 100 },
+    { s: 'litter1', x: 246 },
+    { s: 'litter2', x: 330 },
+    { s: 'litter3', x: 168 },
+    { s: 'litter0', x: 408 },
+    { s: 'tape', x: 240, lift: 14 }
   ];
+  const POSTERS = [{ k: 0, x: 84, y: 96 }, { k: 1, x: 250, y: 84 }, { k: 2, x: 398, y: 104 }];
+  const DRIPS = [{ x: 330, t: 0 }, { x: 118, t: 1.7 }];
+
+  /* ---------------------------------------------------------------- the rat */
+  const rat = { x: 214, y: FLOOR, vx: 0, t: 0, face: -1, hop: 0, chew: 0 };
+
   let star = null;
 
   function enter(g, atX) {
-    P.x = atX === undefined ? 300 : U.clamp(atX, 24, ROOM_W - 24);
-    P.y = groundY(P.x); P.vx = 0; P.vy = 0;
-    P.target = null; P.autoUse = null; P.roll = 0;
-    P.lock = 0.25;
-    UI.mode = null;
-    g.intCam = U.clamp(P.x - VW / 2, 0, ROOM_W - VW);
+    S.scene = 'out';
+    place(g, atX === undefined ? 400 : atX);
     if (!star) {
       star = [];
-      for (let i = 0; i < 130; i++) star.push({ x: U.hash2(i, 11) * ROOM_W, y: U.hash2(i, 17) * 200, b: U.hash2(i, 23) });
+      for (let i = 0; i < 150; i++) star.push({ x: U.hash2(i, 11), y: U.hash2(i, 17) * 190, b: U.hash2(i, 23) });
     }
   }
 
-  function say(m) { UI.msg = m; UI.msgT = 2.6; }
+  function place(g, atX) {
+    P.x = U.clamp(atX, 26, roomW() - 26);
+    P.y = groundY(P.x); P.vx = 0; P.vy = 0;
+    P.target = null; P.autoUse = null; P.roll = 0; P.hop = 0;
+    P.lock = 0.28;
+    UI.mode = null;
+    g.intCam = U.clamp(P.x - VW / 2, 0, roomW() - VW);
+    rat.x = g.save.pet ? P.x - 40 : RAT_SPOT.x;
+    rat.y = groundY(rat.x);
+  }
 
-  function nearest() {
+  function goIn(g) {
+    S.scene = 'in';
+    place(g, IN_SPOTS[2].x - 40);
+    A.sfx.tone(150, { type: 'square', to: 90, dur: 0.2, vol: 0.08 });
+    if (!g.save.pet && !S.ratSeen) {
+      S.ratSeen = 1;
+      say('THERE IS A VERY FAT RAT EATING YOUR CHEESE.');
+      A.sfx.tone(1600, { type: 'square', to: 700, dur: 0.18, vol: 0.07 });
+    }
+  }
+  function goOut(g) {
+    S.scene = 'out';
+    place(g, OUT_SPOTS[0].x + 10);
+    A.sfx.tone(220, { type: 'square', to: 420, dur: 0.2, vol: 0.08 });
+  }
+
+  function say(m) { UI.msg = m; UI.msgT = 3.2; }
+
+  function spots(g) {
+    if (S.scene === 'out') return OUT_SPOTS;
+    return g.save.pet ? IN_SPOTS : IN_SPOTS.concat([RAT_SPOT]);
+  }
+
+  function nearest(g) {
     let best = null, bd = 1e9;
-    for (const s of SPOTS) {
+    for (const s of spots(g)) {
       const d = Math.abs(s.x - P.x);
       if (d < s.r && d < bd) { bd = d; best = s; }
     }
@@ -8097,35 +8478,66 @@ window.PD = window.PD || {};
 
   function use(g, s) {
     if (!s) return;
-    if (s.id === 'desk') {
+    if (s.id === 'door') { goIn(g); return; }
+    if (s.id === 'exit') { goOut(g); return; }
+    if (s.id === 'ufo') { A.sfx.dock(); g.openChart(); return; }
+    if (s.id === 'pc') {
       g.state = 'desk';
       PD.desk.enter(g);
       A.sfx.tone(160, { type: 'square', to: 320, dur: 0.12, vol: 0.07 });
       return;
     }
-    if (s.id === 'ufo') { A.sfx.dock(); g.openChart(); }
+    if (s.id === 'bed') { sleep(g); return; }
+    if (s.id === 'rat') { feedRat(g); return; }
   }
 
-  /* Coming back out of the first-person desk. */
+  /* Hand the cheese over. He is yours now; there is no undoing this. */
+  function feedRat(g) {
+    g.save.pet = 1;
+    g.saveGame();
+    rat.hop = 1;
+    say('HE IS YOURS NOW. HE IS CALLED BRENDA.');
+    A.sfx.fanfare && A.sfx.fanfare();
+    FX.text(rat.x, rat.y - 40, 'BRENDA', '#ff9ecb', 2);
+    for (let i = 0; i < 26; i++) {
+      FX.spawn({ x: rat.x + U.rand(-16, 16), y: rat.y - 16, vx: U.rand(-50, 50), vy: U.rand(-110, -30),
+        life: 1.1, size: 2, color: i % 2 ? '#ff9ecb' : '#ffd34d', grav: 130, drag: 1, glow: 1 });
+    }
+    FX.ring(rat.x, rat.y - 14, 4, 38, 0.7, '#ff9ecb', 2);
+  }
+
+  /* A lie down. Nothing heals, but the ore market moves while you are out. */
+  function sleep(g) {
+    if (S.sleep > 0) return;
+    S.sleep = 2.2;
+    A.sfx.tone(200, { type: 'triangle', to: 120, dur: 0.6, vol: 0.08 });
+    if (g.player) { g.player.hull = g.player.stat('hull'); g.player.o2 = g.player.stat('oxygen'); }
+  }
+
   function leaveDesk(g) {
     g.state = 'home';
-    P.lock = 0.3;
-    P.x = SPOTS[0].x + 26; P.y = groundY(P.x); P.vx = 0; P.vy = 0; P.face = -1;
-    g.intCam = U.clamp(P.x - VW / 2, 0, ROOM_W - VW);
+    S.scene = 'in';
+    P.lock = 0.32;
+    P.x = IN_SPOTS[0].x + 34; P.y = groundY(P.x); P.vx = 0; P.vy = 0; P.face = -1;
+    g.intCam = U.clamp(P.x - VW / 2, 0, roomW() - VW);
   }
 
   /* ---------------------------------------------------------------- update */
   function update(dt, g) {
     const IN = PD.input;
+    S.t += dt;
     P.lock = Math.max(0, P.lock - dt);
     UI.msgT = Math.max(0, UI.msgT - dt);
 
-    for (const c of critters) {
-      c.t += dt; c.x += c.dir * c.speed * dt;
-      if (c.x > DOOR_X - 30 || c.x < 30) c.dir *= -1;
-      if (U.chance(dt * 0.4)) c.dir *= -1;
+    if (S.sleep > 0) {
+      S.sleep -= dt;
+      for (let k = 0; k < 6; k++) g.demandFor(k);        // the market keeps moving
+      if (S.sleep <= 0) { say('YOU SLEPT. THE PRICES MOVED. THEY ALWAYS DO.'); A.sfx.tone(700, { type: 'triangle', to: 1100, dur: 0.2, vol: 0.07 }); }
+      return;
     }
+
     for (const d of DRIPS) { d.t += dt; if (d.t > 3.4) { d.t = 0; A.sfx.tone(1400, { type: 'sine', to: 800, dur: 0.1, vol: 0.02 }); } }
+    updateRat(dt, g);
 
     const use_ = P.lock <= 0 && (IN.hit('KeyE') || IN.hit('space'));
     const m = IN.mouse;
@@ -8134,19 +8546,18 @@ window.PD = window.PD || {};
     if (IN.down('left')) ix -= 1;
     if (IN.down('right')) ix += 1;
 
-    // click or tap anywhere: walk there, and use whatever is standing there
-    if (P.lock <= 0 && m.leftPressed && m.y > 24) {
+    if (P.lock <= 0 && m.leftPressed && m.y > 26) {
       const wx = m.x + g.intCam;
       let hit = null;
-      for (const s of SPOTS) if (Math.abs(s.x - wx) < s.r) hit = s;
-      P.target = hit ? hit.x : U.clamp(wx, 24, ROOM_W - 24);
+      for (const s of spots(g)) if (Math.abs(s.x - wx) < s.r) hit = s;
+      P.target = hit ? hit.x : U.clamp(wx, 26, roomW() - 26);
       P.autoUse = hit;
       A.sfx.click();
     }
     if (ix) { P.target = null; P.autoUse = null; }
     if (P.target !== null) {
       const d = P.target - P.x;
-      if (Math.abs(d) > 5) ix = Math.sign(d);
+      if (Math.abs(d) > 6) ix = Math.sign(d);
       else { P.target = null; if (P.autoUse) { const s = P.autoUse; P.autoUse = null; use(g, s); return; } }
     }
 
@@ -8156,44 +8567,85 @@ window.PD = window.PD || {};
     if (P.roll <= 0 && grounded && (IN.hit('shift') || (IN.hit('down') && Math.abs(P.vx) > 20))) {
       P.roll = 0.55; P.rollA = 0;
       if (ix) P.face = ix;
-      P.vx = P.face * 190;
+      P.vx = P.face * 210;
       A.sfx.tone(300, { type: 'triangle', to: 120, dur: 0.25, vol: 0.09 });
-      FX.dust(P.x, P.y, 4, '#8e86a8', 14);
+      FX.dust(P.x, P.y, 5, '#8e86a8', 16);
     }
     if (P.roll > 0) {
       P.roll -= dt;
-      P.rollA += P.face * dt * 14;
-      P.vx = U.damp(P.vx, P.face * 150, 0.5, dt);
+      P.rollA += P.face * dt * 15;
+      P.vx = U.damp(P.vx, P.face * 170, 0.5, dt);
     } else {
       if (ix) P.face = ix;
-      P.vx = U.damp(P.vx, ix * 96, 0.26, dt);
+      P.vx = U.damp(P.vx, ix * 104, 0.3, dt);
     }
-    P.x = U.clamp(P.x + P.vx * dt, 24, ROOM_W - 24);
+    P.x = U.clamp(P.x + P.vx * dt, 26, roomW() - 26);
     P.walk += Math.abs(P.vx) * dt * 0.1;
 
     if (IN.hit('up') && grounded && P.roll <= 0) {
-      P.vy = -196;
-      A.sfx.tone(520, { type: 'triangle', to: 900, dur: 0.14, vol: 0.07 });
-      FX.dust(P.x, P.y, 3, '#c9bce8', 10);
+      P.vy = -212;
+      A.sfx.tone(520, { type: 'triangle', to: 980, dur: 0.14, vol: 0.07 });
+      FX.dust(P.x, P.y, 4, '#c9bce8', 12);
     }
-    const floaty = IN.down('up') && P.vy < 0 ? 0.6 : 1;
+    const floaty = IN.down('up') && P.vy < 0 ? 0.55 : 1;
     P.vy += GRAV * floaty * dt;
     P.y += P.vy * dt;
-    // you will bang your head on your own roof, and you deserve it
-    const roof = P.x < DOOR_X - 14 ? CEIL + 34 : -400;
-    if (P.y < roof) { P.y = roof; if (P.vy < 0) { P.vy = 40; FX.dust(P.x, roof - 6, 3, '#6b6480', 10); A.sfx.tone(110, { type: 'square', to: 60, dur: 0.1, vol: 0.06 }); } }
+
+    // the ceiling is out of reach, but the junk hanging off the beam is not
+    const roof = S.scene === 'in' ? 134 : -600;
+    if (P.y < roof) {
+      P.y = roof;
+      if (P.vy < 0) {
+        P.vy = 70; S.swing = 1;
+        FX.dust(P.x, roof - 6, 4, '#6b6480', 12);
+        A.sfx.tone(180, { type: 'square', to: 90, dur: 0.12, vol: 0.07 });
+      }
+    }
+    S.swing = Math.max(0, S.swing - dt * 1.4);
+
     if (P.y >= gy) {
-      if (P.vy > 60) { P.land = 0.22; FX.dust(P.x, gy, 5, '#8e86a8', 16); A.sfx.tone(140, { type: 'triangle', to: 80, dur: 0.1, vol: 0.06 }); }
-      P.y = gy; P.vy = 0; P.air = 0;
+      if (P.vy > 60) {
+        // EVERYTHING BOUNCES. He lands, squashes flat, and pops back up.
+        P.land = 0.26;
+        if (P.vy > 150 && P.hop < 2) { P.vy = -P.vy * 0.34; P.hop++; }
+        else { P.vy = 0; P.hop = 0; }
+        FX.dust(P.x, gy, 6, '#8e86a8', 18);
+        A.sfx.tone(150, { type: 'triangle', to: 90, dur: 0.1, vol: 0.06 });
+      } else { P.vy = 0; P.hop = 0; }
+      P.y = gy; P.air = 0;
     } else P.air += dt;
-    P.land = Math.max(0, P.land - dt);
+    P.land = Math.max(0, P.land - dt * 3.4);
 
     const was = P.near;
-    P.near = nearest();
+    P.near = nearest(g);
     if (P.near && P.near !== was) A.sfx.tone(900, { type: 'square', dur: 0.03, vol: 0.03 });
     if (use_) use(g, P.near);
 
-    g.intCam = U.damp(g.intCam, U.clamp(P.x - VW / 2, 0, ROOM_W - VW), 0.15, dt);
+    g.intCam = U.damp(g.intCam, U.clamp(P.x - VW / 2, 0, roomW() - VW), 0.16, dt);
+  }
+
+  /* Before he is yours he stands over the cheese. After, he never shuts up
+     about following you and he bounces the whole way. */
+  function updateRat(dt, g) {
+    rat.t += dt;
+    rat.chew = Math.max(0, rat.chew - dt);
+    if (!g.save.pet) {
+      rat.x = RAT_SPOT.x;
+      rat.y = groundY(rat.x);
+      rat.face = P.x > rat.x ? 1 : -1;
+      if (U.chance(dt * 1.4)) { rat.chew = 0.3; A.sfx.tone(240, { type: 'square', dur: 0.03, vol: 0.02 }); }
+      return;
+    }
+    const want = P.x - P.face * 34;
+    const d = want - rat.x;
+    if (Math.abs(d) > 14) {
+      rat.vx = U.damp(rat.vx, U.clamp(d * 2.6, -120, 120), 0.14, dt);
+      rat.face = Math.sign(rat.vx) || rat.face;
+    } else rat.vx = U.damp(rat.vx, 0, 0.3, dt);
+    rat.x = U.clamp(rat.x + rat.vx * dt, 20, roomW() - 20);
+    // he is far too fat to walk, so he bounces
+    rat.hop = Math.abs(rat.vx) > 12 ? (rat.hop + dt * 9) : U.damp(rat.hop, 0, 0.2, dt);
+    rat.y = groundY(rat.x);
   }
 
   function closeScene() { UI.mode = null; P.lock = 0.2; A.sfx.click(); }
@@ -8204,19 +8656,18 @@ window.PD = window.PD || {};
     const sky = ctx.createLinearGradient(0, 0, 0, VH);
     sky.addColorStop(0, '#090620'); sky.addColorStop(0.6, '#150d31'); sky.addColorStop(1, '#2a1541');
     ctx.fillStyle = sky; ctx.fillRect(0, 0, VW, VH);
-    // one dithered nebula smear, shaped, never a soft glow
-    const nx = 560 - cam * 0.2;
+    const nx = 620 - cam * 0.2;
     ctx.save();
     for (let i = 4; i >= 1; i--) {
       ctx.globalAlpha = 0.05 + (4 - i) * 0.012;
-      ctx.beginPath(); X.octPath(ctx, nx + (i % 2 ? 8 : -8), 70 + i * 3, i * 24); ctx.clip();
+      ctx.beginPath(); X.octPath(ctx, nx + (i % 2 ? 8 : -8), 66 + i * 3, i * 24); ctx.clip();
       X.dither(ctx, nx - 120, 0, 240, 160, '#ff8ad8', i % 2);
       ctx.restore(); ctx.save();
     }
     ctx.restore();
     ctx.globalAlpha = 1;
     for (const s of star) {
-      const sx = s.x - cam * 0.3;
+      const sx = s.x * OUT_W - cam * 0.3;
       if (sx < -4 || sx > VW + 4) continue;
       const tw = 0.5 + 0.5 * Math.sin(t * 2 + s.b * 30);
       ctx.fillStyle = s.b > 0.86 ? '#ffe9a8' : '#ffffff';
@@ -8224,23 +8675,22 @@ window.PD = window.PD || {};
       ctx.fillRect(sx | 0, s.y | 0, 1, 1);
     }
     ctx.globalAlpha = 1;
-    // the dead Celestial your moon is made of, out on the far horizon
+    // the dead Celestial your moon is made of, out on the horizon
     const sk = AH.S.skull;
-    const skx = Math.round(760 - cam * 0.45);
-    ctx.globalAlpha = 0.9;
-    ctx.drawImage(sk.frames[0], skx - Math.round(sk.w * 0.9), FLOOR + 6 - Math.round(sk.h * 1.8), Math.round(sk.w * 1.8), Math.round(sk.h * 1.8));
+    const skx = Math.round(150 - cam * 0.4);
+    ctx.globalAlpha = 0.85;
+    ctx.drawImage(sk.frames[0], skx - Math.round(sk.w * 0.8), FLOOR + 8 - Math.round(sk.h * 1.6), Math.round(sk.w * 1.6), Math.round(sk.h * 1.6));
     ctx.globalAlpha = 1;
-    // the world you are about to ruin, hanging over the pad
+    // the world you are about to ruin
     const icon = g.navIcon(g.save.bodyIndex || 0);
-    const px = 620 - cam * 0.42, py = 62 + Math.sin(t * 0.4) * 2;
-    if (px > -60 && px < VW + 60) ctx.drawImage(icon, Math.round(px - icon.width * 0.9), Math.round(py - icon.height * 0.9), Math.round(icon.width * 1.8), Math.round(icon.height * 1.8));
+    const px = 700 - cam * 0.42, py = 60 + Math.sin(t * 0.5) * 3;
+    if (px > -70 && px < VW + 70) ctx.drawImage(icon, Math.round(px - icon.width * 0.9), Math.round(py - icon.height * 0.9), Math.round(icon.width * 1.8), Math.round(icon.height * 1.8));
   }
 
-  function drawOutside(ctx, t, cam) {
+  function drawRegolith(ctx, t, cam) {
     const BAND = ['#6b6480', '#5f5875', '#544d6b', '#494360', '#3d3854', '#332e4a', '#2e2842'];
-    for (let sx = Math.max(0, DOOR_X - cam); sx <= VW; sx += 2) {
+    for (let sx = 0; sx <= VW; sx += 2) {
       const wx = sx + cam;
-      if (wx < DOOR_X - 4) continue;
       const y = Math.round(groundY(wx) / 2) * 2;
       for (let i = 0; i < BAND.length; i++) {
         const y0 = y + (i === 0 ? 0 : 4 + (i - 1) * 9);
@@ -8254,13 +8704,43 @@ window.PD = window.PD || {};
       X.blob(ctx, x, groundY(c.x) + c.r * 0.28, c.r, c.r * 0.3, '#453e5e');
       X.blob(ctx, x, groundY(c.x) + c.r * 0.1, c.r * 0.94, c.r * 0.16, '#8e86a8');
     }
+    for (const r of RUINS) { const x = r.x - cam; if (x < -60 || x > VW + 60) continue; AH.blit(ctx, AH.S['ruin' + r.k], 0, x, groundY(r.x) + 2); }
     for (const r of OUT_ROCKS) {
       const x = r.x - cam; if (x < -24 || x > VW + 24) continue;
       AH.blit(ctx, AH.S['rock' + r.k], 0, x, groundY(r.x) + 2);
     }
   }
 
-  /* Rough rock, drawn as stacked lumps rather than a straight edge. */
+  function drawOutside(ctx, g, t, cam) {
+    drawSpace(ctx, g, t, cam);
+    drawRegolith(ctx, t, cam);
+
+    // the house, standing on the regolith with light in the window
+    const hx = OUT_SPOTS[0].x - cam;
+    if (hx > -180 && hx < VW + 180) {
+      const gy = groundY(OUT_SPOTS[0].x);
+      X.blob(ctx, hx, gy + 2, 84, 6, '#241f36');
+      AH.blit(ctx, AH.S.house, 1, hx, gy + 3);
+      F.draw(ctx, 'MY HOUSE', hx - 1, gy - 52, '#ffe9a8', { center: true });
+      // smoke out of the chimney, in fat stepped puffs
+      for (let i = 0; i < 6; i++) {
+        const f = ((t * 0.3 + i / 6) % 1);
+        ctx.globalAlpha = (1 - f) * 0.45;
+        X.blob(ctx, hx + 46 + Math.sin(f * 5 + i) * 8, gy - 98 - f * 56, 4 + f * 12, 3 + f * 10, '#6b6480');
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    // the UFO, up on its bricks, bobbing because nothing here sits still
+    const ux = OUT_SPOTS[1].x - cam;
+    if (ux > -110 && ux < VW + 110) {
+      const gy = groundY(OUT_SPOTS[1].x);
+      X.blob(ctx, ux, gy + 1, 48, 5, '#241f36');
+      AH.blit(ctx, AH.S.saucer, Math.floor(t * 3) % 2, ux, gy + 2 + Math.sin(t * 1.6) * 1);
+      AH.blit(ctx, AH.S.flag, Math.floor(t * 4) % 2, ux + 86, groundY(OUT_SPOTS[1].x + 86) + 2);
+    }
+  }
+
   function rockEdge(ctx, x0, x1, y, dir, col, colD, amp) {
     for (let x = x0; x < x1; x += 4) {
       const h = 3 + Math.round(U.hash2(x, dir) * amp);
@@ -8269,275 +8749,194 @@ window.PD = window.PD || {};
     }
   }
 
-  function drawHouse(ctx, g, t, cam) {
-    const L = -cam, R = DOOR_X - cam;
-    if (R < -20) return;
-    ctx.save();
-    ctx.beginPath(); ctx.rect(Math.max(0, L), 0, Math.min(VW, R) - Math.max(0, L), VH); ctx.clip();
-
-    // back wall, tiled
+  function drawInside(ctx, g, t, cam) {
+    X.rect(ctx, 0, 0, VW, VH, '#15111f');
     const wall = AH.S.wall;
     for (let y = CEIL; y < FLOOR + 4; y += wall.h) {
-      for (let x = -cam - 40; x < R + wall.w; x += wall.w) AH.blit(ctx, wall, 0, x, y);
+      for (let x = -cam - 40; x < VW + wall.w; x += wall.w) AH.blit(ctx, wall, 0, x, y);
     }
-    // a big crack he has been meaning to look at
-    ctx.save();
-    let kx = 60 - cam, ky = CEIL + 6;
-    for (let i = 0; i < 22; i++) {
+    // a crack he has been meaning to look at
+    let kx = 70 - cam, ky = CEIL + 6;
+    for (let i = 0; i < 20; i++) {
       const w = 3 - (i % 3);
       X.rect(ctx, kx, ky, w, 4, '#241f36');
       X.rect(ctx, kx + w, ky, 1, 4, '#5f5680');
       kx += Math.round(U.hash2(i, 5) * 5) - 2; ky += 4;
     }
-    ctx.restore();
-
-    // the warm pool of light the computer throws over that end of the room
+    // the warm pool the monitor throws over that end of the room
     for (let i = 0; i < 4; i++) {
       ctx.globalAlpha = 0.055;
-      X.dither(ctx, SPOTS[0].x - cam - 80 + i * 9, CEIL + 4 + i * 7, 160 - i * 18, FLOOR - CEIL - i * 14, '#ffd39a', i % 2);
+      X.dither(ctx, IN_SPOTS[0].x - cam - 80 + i * 9, CEIL + 4 + i * 7, 160 - i * 18, FLOOR - CEIL - i * 14, '#ffd39a', i % 2);
     }
     ctx.globalAlpha = 1;
 
-    // roof: the same rock, in shadow, hanging over you the whole time
-    X.rect(ctx, Math.max(0, L), 0, VW, CEIL + 4, '#15111f');
-    ctx.globalAlpha = 0.24;
+    // the roof: the same rock in shadow, a heavy lintel course, and all the
+    // things he has hung off it and forgotten about
+    X.rect(ctx, 0, 0, VW, CEIL + 4, '#1b1628');
+    ctx.globalAlpha = 0.55;
     for (let y = CEIL + 4 - wall.h; y > -wall.h; y -= wall.h) {
-      for (let x = -cam - 40; x < R + wall.w; x += wall.w) AH.blit(ctx, wall, 0, x, y);
+      for (let x = -cam - 40; x < VW + wall.w; x += wall.w) AH.blit(ctx, wall, 0, x, y);
     }
     ctx.globalAlpha = 1;
-    // a heavy uneven lip, then teeth of rock coming down out of it
-    for (let x = Math.max(0, L) | 0; x < Math.min(VW, R); x += 3) {
+    ctx.globalAlpha = 0.4; X.rect(ctx, 0, 0, VW, CEIL, '#0e0b16'); ctx.globalAlpha = 1;
+    // a beam bolted across, with junk hanging off it
+    X.rect(ctx, 0, CEIL - 16, VW, 7, '#5e6688');
+    X.rect(ctx, 0, CEIL - 16, VW, 1, '#9aa3c4');
+    X.rect(ctx, 0, CEIL - 10, VW, 1, '#39405e');
+    for (let i = 0; i < 10; i++) {
+      const x = 30 + i * 58 - cam; if (x < -20 || x > VW + 20) continue;
+      X.rect(ctx, x, CEIL - 19, 6, 10, '#39405e');
+      X.rect(ctx, x, CEIL - 19, 6, 1, '#9aa3c4');
+    }
+    const hang = [
+      { x: 66, k: 0, L: 62 }, { x: 168, k: 1, L: 74 }, { x: 262, k: 2, L: 68 },
+      { x: 336, k: 0, L: 80 }, { x: 404, k: 1, L: 58 }
+    ];
+    for (const h of hang) {
+      const x = h.x - cam; if (x < -26 || x > VW + 26) continue;
+      // they swing on their own, and much harder when you jump into them
+      const kick = S.swing * (1 - Math.min(1, Math.abs(h.x - P.x) / 80)) * 7;
+      const sw = Math.sin(t * 1.1 + h.x) * 2 + Math.sin(t * 11 + h.x) * kick;
+      const yb = CEIL - 9 + h.L;
+      for (let j = 0; j < h.L; j += 3) X.rect(ctx, x + sw * (j / h.L), CEIL - 9 + j, 2, 3, j % 6 ? '#241f36' : '#3a3450');
+      if (h.k === 0) {                               // a coil of cable
+        for (let j = 0; j < 4; j++) X.rect(ctx, x - 8 + sw, yb + j * 4, 17, 3, j % 2 ? '#3a3450' : '#4a4260');
+      } else if (h.k === 1) {                        // a bundle of dried something
+        for (let j = 0; j < 6; j++) X.rect(ctx, x - 6 + j * 2 + sw, yb, 2, 16 - Math.abs(j - 3) * 3, '#5a7a3a');
+        X.rect(ctx, x - 7 + sw, yb - 1, 15, 3, '#8a5a3a');
+      } else {                                       // a lamp that does not work
+        X.rect(ctx, x - 6 + sw, yb, 13, 5, '#8e86a8');
+        X.rect(ctx, x - 5 + sw, yb + 5, 11, 9, '#4a4260');
+        X.rect(ctx, x - 3 + sw, yb + 7, 7, 3, '#2a2440');
+      }
+    }
+    for (let x = 0; x < VW; x += 3) {
       const h = 4 + Math.round(U.hash2(x + cam, 11) * 9);
       X.rect(ctx, x, CEIL - 2, 3, h + 2, '#15111f');
       X.rect(ctx, x, CEIL + h - 1, 3, 1, '#332e4a');
     }
-    for (let i = 0; i < 22; i++) {
-      const wx = 10 + i * 21, x = wx - cam;
-      if (x < -14 || x > R) continue;
-      const h = 8 + U.hash2(i, 5) * 26, w0 = 4 + U.hash2(i, 17) * 5;
+    for (let i = 0; i < 14; i++) {
+      const wx = 6 + i * 34 + U.hash2(i, 41) * 18, x = wx - cam;
+      if (x < -14 || x > VW + 14) continue;
+      if (U.hash2(i, 55) > 0.72) continue;              // gaps, so it is not a comb
+      const h = 6 + U.hash2(i, 5) * 30, w0 = 4 + U.hash2(i, 17) * 6;
       for (let j = 0; j < h; j++) {
         const w = Math.max(1, Math.round(w0 * (1 - j / h)));
         X.rect(ctx, x - w / 2, CEIL + 8 + j, w, 1, j > h - 4 ? '#0e0b16' : (j < 3 ? '#332e4a' : '#1e1930'));
-        if (j < 4) X.rect(ctx, x - w / 2, CEIL + 8 + j, 1, 1, '#4a4260');
       }
     }
-    // a pipe running the length of the roof, going nowhere
-    X.rect(ctx, Math.max(0, L), CEIL - 8, VW, 5, '#5e6688');
-    X.rect(ctx, Math.max(0, L), CEIL - 8, VW, 1, '#9aa3c4');
-    X.rect(ctx, Math.max(0, L), CEIL - 4, VW, 1, '#39405e');
-    for (let i = 0; i < 8; i++) {
-      const x = 40 + i * 60 - cam; if (x < -10 || x > R) continue;
-      X.rect(ctx, x, CEIL - 10, 6, 9, '#39405e');
-      X.rect(ctx, x, CEIL - 10, 6, 1, '#9aa3c4');
-    }
-    // fairy lights he strung up one solstice and never took down
-    for (let seg = 0; seg < 5; seg++) {
-      const ax = 20 + seg * 90 - cam, bx2 = ax + 90;
-      if (bx2 < -20 || ax > R + 20) continue;
-      X.curve(ctx, ax, CEIL + 2, (ax + bx2) / 2, CEIL + 26, bx2, CEIL + 2, '#191320', 1, 12);
-      for (let k = 1; k < 6; k++) {
-        const f = k / 6, lx = ax + 90 * f, ly = CEIL + 2 + Math.sin(Math.PI * f) * 22;
-        const col = ['#ffd34d', '#ff8ad8', '#8affa0', '#7ef9ff'][(seg + k) % 4];
-        const on = 0.5 + 0.5 * Math.sin(t * 3 + seg + k);
-        X.rect(ctx, lx - 1, ly - 1, 4, 5, '#191320');
-        ctx.globalAlpha = 0.4 + 0.6 * on;
-        X.rect(ctx, lx, ly, 2, 3, col);
-        ctx.globalAlpha = 0.12 * on;
-        X.dither(ctx, lx - 6, ly - 6, 14, 14, col, k % 2);
-        ctx.globalAlpha = 1;
-      }
-    }
-    // one bare bulb on a wire, flickering because he wired it
-    const bx = 122 - cam, flick = U.hash2((t * 8) | 0, 3) > 0.06;
-    X.rect(ctx, bx, CEIL, 1, 22, '#191320');
-    X.rect(ctx, bx - 4, CEIL + 22, 9, 4, '#8e86a8');
-    X.rect(ctx, bx - 3, CEIL + 26, 7, 8, flick ? '#ffe9a8' : '#6b6450');
-    if (flick) X.rect(ctx, bx - 2, CEIL + 27, 3, 3, '#ffffff');
+    // one bare bulb, flickering because he wired it
+    const bx = 210 - cam, flick = U.hash2((t * 8) | 0, 3) > 0.06;
+    X.rect(ctx, bx, CEIL - 9, 1, 70, '#191320');
+    X.rect(ctx, bx - 4, CEIL + 60, 9, 4, '#8e86a8');
+    X.rect(ctx, bx - 3, CEIL + 64, 7, 8, flick ? '#ffe9a8' : '#6b6450');
     if (flick) {
+      X.rect(ctx, bx - 2, CEIL + 65, 3, 3, '#ffffff');
       for (let i = 3; i >= 0; i--) {
         ctx.globalAlpha = 0.05;
         const w = 30 + i * 26;
-        X.dither(ctx, bx - w / 2, CEIL + 30, w, FLOOR - CEIL - 30 - i * 4, '#ffe9a8', i % 2);
+        X.dither(ctx, bx - w / 2, CEIL + 68, w, FLOOR - CEIL - 68 - i * 4, '#ffe9a8', i % 2);
       }
       ctx.globalAlpha = 1;
     }
 
-    // floor slab, then dark below it
+    // floor, then a plinth of cut stone under it
     const fl = AH.S.floor;
-    for (let x = -cam - 40; x < R + fl.w; x += fl.w) AH.blit(ctx, fl, 0, x, FLOOR);
-    X.rect(ctx, Math.max(0, L), FLOOR + 13, VW, VH - FLOOR, '#241f36');
+    for (let x = -cam - 40; x < VW + fl.w; x += fl.w) AH.blit(ctx, fl, 0, x, FLOOR);
+    X.rect(ctx, 0, FLOOR + 13, VW, VH - FLOOR, '#241f36');
     for (let x = -(cam % 24) - 24; x < VW + 24; x += 24) {
       X.rect(ctx, x, FLOOR + 14, 22, 14, '#2a2440');
       X.rect(ctx, x, FLOOR + 14, 22, 1, '#3a3450');
       X.rect(ctx, x + 12, FLOOR + 30, 22, 14, '#262034');
       X.rect(ctx, x + 12, FLOOR + 30, 22, 1, '#332e4a');
     }
-    // a rug of stitched hides, worn through in the middle
-    const rx = 300 - cam;
-    if (rx > -80 && rx < R + 80) {
-      X.rect(ctx, rx - 62, FLOOR + 1, 124, 8, '#7a3f4a');
-      X.rect(ctx, rx - 62, FLOOR + 1, 124, 2, '#9c5460');
-      for (let i = 0; i < 12; i++) X.rect(ctx, rx - 58 + i * 10, FLOOR + 4, 6, 3, i % 2 ? '#5e2f38' : '#8a4854');
-      for (let i = 0; i < 20; i++) X.rect(ctx, rx - 62 + i * 6, FLOOR + 9, 2, 3, '#5e2f38');
-    }
+    // a rug, worn through
+    const rx = 200 - cam;
+    X.rect(ctx, rx - 62, FLOOR + 1, 124, 8, '#7a3f4a');
+    X.rect(ctx, rx - 62, FLOOR + 1, 124, 2, '#9c5460');
+    for (let i = 0; i < 12; i++) X.rect(ctx, rx - 58 + i * 10, FLOOR + 4, 6, 3, i % 2 ? '#5e2f38' : '#8a4854');
 
     // posters, taped crooked
     for (const p of POSTERS) {
-      const x = p.x - cam; if (x < -30 || x > R + 30) continue;
+      const x = p.x - cam; if (x < -30 || x > VW + 30) continue;
       AH.blit(ctx, AH.S['poster' + p.k], 0, x, p.y);
       X.rect(ctx, x - 8, p.y - 2, 16, 4, '#e8e05a');
     }
-    // a wall shelf with three rocks he is proud of
-    const shx = 344 - cam;
-    if (shx > -40 && shx < R + 40) {
-      X.rect(ctx, shx - 28, 148, 56, 3, '#7a5a3a');
-      X.rect(ctx, shx - 28, 148, 56, 1, '#9c7a52');
-      X.rect(ctx, shx - 26, 151, 3, 4, '#5a4028'); X.rect(ctx, shx + 23, 151, 3, 4, '#5a4028');
-      const shiny = [D.M.gold, D.M.emerald, D.M.iron];
-      for (let i = 0; i < 3; i++) PD.art.oreChip(ctx, shiny[i], shx - 24 + i * 17, 137, 11);
-    }
     // a tally of every world he has taken apart, scratched into the rock
-    const tx = 166 - cam, kills = g.save.destroyed.filter(Boolean).length;
-    if (tx > -60 && tx < R + 60) {
-      F.draw(ctx, 'WORLDS I ATE', tx, 160, '#8e86a8', { shadow: false });
-      for (let i = 0; i < Math.max(kills, 1); i++) {
-        const gx = tx + (i % 10) * 7, gy = 172 + ((i / 10) | 0) * 12;
-        if (i < kills) { X.rect(ctx, gx, gy, 2, 9, '#c9bce8'); if (i % 5 === 4) X.rect(ctx, gx - 26, gy + 3, 30, 2, '#c9bce8'); }
+    const tx = 300 - cam, kills = g.save.destroyed.filter(Boolean).length;
+    if (tx > -60 && tx < VW + 60) {
+      F.draw(ctx, 'WORLDS I ATE', tx, 152, '#8e86a8', { shadow: false });
+      for (let i = 0; i < kills; i++) {
+        const gx = tx + (i % 10) * 7, gy = 164 + ((i / 10) | 0) * 12;
+        X.rect(ctx, gx, gy, 2, 9, '#c9bce8');
+        if (i % 5 === 4) X.rect(ctx, gx - 26, gy + 3, 30, 2, '#c9bce8');
       }
-      if (!kills) F.draw(ctx, 'NONE YET', tx, 172, '#5f5680', { shadow: false });
+      if (!kills) F.draw(ctx, 'NONE YET', tx, 164, '#5f5680', { shadow: false });
     }
-    // hooks with tools on them
-    const hx = 226 - cam;
-    if (hx > -40 && hx < R + 40) {
-      X.rect(ctx, hx - 40, 116, 62, 2, '#4a4260');
+    // hooks with tools on them, and a shelf of rocks he is proud of
+    const hx = 150 - cam;
+    if (hx > -40 && hx < VW + 40) {
+      X.rect(ctx, hx - 40, 140, 62, 2, '#4a4260');
       for (let i = 0; i < 3; i++) {
-        X.rect(ctx, hx - 34 + i * 21, 118, 2, 6, '#8e86a8');
-        X.rect(ctx, hx - 38 + i * 21, 124, 11, 15, ['#8e86a8', '#c46a3a', '#5ad0e8'][i]);
-        X.rect(ctx, hx - 38 + i * 21, 124, 11, 2, '#c9bce8');
-        X.rect(ctx, hx - 36 + i * 21, 128, 7, 2, '#3a3450');
+        X.rect(ctx, hx - 34 + i * 21, 142, 2, 6, '#8e86a8');
+        X.rect(ctx, hx - 38 + i * 21, 148, 11, 15, ['#8e86a8', '#c46a3a', '#5ad0e8'][i]);
+        X.rect(ctx, hx - 38 + i * 21, 148, 11, 2, '#c9bce8');
       }
     }
-    ctx.restore();
-  }
+    const shx = 366 - cam;
+    if (shx > -40 && shx < VW + 40) {
+      X.rect(ctx, shx - 28, 166, 56, 3, '#7a5a3a');
+      X.rect(ctx, shx - 28, 166, 56, 1, '#9c7a52');
+      X.rect(ctx, shx - 26, 169, 3, 4, '#5a4028'); X.rect(ctx, shx + 23, 169, 3, 4, '#5a4028');
+      const shiny = [D.M.gold, D.M.emerald, D.M.iron];
+      for (let i = 0; i < 3; i++) PD.art.oreChip(ctx, shiny[i], shx - 24 + i * 17, 155, 11);
+    }
 
-  function drawProps(ctx, g, t, cam) {
-    for (const p of PROPS) {
+    // the door out, a rough arch with rubber strips
+    const dx = IN_SPOTS[2].x - cam;
+    X.rect(ctx, dx - 26, CEIL + 10, 52, FLOOR - CEIL - 10, '#120e1c');
+    for (let i = 0; i < 8; i++) {
+      const cx2 = dx - 24 + i * 6, sw = Math.sin(t * 1.2 + i * 0.6) * 1.5;
+      const len = 46 + (i % 3) * 10;
+      for (let j = 0; j < len; j += 2) X.rect(ctx, cx2 + sw * (j / len), CEIL + 14 + j, 4, 2, j % 4 ? '#3f3856' : '#4a4260');
+      X.rect(ctx, cx2, CEIL + 14, 4, 2, '#8e86a8');
+    }
+    rockEdge(ctx, (dx - 30) | 0, (dx + 30) | 0, CEIL + 10, 1, '#4a4260', '#241f36', 8);
+    X.rect(ctx, dx - 40, CEIL + 20, 30, 14, '#7a5a3a');
+    X.rect(ctx, dx - 40, CEIL + 20, 30, 2, '#9c7a52');
+    F.draw(ctx, 'OWT', dx - 25, CEIL + 24, '#ffe9a8', { center: true });
+
+    // the mess
+    for (const p of IN_PROPS) {
       const x = p.x - cam; if (x < -50 || x > VW + 50) continue;
       const s = AH.S[p.s];
       if (!s) continue;
       if (p.s === 'tape') {
-        X.rect(ctx, x - 16, FLOOR - 16, 32, 16, '#5a4a3a');
-        X.rect(ctx, x - 16, FLOOR - 16, 32, 2, '#7a6a52');
-        AH.blit(ctx, s, Math.floor(t * 4) % 2, x, FLOOR - 16);
-        // he has one human tape and he has worn it out
+        X.rect(ctx, x - 16, FLOOR - 14, 32, 14, '#5a4a3a');
+        X.rect(ctx, x - 16, FLOOR - 14, 32, 2, '#7a6a52');
+        AH.blit(ctx, s, Math.floor(t * 4) % 2, x, FLOOR - 14);
         const note = D.MIX[Math.floor(t * 0.25) % D.MIX.length].slice(0, 16);
         F.draw(ctx, note, x, FLOOR - 44 + Math.sin(t * 2) * 2, '#ff8ad8', { center: true });
-        for (let i = 0; i < 3; i++) {
-          const a = (t * 1.3 + i * 0.7) % 1;
-          ctx.globalAlpha = 1 - a;
-          F.draw(ctx, i % 2 ? '.' : 'O', x + 12 + Math.sin(a * 6 + i) * 6, FLOOR - 24 - a * 30, '#8affa0', { center: true });
-        }
-        ctx.globalAlpha = 1;
         continue;
       }
       AH.blit(ctx, s, 0, x, FLOOR + 1 - (p.lift || 0));
     }
-    // the desk, its screen lit
-    const dx = SPOTS[0].x - cam;
-    AH.blit(ctx, AH.S.desk, 1, dx, FLOOR + 1);
-    // a chair: a crate, obviously
-    X.rect(ctx, dx + 34, FLOOR - 18, 20, 18, '#6b4530');
-    X.rect(ctx, dx + 34, FLOOR - 18, 20, 2, '#8a5a3a');
-    X.rect(ctx, dx + 36, FLOOR - 12, 16, 2, '#4a3020');
-    // the screen throws light on the floor in stepped bands
+    // the desk, its screen lit, and a crate for a chair
+    const px2 = IN_SPOTS[0].x - cam;
+    AH.blit(ctx, AH.S.desk, 1, px2, FLOOR + 1);
+    X.rect(ctx, px2 + 34, FLOOR - 18, 20, 18, '#6b4530');
+    X.rect(ctx, px2 + 34, FLOOR - 18, 20, 2, '#8a5a3a');
     for (let i = 0; i < 3; i++) {
       ctx.globalAlpha = 0.07;
-      X.dither(ctx, dx - 30 + i * 6, FLOOR - 8 + i * 2, 60 - i * 12, 8, '#8affa0', i % 2);
+      X.dither(ctx, px2 - 30 + i * 6, FLOOR - 8 + i * 2, 60 - i * 12, 8, '#8affa0', i % 2);
     }
     ctx.globalAlpha = 1;
-  }
 
-  function drawDoor(ctx, t, cam) {
-    const x = DOOR_X - cam;
-    if (x < -60 || x > VW + 60) return;
-    // a rough arch of rock hacked out with a drill
-    X.rect(ctx, x - 12, 0, 14, CEIL + 26, '#3a3450');
-    rockEdge(ctx, (x - 12) | 0, (x + 2) | 0, CEIL + 26, 1, '#4a4260', '#241f36', 10);
-    for (let y = CEIL + 26; y < FLOOR + 14; y += 5) {
-      const w = 4 + Math.round(U.hash2(y, 7) * 5);
-      X.rect(ctx, x - 12, y, 12 + w, 5, U.hash2(y, 3) > 0.5 ? '#4a4260' : '#3f3856');
-      X.rect(ctx, x - 12 + 12 + w - 1, y, 1, 5, '#241f36');
+    // the cheese, until he takes it
+    if (!g.save.pet) {
+      const cx3 = RAT_SPOT.x + 34 - cam;
+      AH.blit(ctx, AH.S.cheese, 0, cx3, FLOOR + 1);
     }
-    // a curtain of rubber strips, hung so the moon does not get in
-    for (let i = 0; i < 6; i++) {
-      const cx = x - 12 + i * 4, sw = Math.sin(t * 1.2 + i * 0.6) * 1.5;
-      const len = 46 + (i % 3) * 8;
-      for (let j = 0; j < len; j += 2) X.rect(ctx, cx + sw * (j / len), CEIL + 14 + j, 3, 2, j % 4 ? '#3f3856' : '#4a4260');
-      X.rect(ctx, cx, CEIL + 14, 3, 2, '#8e86a8');
-    }
-    // painted sign, hand done, wrong, hung on the inside wall
-    X.rect(ctx, x - 66, CEIL + 20, 48, 15, '#7a5a3a');
-    X.rect(ctx, x - 66, CEIL + 20, 48, 2, '#9c7a52');
-    X.rect(ctx, x - 66, CEIL + 33, 48, 2, '#4a3020');
-    X.rect(ctx, x - 44, CEIL + 14, 2, 6, '#4a4260');
-    F.draw(ctx, 'OWTSIDE', x - 42, CEIL + 24, '#ffe9a8', { center: true });
-  }
-
-  function drawUfo(ctx, g, t, cam) {
-    const x = SPOTS[1].x - cam;
-    if (x < -100 || x > VW + 100) return;
-    const gy = groundY(SPOTS[1].x);
-    // scorch under it, in hard steps
-    X.blob(ctx, x, gy + 1, 46, 5, '#241f36');
-    X.blob(ctx, x, gy, 38, 3, '#1a1526');
-    AH.blit(ctx, AH.S.saucer, Math.floor(t * 3) % 2, x, gy + 2);
-    // a ramp of two planks, and a bucket
-    X.rect(ctx, x - 46, gy - 6, 26, 3, '#7a5a3a');
-    X.rect(ctx, x - 46, gy - 3, 26, 3, '#5a4028');
-    X.rect(ctx, x + 40, gy - 8, 10, 8, '#8e86a8');
-    X.rect(ctx, x + 40, gy - 8, 10, 2, '#b0a8c8');
-    // a flag he planted to claim a moon nobody wanted
-    const fx = x + 78;
-    AH.blit(ctx, AH.S.flag, Math.floor(t * 4) % 2, fx, groundY(SPOTS[1].x + 78) + 2);
-  }
-
-  /* A wooden sign that pops up when you are close enough to press E. */
-  function prompt(ctx, g, t, cam) {
-    const s = P.near;
-    if (!s) return;
-    const x = Math.round(s.x - cam);
-    const y = Math.round(groundY(s.x) - (s.id === 'ufo' ? 74 : 60) + Math.sin(t * 4) * 2);
-    const w = Math.max(F.width(s.name, 1), F.width(s.sub, 1)) + 18;
-    X.rect(ctx, x - w / 2 + 2, y + 2, w, 26, 'rgba(6,3,14,0.5)');
-    X.rect(ctx, x - w / 2, y, w, 26, '#7a5a3a');
-    X.rect(ctx, x - w / 2, y, w, 2, '#9c7a52');
-    X.rect(ctx, x - w / 2, y + 24, w, 2, '#4a3020');
-    F.draw(ctx, s.name, x, y + 4, '#ffe9a8', { center: true });
-    F.draw(ctx, s.sub, x, y + 14, '#c9a06a', { center: true });
-    // the key, on a nail
-    X.rect(ctx, x - 6, y - 13, 12, 12, '#e8dfc4');
-    X.rect(ctx, x - 6, y - 13, 12, 1, '#ffffff');
-    X.rect(ctx, x - 6, y - 2, 12, 1, '#a89b78');
-    F.draw(ctx, 'E', x, y - 10, '#241f16', { center: true, shadow: false });
-    X.rect(ctx, x, y - 1, 1, 3, '#4a3020');
-  }
-
-  function draw(ctx, g, t) {
-    const cam = Math.round(g.intCam);
-    drawSpace(ctx, g, t, cam);
-    drawOutside(ctx, t, cam);
-    drawHouse(ctx, g, t, cam);
-    drawProps(ctx, g, t, cam);
-    drawDoor(ctx, t, cam);
-    drawUfo(ctx, g, t, cam);
-
-    // dust in the light
-    for (const m of MOTES) {
-      const x = ((m.x + t * m.sp) % ROOM_W) - cam; if (x < -4 || x > VW + 4) continue;
-      ctx.fillStyle = '#c9bce8'; ctx.globalAlpha = 0.12 + 0.22 * Math.sin(t * 2 + m.x);
-      ctx.fillRect(x | 0, (m.y + Math.sin(t * 0.7 + m.x * 0.1) * 4) | 0, m.r > 0.7 ? 2 : 1, m.r > 0.7 ? 2 : 1);
-    }
-    ctx.globalAlpha = 1;
     // drips off the roof
     for (const d of DRIPS) {
       const x = d.x - cam; if (x < -4 || x > VW + 4) continue;
@@ -8545,25 +8944,85 @@ window.PD = window.PD || {};
       if (f < 0.7) X.rect(ctx, x, CEIL + 20 + f / 0.7 * (FLOOR - CEIL - 26), 1, 3, '#8affa0');
       else if (f < 0.78) X.rect(ctx, x - 3, FLOOR - 3, 7, 1, '#8affa0');
     }
-    for (const c of critters) {
-      const x = c.x - cam; if (x < -20 || x > VW + 20) continue;
-      const hop = Math.abs(Math.sin(c.t * 5)) * 5;
-      AH.blit(ctx, AH.S[c.spr], Math.floor(c.t * 6) % 2, x, groundY(c.x) + 2 - hop, c.dir < 0);
+  }
+
+  /* He is enormous, he bounces, and he squashes when he lands. */
+  function drawRat(ctx, g, cam, t) {
+    if (!g.save.pet && S.scene !== 'in') return;
+    const x = Math.round(rat.x - cam);
+    if (x < -40 || x > VW + 40) return;
+    const spr = g.save.pet ? AH.S.ratFed : AH.S.rat;
+    const bounce = g.save.pet ? Math.abs(Math.sin(rat.hop)) * 9 : 0;
+    const sq = 1 + Math.cos(rat.hop * 2) * 0.14 * (bounce > 0.5 ? 1 : 0);
+    const f = rat.chew > 0 ? 1 : (Math.sin(t * 3) > 0 ? 0 : 1);
+    ctx.save();
+    ctx.translate(x, Math.round(rat.y + 2 - bounce));
+    ctx.scale((rat.face < 0 ? -1 : 1) / sq, sq);
+    ctx.drawImage(spr.frames[f], -spr.ox, -spr.oy, spr.w, spr.h);
+    ctx.restore();
+    if (g.save.pet && U.chance(0.02)) FX.text(rat.x, rat.y - 34, U.pick(['SQUEAK', 'BRENDA', 'MORE CHEESE']), '#ff9ecb', 0);
+  }
+
+  /* A wooden sign that pops up when you are close enough to press E. */
+  function prompt(ctx, g, t, cam) {
+    const s = P.near;
+    if (!s) return;
+    const x = Math.round(s.x - cam);
+    const lift = s.id === 'ufo' ? 74 : (s.id === 'door' ? 130 : 60);
+    const y = Math.round(groundY(s.x) - lift + Math.sin(t * 5) * 2);
+    const w = Math.max(F.width(s.name, 1), F.width(s.sub, 1)) + 18;
+    X.rect(ctx, x - w / 2 + 2, y + 2, w, 26, 'rgba(6,3,14,0.5)');
+    X.rect(ctx, x - w / 2, y, w, 26, '#7a5a3a');
+    X.rect(ctx, x - w / 2, y, w, 2, '#9c7a52');
+    X.rect(ctx, x - w / 2, y + 24, w, 2, '#4a3020');
+    F.draw(ctx, s.name, x, y + 4, '#ffe9a8', { center: true });
+    F.draw(ctx, s.sub, x, y + 14, '#c9a06a', { center: true });
+    const kb = Math.round(Math.abs(Math.sin(t * 5)) * 2);
+    X.rect(ctx, x - 6, y - 13 - kb, 12, 12, '#e8dfc4');
+    X.rect(ctx, x - 6, y - 13 - kb, 12, 1, '#ffffff');
+    X.rect(ctx, x - 6, y - 2 - kb, 12, 1, '#a89b78');
+    F.draw(ctx, 'E', x, y - 10 - kb, '#241f16', { center: true, shadow: false });
+  }
+
+  function draw(ctx, g, t) {
+    const cam = Math.round(g.intCam);
+    if (S.scene === 'out') drawOutside(ctx, g, t, cam);
+    else drawInside(ctx, g, t, cam);
+
+    for (const m of MOTES) {
+      const x = ((m.x * roomW() + t * m.sp) % roomW()) - cam; if (x < -4 || x > VW + 4) continue;
+      ctx.fillStyle = '#c9bce8'; ctx.globalAlpha = 0.12 + 0.22 * Math.sin(t * 2 + m.x * 40);
+      ctx.fillRect(x | 0, (m.y + Math.sin(t * 0.7 + m.x * 8) * 4) | 0, m.r > 0.7 ? 2 : 1, m.r > 0.7 ? 2 : 1);
     }
+    ctx.globalAlpha = 1;
 
+    drawRat(ctx, g, cam, t);
     drawPlayer(ctx, g, cam, t);
-    prompt(ctx, g, t, cam);
+    if (S.sleep <= 0) prompt(ctx, g, t, cam);
 
-    // a foreground lip of rock so the room has depth
+    // a foreground lip of rock so the scene has depth
     for (let x = -8; x < VW + 8; x += 6) {
       const h = 6 + Math.round(U.hash2(x + cam * 0.2, 11) * 8);
       X.rect(ctx, x, VH - h, 6, h, '#1a1526');
       X.rect(ctx, x, VH - h, 6, 1, '#241f36');
     }
 
+    if (S.sleep > 0) {
+      ctx.globalAlpha = Math.min(0.86, (2.2 - Math.abs(S.sleep - 1.1) * 2) * 0.9);
+      X.rect(ctx, 0, 0, VW, VH, '#0b0818');
+      ctx.globalAlpha = 1;
+      for (let i = 0; i < 3; i++) {
+        const f = ((S.t * 0.7 + i / 3) % 1);
+        F.draw(ctx, 'Z', VW / 2 + 18 + f * 26, VH / 2 - 10 - f * 34, '#c9bce8', { center: true, scale: 1 + (i === 0 ? 1 : 0) });
+      }
+    }
+
     if (UI.msgT > 0) {
+      const w = F.width(UI.msg, 1) + 16;
       ctx.globalAlpha = Math.min(1, UI.msgT);
-      F.draw(ctx, UI.msg, VW / 2, VH - 34, '#ffe9a8', { center: true });
+      X.rect(ctx, VW / 2 - w / 2, VH - 42, w, 15, '#7a5a3a');
+      X.rect(ctx, VW / 2 - w / 2, VH - 42, w, 2, '#9c7a52');
+      F.draw(ctx, UI.msg, VW / 2, VH - 38, '#ffe9a8', { center: true });
       ctx.globalAlpha = 1;
     }
   }
@@ -8576,17 +9035,20 @@ window.PD = window.PD || {};
     const x = (P.x - cam) | 0, y = (P.y + 2) | 0;
     if (P.roll > 0) {
       ctx.save();
-      ctx.translate(x, y - 12);
+      ctx.translate(x, y - 14);
       ctx.rotate(P.rollA);
       const s = skin.alienRoll;
-      ctx.drawImage(s.frames[0], -s.ox, -s.oy + 12, s.w, s.h);
+      ctx.drawImage(s.frames[0], -s.ox, -s.oy + 14, s.w, s.h);
       ctx.restore();
       if (U.chance(0.5)) FX.dust(P.x - P.face * 6, P.y, 1, '#8e86a8', 8);
       return;
     }
     const set = air ? skin.alienFly : (walking ? skin.alienWalk : skin.alien);
-    const frame = air ? Math.floor(t * 8) % 2 : (walking ? Math.floor(P.walk * 1.1) % 4 : (Math.sin(t * 1.3) > 0.9 ? 2 : (Math.sin(t * 2.2) > 0.6 ? 1 : 0)));
-    const sq = P.land > 0 ? 1 + P.land * 1.2 : (air && P.vy < -60 ? 0.9 : 1);
+    const frame = air ? Math.floor(t * 8) % 2 : (walking ? Math.floor(P.walk * 1.1) % 4 : (Math.sin(t * 1.3) > 0.94 ? 4 : Math.floor(t * 7) % 4));
+    // BOUNCY: a deep squash on landing, a stretch on the way up, and a little
+    // extra wobble the whole time so nothing in this game is ever rigid.
+    const wob = walking ? Math.sin(P.walk * 2.2) * 0.05 : Math.sin(t * 3.4) * 0.022;
+    const sq = P.land > 0 ? 1 + P.land * 1.5 : (air ? (P.vy < -60 ? 0.84 : (P.vy > 90 ? 1.1 : 1)) : 1 + wob);
     ctx.save();
     ctx.translate(x, y);
     ctx.scale(P.face < 0 ? -sq : sq, 1 / sq);
@@ -8595,7 +9057,7 @@ window.PD = window.PD || {};
     if (walking && !air && U.chance(0.2)) FX.dust(P.x - P.face * 5, P.y, 1, '#8e86a8', 10);
   }
 
-  PD.home = { enter, update, draw, closeScene, touchMode, leaveDesk, say, P, UI, groundY, ROOM_W, SPOTS };
+  PD.home = { enter, update, draw, closeScene, touchMode, leaveDesk, say, P, UI, S, groundY, ROOM_W: OUT_W, SPOTS };
 })(window.PD);
 
 /* ===== src/game.js ===== */
@@ -8651,6 +9113,7 @@ window.PD = window.PD || {};
       totalMined: 0, totalEarned: 0, bodyIndex: 0, seen: {},
       vault: {},                                  // ore waiting on the moon
       cos: { suit: 'rose', skin: 'green', glass: 'sky', drill: 'steel', trim: 'stock' },
+      pet: 0,                                     // whether the rat is yours yet
       artifacts: 0,                               // relics hauled home
       seenIntro: 1
     };
@@ -8681,6 +9144,7 @@ window.PD = window.PD || {};
       const flat = s.upg || s.neur;
       if (flat) { for (const u of D.UPGRADES) if (flat[u.id] !== undefined) base.upg[u.id] = U.clamp(+flat[u.id] || 0, 0, u.max); }
       base.artifacts = +s.artifacts || 0;
+      base.pet = s.pet ? 1 : 0;
     }
     g.save = base;
     recompute();
@@ -9760,15 +10224,18 @@ window.PD = window.PD || {};
     g.dt = dt;
     g.fps = U.lerp(g.fps, 1 / Math.max(0.0001, dt), 0.05);
 
-    // convert pointer position into canvas and world space
+    // convert pointer position into canvas space
     const m = PD.input.mouse;
     m.x = U.clamp((m.sx - offX) / scale, 0, VW);
     m.y = U.clamp((m.sy - offY) / scale, 0, VH);
-    m.wx = m.x + g.cam.x;
-    m.wy = m.y + g.cam.y;
 
     FX.tickFreeze(dt);
+    // touch overwrites the pointer, so world space is resolved AFTER it -- get
+    // this the wrong way round and a finger drag aims at the top-left corner
+    // forever, which is exactly how the drill used to feel on a phone
     PD.touch.apply(g.state === 'play' ? 'play' : (g.state === 'home' ? PD.home.touchMode() : 'ui'));
+    m.wx = m.x + g.cam.x;
+    m.wy = m.y + g.cam.y;
 
     if (FX.freeze > 0) {
       // hit-stop: the world holds still but particles keep creeping

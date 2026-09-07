@@ -19,8 +19,8 @@
   const VW = 480, VH = 270;
 
   /* ----------------------------------------------------------- geometry */
-  const CX = 20, CY = 2, CW = 440, CH = 212;          // the beige case
-  const SX = 40, SY = 14, SW = 400, SH = 178;         // the glass
+  const CX = 20, CY = 2, CW = 440, CH = 202;          // the beige case
+  const SX = 40, SY = 14, SW = 400, SH = 168;         // the glass
   const BARY = SY + SH - 12;                          // task bar
   const WX = SX + 4, WY = SY + 10, WW = SW - 8, WH = SH - 22;
 
@@ -46,43 +46,57 @@
     const key = P.skin;
     if (handCache[key]) return handCache[key];
     const s = P.skin, d = P.skinD, l = P.skinL;
+    const NAIL = '#efe6bd', NAILD = '#c9bb8a';
     const frames = [];
     for (let f = 0; f < 3; f++) {
-      const p = pix(128, 150);
-      // forearm, running down and out of frame towards you
-      p.round(30, 96, 74, 54, 20, d);
-      p.round(24, 108, 86, 42, 18, s);
-      p.round(30, 116, 74, 34, 14, d);
-      // the jacket cuff, too short for the arm inside it
-      p.round(20, 118, 94, 22, 7, '#4a5a3a');
-      p.rect(20, 118, 94, 4, '#63744c');
-      p.rect(20, 136, 94, 4, '#36432a');
-      for (let i = 0; i < 5; i++) p.rect(26 + i * 19, 122, 6, 14, '#3f4c32');
-      // wrist
-      p.round(28, 74, 66, 34, 14, s);
-      // the back of the hand: wide, lumpy, three knuckle ridges
-      p.round(18, 34, 86, 52, 18, s);
-      p.round(24, 30, 74, 28, 12, l);
-      for (let k = 0; k < 3; k++) p.round(26 + k * 26, 32, 22, 16, 8, l);
-      // three fat fingers, the middle one lifted when he types
-      const lift = [[0, 0, 0], [0, -9, 0], [-7, 0, -4]][f];
-      for (let k = 0; k < 3; k++) {
-        const fx = 22 + k * 26, fy = 6 + lift[k];
-        p.round(fx, fy, 22, 40, 10, s);
-        p.round(fx + 3, fy + 4, 15, 18, 7, l);
-        p.round(fx + 4, fy - 4, 14, 12, 5, '#efe6bd');           // a flat yellow claw
-        p.rect(fx + 5, fy - 2, 12, 6, '#cdbf8d');
-        p.rect(fx + 6, fy + 26, 10, 3, d);                       // knuckle crease
-      }
-      // warts, veins, one very old scar
-      p.round(38, 62, 9, 7, 3, l); p.round(66, 70, 7, 6, 3, l);
-      p.rect(34, 88, 22, 3, d); p.rect(62, 94, 18, 3, d);
-      p.line(30, 52, 52, 44, d); p.line(30, 53, 52, 45, d);
+      const p = pix(136, 158);
+      /* forearm, running down and out of frame towards you */
+      p.round(34, 100, 78, 58, 22, d);
+      p.round(28, 112, 90, 46, 20, s);
+      p.round(36, 122, 74, 36, 16, d);
+      /* the jacket cuff, three sizes too short for the arm inside it */
+      p.round(22, 122, 100, 24, 8, '#4a5a3a');
+      p.rect(22, 122, 100, 4, '#63744c');
+      p.rect(22, 142, 100, 4, '#36432a');
+      for (let i = 0; i < 5; i++) p.rect(28 + i * 20, 126, 7, 16, '#3f4c32');
+      p.round(30, 118, 12, 10, 4, '#63744c');            // a button, hanging on
+      /* wrist, then the back of the hand -- wide, meaty, faceted */
+      p.round(30, 78, 72, 38, 15, s);
+      p.round(20, 40, 92, 52, 18, s);
+      p.round(26, 34, 80, 26, 11, l);
       p.shade(s, d, 1, 1);
+      /* three knuckle ridges, each with its own little shadow under it */
+      for (let k = 0; k < 3; k++) {
+        const kx = 26 + k * 28;
+        p.round(kx, 34, 24, 18, 8, l);
+        p.round(kx + 3, 36, 18, 8, 4, '#d8f2df');
+        p.rect(kx + 2, 52, 20, 3, d);
+      }
+      /* tendons across the back of the hand */
+      for (let k = 0; k < 3; k++) p.rect(32 + k * 28, 58, 3, 26, d);
+      /* three fat fingers. The middle one lifts to type; the others drum. */
+      const lift = [[0, 0, 0], [0, -12, 0], [-8, 0, -5]][f];
+      for (let k = 0; k < 3; k++) {
+        const fx = 24 + k * 28, fy = 4 + lift[k];
+        p.round(fx, fy + 6, 24, 42, 11, s);              // the finger
+        p.round(fx + 3, fy + 10, 17, 20, 8, l);          // lit along the top
+        p.rect(fx + 4, fy + 30, 16, 3, d);               // the joint crease
+        p.rect(fx + 6, fy + 38, 12, 3, d);
+        p.round(fx + 4, fy, 16, 12, 5, NAIL);            // a flat, filthy claw
+        p.rect(fx + 5, fy + 2, 14, 6, '#f8f0d0');
+        p.rect(fx + 4, fy + 9, 16, 3, NAILD);
+        p.set(fx + 7, fy + 4, '#ffffff');
+      }
+      /* the warts, the veins and one very old scar */
+      p.round(40, 66, 10, 8, 4, l); p.round(72, 74, 8, 7, 3, l);
+      p.round(58, 90, 7, 6, 3, l);
+      p.rect(36, 94, 24, 3, d); p.rect(68, 100, 20, 3, d);
+      p.line(32, 56, 56, 46, d); p.line(32, 57, 56, 47, d);
+      p.line(33, 58, 57, 48, l);
       p.outline('#140f1e');
       frames.push(p.toCanvas());
     }
-    handCache[key] = { frames, w: 64, h: 75 };
+    handCache[key] = { frames, w: 68, h: 79 };
     return handCache[key];
   }
 
@@ -407,10 +421,8 @@
     }
     pxDisc(ctx, wx + 12, wy + 14, 9, '#24406e');
     pxDisc(ctx, wx - 20, wy + 4, 6, '#24406e');
-    for (let a = 0; a < 30; a++) {                      // a stepped ring, on its side
-      const ang = a / 30 * Math.PI * 2;
-      X.rect(ctx, wx + Math.cos(ang) * 62, wy + 6 + Math.sin(ang) * 15, 2, 2, a < 15 ? '#7fa8dc' : '#4a6f9e');
-    }
+    X.orbit(ctx, wx, wy + 6, 62, 15, '#4a6f9e', 2, 0.9);   // a faceted ring, on its side
+    X.orbit(ctx, wx, wy + 4, 58, 13, '#7fa8dc', 3, 0.9);
     ctx.globalAlpha = 0.5;
     for (let i = 0; i < 40; i++) {
       const sx = SX + U.hash2(i, 3) * SW, sy = SY + U.hash2(i, 7) * SH;
@@ -421,13 +433,13 @@
     F.draw(ctx, 'THIS COMPUTER IS MINE NOW', SX + SW / 2, SY + 138, '#5d729a', { center: true, shadow: false });
   }
 
-  /* A disc made of integer scanlines: hard pixel steps all the way round. */
+  /* An OCTAGON made of integer scanlines. Nothing on this machine is round. */
   function pxDisc(ctx, cx, cy, r, col) {
     ctx.fillStyle = col;
-    const r2 = r * r;
     for (let y = Math.ceil(cy - r); y <= Math.floor(cy + r); y++) {
-      const dy = y - cy + 0.5;
-      const w = Math.sqrt(Math.max(0, r2 - dy * dy));
+      const dy = Math.abs(y - cy + 0.5) / r;
+      if (dy > 1) continue;
+      const w = r * Math.min(1, 1.42 - dy);
       const x0 = Math.round(cx - w), x1 = Math.round(cx + w);
       if (x1 > x0) ctx.fillRect(x0, y, x1 - x0, 1);
     }
@@ -803,7 +815,7 @@
 
   /* ----------------------------------------------------------- desk + keys */
   function drawDesk(ctx, g, t) {
-    const DY = 214;
+    const DY = 204;
     X.rect(ctx, 0, DY, VW, VH - DY, C.wood);
     X.rect(ctx, 0, DY, VW, 3, C.woodL);
     for (let x = 0; x < VW; x += 3) {
@@ -826,7 +838,7 @@
     X.rect(ctx, 38, DY - 8, 4, 14, '#e8e2cc');
     X.rect(ctx, 36, DY - 10, 8, 4, '#e8e2cc');
     // keyboard: a slab of human keys, most of which he has never pressed
-    const KX = 92, KY = DY + 8, KW = 296, KH = 44;
+    const KX = 92, KY = DY + 10, KW = 296, KH = 46;
     X.rect(ctx, KX - 3, KY - 3, KW + 6, KH + 8, '#1b1620');
     X.plate(ctx, KX, KY, KW, KH, '#c4bda4', '#e2dbc2', '#847d6a', 3);
     X.rect(ctx, KX + 4, KY + 3, KW - 8, KH - 8, '#a9a28c');       // the sunk key well
@@ -881,14 +893,14 @@
     const bang = S.press > 0.4 ? 3 : 0;
     // left hand, splayed over the keys
     ctx.save();
-    ctx.translate(146, 222 + bang);
+    ctx.translate(140, 214 + bang);
     ctx.rotate(0.1);
     ctx.scale(-1, 1);
     ctx.drawImage(H.frames[f], -H.w / 2, 0, H.w, H.h);
     ctx.restore();
     // right hand, riding the mouse it is far too big for
     ctx.save();
-    ctx.translate(374 + Math.round(Math.sin(t * 2) * 2), 218 + bang);
+    ctx.translate(378 + Math.round(Math.sin(t * 2) * 2), 210 + bang);
     ctx.rotate(-0.08);
     ctx.drawImage(H.frames[S.typeT > 0 ? 1 : 0], -H.w / 2, 0, H.w, H.h);
     ctx.restore();

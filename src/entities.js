@@ -384,7 +384,14 @@
     }
     const winding = this.state === 'wind';
     const flash = this.hurtT > 0 || (winding && Math.sin(this.wind * 40) > 0);
-    drawSprite(ctx, this.spr, frame, this.x - cam.x, this.y - cam.y, this.facing < 0, flash);
+    // BOUNCY: everything alive squashes and stretches, harder when it winds up
+    const puff = winding ? 0.16 : (this.hurtT > 0 ? 0.22 : 0.055);
+    const sq = 1 + Math.sin(this.anim * (winding ? 9 : 2.4) + this.bob) * puff;
+    ctx.save();
+    ctx.translate((this.x - cam.x) | 0, (this.y - cam.y) | 0);
+    ctx.scale((this.facing < 0 ? -1 : 1) * sq, 1 / sq);
+    drawSprite(ctx, this.spr, frame, 0, 0, false, flash);
+    ctx.restore();
     if (winding) {
       PD.font.draw(ctx, '!', this.x - cam.x, this.y - cam.y - this.h / 2 - 14 + Math.sin(this.wind * 30) * 1.5,
         '#ff5a4d', { center: true, scale: 1 });
@@ -435,16 +442,34 @@
       if (g.collect(this.mat, this.x, this.y)) { this.dead = true; return; }
     }
 
+    // BOUNCY: loose ore is rubber. It skips off the floor twice before it
+    // settles, and squashes flat every time it hits.
+    const pv = this.vy;
     const hit = moveBody(this, g.world, dt);
-    if (hit.ground) { this.vx *= 0.6; this.rest += dt; }
-    if (hit.x) this.vx *= -0.4;
+    this.squash = Math.max(0, (this.squash || 0) - dt * 5);
+    if (hit.ground) {
+      this.vx *= 0.7;
+      if (pv > 55 && (this.bounces || 0) < 3) {
+        this.vy = -pv * 0.52;
+        this.bounces = (this.bounces || 0) + 1;
+        this.squash = 1;
+      } else this.rest += dt;
+    }
+    if (hit.x) { this.vx *= -0.5; this.squash = 0.6; }
   };
   Pickup.prototype.draw = function (ctx, cam, t) {
     const y = this.y - cam.y + Math.sin(t * 3 + this.bob) * 1.4;
     if (this.life < 4) {
       ctx.globalAlpha = (Math.sin(this.life * 14) > 0) ? 0.35 : 1;
     }
-    drawSprite(ctx, this.spr, 0, this.x - cam.x, y, false, false);
+    const sq = this.squash ? 1 + this.squash * 0.5 : 1;
+    if (sq !== 1) {
+      ctx.save();
+      ctx.translate((this.x - cam.x) | 0, y | 0);
+      ctx.scale(sq, 1 / sq);
+      drawSprite(ctx, this.spr, 0, 0, 0, false, false);
+      ctx.restore();
+    } else drawSprite(ctx, this.spr, 0, this.x - cam.x, y, false, false);
     ctx.globalAlpha = 1;
   };
 

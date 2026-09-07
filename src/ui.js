@@ -337,7 +337,8 @@
   function minimap(ctx, g) {
     const w = g.world;
     const MW = 92, MH = 92;
-    const x0 = VW - MW - 8, y0 = 58;
+    // the touch keys own the right edge, so the map slides over for them
+    const x0 = VW - MW - (PD.touch && PD.touch.enabled ? 56 : 8), y0 = 58;
     const sc = Math.min(MW / w.w, MH / w.h);
     const ox = x0 + (MW - w.w * sc) / 2, oy = y0 + (MH - w.h * sc) / 2;
 
@@ -587,18 +588,20 @@
       ctx.fillRect(px - 6 + Math.cos(a) * d | 0, py - 58 + Math.sin(a) * d | 0, 2, 2);
     }
 
-    // the culprit
+    // the culprit, stood on the limb of the thing he is ruining
     const bob = Math.sin(t * 2.2) * 3;
     const al = PD.art.sprites.alien, dr = PD.art.sprites.drill;
-    const ax = px - 34, ay = py - 96 + bob;
+    const K = 1.5;                                   // he is a big lad now
+    const feet = al.h - al.oy;                       // anchor-to-sole, in logical px
+    const ax = px - 34, ay = py - 54 - feet * K + bob;
     ctx.save();
-    ctx.translate(ax, ay);
+    ctx.translate(ax + 10, ay + 4);
     ctx.rotate(0.85);
     ctx.drawImage(dr.frames[Math.floor(t * 12) % dr.frames.length], 0, 0,
-      dr.w, dr.h, -dr.ox * 2, -dr.oy * 2, dr.w * 2, dr.h * 2);
+      dr.frames[0].width, dr.frames[0].height, -dr.ox * K, -dr.oy * K, dr.w * K, dr.h * K);
     ctx.restore();
-    ctx.drawImage(al.frames[0], 0, 0, al.w, al.h,
-      ax - al.ox * 2 | 0, ay - al.oy * 2 | 0, al.w * 2, al.h * 2);
+    ctx.drawImage(al.frames[Math.floor(t * 7) % 4], 0, 0, al.frames[0].width, al.frames[0].height,
+      Math.round(ax - al.ox * K), Math.round(ay - al.oy * K), Math.round(al.w * K), Math.round(al.h * K));
   }
 
   function title(ctx, g, t) {

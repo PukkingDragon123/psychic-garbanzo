@@ -31,31 +31,38 @@
     return 'rgb(' + r + ',' + g2 + ',' + b + ')';
   }
 
+  /* A tile is a CUT STONE: every exposed corner comes off as a straight
+     45-degree chamfer and every open face takes one shallow notch, so a rock
+     face reads as knapped flint. There is not an arc in it -- the game has no
+     ovals anywhere, and rock is the largest surface in it. */
   function tilePath(c, mask, v, rad) {
     const up = mask & 1, rt = mask & 2, dn = mask & 4, lf = mask & 8;
-    // open faces bow in or out a touch, and neighbouring tiles pick different
-    // bows, so a long rock face stops being a ruler-straight line
-    const bow = ((v === undefined ? 0 : v) - 1.5) * 0.9;
-    const B = (open, x0, y0, x1, y1, nx, ny) => {
-      if (open) c.quadraticCurveTo((x0 + x1) / 2 + nx * bow, (y0 + y1) / 2 + ny * bow, x1, y1);
-      else c.lineTo(x1, y1);
-    };
+    const notch = ((v === undefined ? 0 : v) % 2) ? 1 : 0;   // which side the kink sits
     const RR = rad === undefined ? R : rad;
     const tl = (!up && !lf) ? RR : 0;
     const tr = (!up && !rt) ? RR : 0;
     const br = (!dn && !rt) ? RR : 0;
     const bl = (!dn && !lf) ? RR : 0;
     const T = TILE;
+    // one kink part-way along an open face, alternating in and out per tile
+    const F = (open, x0, y0, x1, y1, nx, ny) => {
+      if (open) {
+        const k = notch ? 0.62 : 0.38;
+        const d = notch ? 0.8 : -0.8;
+        c.lineTo(x0 + (x1 - x0) * k + nx * d, y0 + (y1 - y0) * k + ny * d);
+      }
+      c.lineTo(x1, y1);
+    };
     c.beginPath();
     c.moveTo(tl, 0);
-    B(!up, tl, 0, T - tr, 0, 0, -1);
-    if (tr) c.arcTo(T, 0, T, tr, tr); else c.lineTo(T, 0);
-    B(!rt, T, tr, T, T - br, 1, 0);
-    if (br) c.arcTo(T, T, T - br, T, br); else c.lineTo(T, T);
-    B(!dn, T - br, T, bl, T, 0, 1);
-    if (bl) c.arcTo(0, T, 0, T - bl, bl); else c.lineTo(0, T);
-    B(!lf, 0, T - bl, 0, tl, -1, 0);
-    if (tl) c.arcTo(0, 0, tl, 0, tl); else c.lineTo(0, 0);
+    F(!up, tl, 0, T - tr, 0, 0, -1);
+    if (tr) c.lineTo(T, tr); else c.lineTo(T, 0);
+    F(!rt, T, tr, T, T - br, 1, 0);
+    if (br) c.lineTo(T - br, T); else c.lineTo(T, T);
+    F(!dn, T - br, T, bl, T, 0, 1);
+    if (bl) c.lineTo(0, T - bl); else c.lineTo(0, T);
+    F(!lf, 0, T - bl, 0, tl, -1, 0);
+    if (tl) c.lineTo(tl, 0); else c.lineTo(0, 0);
     c.closePath();
   }
 
@@ -484,13 +491,15 @@
         // a soft mottle so caverns read as rooms
         c.fillStyle = lift(L0.tint, 1.15, 10);
         c.fillRect(0, 0, TILE, TILE);
-        for (let k = 0; k < 4; k++) {
+        for (let k = 0; k < 5; k++) {
           const h = U.hash2(v * 17 + k, si * 31 + k * 5);
           c.fillStyle = lift(L0.tint, h > 0.5 ? 1.5 : 0.75, h > 0.5 ? 18 : 0);
           c.globalAlpha = 0.5;
-          c.beginPath();
-          c.arc(h * TILE, U.hash2(k, v + si) * TILE, 1.6 + h * 2.4, 0, Math.PI * 2);
-          c.fill();
+          // chipped flecks, not soft dots
+          const bx = Math.floor(h * TILE), by = Math.floor(U.hash2(k, v + si) * TILE);
+          const bw = 1 + Math.floor(h * 3), bh = 1 + ((k + v) % 2);
+          c.fillRect(bx, by, bw, bh);
+          c.fillRect(bx + 1, by + bh, Math.max(1, bw - 2), 1);
         }
         c.globalAlpha = 1;
         variants.push(cv);
@@ -849,15 +858,13 @@
           const hL = Math.round((U.hash2(cx, cy * 3) - 0.5) * 3);
           const hR = Math.round((U.hash2(cx + 1, cy * 3) - 0.5) * 3);
           const hM = Math.round((U.hash2(cx * 2 + 7, cy) - 0.5) * 3);
+          // a hard sawtooth crest, drawn as columns so it stays pixels
           ctx.fillStyle = mm2.c[0];
-          ctx.beginPath();
-          ctx.moveTo(sx, sy + hL);
-          ctx.lineTo(sx + TILE / 2, sy + Math.round(hM) - 1);
-          ctx.lineTo(sx + TILE, sy + hR);
-          ctx.lineTo(sx + TILE, sy + 3.5);
-          ctx.lineTo(sx, sy + 3.5);
-          ctx.closePath();
-          ctx.fill();
+          for (let k = 0; k < TILE; k += 2) {
+            const f = k / TILE;
+            const top = Math.round(f < 0.5 ? hL + (hM - hL) * (f * 2) : hM + (hR - hM) * ((f - 0.5) * 2));
+            ctx.fillRect(sx + k, sy + top, 2, 4 - top);
+          }
         }
 
         const mm = mm2;

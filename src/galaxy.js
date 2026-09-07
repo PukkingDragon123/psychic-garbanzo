@@ -19,10 +19,11 @@
   /* An integer scanline disc: every edge is a hard pixel step. */
   function pxDisc(c, cx, cy, r, col) {
     if (col) c.fillStyle = col;
-    const r2 = r * r;
+    const r2 = r;
     for (let y = Math.ceil(cy - r); y <= Math.floor(cy + r); y++) {
-      const dy = y - cy + 0.5;
-      const w = Math.sqrt(Math.max(0, r2 - dy * dy));
+      const dy = Math.abs(y - cy + 0.5) / r2;
+      if (dy > 1) continue;
+      const w = r2 * Math.min(1, 1.42 - dy);
       const x0 = Math.round(cx - w), x1 = Math.round(cx + w);
       if (x1 > x0) c.fillRect(x0, y, x1 - x0, 1);
     }
@@ -130,8 +131,9 @@
     for (let y = 0; y < W; y++) {
       for (let x = 0; x < W; x++) {
         const dx = (x - cx + 0.5) / r, dy = (y - cy + 0.5) / r;
-        const d2 = dx * dx + dy * dy;
-        if (d2 > 1) continue;
+        const ax = Math.abs(dx), ay = Math.abs(dy);
+        if (ax > 1 || ay > 1 || ax + ay > 1.42) continue;   // an octagon, not a disc
+        const d2 = Math.min(0.999, dx * dx + dy * dy);
         const nz = Math.sqrt(1 - d2);
         let lam = -dx * 0.55 - dy * 0.5 + nz * 0.62;          // light from the upper left
         lam = U.clamp(lam, 0, 1);
@@ -147,9 +149,16 @@
     }
     // lit limb, a single stepped pixel line on the sunward side
     c.fillStyle = shade(tint, 1.75);
-    for (let i = 0; i < 46; i++) {
-      const a2 = -2.5 + i * 0.062;
-      c.fillRect(Math.round(cx + Math.cos(a2) * (r - 0.5)), Math.round(cy + Math.sin(a2) * (r - 0.5)), 1, 1);
+    // the lit limb, traced along the octagon's own upper-left facets
+    const cc2 = r * 0.42;
+    const lim = [[-r + cc2, -r], [r - cc2, -r], [-r, -r + cc2], [-r, r - cc2], [-r + cc2, r]];
+    for (let i = 0; i < lim.length - 1; i += 1) {
+      const a3 = lim[i], b3 = lim[i + 1];
+      const n = Math.max(2, Math.round(Math.hypot(b3[0] - a3[0], b3[1] - a3[1])));
+      for (let k = 0; k <= n; k++) {
+        const f = k / n;
+        c.fillRect(Math.round(cx + a3[0] + (b3[0] - a3[0]) * f), Math.round(cy + a3[1] + (b3[1] - a3[1]) * f), 1, 1);
+      }
     }
     if (rings) for (let k = 0; k < 3; k++) pxRingBand(c, cx, cy, r * (1.45 + k * 0.26), 0.3, shade(tint, 1.4 - k * 0.16), 2, false);
     // a moon, shaded the same way
@@ -172,7 +181,9 @@
     const cx = S / 2, cy = S / 2;
     for (let y = 0; y < S; y++) {
       for (let x = 0; x < S; x++) {
-        const d = Math.hypot(x - cx + 0.5, y - cy + 0.5) / R;
+        // octagonal falloff: |x|+|y| clipped, so even the corona is faceted
+        const ax2 = Math.abs(x - cx + 0.5) / R, ay2 = Math.abs(y - cy + 0.5) / R;
+        const d = Math.max(Math.max(ax2, ay2), (ax2 + ay2) / 1.42);
         if (d > 3.4) continue;
         let a, f;
         if (d <= 0.55) { a = 1; f = 1.7; }

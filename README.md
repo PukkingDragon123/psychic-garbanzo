@@ -24,18 +24,35 @@ python3 -m http.server 8000   # then visit http://localhost:8000
 node tools/build.js           # -> dist/planet-destroyer.html
 ```
 
-## Home is one room
+## Home is a rock house on an empty moon
 
-There is no station, no crew, no terminal and nobody to talk to. There is a
-room hacked out of moon rock: a rough roof with stalactites and a pipe that
-goes nowhere, fairy lights he strung up one solstice and never took down, a bed
-of moss, a fridge with nothing in it, a rug, a shelf of rocks he is proud of, a
-tally of every world he has eaten scratched into the wall, and posters of human
-things he does not understand. At one end, a desk. Through the doorway at the
-other end, parked on the regolith under the stars, **your dumb UFO**: a wonky
-saucer sitting on two bricks with a dish taped on and one leg that has given up.
+**Outside** is bare regolith, a few boulders, a flag nobody saluted, the eye
+sockets of a dead Celestial on the horizon — and two things worth walking to.
+One is **your rock house**: a heap of quarried slabs with a hole knocked in the
+front for a door, one lit window, a crooked chimney with a satellite dish taped
+to it, smoke going up, and every crate he could not be bothered to carry inside
+stacked against the walls. The other is **your dumb UFO**, up on two bricks
+with one leg that gave up years ago.
 
-Stand at either and press `E`. That is the entire building.
+**Inside** is one room and it is a tip: a dumb bed of moss, the stolen computer
+on a plank, a beam across the roof with coils of cable and a lamp that does not
+work hanging off it, a bare bulb he wired himself, empty cans, a stack of
+plates with something living on top, a bucket under a drip, one boot, a rug
+worn through, and a tally of every world he has eaten scratched into the rock.
+
+Two things and a bed. Stand at any of them and press `E`.
+
+The high jump reaches the junk hanging off the roof beam, and head-butting it
+sets the whole lot swinging.
+
+## Brenda
+
+The first time you go inside there is a **very fat moon rat** standing on your
+cheese, mid-bite, looking at you. Press `E` and you give him the cheese.
+
+He is yours after that. He bounces after you everywhere — inside, outside, all
+the way to the door — because he is far too fat to walk, and he will not stop
+squeaking about it. He is called Brenda.
 
 ## The computer
 
@@ -84,6 +101,25 @@ green button lists the lot; coins spray across the monitor.
 Under all of it, a banner advert you can close, which comes back in seven
 seconds, because that is the deal.
 
+## Not one circle, and not one oval
+
+Nothing in this game is round. It is not that the curves are pixelated — there
+are no curves. Every rounded primitive was replaced at the source, so the whole
+game turned faceted at once:
+
+- `pix.ellipse` draws an **octagon** inscribed in its box, and `pix.disc` calls
+  it, so every sprite in the game — the alien, the rat, the saucer, the ore —
+  is cut stone rather than a balloon.
+- `pix.round` cuts its corners with a straight **45-degree chamfer** instead of
+  a quarter-circle, so every rounded rectangle is a bevelled one.
+- A terrain tile is a **knapped flint**: exposed corners come off on the
+  diagonal and each open face takes one shallow kink. No `arcTo`, no
+  `quadraticCurveTo`, nothing.
+- Planets, moons and suns are rasterised as **octagons** with an octagonal
+  light falloff, and their lit limb is traced along their own facets.
+- `pxd.blob` is an octagon, `pxd.ring` is a stepped octagon, and `pxd.orbit`
+  walks eight straight runs of dots.
+
 ## Not one circle
 
 Everything drawn at runtime is pixel art, built from primitives that never
@@ -116,14 +152,28 @@ that wanders into the spinning bit gets chewed. Consecutive tiles build a
 ore lands with a hit-stop and a ring. On a phone, a held touch on the right
 half of the screen is that one button.
 
+## Everything bounces
+
+Nothing in this game is rigid. He lands, squashes almost flat and pops back up,
+and off a real drop he bounces twice before he settles. He wobbles while he is
+stood still and rolls his weight side to side as he walks. Loose ore is rubber:
+it skips off the floor three times, squashing every time it hits. Everything
+alive squashes and stretches as it breathes, and harder while it winds up to
+bite you. Floating numbers punch in past their own size before they settle.
+Touch keys sink when pressed and spring back bigger than they were. Brenda is
+too fat to walk, so he bounces.
+
 ## The alien
 
 He is not cute. He is a tall lumpy head on a long thin neck on a pear-shaped
 body: **one enormous eye and one that gave up**, a heavy brow over only one of
-them, a huge hooked nose that arrives in the room before he does, a flat line
-of a mouth, three chins, one drooping antenna with a bulb that stopped working
-years ago, three stray hairs he is very proud of, and three fat fingers per
-hand. He wears a stolen human suit jacket that does not fit, a shirt, a tie
+them, a flat line of a mouth, three chins, one drooping antenna with a bulb
+that stopped working years ago, a **moustache**, **exactly three strands of
+hair** he is very proud of, and three fat fingers per hand.
+
+**The nose jiggles.** It is the heaviest thing on him and it never settles:
+every frame of every pose swings it a few pixels, so it wobbles on its own
+while he is standing perfectly still, and the moustache swings with it. He wears a stolen human suit jacket that does not fit, a shirt, a tie
 done up wrong, and shoes far too big for him, with a battered brass air tank
 gaffer-taped to his back.
 
@@ -138,8 +188,12 @@ walks you.
 
 ## The pod and the wire
 
-You fly a **little fat pod** with a bubble dome you can see into, twin
-nacelles, riveted hull and landing skids. On a dive it hovers over the dig site and you drop out on a **tether**.
+The thing hovering over the dig site is **the same saucer that is parked
+outside your house** — built once, used everywhere, dents and all: cut-glass
+dome, chasing rim lights, a rust patch, a dish taped to the roof. Parked it sits
+on bricks with one collapsed leg; flying, the skids tuck up and it throws a wash
+of light down on to the rock. On a dive it hovers over the dig site and you drop
+out on a **tether**.
 The wire is the leash: run out of reach and it snaps taut, flashes red and
 yanks you back. The `WIRE` bar shows the slack left, and the winch tower buys
 more reach. Press `E` under the pod to board and go home. The alien himself is
@@ -180,12 +234,20 @@ tab shows the asking price per lot and flags the ones that have gone `HOT` or
 | Hold `R` | Emergency tractor beam home — costs 10% of your cargo |
 | `Esc` | Pause |
 
-**On a phone or tablet** the controls switch to touch automatically: a
-hexagonal pad on the left for the jets, drag anywhere on the right to aim *and*
-drill, hex action keys in the corner. At home, on the chart and at the computer
-you **tap what you want** — where to walk, which app, which listing, which
-world. The pointer snaps straight to your finger on touch; the loose spring is
-a mouse problem.
+**On a phone or tablet** the controls switch to touch automatically, and there
+are only ever **three keys**, each one big enough to hit without looking and
+labelled with a word rather than a symbol you have to decode:
+
+- A hex pad bottom-left marked `FLY` for the jets.
+- **The whole right half of the screen is the drill.** Hold it and drag: the
+  same finger aims and digs, and the game says so until you have dug something.
+- Three worded hex keys up the right edge — in the field `DASH` / `FIND` /
+  `SHIP`, at home `JUMP` / `USE` / `ROLL`. The minimap slides over to make room
+  for them.
+
+At home, on the chart and at the computer you **tap what you want** — where to
+walk, which app, which listing, which world. The pointer snaps straight to your
+finger on touch; the loose spring is a mouse problem.
 
 ## Worlds are layered
 
@@ -283,9 +345,9 @@ a line of history under its blurb.
 | File | What it does |
 | --- | --- |
 | `src/util.js` | Math, `Math.imul` hash noise, fbm, and an inverse-normal quantile helper used to hit exact ore/cave densities |
-| `src/pix.js` | Tiny pixel-drawing surface; `outline()` traces the dark cartoon border that gives everything its look |
+| `src/pix.js` | Tiny pixel-drawing surface, where every round primitive is really an octagon or a chamfer; `outline()` traces the dark cartoon border that gives everything its look |
 | `src/art.js` | The alien at 2x in idle, walk, fly, drill and roll poses, the drill, the pod, guns, six enemies, ore chunks, UI icons — all procedural |
-| `src/arthome.js` | The house at 2x: rock wall and floor, the desk with the human computer, the saucer, fridge, moss bed, junk piles, posters, ruins, critters, and the cratered-moon generator |
+| `src/arthome.js` | Home at 2x: the rock house seen from outside, wall and floor, the desk with the human computer, the moon rat, the cheese, the bed, the fridge, junk piles, litter, posters, ruins, and the cratered-moon generator |
 | `src/font.js` | Hand-drawn 5×7 bitmap font, cached per colour |
 | `src/audio.js` | WebAudio synthesis — a drill loop that tracks rock hardness, jetpack noise, explosions, and a villainous little groove |
 | `src/data.js` | 30 materials, 9 enemy species, ten worlds in four sectors, nine strata templates, the ABAY catalogue, the factions and lore, the evil-title ladder |
@@ -294,12 +356,12 @@ a line of history under its blurb.
 | `src/player.js` | Movement, the drill, weapons, dash, air, cargo, damage, and the tether to the pod |
 | `src/fx.js` | Particles, floating numbers, shockwave rings, terrain chunks, screen shake, hit-stop |
 | `src/ui.js` | The cardboard-and-masking-tape HUD (air tank, hull chips, sack tube), the action strip, the plank over the door, pause, victory and title screens |
-| `src/home.js` | The rock house: running, jumping, rolling, the desk, the saucer, and everything nailed to the walls |
+| `src/home.js` | Both halves of home: the moon outside with the house and the saucer, the one room inside with the bed and the computer, and Brenda |
 | `src/desk.js` | First person at the computer: hands, keyboard, CRT, the loose-spring pointer, ZORB OS and ABAY |
 | `src/glyph.js` | The icon language that rides alongside the text, and the hex primitives |
 | `src/galaxy.js` | Spiral-arm star band, nebulae, sun, ringed planets, shooting stars |
 | `src/starmap.js` | The galaxy chart and the solar-system view: sectors, drives, world dossiers |
-| `src/touch.js` | Hex pad, drag-to-drill, tap-to-walk, tap-to-pick, hex action keys, haptics |
+| `src/touch.js` | Hex pad, hold-the-right-half-to-drill, tap-to-walk, three worded action keys, haptics |
 | `src/game.js` | Loop, the 2x frame, camera, pod, lighting, the ore market, ABAY purchases, save/load, and the world-destruction sequence |
 | `tools/build.js` | Inlines everything into one distributable HTML file |
 

@@ -126,34 +126,8 @@
     p.outline(P.ink);
     return p;
   }
-  /* The dumb UFO: a wonky saucer up on bricks with a dish taped to it. */
-  function saucer(f) {
-    const p = pix(150, 86);
-    p.round(10, 34, 130, 26, 12, '#b6b0c8');               // hull
-    p.shade('#b6b0c8', '#7d7396', 0, 1);
-    p.round(20, 30, 110, 12, 6, '#d6d0e8');
-    p.round(52, 6, 46, 30, 14, C.glass);                   // dome
-    p.round(58, 12, 34, 18, 8, '#2a2440');
-    p.rect(62, 16, 8, 3, '#eafcff');
-    p.round(6, 44, 24, 12, 5, '#8e86a8');                  // dented rim
-    p.round(120, 44, 24, 12, 5, '#8e86a8');
-    for (let i = 0; i < 7; i++) p.disc(24 + i * 17, 52, 4, f && i % 2 ? '#ffd34d' : '#5a5474');
-    p.rect(30, 40, 90, 2, '#6b6480');
-    p.rect(44, 36, 24, 3, '#c46a3a');                      // rust patch
-    p.rect(88, 38, 16, 2, '#c46a3a');
-    // a dish taped on with an aerial
-    p.rect(104, 6, 3, 24, P.steelD);
-    p.ellipse(112, 6, 12, 6, P.steelD); p.ellipse(112, 5, 8, 4, '#c9c4b4');
-    p.rect(100, 14, 12, 2, '#ffe98a');                     // tape
-    // bricks under it
-    p.round(28, 60, 22, 12, 2, '#8a5a3a'); p.round(100, 60, 22, 12, 2, '#8a5a3a');
-    p.rect(30, 63, 18, 2, '#6b4530'); p.rect(102, 63, 18, 2, '#6b4530');
-    // a leg that gave up
-    p.round(66, 58, 8, 18, 3, P.steelDD);
-    p.round(60, 74, 20, 6, 2, P.steelD);
-    p.outline(P.ink);
-    return p;
-  }
+  /* The parked UFO is the same saucer that flies: see art.js. */
+
   /* Junk that lives in the room. */
   function fridge(f) {
     const p = pix(46, 78);
@@ -205,6 +179,179 @@
     else if (k === 1) { p.round(10, 8, 14, 18, 6, '#e8dfc4'); p.rect(13, 14, 3, 4, '#2a2440'); p.rect(19, 14, 3, 4, '#2a2440'); }
     else { for (let i = 0; i < 4; i++) p.rect(5 + i * 7, 8 + (i % 2) * 6, 5, 16, '#c9c4b4'); }
     p.rect(4, 35, 26, 2, '#8a8478'); p.rect(4, 39, 16, 2, '#8a8478');
+    p.outline(P.ink);
+    return p;
+  }
+
+  /* ------------------------------------------------------- the rock house
+     Seen from outside on an empty moon: a heap of quarried slabs with a hole
+     knocked in the front for a door, a crooked chimney, one lit window, and
+     every bit of junk he could not be bothered to carry inside stacked
+     against the walls. */
+  function houseOut(lit) {
+    const p = pix(300, 210);
+    const R1 = '#6b6480', R2 = '#5a5474', R3 = '#4a4460', R4 = '#3a3450', RL = '#8e86a8';
+    const base = 208;
+    // the body: courses of big rough slabs, narrowing as they go up
+    for (let row = 0; row < 11; row++) {
+      const y = base - 18 - row * 16;
+      const inset = row < 7 ? row * 4 : 28 + (row - 7) * 12;
+      const x0 = 26 + inset, x1 = 274 - inset;
+      for (let x = x0; x < x1; x += 30) {
+        const w = Math.min(28, x1 - x);
+        const h = 15 + ((x + row) % 3);
+        const c = [R1, R2, R3][(x / 30 + row) % 3 | 0];
+        p.round(x, y, w, h, 3, c);
+        p.rect(x + 1, y + 1, w - 2, 2, RL);
+        p.rect(x + 1, y + h - 2, w - 2, 1, R4);
+      }
+    }
+    // a lumpy roof cap
+    p.round(120, base - 200, 60, 22, 8, R2);
+    p.round(128, base - 206, 44, 14, 6, R1);
+    p.rect(132, base - 204, 36, 3, RL);
+    // the doorway: a knocked-through hole with a heavy lintel
+    p.round(120, base - 76, 60, 76, 6, '#120e1c');
+    p.rect(118, base - 82, 64, 8, R4);
+    p.rect(118, base - 82, 64, 3, RL);
+    for (let i = 0; i < 5; i++) p.rect(120 + i * 13, base - 79, 10, 5, R2);
+    // rubber door strips
+    for (let i = 0; i < 7; i++) {
+      const cx2 = 124 + i * 8, len = 40 + (i % 3) * 10;
+      p.rect(cx2, base - 74, 6, len, i % 2 ? '#3f3856' : '#4a4260');
+      p.rect(cx2, base - 74, 6, 2, '#8e86a8');
+    }
+    // warm light spilling out of the door
+    if (lit) { p.rect(120, base - 22, 60, 22, '#3a3020'); p.rect(126, base - 12, 48, 12, '#4a3a22'); }
+    // one window, lit, with a bent frame
+    p.round(56, base - 112, 40, 34, 4, '#241f36');
+    p.round(60, base - 108, 32, 26, 3, lit ? '#ffe9a8' : '#2a2440');
+    if (lit) { p.rect(62, base - 106, 28, 4, '#fff7d8'); p.rect(62, base - 92, 12, 10, '#e0c96a'); }
+    p.rect(54, base - 96, 44, 3, R4);
+    p.rect(74, base - 112, 3, 34, R4);
+    // a crooked chimney with a dish taped to it
+    p.round(196, base - 168, 26, 44, 4, R2);
+    p.round(200, base - 176, 20, 12, 4, R3);
+    p.rect(202, base - 174, 16, 3, R4);
+    p.rect(214, base - 176, 3, 26, P.steelD);
+    p.round(206, base - 190, 22, 8, 4, '#8e86a8');
+    p.round(210, base - 189, 14, 5, 2, '#c9c4b4');
+    p.rect(210, base - 182, 12, 3, '#ffe98a');
+    // cables strung down the front and taped on
+    girder(p, 214, base - 150, 186, base - 100);
+    p.rect(184, base - 104, 10, 4, '#ffe98a');
+    // junk stacked against the walls: crates, a barrel, a dead television
+    p.round(10, base - 34, 32, 34, 3, '#6b4530');
+    p.rect(12, base - 30, 28, 3, '#8a5a3a'); p.rect(12, base - 18, 28, 3, '#8a5a3a');
+    p.round(4, base - 62, 26, 28, 3, '#5a4a3a');
+    p.rect(6, base - 58, 22, 2, '#7a6a52');
+    p.round(46, base - 26, 26, 26, 3, '#4a4260');
+    p.round(50, base - 22, 18, 14, 2, '#20201c');
+    p.rect(52, base - 20, 14, 2, '#4a4a3a');
+    p.rect(56, base - 34, 2, 10, P.steelD); p.rect(64, base - 38, 2, 14, P.steelD);
+    p.round(232, base - 30, 30, 30, 4, '#8a5a3a');
+    p.rect(234, base - 26, 26, 3, '#6b4530');
+    p.rect(234, base - 14, 26, 3, '#6b4530');
+    p.round(266, base - 20, 22, 20, 3, '#4a4260');
+    // a hand-painted sign nailed over the door
+    p.round(112, base - 104, 76, 20, 3, '#7a5a3a');
+    p.rect(114, base - 102, 72, 3, '#9c7a52');
+    p.rect(114, base - 88, 72, 2, '#4a3020');
+    p.rect(146, base - 84, 3, 4, '#4a4260');
+    p.outline(P.ink);
+    return p;
+  }
+
+  /* ---------------------------------------------------------- the moon rat
+     Enormously fat, permanently chewing, and the only other living thing for
+     four hundred million kilometres. */
+  function moonRat(f, fed) {
+    const p = pix(72, 48);
+    const FUR = '#9c94b4', FURD = '#6b6480', FURL = '#c9bce8', PINK = '#ff9ecb';
+    const squash = f === 1 ? 1 : 0;
+    // the tail, thick as an arm
+    p.line(8, 38 - squash, 2, 30, PINK); p.line(9, 39 - squash, 3, 31, PINK);
+    p.line(2, 30, 6, 22, PINK); p.line(3, 31, 7, 23, PINK);
+    // the body: a great faceted lump
+    p.ellipse(36, 30 + squash, 26, 16 - squash, FUR);
+    p.shade(FUR, FURD, 0, 1);
+    p.ellipse(34, 22 + squash, 18, 7, FURL);
+    // a belly that reaches the floor
+    p.ellipse(36, 40, 22, 7, FURD);
+    // stubby legs, mostly decorative
+    p.round(18, 42, 9, 6, 2, PINK); p.round(48, 42, 9, 6, 2, PINK);
+    // the head, wedged straight on to the body
+    p.ellipse(56, 26 + squash, 15, 13, FUR);
+    p.shade(FUR, FURD, 0, 1);
+    p.round(46, 14 + squash, 14, 13, 5, PINK);           // ears
+    p.round(58, 12 + squash, 14, 13, 5, PINK);
+    p.round(49, 17 + squash, 8, 7, 3, '#e8b0d0');
+    p.round(61, 15 + squash, 8, 7, 3, '#e8b0d0');
+    // a snout, two buck teeth and a very small brain behind it
+    p.round(62, 26 + squash, 10, 10, 4, FURL);
+    p.round(68, 30 + squash, 4, 4, 2, PINK);             // nose
+    p.rect(64, 34 + squash, 3, 5, '#ffffff');            // teeth
+    p.rect(68, 34 + squash, 3, 5, '#ffffff');
+    if (fed) {                                           // content, eyes shut
+      p.rect(52, 26 + squash, 7, 2, C.ink);
+      p.rect(63, 24 + squash, 6, 2, C.ink);
+    } else {
+      p.round(51, 23 + squash, 8, 9, 3, '#ffffff');
+      p.round(53, 25 + squash, 5, 6, 2, C.eye);
+      p.set(54, 26 + squash, '#ffffff');
+      p.round(63, 22 + squash, 6, 7, 2, '#ffffff');
+      p.round(64, 24 + squash, 4, 4, 2, C.eye);
+    }
+    // whiskers
+    p.line(60, 33 + squash, 70, 30 + squash, FURD);
+    p.line(60, 35 + squash, 71, 36 + squash, FURD);
+    p.line(60, 34 + squash, 69, 40 + squash, FURD);
+    p.outline(P.ink);
+    return p;
+  }
+
+  /* A wedge of something yellow he found in the pod. It is not cheese. */
+  function cheese(bitten) {
+    const p = pix(40, 30);
+    p.round(2, 8, 36, 20, 4, '#ffd34d');
+    p.round(4, 6, 32, 8, 3, '#ffe98a');
+    p.shade('#ffd34d', '#c99a1e', 0, 1);
+    p.round(8, 14, 7, 7, 3, '#c99a1e');
+    p.round(22, 18, 6, 6, 2, '#c99a1e');
+    p.round(28, 11, 5, 5, 2, '#c99a1e');
+    p.round(15, 22, 4, 4, 2, '#c99a1e');
+    if (bitten) { p.round(26, 4, 14, 14, 6, null); p.round(24, 6, 16, 12, 5, '#8a6a2a'); }
+    p.outline(P.ink);
+    return p;
+  }
+
+  /* Mess. He does not tidy, and there is nobody to tell him to. */
+  function litter(k) {
+    const p = pix(40, 26);
+    if (k === 0) {                                        // a heap of empty cans
+      for (let i = 0; i < 5; i++) {
+        const x = 2 + (i % 3) * 12, y = 14 - ((i / 3) | 0) * 9;
+        p.round(x, y, 9, 12, 2, i % 2 ? '#8e86a8' : '#c46a3a');
+        p.rect(x + 1, y + 1, 7, 2, '#c9bce8');
+        p.rect(x + 2, y + 6, 5, 1, '#5a5474');
+      }
+    } else if (k === 1) {                                 // a stack of dirty plates
+      for (let i = 0; i < 4; i++) {
+        p.round(4 + i, 20 - i * 4, 30 - i * 2, 5, 2, i % 2 ? '#c9c4b4' : '#e8dfc4');
+        p.rect(6 + i, 21 - i * 4, 26 - i * 2, 1, '#a89b78');
+      }
+      p.round(24, 2, 8, 8, 3, '#8affa0');                 // something living on top
+    } else if (k === 2) {                                 // a bucket under a drip
+      p.round(8, 8, 24, 18, 3, '#8e86a8');
+      p.round(10, 10, 20, 6, 2, '#3f5a2c');
+      p.rect(8, 12, 24, 2, '#c9bce8');
+      p.round(4, 4, 4, 10, 2, '#5a5474');
+    } else {                                              // a sock, and a boot
+      p.round(2, 12, 20, 12, 4, '#c4553a');
+      p.round(2, 8, 9, 8, 3, '#c4553a');
+      p.round(24, 14, 14, 10, 3, '#3a3348');
+      p.rect(24, 22, 16, 3, '#241f2e');
+    }
     p.outline(P.ink);
     return p;
   }
@@ -471,10 +618,11 @@
      blown up: hard pixel steps all the way round, never a smooth circle. */
   function pxDisc(c, cx, cy, r, col) {
     c.fillStyle = col;
-    const r2 = r * r;
+    const r2 = r;
     for (let y = Math.ceil(cy - r); y <= Math.floor(cy + r); y++) {
-      const dy = y - cy + 0.5;
-      const w = Math.sqrt(Math.max(0, r2 - dy * dy));
+      const dy = Math.abs(y - cy + 0.5) / r2;
+      if (dy > 1) continue;
+      const w = r2 * Math.min(1, 1.42 - dy);
       const x0 = Math.round(cx - w), x1 = Math.round(cx + w);
       if (x1 > x0) c.fillRect(x0, y, x1 - x0, 1);
     }
@@ -516,10 +664,16 @@
       c.fillRect(x, 0, 1, S);
     }
     c.restore();
-    c.fillStyle = shade(tint, 1.55);                    // lit limb
-    for (let i = 0; i < 34; i++) {
-      const a = -1.5 + i * 0.065;
-      c.fillRect(Math.round(cx + Math.cos(a) * r), Math.round(cy + Math.sin(a) * r), 1, 1);
+    c.fillStyle = shade(tint, 1.55);                    // lit limb, along the facets
+    const k2 = r * 0.42;
+    const lim = [[-r + k2, -r], [r - k2, -r], [r, -r + k2], [r, r - k2]];
+    for (let i = 0; i < lim.length - 1; i++) {
+      const a = lim[i], b = lim[i + 1];
+      const n = Math.max(2, Math.round(Math.hypot(b[0] - a[0], b[1] - a[1])));
+      for (let q = 0; q <= n; q++) {
+        const f = q / n;
+        c.fillRect(Math.round(cx + a[0] + (b[0] - a[0]) * f), Math.round(cy + a[1] + (b[1] - a[1]) * f), 1, 1);
+      }
     }
     const cv = document.createElement('canvas');
     cv.width = cv.height = S * K;
@@ -533,7 +687,7 @@
   reg('wall', [houseWall(240, 160)], 0, 0);
   reg('floor', [floorSlab(240)], 0, 0);
   reg('desk', [deskProp(false), deskProp(true)]);
-  reg('saucer', [saucer(0), saucer(1)]);
+  reg('saucer', [PD.art.buildSaucer(0, null, true), PD.art.buildSaucer(1, null, true)]);
   reg('fridge', [fridge(0)]);
   reg('bed', [mossBed()]);
   for (let i = 0; i < 3; i++) reg('junk' + i, [junkPile(i)]);
@@ -541,8 +695,11 @@
   reg('survey', [survey()]);
   for (let i = 0; i < 3; i++) reg('ruin' + i, [ruin(i)]);
   for (let i = 0; i < 3; i++) reg('rock' + i, [rock(i)]);
-  reg('critter', [critter(0, '#8affa0', '#3fb85a'), critter(1, '#8affa0', '#3fb85a')]);
-  reg('critter2', [critter(0, '#ff8ad8', '#b0459a'), critter(1, '#ff8ad8', '#b0459a')]);
+  reg('house', [houseOut(false), houseOut(true)]);
+  reg('rat', [moonRat(0, false), moonRat(1, false)]);
+  reg('ratFed', [moonRat(0, true), moonRat(1, true)]);
+  reg('cheese', [cheese(false), cheese(true)]);
+  for (let i = 0; i < 4; i++) reg('litter' + i, [litter(i)]);
   reg('flag', [flag(0), flag(1)], 3);
   reg('skull', [celestialHead()]);
   reg('tape', [tapeDeck(0), tapeDeck(1)]);

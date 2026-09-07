@@ -4,21 +4,23 @@
   'use strict';
   const U = PD.util;
   const G = PD.glyph;
+  const X = PD.pxd;
 
   const VW = 480, VH = 270;
 
+  /* Three keys, never more, each one big enough to hit without looking and
+     labelled with a word rather than a symbol you have to decode. */
   const cfg = {
     stick: { x: 62, y: VH - 60, r: 36, knob: 15 },
     play: {
-      dash: { x: VW - 34, y: VH - 74, r: 16, glyph: 'dash', col: '#ffd34d', key: 'shift' },
-      scan: { x: VW - 72, y: VH - 92, r: 13, glyph: 'scan', col: '#8affa0', key: 'Tab' },
-      use:  { x: VW - 30, y: VH - 116, r: 13, glyph: 'home', col: '#ffb03d', key: 'KeyE' },
-      beam: { x: VW - 76, y: VH - 130, r: 11, glyph: 'hole', col: '#ff5a4d', key: 'KeyR', hold: true }
+      dash: { x: VW - 40, y: VH - 44, r: 22, glyph: 'dash', col: '#ffd34d', key: 'shift', label: 'DASH' },
+      scan: { x: VW - 40, y: VH - 100, r: 20, glyph: 'scan', col: '#8affa0', key: 'Tab', label: 'FIND' },
+      use:  { x: VW - 40, y: VH - 152, r: 20, glyph: 'home', col: '#ffb03d', key: 'KeyE', label: 'SHIP' }
     },
     home: {
-      jump: { x: VW - 34, y: VH - 74, r: 18, glyph: 'up', col: '#7ef9ff', key: 'up' },
-      roll: { x: VW - 78, y: VH - 50, r: 14, glyph: 'dash', col: '#ffd34d', key: 'shift' },
-      use:  { x: VW - 78, y: VH - 92, r: 14, glyph: 'hand', col: '#ffb03d', key: 'KeyE' }
+      jump: { x: VW - 40, y: VH - 44, r: 24, glyph: 'up', col: '#7ef9ff', key: 'up', label: 'JUMP' },
+      use:  { x: VW - 40, y: VH - 104, r: 22, glyph: 'hand', col: '#ffb03d', key: 'KeyE', label: 'USE' },
+      roll: { x: VW - 40, y: VH - 158, r: 18, glyph: 'dash', col: '#ffd34d', key: 'shift', label: 'ROLL' }
     }
   };
 
@@ -58,7 +60,7 @@
         }
         if (took) continue;
         if (state.mode === 'play') {
-          if (p.x < VW * 0.42) { state.stickId = tch.identifier; state.sx = p.x; state.sy = p.y; state.dx = state.dy = 0; }
+          if (p.x < VW * 0.44) { state.stickId = tch.identifier; state.sx = p.x; state.sy = p.y; state.dx = state.dy = 0; }
           else { state.aimId = tch.identifier; state.ax = p.x; state.ay = p.y; state.aiming = true; }
         } else if (state.mode === 'home' && p.x < VW * 0.5 && p.y > VH * 0.45) {
           // left half of the moon: a held touch walks you that way
@@ -139,18 +141,35 @@
     const pressed = !!state.down[k];
     state.pressAnim[k] = U.damp(state.pressAnim[k] || 0, pressed ? 1 : 0, 0.3, 1 / 60);
     const a = state.pressAnim[k];
-    const r = c.r * (1 + a * 0.1);
-    G.hex(ctx, c.x, c.y, r + 2, 'rgba(8,4,18,0.72)', null);
-    ctx.globalAlpha = 0.18 + a * 0.5; G.hex(ctx, c.x, c.y, r, c.col, null); ctx.globalAlpha = 1;
-    G.hex(ctx, c.x, c.y, r, null, c.col, pressed ? 2 : 1);
-    G.draw(ctx, c.glyph, c.x - 7, c.y - 7, '#ffffff', c.col);
+    // BOUNCY: a key you press squashes and springs back past its own size
+    const r = c.r * (1 + a * 0.18 - (pressed ? 0.1 : 0));
+    G.hex(ctx, c.x, c.y + 2, r + 2, 'rgba(8,4,18,0.8)', null);
+    ctx.globalAlpha = 0.26 + a * 0.5; G.hex(ctx, c.x, c.y, r, c.col, null); ctx.globalAlpha = 1;
+    G.hex(ctx, c.x, c.y, r, null, pressed ? '#ffffff' : c.col, pressed ? 3 : 2);
+    G.draw(ctx, c.glyph, c.x - 7, c.y - 11, '#ffffff', c.col);
+    if (c.label) PD.font.draw(ctx, c.label, c.x, c.y + 4, '#ffffff', { center: true, shadow: '#0b0718' });
   }
 
   function draw(ctx, mode, g) {
     if (!state.enabled || mode === 'ui') return;
-    if (mode === 'home') { const keys = keysFor(mode); for (const k in keys) padKey(ctx, k, keys[k]); return; }
+    if (mode === 'home') {
+      const keys = keysFor(mode);
+      for (const k in keys) padKey(ctx, k, keys[k]);
+      PD.font.draw(ctx, 'TAP WHERE YOU WANT TO GO', 10, VH - 14, 'rgba(201,188,232,0.7)', { shadow: '#0b0718' });
+      return;
+    }
     const t = g ? g.time : 0;
     if (mode === 'play') {
+      // the drill is the whole right half: hold anywhere and aim with the same
+      // finger. It is the one thing you do most, so it gets the most screen.
+      const held = state.aiming;
+      ctx.globalAlpha = held ? 0.1 : 0.05;
+      X.dither(ctx, VW * 0.44, 26, VW * 0.56 - 76, VH - 52, held ? '#ffd34d' : '#c9bce8', 0);
+      ctx.globalAlpha = 1;
+      // the hint stops nagging the moment you have actually drilled something
+      if (!held && g && g.save && g.save.totalMined < 8) {
+        PD.font.draw(ctx, 'HOLD HERE TO AIM + DRILL', VW * 0.5 + 88, VH - 22, 'rgba(255,211,77,0.8)', { center: true, shadow: '#0b0718' });
+      }
       const s = cfg.stick;
       G.hex(ctx, s.x, s.y, s.r + 4, 'rgba(8,4,18,0.55)', null);
       G.hex(ctx, s.x, s.y, s.r, null, '#7ef9ff', 1);
@@ -158,7 +177,8 @@
       for (let i = 0; i < 6; i++) { const a = i * Math.PI / 3 - Math.PI / 2; G.hex(ctx, s.x + Math.cos(a) * (s.r - 7), s.y + Math.sin(a) * (s.r - 7), 2, '#7ef9ff', null); }
       ctx.globalAlpha = 1;
       const kx = s.x + state.dx * (s.r - s.knob), ky = s.y + state.dy * (s.r - s.knob);
-      G.hex(ctx, kx, ky, s.knob, 'rgba(126,249,255,' + (state.stickId !== null ? 0.6 : 0.35) + ')', '#eafcff', 1);
+      G.hex(ctx, kx, ky, s.knob * (state.stickId !== null ? 1.12 : 1), 'rgba(126,249,255,' + (state.stickId !== null ? 0.65 : 0.35) + ')', '#eafcff', 2);
+      PD.font.draw(ctx, 'FLY', s.x, s.y + s.r + 6, 'rgba(126,249,255,0.8)', { center: true, shadow: '#0b0718' });
     }
     const keys = keysFor(mode);
     for (const k in keys) padKey(ctx, k, keys[k]);
@@ -168,8 +188,9 @@
       G.hexProgress(ctx, cfg.play.scan.x, cfg.play.scan.y, cfg.play.scan.r + 4, 1 - p.scanCool / 4, '#8affa0');
     }
     if (state.aiming && mode === 'play') {
-      G.hex(ctx, state.ax, state.ay, 9, null, '#ffd34d', 1);
-      G.hex(ctx, state.ax, state.ay, 3, null, '#ffffff', 1);
+      const pu = 1 + Math.sin(t * 14) * 0.16;
+      G.hex(ctx, state.ax, state.ay, 11 * pu, null, '#ffd34d', 2);
+      G.hex(ctx, state.ax, state.ay, 4, null, '#ffffff', 2);
     }
   }
 

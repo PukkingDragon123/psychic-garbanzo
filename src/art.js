@@ -61,9 +61,27 @@
     brass: '#b08a3a', brassL: '#e6c26a'
   };
 
+  /* Draw into a bigger sheet without touching a single hand-placed coordinate:
+     every call is forwarded with a constant offset. The alien grew hair and a
+     moustache that need headroom, and this buys it for free. */
+  function offsetPix(raw, ox, oy) {
+    return {
+      set: (x, y, c) => raw.set(x + ox, y + oy, c),
+      rect: (x, y, w, h, c) => raw.rect(x + ox, y + oy, w, h, c),
+      round: (x, y, w, h, r, c) => raw.round(x + ox, y + oy, w, h, r, c),
+      line: (a, b, c2, d, e) => raw.line(a + ox, b + oy, c2 + ox, d + oy, e),
+      spike: (x, y, w, h, d, c) => raw.spike(x + ox, y + oy, w, h, d, c),
+      disc: (x, y, r, c) => raw.disc(x + ox, y + oy, r, c),
+      ellipse: (x, y, rx, ry, c) => raw.ellipse(x + ox, y + oy, rx, ry, c),
+      shade: (a, b, dx, dy) => raw.shade(a, b, dx, dy),
+      outline: (c) => raw.outline(c)
+    };
+  }
+
   function buildAlien(pose, f, P, blink) {
     P = P || C;
-    const p = pix(64, 84);
+    const sheet = pix(72, 104);
+    const p = offsetPix(sheet, 4, 16);
     const walk = pose === 'walk', fly = pose === 'fly', drill = pose === 'drill', roll = pose === 'roll';
     const skin = P.skin, skinD = P.skinD, skinL = P.skinL;
 
@@ -83,10 +101,15 @@
       p.rect(22, 58, 12, 2, C.ink);
       p.disc(50, 52, 5, skin); p.disc(14, 52, 5, skin);
       p.outline(C.ink);
-      return p;
+      return sheet;
     }
 
-    const bob = fly ? -2 : (walk ? [0, -1, 0, 1][f % 4] : (f === 1 ? 1 : 0));
+    // THE NOSE JIGGLES. It is the heaviest thing on him and it never quite
+    // settles: every frame of every pose shifts it, so it wobbles on its own
+    // even when he is standing perfectly still.
+    const nj = [0, 2, 3, 1][f % 4];              // how far it has drooped
+    const nx = [0, 1, 0, -1][f % 4];             // and which way it swung
+    const bob = fly ? -2 : (walk ? [0, -1, 0, 1][f % 4] : [0, 1, 1, 0][f % 4]);
     const lean = drill ? 4 : 0;
     const jit = drill ? (f % 2 ? 1 : -1) : 0;
     const hy = 15 + bob;                  // head centre
@@ -168,7 +191,7 @@
     p.rect(bx - 6, ny + 11, 13, 1, '#b8b49c');
 
     /* ---- the head: tall, lumpy, hook-nosed, permanently unimpressed ---- */
-    p.round(hx - 12, hy - 14, 24, 30, 8, skin);
+    p.round(hx - 12, hy - 14, 24, 32, 8, skin);
     p.shade(skin, skinD, 0, 1);
     p.round(hx - 9, hy - 13, 14, 6, 3, skinL);           // a shiny bald dome
     p.round(hx - 15, hy - 2, 5, 10, 2, skin);            // ears, different heights
@@ -186,37 +209,54 @@
       p.rect(hx - 11, hy - 8, 11, 1, skinD);
       p.rect(hx - 11, hy + 4, 11, 1, skinD);
     }
-    // the nose: a hooked wedge that arrives in the room before he does. It gets
-    // its own shadow so it stands off the face instead of sinking into it.
-    p.round(hx - 4, hy - 7, 11, 19, 4, skinD);
-    p.round(hx - 3, hy - 8, 9, 18, 4, skin);
-    p.round(hx - 2, hy - 7, 6, 15, 3, skinL);
-    p.round(hx - 3, hy + 3, 13, 8, 3, skin);            // the hook, swinging right
-    p.round(hx - 2, hy + 3, 10, 6, 3, skinL);
-    p.rect(hx - 3, hy + 10, 14, 1, skinD);
-    p.rect(hx + 10, hy + 3, 1, 8, skinD);
-    p.set(hx - 1, hy + 9, C.ink); p.set(hx + 4, hy + 9, C.ink);
-    // mouth: a flat line of disappointment, or gritted teeth when drilling
-    if (drill) { p.rect(hx - 9, hy + 12, 12, 4, C.ink); for (let i = 0; i < 4; i++) p.rect(hx - 8 + i * 3, hy + 13, 2, 2, C.white); }
-    else { p.rect(hx - 9, hy + 13, 11, 2, C.ink); p.set(hx - 10, hy + 12, C.ink); p.set(hx + 2, hy + 14, C.ink); }
-    p.rect(hx - 8, hy + 16, 13, 2, skinD);              // chin, the first of several
+    // THE NOSE: a hooked wedge that arrives in the room before he does, and it
+    // never holds still. nj/nx swing it a few pixels every frame, so it jiggles
+    // whatever he is doing. It gets its own cast shadow so it stands off the
+    // face instead of sinking into it.
+    const ny2 = hy + nj, nxx = hx + nx;
+    p.round(nxx - 5, ny2 - 7, 13, 20, 4, skinD);        // the shadow it throws
+    p.round(nxx - 4, ny2 - 8, 11, 19, 4, skin);
+    p.round(nxx - 3, ny2 - 7, 7, 16, 3, skinL);
+    p.round(nxx - 4, ny2 + 2, 18, 9, 3, skin);          // the hook, jutting past the cheek
+    p.round(nxx - 3, ny2 + 2, 13, 6, 3, skinL);
+    p.rect(nxx - 4, ny2 + 10, 19, 1, skinD);
+    p.rect(nxx + 14, ny2 + 2, 1, 9, skinD);
+    p.set(nxx - 1, ny2 + 9, C.ink); p.set(nxx + 4, ny2 + 9, C.ink);
+    // a MOUSTACHE, hung off the underside of it, swinging with the nose
+    const MO = '#2f3a22', MOL = '#4a5a35';
+    const my2 = ny2 + 10;
+    p.rect(nxx - 12, my2, 25, 4, MO);
+    p.rect(nxx - 14, my2 + 2, 4, 4, MO);
+    p.rect(nxx + 12, my2 + 2, 4, 4, MO);
+    p.rect(nxx - 11, my2 + 4, 7, 2, MO);
+    p.rect(nxx + 5, my2 + 4, 7, 2, MO);
+    p.rect(nxx - 11, my2, 23, 1, MOL);
+    p.set(nxx - 13, my2 + 5, MO); p.set(nxx + 15, my2 + 5, MO);
+    // mouth: a flat line of disappointment under it, or gritted teeth
+    if (drill) { p.rect(hx - 8, hy + 14, 11, 4, C.ink); for (let i = 0; i < 4; i++) p.rect(hx - 7 + i * 3, hy + 15, 2, 2, C.white); }
+    else { p.rect(hx - 8, hy + 15, 10, 2, C.ink); p.set(hx - 9, hy + 14, C.ink); p.set(hx + 2, hy + 16, C.ink); }
+    p.rect(hx - 8, hy + 17, 13, 2, skinD);              // chin, the first of several
     // one drooping antenna with a bulb that stopped working long ago
-    const aw = walk ? [2, 0, -2, 0][f % 4] : (f === 1 ? 1 : 0);
+    const aw = walk ? [2, 0, -2, 0][f % 4] : [0, 1, 1, 0][f % 4];
     p.line(hx + 3, hy - 14, hx + 7 + aw, hy - 21, skinD);
     p.line(hx + 7 + aw, hy - 21, hx + 11 + aw, hy - 19, skinD);
     p.disc(hx + 12 + aw, hy - 18, 2.4, f === 2 ? C.gold : '#6b6450');
-    // three stray hairs he is very proud of
-    p.set(hx - 6, hy - 16, skinD); p.set(hx - 7, hy - 18, skinD);
-    p.set(hx - 3, hy - 17, skinD); p.set(hx - 2, hy - 19, skinD);
-    p.set(hx + 1, hy - 16, skinD);
+    // EXACTLY THREE STRANDS OF HAIR, and he is very proud of all of them
+    const hw = [0, 1, 2, 1][f % 4];                      // they sway too
+    for (let i = 0; i < 3; i++) {
+      const sx2 = hx - 7 + i * 5, sh = 9 + i * 2, curl = (i % 2 ? 1 : -1);
+      p.line(sx2, hy - 14, sx2 + curl + hw * curl, hy - 14 - sh, skinD);
+      p.line(sx2 + 1, hy - 14, sx2 + 1 + curl + hw * curl, hy - 14 - sh, skinD);
+      p.set(sx2 + curl * 2 + hw * curl, hy - 15 - sh, skinL);
+    }
 
     p.outline(C.ink);
-    return p;
+    return sheet;
   }
 
   function alienSet(P) {
     return {
-      idle: [buildAlien('idle', 0, P), buildAlien('idle', 1, P), buildAlien('idle', 0, P, true)],
+      idle: [0, 1, 2, 3].map(i => buildAlien('idle', i, P)).concat([buildAlien('idle', 0, P, true)]),
       walk: [0, 1, 2, 3].map(i => buildAlien('walk', i, P)),
       fly: [buildAlien('fly', 0, P), buildAlien('fly', 1, P)],
       drill: [buildAlien('drill', 0, P), buildAlien('drill', 1, P), buildAlien('drill', 2, P)],
@@ -225,12 +265,12 @@
   }
 
   const base = alienSet(C);
-  const AOX = 16, AOY = 30;                         // logical anchor: the belly
+  const AOX = 18, AOY = 37;                         // logical anchor: the belt
   reg('alien', base.idle, AOX, AOY, 2);
   reg('alienWalk', base.walk, AOX, AOY, 2);
   reg('alienFly', base.fly, AOX, AOY, 2);
   reg('alienDrill', base.drill, AOX, AOY, 2);
-  reg('alienRoll', base.roll, AOX, 28, 2);
+  reg('alienRoll', base.roll, AOX, 35, 2);
 
   /* ------------------------------------------------------------------- drill
      Horizontal, pointing right, anchored at the shoulder end. */
@@ -593,46 +633,78 @@
      and one big thruster. Heads right. */
   /* The pod at 2x: little, fat, riveted, with a bubble dome you can see into,
      twin nacelles, landing skids and a working exhaust. */
-  function buildPod(phase, P) {
-    P = P || { met: C.met, metD: C.metD, metDD: C.metDD };
-    const p = pix(92, 64);
+  /* THE DUMB UFO. One saucer, built once, used everywhere: it is the thing
+     parked on bricks outside your house AND the thing hanging over the dig
+     site. Wonky, dented, a satellite dish gaffer-taped to the roof, one leg
+     that gave up years ago. Faceted throughout -- no ovals in it anywhere. */
+  function buildSaucer(phase, P, landed) {
+    P = P || { met: '#b6b0c8', metD: '#8e86a8', metDD: '#7d7396' };
+    const p = pix(132, 76);
     const f = phase ? 1 : 0;
-    // engine block and nacelles
-    p.round(0, 26, 24, 24, 8, P.metDD);
-    p.round(4, 30, 12, 16, 6, C.ink2);
-    p.round(5, 33 + f * 2, 8, 9, 3, f ? C.orange : C.orangeD);
-    p.round(6, 35 + f * 2, 5, 5, 2, f ? C.gold : C.orange);
-    p.round(12, 12, 16, 12, 6, P.metD); p.round(12, 48, 16, 12, 6, P.metD);
-    p.rect(13, 16, 4, 4, f ? C.cyan : P.metDD); p.rect(13, 52, 4, 4, f ? C.cyan : P.metDD);
-    // fat hull
-    p.round(16, 18, 68, 36, 18, P.met);
-    p.shade(P.met, P.metD, 0, 1);
-    p.round(22, 22, 54, 7, 3, C.white);
-    p.round(20, 42, 60, 10, 4, P.metD);
-    p.round(30, 44, 40, 5, 2, C.gold);
-    for (let i = 0; i < 7; i++) { p.disc(26 + i * 8, 40, 1.4, P.metDD); }
-    // dome and pilot seat
-    p.disc(46, 20, 16, C.glass);
-    p.disc(46, 22, 12, C.ink2);
-    p.ellipse(40, 14, 6, 3, C.glassL);
-    p.round(38, 24, 16, 10, 4, P.metDD);
-    p.round(40, 26, 12, 6, 3, '#ff5fa8');
-    // nose cowl and headlight
-    p.round(76, 28, 16, 16, 6, C.suit);
-    p.rect(88, 32, 4, 8, C.cyan);
-    p.disc(82, 36, 4, f ? '#fff6c8' : C.gold);
-    p.disc(83, 35, 1.5, C.white);
-    // skids
-    p.rect(26, 56, 6, 6, P.metDD); p.rect(62, 56, 6, 6, P.metDD);
-    p.round(20, 60, 20, 4, 2, P.metD); p.round(56, 60, 20, 4, 2, P.metD);
-    // running lights
-    p.disc(66, 26, 3, C.red); p.disc(28, 26, 3, C.lime);
+    const HULL = P.met, HULD = P.metD, HULDD = P.metDD;
+
+    // the skirt: a wide bevelled slab, widest at the rim
+    p.round(4, 30, 124, 14, 7, HULD);
+    p.round(10, 26, 112, 14, 7, HULL);
+    p.shade(HULL, HULDD, 0, 1);
+    p.round(22, 22, 88, 10, 5, '#d6d0e8');
+    p.rect(14, 36, 104, 2, HULDD);
+
+    // the dome, a cut-glass box with a pilot-shaped hole in it
+    p.round(44, 2, 44, 24, 10, C.glass);
+    p.round(50, 7, 32, 15, 6, '#2a2440');
+    p.rect(54, 10, 8, 3, '#eafcff');
+    p.rect(50, 5, 32, 2, C.glassL);
+
+    // dents: this thing has been reversed into a moon
+    p.round(2, 34, 22, 10, 4, '#8e86a8');
+    p.round(108, 34, 22, 10, 4, '#8e86a8');
+    p.rect(38, 28, 22, 3, '#c46a3a');                    // rust
+    p.rect(76, 30, 14, 2, '#c46a3a');
+    p.rect(28, 24, 10, 2, '#c46a3a');
+
+    // rim lights, chasing
+    for (let i = 0; i < 8; i++) {
+      const on = (i + f) % 2 === 0;
+      p.round(14 + i * 14, 38, 8, 6, 2, on ? '#ffd34d' : '#5a5474');
+      if (on) p.rect(15 + i * 14, 39, 6, 2, '#fff3c0');
+    }
+
+    // a satellite dish taped to the roof, aimed at nothing
+    p.rect(92, 2, 3, 22, P.metDD || '#39405e');
+    p.round(84, 0, 22, 8, 4, '#8e86a8');
+    p.round(88, 1, 14, 5, 2, '#c9c4b4');
+    p.rect(88, 10, 12, 3, '#ffe98a');                    // the tape
+    p.rect(90, 13, 8, 2, '#e0c96a');
+
+    if (landed) {
+      // up on two bricks, with one leg that has given up
+      p.round(20, 44, 24, 14, 3, '#8a5a3a');
+      p.round(88, 44, 24, 14, 3, '#8a5a3a');
+      p.rect(22, 48, 20, 2, '#6b4530');
+      p.rect(90, 48, 20, 2, '#6b4530');
+      p.rect(24, 54, 20, 2, '#6b4530');
+      p.round(60, 42, 8, 18, 3, '#39405e');
+      p.round(52, 58, 24, 6, 2, '#5e6688');
+      p.round(74, 50, 16, 5, 2, '#39405e');              // the collapsed one
+      p.rect(86, 54, 10, 3, '#5e6688');
+    } else {
+      // in flight: skids tucked, and a wash of light under the belly
+      p.round(26, 44, 14, 8, 3, '#39405e');
+      p.round(92, 44, 14, 8, 3, '#39405e');
+      const glow = f ? '#ffe08a' : '#ffb03d';
+      p.round(40, 44, 52, 8, 4, glow);
+      p.round(50, 48, 32, 8, 4, f ? '#ffd34d' : '#ff9b3d');
+      p.round(58, 54, 16, 8, 4, f ? '#fff6c8' : '#ffd34d');
+      p.rect(6, 40, 8, 3, f ? '#7ef9ff' : '#2f8fae');
+      p.rect(118, 40, 8, 3, f ? '#7ef9ff' : '#2f8fae');
+    }
     p.outline(C.ink);
     return p;
   }
+  PD.buildSaucer = buildSaucer;
 
-
-  reg('pod', [buildPod(0), buildPod(1)], 23, 18, 2);
+  reg('pod', [buildSaucer(0), buildSaucer(1)], 33, 22, 2);
 
   /* LOOT CRATE: precursor supply case. */
   function buildCrate(open) {
@@ -845,15 +917,15 @@
       alienWalk: mk(frames.walk, AOX, AOY, 2),
       alienFly: mk(frames.fly, AOX, AOY, 2),
       alienDrill: mk(frames.drill, AOX, AOY, 2),
-      alienRoll: mk(frames.roll, AOX, 28, 2),
+      alienRoll: mk(frames.roll, AOX, 35, 2),
       drill: mk([0, 1, 2, 3].map(i => buildDrill(i, DP)), 5, 6, 2),
       ship: mk([buildShip(false, SP), buildShip(true, SP)], 42, 26),
-      pod: mk([buildPod(0, SP), buildPod(1, SP)], 23, 18, 2),
+      pod: mk([buildSaucer(0, SP), buildSaucer(1, SP)], 33, 22, 2),
       P: P
     };
     skinCache[key] = set;
     return set;
   }
 
-  PD.art = { C, sprites, gemFor, oreChip, buildOre, ICON, skinFor, optOf, reg, blit, pixOf: pix };
+  PD.art = { C, sprites, gemFor, oreChip, buildOre, ICON, skinFor, optOf, reg, blit, buildSaucer, pixOf: pix };
 })(window.PD);

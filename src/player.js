@@ -507,7 +507,7 @@
     // the body first, then the drill in his hands
     let frame;
     if (drilling) frame = Math.floor(t * 30) % 3;
-    else if (spr === skin.alien) frame = this.blink < 0 ? 2 : (this.squish > 0.25 ? 1 : 0);
+    else if (spr === skin.alien) frame = this.blink < 0 ? 4 : Math.floor(t * 7) % 4;   // the nose never settles
     else frame = Math.floor(this.anim) % 2;
     PD.ent.drawSprite(ctx, spr, frame, px, py - 1, flip, this.hurtT > 0.15);
 
