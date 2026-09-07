@@ -18,7 +18,7 @@
   const SH = [[8, -13], [-12, -13]];      // shoulders: [near side, far side]
   const HIP = [[5, 10], [-9, 10]];        // hips
   const FOOT_Y = 32;                      // where the shoes sit at rest
-  const UP = 11, FORE = 12;               // arm bones
+  const UP = 9, FORE = 10;                // arm bones: short and spindly
   const TH = 14, SHIN = 14;               // leg bones
   const STRIDE = 20, LIFT = 10;           // walk: how far and how high
   /* The body is lifted by this much so the longer legs have somewhere to be;
@@ -47,10 +47,10 @@
     const q = Math.round(ang / (Math.PI / 4)) * (Math.PI / 4);
     const fx = Math.cos(q), fy = Math.sin(q);
     const px = -fy, py = fx;
-    X.knob(ctx, x, y, 4, P.skin, P.skinL);
+    X.knob(ctx, x, y, 3, P.skin, P.skinL);
     for (let i = -1; i <= 1; i++) {
-      const bx = x + px * i * 3, by = y + py * i * 3;
-      X.limb(ctx, bx, by, bx + fx * (i ? 5 : 7), by + fy * (i ? 5 : 7), 3, 2, P.skin, null, P.skinD);
+      const bx = x + px * i * 2.5, by = y + py * i * 2.5;
+      X.limb(ctx, bx, by, bx + fx * (i ? 4 : 6), by + fy * (i ? 4 : 6), 3, 2, P.skin, null, P.skinD);
     }
   }
 
@@ -200,12 +200,12 @@
       hang = Math.PI / 2 + sw * 0.04;
     }
     const elb = ik(sx, sy, tx, ty, UP, FORE, i ? 1 : -1, 1.38);
-    X.knob(ctx, sx, sy + 1, 6, mid, lit);                 // shoulder pad
-    X.limb(ctx, sx, sy, elb.x, elb.y, 9, 8, mid, lit, dark);
-    X.limb(ctx, elb.x, elb.y, tx, ty, 8, 7, mid, lit, dark);
-    X.knob(ctx, elb.x, elb.y, 4, mid, lit);
+    X.knob(ctx, sx, sy + 1, 5, mid, lit);                 // shoulder pad
+    X.limb(ctx, sx, sy, elb.x, elb.y, 7, 6, mid, lit, dark);
+    X.limb(ctx, elb.x, elb.y, tx, ty, 6, 5, mid, lit, dark);
+    X.knob(ctx, elb.x, elb.y, 3, mid, lit);
     // a cuff, because the jacket is not his size
-    X.knob(ctx, tx - Math.cos(hang) * 4, ty - Math.sin(hang) * 4, 4, B.shirt, null);
+    X.knob(ctx, tx - Math.cos(hang) * 3, ty - Math.sin(hang) * 3, 3, B.shirt, null);
     hand(ctx, tx, ty, hang, P);
     r.hand[i] = { x: tx, y: ty };
   }

@@ -22,14 +22,15 @@
   const X = PD.pxd;
 
   const VW = 480, VH = 270;
-  /* THE MOON IS A BALL. Its centre is a long way below the bottom of the
-     screen, so the arc across the top is the bit you can walk on: 344 pixels
-     of it end to end, and space on both sides. Outside is exactly one screen
-     wide and never scrolls -- the moon is an object you look at, not a
-     corridor you travel down. */
-  const MOON = { cx: 240, cy: 314, r: 172 };
+  /* THE MOON. Its centre is a long way below the bottom of the screen, so what
+     you get is the top of it -- but you are standing much closer to it than a
+     toy globe: the curve is gentle, the limb runs off the bottom corners of
+     the screen, and the surface is LUMPY rather than a clean arc. It is a
+     chipped rock, not a ball. Outside is exactly one screen wide and never
+     scrolls -- the moon is an object you look at, not a corridor. */
+  const MOON = { cx: 240, cy: 440, r: 300 };
   const OUT_W = 480, IN_W = 232;
-  const WALK = 102;                  // how far round the curve he can get
+  const WALK = 150;                  // how far round the curve he can get
   const FLOOR = 216;                 // the room floor, inside
   const CEIL = 124;                  // the underside of the rock roof, inside
   const GRAV = 300;                  // low: everything here is bouncy
@@ -47,18 +48,24 @@
     return S.scene === 'out' ? [MOON.cx - WALK, MOON.cx + WALK] : [20, IN_W - 20];
   }
 
-  /* Flat indoors. Outside it is the top of a circle, rasterised to whole
-     pixels so the ground he stands on is exactly the ground you can see. */
+  /* Flat indoors. Outside it is the top of a big circle plus a stack of
+     wobbles, rasterised to whole pixels so the ground he stands on is exactly
+     the ground you can see. The wobbles are what stop it being a ball: ridges,
+     a dip and a shoulder, all deterministic. */
+  function lumpAt(x) {
+    return Math.sin(x * 0.0131 + 0.4) * 7
+      + Math.sin(x * 0.0327 + 1.7) * 4
+      + Math.sin(x * 0.0713 + 2.9) * 2;
+  }
   function groundY(x) {
     if (S.scene === 'in') return FLOOR;
     const dx = x - MOON.cx;
     if (Math.abs(dx) >= MOON.r) return 1e4;
-    return Math.round(MOON.cy - Math.sqrt(MOON.r * MOON.r - dx * dx));
+    return Math.round(MOON.cy - Math.sqrt(MOON.r * MOON.r - dx * dx) - lumpAt(x));
   }
   /* The slope under his feet, for dust and for standing on a hill. */
   function slopeAt(x) {
-    const dx = U.clamp(x - MOON.cx, -MOON.r + 1, MOON.r - 1);
-    return dx / Math.sqrt(Math.max(1, MOON.r * MOON.r - dx * dx));
+    return (groundY(x + 3) - groundY(x - 3)) / 6;
   }
 
   const P = {
@@ -70,8 +77,8 @@
 
   /* ------------------------------------------------------------------ spots */
   const OUT_SPOTS = [
-    { id: 'door', x: 196, r: 36, name: 'THE ROCK HOUSE', sub: 'GO INSIDE' },
-    { id: 'ufo', x: 300, r: 40, name: 'YOUR DUMB UFO', sub: 'GO AND HIT A PLANET' }
+    { id: 'door', x: 172, r: 38, name: 'THE ROCK HOUSE', sub: 'GO INSIDE' },
+    { id: 'ufo', x: 320, r: 42, name: 'YOUR DUMB UFO', sub: 'GO AND HIT A PLANET' }
   ];
   const IN_SPOTS = [
     { id: 'pc', x: 40, r: 32, name: 'THE COMPUTER', sub: 'ABAY IS ON IT' },
@@ -83,10 +90,10 @@
 
   /* --------------------------------------------------------------- scenery */
   const OUT_ROCKS = [];
-  for (let i = 0; i < 16; i++) OUT_ROCKS.push({ x: MOON.cx + (U.hash2(i, 3) * 2 - 1) * 158, k: (U.hash2(i, 9) * 3) | 0 });
+  for (let i = 0; i < 22; i++) OUT_ROCKS.push({ x: MOON.cx + (U.hash2(i, 3) * 2 - 1) * 244, k: (U.hash2(i, 9) * 3) | 0 });
   const CRATERS = [];
-  for (let i = 0; i < 10; i++) CRATERS.push({ x: MOON.cx + (U.hash2(i, 21) * 2 - 1) * 150, r: 5 + U.hash2(i, 33) * 13 });
-  const RUINS = [{ x: 118, k: 2 }, { x: 372, k: 1 }];
+  for (let i = 0; i < 14; i++) CRATERS.push({ x: MOON.cx + (U.hash2(i, 21) * 2 - 1) * 240, r: 5 + U.hash2(i, 33) * 15 });
+  const RUINS = [{ x: 56, k: 2 }, { x: 428, k: 1 }];
   const MOTES = [];
   for (let i = 0; i < 26; i++) MOTES.push({ x: U.hash2(i, 61), y: 60 + U.hash2(i, 67) * 150, r: U.hash2(i, 71), sp: 2 + U.hash2(i, 73) * 7 });
 
@@ -423,12 +430,14 @@
     }
     for (const r of RUINS) { const gy = groundY(r.x); if (gy < VH) AH.blit(ctx, AH.S['ruin' + r.k], 0, r.x - cam, gy + 2); }
     for (const r of OUT_ROCKS) { const gy = groundY(r.x); if (gy < VH) AH.blit(ctx, AH.S['rock' + r.k], 0, r.x - cam, gy + 2); }
-    // a rim of dust hanging off the limb, so the edge reads as curved
+    // a rim of dust sitting on the skyline, thickest out at the ends where the
+    // ground is falling away from you
     ctx.globalAlpha = 0.3;
-    for (let a = -1.35; a < 1.36; a += 0.045) {
-      const rx = MOON.cx + Math.sin(a) * (MOON.r + 3), ry = MOON.cy - Math.cos(a) * (MOON.r + 3);
-      if (ry > VH) continue;
-      X.rect(ctx, rx, ry, 2, 2, '#6b6480');
+    for (let sx = x0; sx <= x1; sx += 4) {
+      const gy = groundY(sx + cam);
+      if (gy > VH) continue;
+      const edge = Math.abs(sx - MOON.cx) / 240;
+      if (U.hash2(sx, 3) > 0.55 - edge * 0.4) X.rect(ctx, sx, gy - 2 - ((U.hash2(sx, 5) * 3) | 0), 2, 2, '#6b6480');
     }
     ctx.globalAlpha = 1;
     void t;

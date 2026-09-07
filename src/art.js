@@ -222,28 +222,42 @@
     // never holds still. nj/nx swing it a few pixels every frame, so it jiggles
     // whatever he is doing. It gets its own cast shadow so it stands off the
     // face instead of sinking into it.
+    /* Smaller than it was -- it used to be most of his face. Still a hooked
+       wedge, still jutting past the cheek, still jiggling; just no longer the
+       largest thing in the room. */
     const ny2 = hy + nj, nxx = hx + nx;
-    p.round(nxx - 5, ny2 - 7, 13, 20, 4, skinD);        // the shadow it throws
-    p.round(nxx - 4, ny2 - 8, 11, 19, 4, skin);
-    p.round(nxx - 3, ny2 - 7, 7, 16, 3, skinL);
-    p.round(nxx - 4, ny2 + 2, 18, 9, 3, skin);          // the hook, jutting past the cheek
-    p.round(nxx - 3, ny2 + 2, 13, 6, 3, skinL);
-    p.rect(nxx - 4, ny2 + 10, 19, 1, skinD);
-    p.rect(nxx + 14, ny2 + 2, 1, 9, skinD);
-    p.set(nxx - 1, ny2 + 9, C.ink); p.set(nxx + 4, ny2 + 9, C.ink);
-    // a MOUSTACHE, hung off the underside of it, swinging with the nose
-    const MO = '#2f3a22', MOL = '#4a5a35';
-    const my2 = ny2 + 10;
-    p.rect(nxx - 12, my2, 25, 4, MO);
-    p.rect(nxx - 14, my2 + 2, 4, 4, MO);
-    p.rect(nxx + 12, my2 + 2, 4, 4, MO);
-    p.rect(nxx - 11, my2 + 4, 7, 2, MO);
-    p.rect(nxx + 5, my2 + 4, 7, 2, MO);
-    p.rect(nxx - 11, my2, 23, 1, MOL);
-    p.set(nxx - 13, my2 + 5, MO); p.set(nxx + 15, my2 + 5, MO);
+    p.round(nxx - 4, ny2 - 5, 10, 15, 3, skinD);        // the shadow it throws
+    p.round(nxx - 3, ny2 - 6, 9, 14, 3, skin);
+    p.round(nxx - 2, ny2 - 5, 6, 12, 3, skinL);
+    p.round(nxx - 3, ny2 + 2, 13, 7, 3, skin);          // the hook, past the cheek
+    p.round(nxx - 2, ny2 + 2, 9, 5, 2, skinL);
+    p.rect(nxx - 3, ny2 + 8, 14, 1, skinD);
+    p.rect(nxx + 9, ny2 + 2, 1, 7, skinD);
+    p.set(nxx - 1, ny2 + 7, C.ink); p.set(nxx + 3, ny2 + 7, C.ink);
+    /* A MOUSTACHE, and now it is the biggest thing on him: a full bush hung
+       off the underside of the nose with waxed tips curling up at both ends,
+       and it swings with the nose. */
+    const MO = '#2f3a22', MOL = '#4a5a35', MOD = '#1c2415';
+    const my2 = ny2 + 8;
+    p.rect(nxx - 15, my2, 32, 5, MO);                   // the bush
+    p.rect(nxx - 13, my2 + 5, 28, 3, MO);
+    p.rect(nxx - 10, my2 + 8, 21, 2, MO);
+    p.rect(nxx - 17, my2 + 1, 4, 6, MO);                // and out past the cheeks
+    p.rect(nxx + 16, my2 + 1, 4, 6, MO);
+    p.rect(nxx - 19, my2 - 2, 4, 6, MO);                // waxed tips, curling up
+    p.rect(nxx + 18, my2 - 2, 4, 6, MO);
+    p.rect(nxx - 20, my2 - 5, 3, 4, MO);
+    p.rect(nxx + 20, my2 - 5, 3, 4, MO);
+    p.rect(nxx - 14, my2, 30, 1, MOL);                  // a shine along the top
+    p.rect(nxx - 8, my2 + 9, 17, 1, MOD);               // and a shadow under it
+    p.rect(nxx - 1, my2 + 1, 2, 8, MOD);                // parted in the middle
+    for (let i = 0; i < 5; i++) {                       // combed, badly
+      p.rect(nxx - 12 + i * 6, my2 + 2, 1, 5, MOD);
+      p.rect(nxx + 3 + i * 3, my2 + 2, 1, 4, MOD);
+    }
     // mouth: a flat line of disappointment under it, or gritted teeth
-    if (drill) { p.rect(hx - 8, hy + 14, 11, 4, C.ink); for (let i = 0; i < 4; i++) p.rect(hx - 7 + i * 3, hy + 15, 2, 2, C.white); }
-    else { p.rect(hx - 8, hy + 15, 10, 2, C.ink); p.set(hx - 9, hy + 14, C.ink); p.set(hx + 2, hy + 16, C.ink); }
+    if (drill) { p.rect(hx - 8, hy + 18, 11, 4, C.ink); for (let i = 0; i < 4; i++) p.rect(hx - 7 + i * 3, hy + 19, 2, 2, C.white); }
+    else { p.rect(hx - 8, hy + 18, 10, 2, C.ink); p.set(hx - 9, hy + 17, C.ink); p.set(hx + 2, hy + 19, C.ink); }
     p.rect(hx - 8, hy + 17, 13, 2, skinD);              // chin, the first of several
     // one drooping antenna with a bulb that stopped working long ago
     const aw = walk ? [2, 0, -2, 0][f % 4] : [0, 1, 1, 0][f % 4];

@@ -48,6 +48,26 @@
     ctx.restore();
   }
 
+  /* Draw a whole sprite smaller without touching one hand-placed coordinate:
+     every call is forwarded with its numbers multiplied through. Shapes stay
+     solid -- nothing is resampled and no rows are dropped, which is what would
+     happen if the finished sprite were scaled down instead. */
+  function scalePix(raw, k) {
+    const S1 = (v) => Math.round(v * k);
+    const SW = (v) => Math.max(1, Math.round(v * k));
+    return {
+      set: (x, y, c) => raw.set(S1(x), S1(y), c),
+      rect: (x, y, w, h, c) => raw.rect(S1(x), S1(y), SW(w), SW(h), c),
+      round: (x, y, w, h, r, c) => raw.round(S1(x), S1(y), SW(w), SW(h), Math.max(1, r * k), c),
+      line: (a, b, c2, d, e) => raw.line(S1(a), S1(b), S1(c2), S1(d), e),
+      spike: (x, y, w, h, d, c) => raw.spike(S1(x), S1(y), SW(w), SW(h), d, c),
+      disc: (x, y, r, c) => raw.disc(S1(x), S1(y), Math.max(1, r * k), c),
+      ellipse: (x, y, rx, ry, c) => raw.ellipse(S1(x), S1(y), Math.max(1, rx * k), Math.max(1, ry * k), c),
+      shade: (a, b, dx, dy) => raw.shade(a, b, dx, dy),
+      outline: (c) => raw.outline(c)
+    };
+  }
+
   /* ---------------------------------------------------------------- helpers */
   function windows(p, x, y, cols, rows, on, gap) {
     gap = gap || 10;
@@ -265,8 +285,12 @@
   /* ---------------------------------------------------------- the moon rat
      Enormously fat, permanently chewing, and the only other living thing for
      four hundred million kilometres. */
+  /* Three quarters of the size he used to be: he was as big as the alien,
+     which made him a co-star rather than a pet. */
+  const RAT_K = 0.72;
   function moonRat(f, fed) {
-    const p = pix(72, 48);
+    const sheet = pix(58, 40);
+    const p = scalePix(sheet, RAT_K);
     const FUR = '#9c94b4', FURD = '#6b6480', FURL = '#c9bce8', PINK = '#ff9ecb';
     const squash = f === 1 ? 1 : 0;
     // the tail, thick as an arm
@@ -306,8 +330,8 @@
     p.line(60, 33 + squash, 70, 30 + squash, FURD);
     p.line(60, 35 + squash, 71, 36 + squash, FURD);
     p.line(60, 34 + squash, 69, 40 + squash, FURD);
-    p.outline(P.ink);
-    return p;
+    sheet.outline(P.ink);
+    return sheet;
   }
 
   /* A wedge of something yellow he found in the pod. It is not cheese. */

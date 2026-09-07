@@ -1808,28 +1808,42 @@ window.PD = window.PD || {};
     // never holds still. nj/nx swing it a few pixels every frame, so it jiggles
     // whatever he is doing. It gets its own cast shadow so it stands off the
     // face instead of sinking into it.
+    /* Smaller than it was -- it used to be most of his face. Still a hooked
+       wedge, still jutting past the cheek, still jiggling; just no longer the
+       largest thing in the room. */
     const ny2 = hy + nj, nxx = hx + nx;
-    p.round(nxx - 5, ny2 - 7, 13, 20, 4, skinD);        // the shadow it throws
-    p.round(nxx - 4, ny2 - 8, 11, 19, 4, skin);
-    p.round(nxx - 3, ny2 - 7, 7, 16, 3, skinL);
-    p.round(nxx - 4, ny2 + 2, 18, 9, 3, skin);          // the hook, jutting past the cheek
-    p.round(nxx - 3, ny2 + 2, 13, 6, 3, skinL);
-    p.rect(nxx - 4, ny2 + 10, 19, 1, skinD);
-    p.rect(nxx + 14, ny2 + 2, 1, 9, skinD);
-    p.set(nxx - 1, ny2 + 9, C.ink); p.set(nxx + 4, ny2 + 9, C.ink);
-    // a MOUSTACHE, hung off the underside of it, swinging with the nose
-    const MO = '#2f3a22', MOL = '#4a5a35';
-    const my2 = ny2 + 10;
-    p.rect(nxx - 12, my2, 25, 4, MO);
-    p.rect(nxx - 14, my2 + 2, 4, 4, MO);
-    p.rect(nxx + 12, my2 + 2, 4, 4, MO);
-    p.rect(nxx - 11, my2 + 4, 7, 2, MO);
-    p.rect(nxx + 5, my2 + 4, 7, 2, MO);
-    p.rect(nxx - 11, my2, 23, 1, MOL);
-    p.set(nxx - 13, my2 + 5, MO); p.set(nxx + 15, my2 + 5, MO);
+    p.round(nxx - 4, ny2 - 5, 10, 15, 3, skinD);        // the shadow it throws
+    p.round(nxx - 3, ny2 - 6, 9, 14, 3, skin);
+    p.round(nxx - 2, ny2 - 5, 6, 12, 3, skinL);
+    p.round(nxx - 3, ny2 + 2, 13, 7, 3, skin);          // the hook, past the cheek
+    p.round(nxx - 2, ny2 + 2, 9, 5, 2, skinL);
+    p.rect(nxx - 3, ny2 + 8, 14, 1, skinD);
+    p.rect(nxx + 9, ny2 + 2, 1, 7, skinD);
+    p.set(nxx - 1, ny2 + 7, C.ink); p.set(nxx + 3, ny2 + 7, C.ink);
+    /* A MOUSTACHE, and now it is the biggest thing on him: a full bush hung
+       off the underside of the nose with waxed tips curling up at both ends,
+       and it swings with the nose. */
+    const MO = '#2f3a22', MOL = '#4a5a35', MOD = '#1c2415';
+    const my2 = ny2 + 8;
+    p.rect(nxx - 15, my2, 32, 5, MO);                   // the bush
+    p.rect(nxx - 13, my2 + 5, 28, 3, MO);
+    p.rect(nxx - 10, my2 + 8, 21, 2, MO);
+    p.rect(nxx - 17, my2 + 1, 4, 6, MO);                // and out past the cheeks
+    p.rect(nxx + 16, my2 + 1, 4, 6, MO);
+    p.rect(nxx - 19, my2 - 2, 4, 6, MO);                // waxed tips, curling up
+    p.rect(nxx + 18, my2 - 2, 4, 6, MO);
+    p.rect(nxx - 20, my2 - 5, 3, 4, MO);
+    p.rect(nxx + 20, my2 - 5, 3, 4, MO);
+    p.rect(nxx - 14, my2, 30, 1, MOL);                  // a shine along the top
+    p.rect(nxx - 8, my2 + 9, 17, 1, MOD);               // and a shadow under it
+    p.rect(nxx - 1, my2 + 1, 2, 8, MOD);                // parted in the middle
+    for (let i = 0; i < 5; i++) {                       // combed, badly
+      p.rect(nxx - 12 + i * 6, my2 + 2, 1, 5, MOD);
+      p.rect(nxx + 3 + i * 3, my2 + 2, 1, 4, MOD);
+    }
     // mouth: a flat line of disappointment under it, or gritted teeth
-    if (drill) { p.rect(hx - 8, hy + 14, 11, 4, C.ink); for (let i = 0; i < 4; i++) p.rect(hx - 7 + i * 3, hy + 15, 2, 2, C.white); }
-    else { p.rect(hx - 8, hy + 15, 10, 2, C.ink); p.set(hx - 9, hy + 14, C.ink); p.set(hx + 2, hy + 16, C.ink); }
+    if (drill) { p.rect(hx - 8, hy + 18, 11, 4, C.ink); for (let i = 0; i < 4; i++) p.rect(hx - 7 + i * 3, hy + 19, 2, 2, C.white); }
+    else { p.rect(hx - 8, hy + 18, 10, 2, C.ink); p.set(hx - 9, hy + 17, C.ink); p.set(hx + 2, hy + 19, C.ink); }
     p.rect(hx - 8, hy + 17, 13, 2, skinD);              // chin, the first of several
     // one drooping antenna with a bulb that stopped working long ago
     const aw = walk ? [2, 0, -2, 0][f % 4] : [0, 1, 1, 0][f % 4];
@@ -2561,7 +2575,7 @@ window.PD = window.PD || {};
   const SH = [[8, -13], [-12, -13]];      // shoulders: [near side, far side]
   const HIP = [[5, 10], [-9, 10]];        // hips
   const FOOT_Y = 32;                      // where the shoes sit at rest
-  const UP = 11, FORE = 12;               // arm bones
+  const UP = 9, FORE = 10;                // arm bones: short and spindly
   const TH = 14, SHIN = 14;               // leg bones
   const STRIDE = 20, LIFT = 10;           // walk: how far and how high
   /* The body is lifted by this much so the longer legs have somewhere to be;
@@ -2590,10 +2604,10 @@ window.PD = window.PD || {};
     const q = Math.round(ang / (Math.PI / 4)) * (Math.PI / 4);
     const fx = Math.cos(q), fy = Math.sin(q);
     const px = -fy, py = fx;
-    X.knob(ctx, x, y, 4, P.skin, P.skinL);
+    X.knob(ctx, x, y, 3, P.skin, P.skinL);
     for (let i = -1; i <= 1; i++) {
-      const bx = x + px * i * 3, by = y + py * i * 3;
-      X.limb(ctx, bx, by, bx + fx * (i ? 5 : 7), by + fy * (i ? 5 : 7), 3, 2, P.skin, null, P.skinD);
+      const bx = x + px * i * 2.5, by = y + py * i * 2.5;
+      X.limb(ctx, bx, by, bx + fx * (i ? 4 : 6), by + fy * (i ? 4 : 6), 3, 2, P.skin, null, P.skinD);
     }
   }
 
@@ -2743,12 +2757,12 @@ window.PD = window.PD || {};
       hang = Math.PI / 2 + sw * 0.04;
     }
     const elb = ik(sx, sy, tx, ty, UP, FORE, i ? 1 : -1, 1.38);
-    X.knob(ctx, sx, sy + 1, 6, mid, lit);                 // shoulder pad
-    X.limb(ctx, sx, sy, elb.x, elb.y, 9, 8, mid, lit, dark);
-    X.limb(ctx, elb.x, elb.y, tx, ty, 8, 7, mid, lit, dark);
-    X.knob(ctx, elb.x, elb.y, 4, mid, lit);
+    X.knob(ctx, sx, sy + 1, 5, mid, lit);                 // shoulder pad
+    X.limb(ctx, sx, sy, elb.x, elb.y, 7, 6, mid, lit, dark);
+    X.limb(ctx, elb.x, elb.y, tx, ty, 6, 5, mid, lit, dark);
+    X.knob(ctx, elb.x, elb.y, 3, mid, lit);
     // a cuff, because the jacket is not his size
-    X.knob(ctx, tx - Math.cos(hang) * 4, ty - Math.sin(hang) * 4, 4, B.shirt, null);
+    X.knob(ctx, tx - Math.cos(hang) * 3, ty - Math.sin(hang) * 3, 3, B.shirt, null);
     hand(ctx, tx, ty, hang, P);
     r.hand[i] = { x: tx, y: ty };
   }
@@ -2854,6 +2868,26 @@ window.PD = window.PD || {};
     if (flip) ctx.scale(-1, 1);
     ctx.drawImage(cv, -s.ox | 0, -s.oy | 0, cv.width / (s.hd || 1), cv.height / (s.hd || 1));
     ctx.restore();
+  }
+
+  /* Draw a whole sprite smaller without touching one hand-placed coordinate:
+     every call is forwarded with its numbers multiplied through. Shapes stay
+     solid -- nothing is resampled and no rows are dropped, which is what would
+     happen if the finished sprite were scaled down instead. */
+  function scalePix(raw, k) {
+    const S1 = (v) => Math.round(v * k);
+    const SW = (v) => Math.max(1, Math.round(v * k));
+    return {
+      set: (x, y, c) => raw.set(S1(x), S1(y), c),
+      rect: (x, y, w, h, c) => raw.rect(S1(x), S1(y), SW(w), SW(h), c),
+      round: (x, y, w, h, r, c) => raw.round(S1(x), S1(y), SW(w), SW(h), Math.max(1, r * k), c),
+      line: (a, b, c2, d, e) => raw.line(S1(a), S1(b), S1(c2), S1(d), e),
+      spike: (x, y, w, h, d, c) => raw.spike(S1(x), S1(y), SW(w), SW(h), d, c),
+      disc: (x, y, r, c) => raw.disc(S1(x), S1(y), Math.max(1, r * k), c),
+      ellipse: (x, y, rx, ry, c) => raw.ellipse(S1(x), S1(y), Math.max(1, rx * k), Math.max(1, ry * k), c),
+      shade: (a, b, dx, dy) => raw.shade(a, b, dx, dy),
+      outline: (c) => raw.outline(c)
+    };
   }
 
   /* ---------------------------------------------------------------- helpers */
@@ -3073,8 +3107,12 @@ window.PD = window.PD || {};
   /* ---------------------------------------------------------- the moon rat
      Enormously fat, permanently chewing, and the only other living thing for
      four hundred million kilometres. */
+  /* Three quarters of the size he used to be: he was as big as the alien,
+     which made him a co-star rather than a pet. */
+  const RAT_K = 0.72;
   function moonRat(f, fed) {
-    const p = pix(72, 48);
+    const sheet = pix(58, 40);
+    const p = scalePix(sheet, RAT_K);
     const FUR = '#9c94b4', FURD = '#6b6480', FURL = '#c9bce8', PINK = '#ff9ecb';
     const squash = f === 1 ? 1 : 0;
     // the tail, thick as an arm
@@ -3114,8 +3152,8 @@ window.PD = window.PD || {};
     p.line(60, 33 + squash, 70, 30 + squash, FURD);
     p.line(60, 35 + squash, 71, 36 + squash, FURD);
     p.line(60, 34 + squash, 69, 40 + squash, FURD);
-    p.outline(P.ink);
-    return p;
+    sheet.outline(P.ink);
+    return sheet;
   }
 
   /* A wedge of something yellow he found in the pod. It is not cheese. */
@@ -9403,14 +9441,15 @@ window.PD = window.PD || {};
   const X = PD.pxd;
 
   const VW = 480, VH = 270;
-  /* THE MOON IS A BALL. Its centre is a long way below the bottom of the
-     screen, so the arc across the top is the bit you can walk on: 344 pixels
-     of it end to end, and space on both sides. Outside is exactly one screen
-     wide and never scrolls -- the moon is an object you look at, not a
-     corridor you travel down. */
-  const MOON = { cx: 240, cy: 314, r: 172 };
+  /* THE MOON. Its centre is a long way below the bottom of the screen, so what
+     you get is the top of it -- but you are standing much closer to it than a
+     toy globe: the curve is gentle, the limb runs off the bottom corners of
+     the screen, and the surface is LUMPY rather than a clean arc. It is a
+     chipped rock, not a ball. Outside is exactly one screen wide and never
+     scrolls -- the moon is an object you look at, not a corridor. */
+  const MOON = { cx: 240, cy: 440, r: 300 };
   const OUT_W = 480, IN_W = 232;
-  const WALK = 102;                  // how far round the curve he can get
+  const WALK = 150;                  // how far round the curve he can get
   const FLOOR = 216;                 // the room floor, inside
   const CEIL = 124;                  // the underside of the rock roof, inside
   const GRAV = 300;                  // low: everything here is bouncy
@@ -9428,18 +9467,24 @@ window.PD = window.PD || {};
     return S.scene === 'out' ? [MOON.cx - WALK, MOON.cx + WALK] : [20, IN_W - 20];
   }
 
-  /* Flat indoors. Outside it is the top of a circle, rasterised to whole
-     pixels so the ground he stands on is exactly the ground you can see. */
+  /* Flat indoors. Outside it is the top of a big circle plus a stack of
+     wobbles, rasterised to whole pixels so the ground he stands on is exactly
+     the ground you can see. The wobbles are what stop it being a ball: ridges,
+     a dip and a shoulder, all deterministic. */
+  function lumpAt(x) {
+    return Math.sin(x * 0.0131 + 0.4) * 7
+      + Math.sin(x * 0.0327 + 1.7) * 4
+      + Math.sin(x * 0.0713 + 2.9) * 2;
+  }
   function groundY(x) {
     if (S.scene === 'in') return FLOOR;
     const dx = x - MOON.cx;
     if (Math.abs(dx) >= MOON.r) return 1e4;
-    return Math.round(MOON.cy - Math.sqrt(MOON.r * MOON.r - dx * dx));
+    return Math.round(MOON.cy - Math.sqrt(MOON.r * MOON.r - dx * dx) - lumpAt(x));
   }
   /* The slope under his feet, for dust and for standing on a hill. */
   function slopeAt(x) {
-    const dx = U.clamp(x - MOON.cx, -MOON.r + 1, MOON.r - 1);
-    return dx / Math.sqrt(Math.max(1, MOON.r * MOON.r - dx * dx));
+    return (groundY(x + 3) - groundY(x - 3)) / 6;
   }
 
   const P = {
@@ -9451,8 +9496,8 @@ window.PD = window.PD || {};
 
   /* ------------------------------------------------------------------ spots */
   const OUT_SPOTS = [
-    { id: 'door', x: 196, r: 36, name: 'THE ROCK HOUSE', sub: 'GO INSIDE' },
-    { id: 'ufo', x: 300, r: 40, name: 'YOUR DUMB UFO', sub: 'GO AND HIT A PLANET' }
+    { id: 'door', x: 172, r: 38, name: 'THE ROCK HOUSE', sub: 'GO INSIDE' },
+    { id: 'ufo', x: 320, r: 42, name: 'YOUR DUMB UFO', sub: 'GO AND HIT A PLANET' }
   ];
   const IN_SPOTS = [
     { id: 'pc', x: 40, r: 32, name: 'THE COMPUTER', sub: 'ABAY IS ON IT' },
@@ -9464,10 +9509,10 @@ window.PD = window.PD || {};
 
   /* --------------------------------------------------------------- scenery */
   const OUT_ROCKS = [];
-  for (let i = 0; i < 16; i++) OUT_ROCKS.push({ x: MOON.cx + (U.hash2(i, 3) * 2 - 1) * 158, k: (U.hash2(i, 9) * 3) | 0 });
+  for (let i = 0; i < 22; i++) OUT_ROCKS.push({ x: MOON.cx + (U.hash2(i, 3) * 2 - 1) * 244, k: (U.hash2(i, 9) * 3) | 0 });
   const CRATERS = [];
-  for (let i = 0; i < 10; i++) CRATERS.push({ x: MOON.cx + (U.hash2(i, 21) * 2 - 1) * 150, r: 5 + U.hash2(i, 33) * 13 });
-  const RUINS = [{ x: 118, k: 2 }, { x: 372, k: 1 }];
+  for (let i = 0; i < 14; i++) CRATERS.push({ x: MOON.cx + (U.hash2(i, 21) * 2 - 1) * 240, r: 5 + U.hash2(i, 33) * 15 });
+  const RUINS = [{ x: 56, k: 2 }, { x: 428, k: 1 }];
   const MOTES = [];
   for (let i = 0; i < 26; i++) MOTES.push({ x: U.hash2(i, 61), y: 60 + U.hash2(i, 67) * 150, r: U.hash2(i, 71), sp: 2 + U.hash2(i, 73) * 7 });
 
@@ -9804,12 +9849,14 @@ window.PD = window.PD || {};
     }
     for (const r of RUINS) { const gy = groundY(r.x); if (gy < VH) AH.blit(ctx, AH.S['ruin' + r.k], 0, r.x - cam, gy + 2); }
     for (const r of OUT_ROCKS) { const gy = groundY(r.x); if (gy < VH) AH.blit(ctx, AH.S['rock' + r.k], 0, r.x - cam, gy + 2); }
-    // a rim of dust hanging off the limb, so the edge reads as curved
+    // a rim of dust sitting on the skyline, thickest out at the ends where the
+    // ground is falling away from you
     ctx.globalAlpha = 0.3;
-    for (let a = -1.35; a < 1.36; a += 0.045) {
-      const rx = MOON.cx + Math.sin(a) * (MOON.r + 3), ry = MOON.cy - Math.cos(a) * (MOON.r + 3);
-      if (ry > VH) continue;
-      X.rect(ctx, rx, ry, 2, 2, '#6b6480');
+    for (let sx = x0; sx <= x1; sx += 4) {
+      const gy = groundY(sx + cam);
+      if (gy > VH) continue;
+      const edge = Math.abs(sx - MOON.cx) / 240;
+      if (U.hash2(sx, 3) > 0.55 - edge * 0.4) X.rect(ctx, sx, gy - 2 - ((U.hash2(sx, 5) * 3) | 0), 2, 2, '#6b6480');
     }
     ctx.globalAlpha = 1;
     void t;

@@ -24,24 +24,25 @@ python3 -m http.server 8000   # then visit http://localhost:8000
 node tools/build.js           # -> dist/planet-destroyer.html
 ```
 
-## Home is a very small round moon
+## Home is a small rock, seen up close
 
-**Outside** is a **ball**. Your moon is about three hundred pixels across and
-you can see the whole of it at once: a shaded, faceted little planetoid sitting
-in the middle of the screen with stars on both sides of it, the horizon falling
-away at either end, and a rim of dust hanging off the limb. The star is off to
-one side, so the crust is pale on that side and nearly black on the other, with
-the terminator between them dithered rather than drawn as a line. Nothing
-scrolls out here. The moon is an object you look at, not a corridor you walk
-down.
+**Outside** is the top of a moon, and you are standing close enough to it that
+it is not a ball any more: the curve is gentle, the limb runs off the bottom
+corners of the screen, and the surface is **lumpy** rather than a clean arc —
+ridges, a dip and a shoulder rolled into it, with craters sunk into the curve
+and boulders half-buried all the way out to both horizons. It is a chipped rock,
+not a globe. The star is off to one side, so the crust is pale on that side and
+nearly black on the other, with the terminator between them ordered-dithered
+instead of drawn as a line, and a rim of dust sitting on the skyline, thickest
+where the ground is falling away from you. Nothing scrolls out here.
 
 Standing on it: **your rock house**, a squat heap of quarried slabs with a hole
 knocked in the front for a door, one lit window, a crooked chimney with a
 satellite dish taped to it and smoke going up; **your dumb UFO**, up on two
 bricks with one leg that gave up years ago; a flag nobody saluted; a survey
-pole; and boulders half-buried in the regolith. The eye sockets of a dead
-Celestial drift past in the background, and the world you are about to take
-apart hangs in the top corner.
+pole; and ruins at both ends. The eye sockets of a dead Celestial drift past in
+the background, and the world you are about to take apart hangs in the top
+corner.
 
 **Inside** is one very small room, and it is clipped out of solid rock: you can
 see the walls end. It holds exactly two things — the stolen computer on a
@@ -82,7 +83,8 @@ sells for more) and `KNOW A GUY` (ABAY prices drop; he owes the brain).
 ## Brenda
 
 The first time you go inside there is a **very fat moon rat** standing on your
-cheese, mid-bite, looking at you. Press `E` and you give him the cheese.
+cheese, mid-bite, looking at you. Press `E` and you give him the cheese. He is
+about knee height on you — a pet, not a co-star.
 
 He is yours after that. He bounces after you everywhere — inside, outside, all
 the way to the door — because he is far too fat to walk, and he will not stop
@@ -222,13 +224,18 @@ travelling, trailing light — so the moment of collection has a run-up to it.
 
 He is not cute. He is a tall lumpy head on a long thin neck on a pear-shaped
 body: **one enormous eye and one that gave up**, a heavy brow over only one of
-them, a flat line of a mouth, three chins, one drooping antenna with a bulb
-that stopped working years ago, a **moustache**, **exactly three strands of
-hair** he is very proud of, and three fat fingers per hand.
+them, a hooked nose, three chins, one drooping antenna with a bulb that stopped
+working years ago, **exactly three strands of hair** he is very proud of, and
+three long fingers per spindly arm.
 
-**The nose jiggles.** It is the heaviest thing on him and it never settles:
-every frame of every pose swings it a few pixels, so it wobbles on its own
-while he is standing perfectly still, and the moustache swings with it. He wears a stolen human suit jacket that does not fit, a shirt, a tie
+**The moustache is the biggest thing on him**: a full bush hung off the
+underside of the nose, badly combed, parted in the middle, with waxed tips
+curling up past both cheeks. It covers his mouth entirely — you only see his
+teeth when he is gritting them at a rock.
+
+**The nose jiggles.** It never settles: every frame of every pose swings it a
+few pixels, so it wobbles on its own while he is standing perfectly still, and
+the moustache swings with it. He wears a stolen human suit jacket that does not fit, a shirt, a tie
 done up wrong, and shoes far too big for him, with a battered brass air tank
 gaffer-taped to his back.
 
@@ -444,7 +451,7 @@ a line of history under its blurb.
 | `src/player.js` | Movement, the drill, weapons, dash, air, cargo, damage, and the tether to the pod |
 | `src/fx.js` | Particles, floating numbers, shockwave rings, terrain chunks, screen shake, hit-stop |
 | `src/ui.js` | The cardboard-and-masking-tape HUD (air tank, hull chips, sack tube), the action strip, the plank over the door, pause, victory and title screens |
-| `src/home.js` | Both halves of home: the small round moon outside with the house and the saucer on the curve of it, the very small room inside with the computer and the jar, and Brenda |
+| `src/home.js` | Both halves of home: the lumpy moon surface outside with the house and the saucer standing on the curve of it, the very small room inside with the computer and the jar, and Brenda |
 | `src/desk.js` | First person at the computer: hands, keyboard, CRT, the loose-spring pointer, ZORB OS and ABAY |
 | `src/glyph.js` | The icon language that rides alongside the text, and the hex primitives |
 | `src/galaxy.js` | Spiral-arm star band, nebulae, sun, ringed planets, shooting stars |
