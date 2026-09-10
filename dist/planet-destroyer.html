@@ -2629,9 +2629,35 @@ window.PD = window.PD || {};
     return {
       phase: 0, bob: 0, jolt: 0, grab: null, grabT: 0,
       lean: 0, brace: 0, recoil: 0, breathe: U.rand(0, TAU),
-      hand: [null, null], armS: [1, 1], legS: [1, 1]
+      hand: [null, null], armS: [1, 1], legS: [1, 1],
+      emote: null, emoteT: 0, emoteMax: 1, idleT: 0, nextEmote: U.rand(1.5, 4),
+      landT: 0, sway: 0, fresh: null
     };
   }
+
+  /* THE GOOFY BIT. Left standing about he cannot help himself: he waves at
+     nobody, has a big stretch, shrugs at the horizon, scratches his head,
+     flexes arms that have nothing on them, or points at something that is not
+     there. All of it is played through the live limbs, so there are no frames
+     to draw -- the arms just go somewhere silly and spring back. */
+  const EMOTES = ['wave', 'stretch', 'shrug', 'scratch', 'flex', 'point', 'sniff'];
+  const EMOTE_LEN = { wave: 1.5, stretch: 1.5, shrug: 1.1, scratch: 1.4, flex: 1.2, point: 1.2, sniff: 1.0 };
+
+  function emote(r, which) {
+    if (!r) return;
+    r.emote = which || U.pick(EMOTES);
+    r.emoteMax = EMOTE_LEN[r.emote] || 1.3;
+    r.emoteT = r.emoteMax;
+    r.fresh = r.emote;                     // the caller may want to react once
+  }
+  /* 0 at each end, 1 in the middle: everything eases in and springs back. */
+  function emoteK(r) {
+    if (!r.emote || r.emoteT <= 0) return 0;
+    const f = 1 - r.emoteT / r.emoteMax;
+    return Math.sin(U.clamp(f, 0, 1) * Math.PI);
+  }
+  /* He hit the floor: fling the arms out. */
+  function land(r, amt) { if (r) r.landT = Math.min(1, (amt === undefined ? 1 : amt)); }
 
   /* Advance the rig. `o` describes the body this frame:
        vx, vy      how fast it is moving, in logical px/s
@@ -2653,6 +2679,19 @@ window.PD = window.PD || {};
     r.lean = U.damp(r.lean, o.drilling ? 1 : 0, 0.35, dt);
     r.brace = U.damp(r.brace, o.drilling && o.ground ? 1 : 0, 0.3, dt);
     r.walkAmt = U.damp(r.walkAmt === undefined ? 0 : r.walkAmt, o.ground ? U.clamp(speed / 70, 0, 1) : 0, 0.4, dt);
+    r.landT = Math.max(0, r.landT - dt * 3.4);
+    // he leans into wherever he is going and it takes a moment to come back
+    r.sway = U.damp(r.sway, U.clamp((o.vx || 0) / 130, -1, 1), 0.16, dt);
+
+    // and if he is left standing there he starts doing something silly
+    const idling = o.ground && !o.drilling && speed < 8 && !o.noEmote;
+    if (r.emoteT > 0) {
+      r.emoteT -= dt;
+      if (r.emoteT <= 0) { r.emote = null; r.idleT = 0; r.nextEmote = U.rand(2.2, 6); }
+    } else if (idling) {
+      r.idleT += dt;
+      if (r.idleT > r.nextEmote) { emote(r); r.idleT = 0; }
+    } else r.idleT = 0;
     return r;
   }
 
@@ -2716,6 +2755,13 @@ window.PD = window.PD || {};
       // standing: knock-kneed, weight on one side, breathing
       fx = hx + face * (i ? -3 : 2);
       fy = FOOT_Y + Math.sin(r.breathe) * 0.6;
+      const ek = emoteK(r);
+      if (ek > 0.01) {
+        // up on his toes for a stretch, feet apart for a shrug or a flex
+        if (r.emote === 'stretch') fy -= 3 * ek;
+        if (r.emote === 'shrug' || r.emote === 'flex') fx += (i ? -6 : 6) * ek;
+        if (r.emote === 'wave') fx += face * (i ? -2 : 3) * ek;
+      }
     }
     const knee = ik(hx, hy, fx, fy, TH, SHIN, i ? -1 : 1, 1.3);
     // knees pull inward: he has never once stood straight
@@ -2751,10 +2797,49 @@ window.PD = window.PD || {};
       hang = Math.PI / 2;
     } else {
       const ph = ((t + i * 0.5) % 1 + 1) % 1;
-      const sw = -Math.cos(ph * TAU) * 7 * r.walkAmt * face;
+      // a big loose swing, and the arm lifts as it comes forward
+      const sw = -Math.cos(ph * TAU) * 13 * r.walkAmt * face;
+      const rise = -Math.abs(Math.sin(ph * TAU)) * 5 * r.walkAmt;
       tx = sx + sw + (i ? -1 : 1);
-      ty = sy + 21 + Math.sin(r.breathe + i) * 0.8;
-      hang = Math.PI / 2 + sw * 0.04;
+      ty = sy + 21 + rise + Math.sin(r.breathe + i) * 1.4;
+      hang = Math.PI / 2 + sw * 0.05;
+      // just landed: both arms fly out sideways for a moment
+      if (r.landT > 0.02) {
+        tx = U.lerp(tx, sx + (i ? -20 : 20), r.landT);
+        ty = U.lerp(ty, sy + 4, r.landT);
+        hang = U.lerp(hang, i ? Math.PI : 0, r.landT);
+      }
+      // and whatever daft thing he has decided to do with them
+      const ek = emoteK(r);
+      if (ek > 0.01) {
+        const near = i === 0;
+        let ex = tx, ey = ty, eh = hang;
+        switch (r.emote) {
+          case 'wave':                                   // at nobody
+            if (near) { ex = sx + 15; ey = sy - 17 + Math.sin(r.emoteT * 24) * 6; eh = -1.2; }
+            break;
+          case 'stretch':                                // both arms straight up
+            ex = sx + (near ? 6 : -7); ey = sy - 22; eh = -Math.PI / 2;
+            break;
+          case 'shrug':                                  // palms out, no idea
+            ex = sx + (near ? 19 : -19); ey = sy + 9; eh = near ? 0.2 : Math.PI - 0.2;
+            break;
+          case 'scratch':                                // the head, thoughtfully
+            if (near) { ex = sx + 3; ey = sy - 21 + Math.sin(r.emoteT * 18) * 2; eh = -Math.PI / 2; }
+            else { ex = sx - 12; ey = sy + 18; eh = Math.PI / 2; }
+            break;
+          case 'flex':                                   // arms he does not have
+            ex = sx + (near ? 13 : -14); ey = sy - 12; eh = near ? -0.5 : Math.PI + 0.5;
+            break;
+          case 'point':                                  // at nothing in particular
+            if (near) { ex = sx + 24; ey = sy - 6; eh = -0.2; }
+            break;
+          case 'sniff':                                  // a hand to the moustache
+            if (near) { ex = sx + 8; ey = sy - 14; eh = -Math.PI / 2; }
+            break;
+        }
+        tx = U.lerp(tx, ex, ek); ty = U.lerp(ty, ey, ek); hang = U.lerp(hang, eh, ek);
+      }
     }
     const elb = ik(sx, sy, tx, ty, UP, FORE, i ? 1 : -1, 1.38);
     X.knob(ctx, sx, sy + 1, 5, mid, lit);                 // shoulder pad
@@ -2772,15 +2857,28 @@ window.PD = window.PD || {};
      drilling, grip (logical, where the hands hold the tool), aim, ground,
      vx, vy, squash, tint. */
   function draw(ctx, r, o, P, B) {
-    const sq = o.squash || 1;
+    let sq = o.squash || 1;
     // the whole body breathes and takes the recoil; bobY is in sprite units
-    r.bobY = (o.ground ? -Math.abs(Math.cos(r.phase * TAU)) * 2 * (r.walkAmt || 0) : 0)
-      + Math.sin(r.breathe) * (o.drilling ? 1.2 : 0.5) + r.jolt * 1.5;
+    r.bobY = (o.ground ? -Math.abs(Math.cos(r.phase * TAU)) * 3.4 * (r.walkAmt || 0) : 0)
+      + Math.sin(r.breathe) * (o.drilling ? 1.6 : 1.1) + r.jolt * 1.5
+      - r.landT * 3;
+    // the emote pulls the whole body about as well: taller for a stretch,
+    // squatter for a shrug, and a wobble for a flex
+    const ek = emoteK(r);
+    if (ek > 0.01) {
+      if (r.emote === 'stretch') sq *= 1 - 0.12 * ek;
+      if (r.emote === 'shrug') sq *= 1 + 0.12 * ek;
+      if (r.emote === 'flex') sq *= 1 + Math.sin(r.emoteT * 20) * 0.05 * ek;
+      if (r.emote === 'wave' || r.emote === 'sniff') r.bobY -= 1.5 * ek;
+    }
     const ox = Math.round((o.x | 0) - (o.drilling ? Math.cos(o.aim) * r.recoil * 2 : 0));
     const oy = Math.round((o.y | 0) - LIFT_Y - (o.drilling ? Math.sin(o.aim) * r.recoil : 0));
 
     ctx.save();
     ctx.translate(ox, oy);
+    // he TIPS: a shear into whichever way he is travelling, or into the drill
+    const shear = -(r.sway * 0.16 + (o.drilling ? Math.cos(o.aim) * r.lean * 0.1 : 0)) * (o.flip ? -1 : 1);
+    if (shear) ctx.transform(1, 0, shear, 1, 0, 0);
     if (sq !== 1) ctx.scale(sq, 1 / sq);
     ctx.save();
     ctx.scale(0.5, 0.5);
@@ -2816,7 +2914,7 @@ window.PD = window.PD || {};
     ctx.restore();
   }
 
-  PD.rig = { make, step, hit, grab, draw, ik, SH, HIP, FOOT_Y, LIFT_Y };
+  PD.rig = { make, step, hit, grab, emote, land, draw, ik, EMOTES, SH, HIP, FOOT_Y, LIFT_Y };
 })(window.PD);
 
 /* ===== src/arthome.js ===== */
@@ -3618,7 +3716,12 @@ window.PD = window.PD || {};
       if (x1 > x0) c.fillRect(x0, y, x1 - x0, 1);
     }
   }
-  function buildMoon(size, tint, seed) {
+  /* A WORLD. Rasterised at half size and blown up, so every feature is a hard
+     block of pixels, and painted differently depending on what kind of place
+     it is: a cratered rock, an ice ball with caps, a living world with
+     continents and weather, a furnace cracked open, a cut gemstone, a plated
+     machine-moon. All of it deterministic from the seed. */
+  function buildPlanet(size, tint, seed, type) {
     const K = 2;
     const S = Math.max(10, Math.round(size / K));
     const src = document.createElement('canvas');
@@ -3626,35 +3729,172 @@ window.PD = window.PD || {};
     const c = src.getContext('2d');
     const r = S / 2 - 0.5, cx = S / 2, cy = S / 2;
     const rnd = U.mulberry32(seed || 7);
+    const px = (v) => Math.max(1, Math.round(v));
     function shade(col, f) {
       const n = parseInt(col.slice(1), 16);
       const R = U.clamp(((n >> 16) & 255) * f, 0, 255) | 0, G = U.clamp(((n >> 8) & 255) * f, 0, 255) | 0, B = U.clamp((n & 255) * f, 0, 255) | 0;
       return 'rgb(' + R + ',' + G + ',' + B + ')';
     }
+    /* Every feature is clipped to the disc, so nothing spills off the limb. */
+    const inside = (x, y, k) => U.dist(x, y, cx, cy) < r * (k === undefined ? 0.98 : k);
+
     pxDisc(c, cx, cy, r, shade(tint, 0.78));
     c.save();
     c.beginPath(); c.rect(0, 0, S, S); c.clip();
-    for (let i = 0; i < 5; i++) {                       // maria
-      const a = rnd() * U.TAU, d = rnd() * r * 0.65;
-      pxDisc(c, cx + Math.cos(a) * d, cy + Math.sin(a) * d, r * (0.14 + rnd() * 0.22), shade(tint, 0.55 + rnd() * 0.1));
+
+    /* ---- the ground itself, per kind ---- */
+    const craters = (n, big) => {
+      for (let i = 0; i < n; i++) {
+        const a = rnd() * U.TAU, d = Math.sqrt(rnd()) * r * 0.88;
+        const kx = cx + Math.cos(a) * d, ky = cy + Math.sin(a) * d;
+        const kr = Math.max(1, (0.4 + rnd() * rnd() * (big ? 3 : 2.2)) * (S / 24));
+        if (!inside(kx, ky, 0.92)) continue;
+        pxDisc(c, kx, ky - kr * 0.2, kr, shade(tint, 1.12));          // sunlit rim
+        pxDisc(c, kx, ky + kr * 0.25, kr * 0.7, shade(tint, 0.42));   // floor
+        if (kr > S / 14) {                                            // and ejecta
+          for (let q = 0; q < 5; q++) {
+            const ea = rnd() * U.TAU, ed = kr * (1.2 + rnd());
+            const ex = kx + Math.cos(ea) * ed, ey = ky + Math.sin(ea) * ed;
+            if (inside(ex, ey)) { c.fillStyle = shade(tint, 1.2); c.fillRect(ex | 0, ey | 0, 1, 1); }
+          }
+        }
+      }
+    };
+    const maria = (n, f) => {
+      for (let i = 0; i < n; i++) {
+        const a = rnd() * U.TAU, d = rnd() * r * 0.62;
+        pxDisc(c, cx + Math.cos(a) * d, cy + Math.sin(a) * d, r * (0.14 + rnd() * 0.24), shade(tint, f + rnd() * 0.1));
+      }
+    };
+    /* Latitude bands: whole-pixel rows, so a striped world stays striped. */
+    const bands = (cols, h) => {
+      for (let y = 0; y < S; y++) {
+        const f = (y / S);
+        const col = cols[Math.floor(f * cols.length * h) % cols.length];
+        const w = Math.floor(Math.sqrt(Math.max(0, r * r - (y - cy) * (y - cy))));
+        if (w <= 0) continue;
+        c.fillStyle = col;
+        c.fillRect(Math.round(cx - w), y, w * 2, 1);
+      }
+    };
+    const caps = (col) => {
+      for (let y = 0; y < S; y++) {
+        const dy = Math.abs(y - cy) / r;
+        if (dy < 0.62) continue;
+        const w = Math.floor(Math.sqrt(Math.max(0, r * r - (y - cy) * (y - cy))));
+        if (w <= 0) continue;
+        const bite = Math.round(rnd() * 2);
+        c.fillStyle = col;
+        c.fillRect(Math.round(cx - w + bite), y, w * 2 - bite * 2, 1);
+      }
+    };
+    const cracks = (n, col, glow) => {
+      for (let i = 0; i < n; i++) {
+        let a = rnd() * U.TAU, d = rnd() * r * 0.3;
+        let x = cx + Math.cos(a) * d, y = cy + Math.sin(a) * d;
+        const steps = Math.round(S * (0.3 + rnd() * 0.4));
+        for (let q = 0; q < steps; q++) {
+          a += (rnd() - 0.5) * 0.9;
+          x += Math.cos(a); y += Math.sin(a);
+          if (!inside(x, y, 0.94)) break;
+          c.fillStyle = col; c.fillRect(x | 0, y | 0, 1, 1);
+          if (glow && rnd() > 0.6) { c.fillStyle = glow; c.fillRect((x | 0) + 1, y | 0, 1, 1); }
+        }
+      }
+    };
+    /* Flat cut panels with a bright edge -- a gemstone, not a ball. */
+    const facets = (n) => {
+      for (let i = 0; i < n; i++) {
+        const a = rnd() * U.TAU, d = rnd() * r * 0.7;
+        const fx = cx + Math.cos(a) * d, fy = cy + Math.sin(a) * d;
+        const w = px(r * (0.3 + rnd() * 0.5)), h = px(r * (0.25 + rnd() * 0.45));
+        c.fillStyle = shade(tint, 0.8 + rnd() * 0.5);
+        c.fillRect(Math.round(fx - w / 2), Math.round(fy - h / 2), w, h);
+        c.fillStyle = shade(tint, 1.5);
+        c.fillRect(Math.round(fx - w / 2), Math.round(fy - h / 2), w, 1);
+        c.fillStyle = shade(tint, 0.45);
+        c.fillRect(Math.round(fx - w / 2), Math.round(fy + h / 2 - 1), w, 1);
+      }
+    };
+    /* Plates and rivets: somebody built this one. */
+    const plating = () => {
+      const step = Math.max(3, Math.round(S / 7));
+      for (let y = 0; y < S; y += step) {
+        for (let x = 0; x < S; x += step) {
+          if (!inside(x + step / 2, y + step / 2, 0.95)) continue;
+          c.fillStyle = shade(tint, 0.72 + rnd() * 0.5);
+          c.fillRect(x, y, step - 1, step - 1);
+          c.fillStyle = shade(tint, 1.35);
+          c.fillRect(x, y, step - 1, 1);
+          c.fillStyle = shade(tint, 1.5);
+          c.fillRect(x + 1, y + 1, 1, 1);
+        }
+      }
+    };
+    /* Weather: streaks of cloud lying along the latitudes. */
+    const clouds = (n) => {
+      for (let i = 0; i < n; i++) {
+        const y = Math.round(cy + (rnd() * 2 - 1) * r * 0.82);
+        const w = Math.floor(Math.sqrt(Math.max(0, r * r - (y - cy) * (y - cy))));
+        if (w <= 2) continue;
+        const x0 = Math.round(cx - w + rnd() * w), len = px(w * (0.4 + rnd() * 0.9));
+        c.globalAlpha = 0.5 + rnd() * 0.35;
+        c.fillStyle = '#ffffff';
+        c.fillRect(x0, y, Math.min(len, Math.round(cx + w - x0)), px(S / 26));
+        c.globalAlpha = 1;
+      }
+    };
+
+    switch (type) {
+      case 'ice':
+        bands([shade(tint, 0.9), shade(tint, 1.05), shade(tint, 0.8)], 3);
+        caps('#eaf6ff'); cracks(7, shade(tint, 1.5)); craters(6);
+        break;
+      case 'terra':
+        bands([shade(tint, 0.7), shade(tint, 0.78), shade(tint, 0.72)], 2);
+        maria(6, 1.25); caps('#f0f8ff'); clouds(Math.round(S / 5)); craters(3);
+        break;
+      case 'volcanic':
+        pxDisc(c, cx, cy, r, shade(tint, 0.32));
+        maria(5, 0.5); cracks(12, '#ff7a2a', '#ffd27a'); craters(7);
+        for (let i = 0; i < 4; i++) {                        // calderas, glowing
+          const a = rnd() * U.TAU, d = rnd() * r * 0.7;
+          const hx = cx + Math.cos(a) * d, hy = cy + Math.sin(a) * d;
+          if (!inside(hx, hy, 0.85)) continue;
+          pxDisc(c, hx, hy, px(S / 16), '#ff7a2a');
+          pxDisc(c, hx, hy, px(S / 26), '#ffe9a8');
+        }
+        break;
+      case 'gem': case 'titan':
+        facets(Math.round(S / 4)); cracks(5, shade(tint, 1.6));
+        break;
+      case 'metal':
+        plating(); craters(5); cracks(4, shade(tint, 0.4));
+        break;
+      case 'core':
+        bands([shade(tint, 0.6), shade(tint, 0.95), '#ff8a3d', shade(tint, 0.75)], 4);
+        cracks(10, '#ffd27a', '#ff7a2a'); craters(4);
+        break;
+      default:
+        maria(5, 0.55); craters(22, true);
     }
-    for (let i = 0; i < 22; i++) {                      // craters, rim then floor
-      const a = rnd() * U.TAU, d = Math.sqrt(rnd()) * r * 0.9;
-      const kx = cx + Math.cos(a) * d, ky = cy + Math.sin(a) * d, kr = Math.max(1, (0.4 + rnd() * rnd() * 2.4) * (S / 24));
-      pxDisc(c, kx, ky - kr * 0.2, kr, shade(tint, 1.05));
-      pxDisc(c, kx, ky + kr * 0.25, kr * 0.7, shade(tint, 0.45));
+
+    // dust, everywhere
+    for (let i = 0; i < S * 2; i++) {
+      const dx2 = (rnd() * S) | 0, dy2 = (rnd() * S) | 0;
+      if (!inside(dx2, dy2)) continue;
+      c.fillStyle = shade(tint, rnd() > 0.5 ? 1.18 : 0.68);
+      c.fillRect(dx2, dy2, 1, 1);
     }
-    for (let i = 0; i < S * 2; i++) {                   // dust
-      c.fillStyle = shade(tint, rnd() > 0.5 ? 1.15 : 0.7);
-      c.fillRect((rnd() * S) | 0, (rnd() * S) | 0, 1, 1);
-    }
-    for (let x = 0; x < S; x++) {                       // stepped terminator
+    // the night side, stepped in columns
+    for (let x = 0; x < S; x++) {
       const f = x / S;
       if (f > 0.45) continue;
       c.fillStyle = 'rgba(4,2,12,' + (0.9 - f * 1.8).toFixed(2) + ')';
       c.fillRect(x, 0, 1, S);
     }
     c.restore();
+
     c.fillStyle = shade(tint, 1.55);                    // lit limb, along the facets
     const k2 = r * 0.42;
     const lim = [[-r + k2, -r], [r - k2, -r], [r, -r + k2], [r, r - k2]];
@@ -3666,6 +3906,7 @@ window.PD = window.PD || {};
         c.fillRect(Math.round(cx + a[0] + (b[0] - a[0]) * f), Math.round(cy + a[1] + (b[1] - a[1]) * f), 1, 1);
       }
     }
+
     const cv = document.createElement('canvas');
     cv.width = cv.height = S * K;
     const cc = cv.getContext('2d');
@@ -3673,6 +3914,9 @@ window.PD = window.PD || {};
     cc.drawImage(src, 0, 0, S, S, 0, 0, S * K, S * K);
     return cv;
   }
+
+  /* A plain cratered rock: what hangs in the sky over a dig site. */
+  function buildMoon(size, tint, seed) { return buildPlanet(size, tint, seed, 'moon'); }
 
   /* -------------------------------------------------------------- register */
   reg('wall', [houseWall(240, 160)], 0, 0);
@@ -3697,7 +3941,7 @@ window.PD = window.PD || {};
   reg('skull', [celestialHead()]);
   reg('tape', [tapeDeck(0), tapeDeck(1)]);
 
-  PD.arthome = { S, P, buildMoon, blit, HD, mitten, reg };
+  PD.arthome = { S, P, buildMoon, buildPlanet, blit, HD, mitten, reg };
 })(window.PD);
 
 /* ===== src/galaxy.js ===== */
@@ -7051,7 +7295,11 @@ window.PD = window.PD || {};
     const ground = this.onGround(this.g.world);
     if (!this.rig) this.rig = PD.rig.make();
     const r = this.rig;
-    PD.rig.step(r, { dt: this.g.dt, vx: this.vx, vy: this.vy, ground, drilling });
+    // no idle flourishes out here: both hands are on the tool
+    PD.rig.step(r, { dt: this.g.dt, vx: this.vx, vy: this.vy, ground, drilling, noEmote: true });
+    if (ground && !this.wasGround && this.lastVy > 120) PD.rig.land(r, U.clamp(this.lastVy / 320, 0.4, 1));
+    this.wasGround = ground;
+    this.lastVy = this.vy;
 
     const drill = skin.drill;
     const gun = PD.art.sprites[this.weapon === 'pistol' ? 'gun' : this.weapon];
@@ -9455,6 +9703,7 @@ window.PD = window.PD || {};
   const GRAV = 300;                  // low: everything here is bouncy
 
   const S = { scene: 'out', t: 0, ratSeen: 0, sleep: 0, swing: 0 };
+  let g0 = null;                     // the running game, for view() between frames
 
   function roomW() { return S.scene === 'out' ? OUT_W : IN_W; }
   /* A room narrower than the screen sits in the middle of it. */
@@ -9539,6 +9788,7 @@ window.PD = window.PD || {};
   let star = null;
 
   function enter(g, atX) {
+    g0 = g;
     S.scene = 'out';
     place(g, atX === undefined ? OUT_SPOTS[1].x : atX);
     if (!star) {
@@ -9632,6 +9882,7 @@ window.PD = window.PD || {};
   /* ---------------------------------------------------------------- update */
   function update(dt, g) {
     const IN = PD.input;
+    g0 = g;
     S.t += dt;
     P.lock = Math.max(0, P.lock - dt);
     UI.msgT = Math.max(0, UI.msgT - dt);
@@ -9653,8 +9904,8 @@ window.PD = window.PD || {};
     if (IN.down('left')) ix -= 1;
     if (IN.down('right')) ix += 1;
 
-    if (P.lock <= 0 && m.leftPressed && m.y > 26) {
-      const wx = m.x + g.intCam;
+    if (P.lock <= 0 && m.leftPressed) {
+      const wx = fromScreenX(m.x) + g.intCam;
       let hit = null;
       for (const s of spots(g)) if (Math.abs(s.x - wx) < s.r) hit = s;
       const bd0 = bounds();
@@ -9716,6 +9967,7 @@ window.PD = window.PD || {};
       if (P.vy > 60) {
         // EVERYTHING BOUNCES. He lands, squashes flat, and pops back up.
         P.land = 0.26;
+        if (P.rig) PD.rig.land(P.rig, U.clamp(P.vy / 260, 0.4, 1));
         if (P.vy > 150 && P.hop < 2) { P.vy = -P.vy * 0.34; P.hop++; }
         else { P.vy = 0; P.hop = 0; }
         FX.dust(P.x, gy, 6, '#8e86a8', 18);
@@ -9731,6 +9983,7 @@ window.PD = window.PD || {};
     if (use_) use(g, P.near);
 
     g.intCam = U.damp(g.intCam, camWant(), 0.16, dt);
+    view(dt);                        // the zoom window follows him
   }
 
   /* Before he is yours he stands over the cheese. After, he never shuts up
@@ -10172,10 +10425,14 @@ window.PD = window.PD || {};
   function prompt(ctx, g, t, cam) {
     const s = P.near;
     if (!s) return;
-    const x = Math.round(s.x - cam);
-    const LIFTS = { ufo: 60, door: 88, brain: 96, pc: 54, exit: 74, rat: 44 };
-    const lift = LIFTS[s.id] || 60;
-    const y = Math.round(groundY(s.x) - lift + Math.sin(t * 5) * 2);
+    // How high the sign floats, in SCREEN pixels -- the thing it names is
+    // twice its old size now, so the clearance is measured after the zoom
+    // rather than scaled up with it.
+    const LIFTS = { ufo: 104, door: 152, brain: 124, pc: 104, exit: 92, rat: 58 };
+    const lift = LIFTS[s.id] || 100;
+    const sp = toScreen(s.x - cam, groundY(s.x));
+    const x = U.clamp(Math.round(sp.x), 60, VW - 60);
+    const y = U.clamp(Math.round(sp.y - lift + Math.sin(t * 5) * 2), 24, VH - 70);
     const w = Math.max(F.width(s.name, 1), F.width(s.sub, 1)) + 18;
     X.rect(ctx, x - w / 2 + 2, y + 2, w, 26, 'rgba(6,3,14,0.5)');
     X.rect(ctx, x - w / 2, y, w, 26, '#7a5a3a');
@@ -10190,7 +10447,43 @@ window.PD = window.PD || {};
     F.draw(ctx, 'E', x, y - 10 - kb, '#241f16', { center: true, shadow: false });
   }
 
-  function draw(ctx, g, t) {
+  /* ---------------------------------------------------------------- the view
+     Home is ZOOMED: the scene is painted at its usual size and then a window
+     of it, ZW by ZH, is blown up to fill the screen at exactly twice the size.
+     Twice, not one-and-a-half times, so a pixel stays a square block.
+     `view()` picks that window -- following him about outside, and sitting
+     still over the room when he is indoors, which is smaller than the window
+     anyway. */
+  const ZW = 240, ZH = 135;
+  const VIEW = { x: 120, y: 100 };
+
+  function view(dt) {
+    const cam = g0 ? g0.intCam : 0;
+    const px = P.x - cam, gy = groundY(P.x);
+    let tx, ty;
+    if (S.scene === 'in') {
+      // the room is narrower than the window: park it, centred, and hold still
+      tx = (IN_W - VW) / -2 + (IN_W - ZW) / 2;
+      ty = CEIL - 24;
+    } else {
+      tx = U.clamp(px - ZW / 2, 0, VW - ZW);
+      // the ground sits low in the window so there is sky above him, and the
+      // window rises with him when he leaves the floor
+      const head = P.air > 0.1 ? P.y - 34 : P.y;
+      ty = U.clamp(Math.min(gy, head) - 84, 0, VH - ZH);
+    }
+    if (dt === undefined) return VIEW;
+    VIEW.x = U.damp(VIEW.x, tx, 0.22, dt);
+    VIEW.y = U.damp(VIEW.y, ty, 0.18, dt);
+    return VIEW;
+  }
+  /* Screen pixels back into scene pixels, for taps and for the prompt sign. */
+  function toScreen(x, y) { return { x: (x - Math.round(VIEW.x)) * 2, y: (y - Math.round(VIEW.y)) * 2 }; }
+  function fromScreenX(sx) { return Math.round(VIEW.x) + sx / 2; }
+
+  /* Everything in the world. Painted into the zoom buffer, never straight to
+     the screen. */
+  function drawScene(ctx, g, t) {
     const cam = Math.round(g.intCam);
     if (S.scene === 'out') drawOutside(ctx, g, t, cam);
     else drawInside(ctx, g, t, cam);
@@ -10204,14 +10497,12 @@ window.PD = window.PD || {};
 
     drawRat(ctx, g, cam, t);
     drawPlayer(ctx, g, cam, t);
-    if (S.sleep <= 0) prompt(ctx, g, t, cam);
+  }
 
-    // a foreground lip of rock so the scene has depth
-    for (let x = -8; x < VW + 8; x += 6) {
-      const h = 6 + Math.round(U.hash2(x + cam * 0.2, 11) * 8);
-      X.rect(ctx, x, VH - h, 6, h, '#1a1526');
-      X.rect(ctx, x, VH - h, 6, 1, '#241f36');
-    }
+  /* Signs, speech and the sleep fade, drawn on the screen at screen size so
+     the zoom does not turn the lettering into billboards. */
+  function drawOverlay(ctx, g, t) {
+    if (S.sleep <= 0) prompt(ctx, g, t, Math.round(g.intCam));
 
     if (S.sleep > 0) {
       ctx.globalAlpha = Math.min(0.86, (2.2 - Math.abs(S.sleep - 1.1) * 2) * 0.9);
@@ -10232,6 +10523,9 @@ window.PD = window.PD || {};
       ctx.globalAlpha = 1;
     }
   }
+
+  /* Kept for anything that still wants the whole thing in one call. */
+  function draw(ctx, g, t) { drawScene(ctx, g, t); drawOverlay(ctx, g, t); }
 
   function drawPlayer(ctx, g, cam, t) {
     const skin = PD.art.skinFor(g.save.cos);
@@ -10254,6 +10548,13 @@ window.PD = window.PD || {};
     if (!P.rig) P.rig = PD.rig.make();
     const r = P.rig;
     PD.rig.step(r, { dt: g.dt, vx: P.vx, vy: P.vy, ground: !air, drilling: false });
+    // he says something short and stupid whenever he starts doing a thing
+    if (r.fresh) {
+      const SAYS = { wave: 'HI', shrug: '?', flex: 'HUP', point: '!', scratch: 'HMM', sniff: 'SNF', stretch: 'AAA' };
+      FX.text(P.x, P.y - 48, SAYS[r.fresh] || '?', '#ffe9a8', 0);
+      A.sfx.tone(r.fresh === 'shrug' ? 300 : 620, { type: 'square', to: r.fresh === 'shrug' ? 220 : 820, dur: 0.09, vol: 0.035 });
+      r.fresh = null;
+    }
     const frame = Math.sin(t * 1.3) > 0.94 ? 4 : Math.floor(t * 7) % 4;
     // BOUNCY: a deep squash on landing, a stretch on the way up, and a little
     // extra wobble the whole time so nothing in this game is ever rigid.
@@ -10267,7 +10568,7 @@ window.PD = window.PD || {};
     if (walking && !air && U.chance(0.2)) FX.dust(P.x - P.face * 5, P.y, 1, '#8e86a8', 10);
   }
 
-  PD.home = { enter, update, draw, closeScene, touchMode, leaveDesk, say, P, UI, S, groundY, ROOM_W: OUT_W, SPOTS };
+  PD.home = { enter, update, draw, drawScene, drawOverlay, view, toScreen, fromScreenX, closeScene, touchMode, leaveDesk, say, P, UI, S, groundY, ZW, ZH, ROOM_W: OUT_W, SPOTS };
 })(window.PD);
 
 /* ===== src/game.js ===== */
@@ -10652,7 +10953,9 @@ window.PD = window.PD || {};
   /* Tiny rendered thumbnails of each world for the nav computer. */
   const navIcons = {};
   g.navIcon = function (i) {
-    if (!navIcons[i]) navIcons[i] = PD.arthome.buildMoon(44, D.BODIES[i].tint, 1000 + i * 977);
+    // the chart and the sky over your house both show the real thing: an ice
+    // ball has caps, a furnace world is cracked open, a gemstone is cut
+    if (!navIcons[i]) navIcons[i] = PD.arthome.buildPlanet(56, D.BODIES[i].tint, 1000 + i * 977, D.BODIES[i].type);
     return navIcons[i];
   };
 
@@ -11235,7 +11538,7 @@ window.PD = window.PD || {};
 
   /* ------------------------------------------------------------------- render */
   const HD = 2;
-  let cv, ctx, screen, sctx, lightCv, lctx, scale = 2, offX = 0, offY = 0;
+  let cv, ctx, screen, sctx, lightCv, lctx, homeCv, hctx, scale = 2, offX = 0, offY = 0;
 
   function setupCanvas() {
     screen = document.getElementById('screen');
@@ -11250,6 +11553,11 @@ window.PD = window.PD || {};
     lightCv = document.createElement('canvas');
     lightCv.width = VW; lightCv.height = VH;
     lctx = lightCv.getContext('2d');
+    // the buffer the home scene is painted into before it is blown up
+    homeCv = document.createElement('canvas');
+    homeCv.width = VW * HD; homeCv.height = VH * HD;
+    hctx = homeCv.getContext('2d');
+    hctx.imageSmoothingEnabled = false;
     resize();
     window.addEventListener('resize', resize);
   }
@@ -11407,11 +11715,25 @@ window.PD = window.PD || {};
     }
 
     if (g.state === 'home') {
-      PD.home.draw(ctx, g, g.time);
-      FX.drawWorld(ctx, { x: Math.round(g.intCam), y: 0 });
-      FX.drawFloaters(ctx, { x: Math.round(g.intCam), y: 0 }, (c, str, x, y, col, size) =>
+      /* HOME IS ZOOMED. The scene is painted into its own buffer at the usual
+         size, then a 240x135 window of it is blown up by exactly two to fill
+         the frame -- an integer scale, so every pixel stays a hard square.
+         Signs, speech and the touch pad go on afterwards at screen size, so
+         the lettering does not turn into billboards. */
+      const v = PD.home.view();
+      const vx = Math.round(v.x), vy = Math.round(v.y);
+      hctx.setTransform(HD, 0, 0, HD, 0, 0);
+      hctx.imageSmoothingEnabled = false;
+      hctx.clearRect(0, 0, VW, VH);
+      PD.home.drawScene(hctx, g, g.time);
+      FX.drawWorld(hctx, { x: Math.round(g.intCam), y: 0 });
+      FX.drawFloaters(hctx, { x: Math.round(g.intCam), y: 0 }, (c, str, x, y, col, size) =>
         F.draw(c, str, x, y, col, { center: true, scale: size >= 2 ? 2 : 1 }));
-      UI.homeBar(ctx, g);
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(homeCv, vx * HD, vy * HD, PD.home.ZW * HD, PD.home.ZH * HD, 0, 0, VW * HD, VH * HD);
+      ctx.setTransform(HD, 0, 0, HD, 0, 0);
+      PD.home.drawOverlay(ctx, g, g.time);
       PD.touch.draw(ctx, PD.home.touchMode(), g);
       UI.endFrame();
       blit();

@@ -36,6 +36,7 @@
   const GRAV = 300;                  // low: everything here is bouncy
 
   const S = { scene: 'out', t: 0, ratSeen: 0, sleep: 0, swing: 0 };
+  let g0 = null;                     // the running game, for view() between frames
 
   function roomW() { return S.scene === 'out' ? OUT_W : IN_W; }
   /* A room narrower than the screen sits in the middle of it. */
@@ -120,6 +121,7 @@
   let star = null;
 
   function enter(g, atX) {
+    g0 = g;
     S.scene = 'out';
     place(g, atX === undefined ? OUT_SPOTS[1].x : atX);
     if (!star) {
@@ -213,6 +215,7 @@
   /* ---------------------------------------------------------------- update */
   function update(dt, g) {
     const IN = PD.input;
+    g0 = g;
     S.t += dt;
     P.lock = Math.max(0, P.lock - dt);
     UI.msgT = Math.max(0, UI.msgT - dt);
@@ -234,8 +237,8 @@
     if (IN.down('left')) ix -= 1;
     if (IN.down('right')) ix += 1;
 
-    if (P.lock <= 0 && m.leftPressed && m.y > 26) {
-      const wx = m.x + g.intCam;
+    if (P.lock <= 0 && m.leftPressed) {
+      const wx = fromScreenX(m.x) + g.intCam;
       let hit = null;
       for (const s of spots(g)) if (Math.abs(s.x - wx) < s.r) hit = s;
       const bd0 = bounds();
@@ -297,6 +300,7 @@
       if (P.vy > 60) {
         // EVERYTHING BOUNCES. He lands, squashes flat, and pops back up.
         P.land = 0.26;
+        if (P.rig) PD.rig.land(P.rig, U.clamp(P.vy / 260, 0.4, 1));
         if (P.vy > 150 && P.hop < 2) { P.vy = -P.vy * 0.34; P.hop++; }
         else { P.vy = 0; P.hop = 0; }
         FX.dust(P.x, gy, 6, '#8e86a8', 18);
@@ -312,6 +316,7 @@
     if (use_) use(g, P.near);
 
     g.intCam = U.damp(g.intCam, camWant(), 0.16, dt);
+    view(dt);                        // the zoom window follows him
   }
 
   /* Before he is yours he stands over the cheese. After, he never shuts up
@@ -753,10 +758,14 @@
   function prompt(ctx, g, t, cam) {
     const s = P.near;
     if (!s) return;
-    const x = Math.round(s.x - cam);
-    const LIFTS = { ufo: 60, door: 88, brain: 96, pc: 54, exit: 74, rat: 44 };
-    const lift = LIFTS[s.id] || 60;
-    const y = Math.round(groundY(s.x) - lift + Math.sin(t * 5) * 2);
+    // How high the sign floats, in SCREEN pixels -- the thing it names is
+    // twice its old size now, so the clearance is measured after the zoom
+    // rather than scaled up with it.
+    const LIFTS = { ufo: 104, door: 152, brain: 124, pc: 104, exit: 92, rat: 58 };
+    const lift = LIFTS[s.id] || 100;
+    const sp = toScreen(s.x - cam, groundY(s.x));
+    const x = U.clamp(Math.round(sp.x), 60, VW - 60);
+    const y = U.clamp(Math.round(sp.y - lift + Math.sin(t * 5) * 2), 24, VH - 70);
     const w = Math.max(F.width(s.name, 1), F.width(s.sub, 1)) + 18;
     X.rect(ctx, x - w / 2 + 2, y + 2, w, 26, 'rgba(6,3,14,0.5)');
     X.rect(ctx, x - w / 2, y, w, 26, '#7a5a3a');
@@ -771,7 +780,43 @@
     F.draw(ctx, 'E', x, y - 10 - kb, '#241f16', { center: true, shadow: false });
   }
 
-  function draw(ctx, g, t) {
+  /* ---------------------------------------------------------------- the view
+     Home is ZOOMED: the scene is painted at its usual size and then a window
+     of it, ZW by ZH, is blown up to fill the screen at exactly twice the size.
+     Twice, not one-and-a-half times, so a pixel stays a square block.
+     `view()` picks that window -- following him about outside, and sitting
+     still over the room when he is indoors, which is smaller than the window
+     anyway. */
+  const ZW = 240, ZH = 135;
+  const VIEW = { x: 120, y: 100 };
+
+  function view(dt) {
+    const cam = g0 ? g0.intCam : 0;
+    const px = P.x - cam, gy = groundY(P.x);
+    let tx, ty;
+    if (S.scene === 'in') {
+      // the room is narrower than the window: park it, centred, and hold still
+      tx = (IN_W - VW) / -2 + (IN_W - ZW) / 2;
+      ty = CEIL - 24;
+    } else {
+      tx = U.clamp(px - ZW / 2, 0, VW - ZW);
+      // the ground sits low in the window so there is sky above him, and the
+      // window rises with him when he leaves the floor
+      const head = P.air > 0.1 ? P.y - 34 : P.y;
+      ty = U.clamp(Math.min(gy, head) - 84, 0, VH - ZH);
+    }
+    if (dt === undefined) return VIEW;
+    VIEW.x = U.damp(VIEW.x, tx, 0.22, dt);
+    VIEW.y = U.damp(VIEW.y, ty, 0.18, dt);
+    return VIEW;
+  }
+  /* Screen pixels back into scene pixels, for taps and for the prompt sign. */
+  function toScreen(x, y) { return { x: (x - Math.round(VIEW.x)) * 2, y: (y - Math.round(VIEW.y)) * 2 }; }
+  function fromScreenX(sx) { return Math.round(VIEW.x) + sx / 2; }
+
+  /* Everything in the world. Painted into the zoom buffer, never straight to
+     the screen. */
+  function drawScene(ctx, g, t) {
     const cam = Math.round(g.intCam);
     if (S.scene === 'out') drawOutside(ctx, g, t, cam);
     else drawInside(ctx, g, t, cam);
@@ -785,14 +830,12 @@
 
     drawRat(ctx, g, cam, t);
     drawPlayer(ctx, g, cam, t);
-    if (S.sleep <= 0) prompt(ctx, g, t, cam);
+  }
 
-    // a foreground lip of rock so the scene has depth
-    for (let x = -8; x < VW + 8; x += 6) {
-      const h = 6 + Math.round(U.hash2(x + cam * 0.2, 11) * 8);
-      X.rect(ctx, x, VH - h, 6, h, '#1a1526');
-      X.rect(ctx, x, VH - h, 6, 1, '#241f36');
-    }
+  /* Signs, speech and the sleep fade, drawn on the screen at screen size so
+     the zoom does not turn the lettering into billboards. */
+  function drawOverlay(ctx, g, t) {
+    if (S.sleep <= 0) prompt(ctx, g, t, Math.round(g.intCam));
 
     if (S.sleep > 0) {
       ctx.globalAlpha = Math.min(0.86, (2.2 - Math.abs(S.sleep - 1.1) * 2) * 0.9);
@@ -813,6 +856,9 @@
       ctx.globalAlpha = 1;
     }
   }
+
+  /* Kept for anything that still wants the whole thing in one call. */
+  function draw(ctx, g, t) { drawScene(ctx, g, t); drawOverlay(ctx, g, t); }
 
   function drawPlayer(ctx, g, cam, t) {
     const skin = PD.art.skinFor(g.save.cos);
@@ -835,6 +881,13 @@
     if (!P.rig) P.rig = PD.rig.make();
     const r = P.rig;
     PD.rig.step(r, { dt: g.dt, vx: P.vx, vy: P.vy, ground: !air, drilling: false });
+    // he says something short and stupid whenever he starts doing a thing
+    if (r.fresh) {
+      const SAYS = { wave: 'HI', shrug: '?', flex: 'HUP', point: '!', scratch: 'HMM', sniff: 'SNF', stretch: 'AAA' };
+      FX.text(P.x, P.y - 48, SAYS[r.fresh] || '?', '#ffe9a8', 0);
+      A.sfx.tone(r.fresh === 'shrug' ? 300 : 620, { type: 'square', to: r.fresh === 'shrug' ? 220 : 820, dur: 0.09, vol: 0.035 });
+      r.fresh = null;
+    }
     const frame = Math.sin(t * 1.3) > 0.94 ? 4 : Math.floor(t * 7) % 4;
     // BOUNCY: a deep squash on landing, a stretch on the way up, and a little
     // extra wobble the whole time so nothing in this game is ever rigid.
@@ -848,5 +901,5 @@
     if (walking && !air && U.chance(0.2)) FX.dust(P.x - P.face * 5, P.y, 1, '#8e86a8', 10);
   }
 
-  PD.home = { enter, update, draw, closeScene, touchMode, leaveDesk, say, P, UI, S, groundY, ROOM_W: OUT_W, SPOTS };
+  PD.home = { enter, update, draw, drawScene, drawOverlay, view, toScreen, fromScreenX, closeScene, touchMode, leaveDesk, say, P, UI, S, groundY, ZW, ZH, ROOM_W: OUT_W, SPOTS };
 })(window.PD);

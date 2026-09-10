@@ -494,7 +494,11 @@
     const ground = this.onGround(this.g.world);
     if (!this.rig) this.rig = PD.rig.make();
     const r = this.rig;
-    PD.rig.step(r, { dt: this.g.dt, vx: this.vx, vy: this.vy, ground, drilling });
+    // no idle flourishes out here: both hands are on the tool
+    PD.rig.step(r, { dt: this.g.dt, vx: this.vx, vy: this.vy, ground, drilling, noEmote: true });
+    if (ground && !this.wasGround && this.lastVy > 120) PD.rig.land(r, U.clamp(this.lastVy / 320, 0.4, 1));
+    this.wasGround = ground;
+    this.lastVy = this.vy;
 
     const drill = skin.drill;
     const gun = PD.art.sprites[this.weapon === 'pistol' ? 'gun' : this.weapon];

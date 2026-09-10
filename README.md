@@ -26,6 +26,18 @@ node tools/build.js           # -> dist/planet-destroyer.html
 
 ## Home is a small rock, seen up close
 
+**Home is zoomed in.** The scene is painted at the game's usual size and then a
+240x135 window of it is blown up to fill the frame at exactly **twice** the
+size — twice, not one and a half times, so a pixel stays a hard square block.
+The window follows him about outside and sits still over the room indoors,
+which is smaller than the window anyway. Signs, speech and the touch pad go on
+afterwards at screen size, so the lettering never turns into billboards.
+
+**And there is no bar across the top.** Nothing frames the scene at home any
+more: the money and the ore count live on the computer, the tally of dead
+worlds is scratched into the rock wall, and the wooden signs tell you what
+everything does. What is left is the place.
+
 **Outside** is the top of a moon, and you are standing close enough to it that
 it is not a ball any more: the curve is gentle, the limb runs off the bottom
 corners of the screen, and the surface is **lumpy** rather than a clean arc —
@@ -34,15 +46,15 @@ and boulders half-buried all the way out to both horizons. It is a chipped rock,
 not a globe. The star is off to one side, so the crust is pale on that side and
 nearly black on the other, with the terminator between them ordered-dithered
 instead of drawn as a line, and a rim of dust sitting on the skyline, thickest
-where the ground is falling away from you. Nothing scrolls out here.
+where the ground is falling away from you.
 
 Standing on it: **your rock house**, a squat heap of quarried slabs with a hole
 knocked in the front for a door, one lit window, a crooked chimney with a
 satellite dish taped to it and smoke going up; **your dumb UFO**, up on two
 bricks with one leg that gave up years ago; a flag nobody saluted; a survey
 pole; and ruins at both ends. The eye sockets of a dead Celestial drift past in
-the background, and the world you are about to take apart hangs in the top
-corner.
+the background, and the world you are about to take apart hangs over the
+horizon.
 
 **Inside** is one very small room, and it is clipped out of solid rock: you can
 see the walls end. It holds exactly two things — the stolen computer on a
@@ -58,6 +70,48 @@ door and press `E`.
 
 The high jump reaches the junk hanging off the roof beam, and head-butting it
 sets the whole lot swinging.
+
+## He cannot stand still
+
+Left alone for a few seconds he starts doing things. He **waves** at nobody, has
+an enormous **stretch** up on his toes, **shrugs** at the horizon with his palms
+out, **scratches** his head, **flexes** arms that have nothing on them, **points**
+at something that is not there, or sniffs his own moustache — and says something
+short and stupid while he does it (`HI`, `?`, `HUP`, `HMM`, `AAA`).
+
+None of it is drawn. Every one is played through the live limb rig: the arms go
+somewhere silly on an ease-in, the legs shift with them, the whole body squashes
+or pulls tall to match, and it all springs back. Then he picks another one.
+
+Everything else got louder with it. He **tips** into whatever direction he is
+travelling and takes a moment to come back upright, his arms swing nearly twice
+as wide as they did and lift as they come forward, his body bobs twice a stride,
+and when he lands both arms **fly out sideways** while he squashes into the
+floor. Out on a dig his hands are full, so the flourishes stop — but the tipping,
+the swing, the bob and the landing fling all stay.
+
+## Worlds look like what they are
+
+Every world in the game is rasterised at half size and blown up, so each feature
+is a hard block of pixels — and each one is painted according to what kind of
+place it is:
+
+- **Asteroids and moons** are cratered: a sunlit rim on one side of every
+  crater, a dark floor, and specks of ejecta thrown out around the big ones.
+- **Ice worlds** get latitude bands, hard white **polar caps** with bites taken
+  out of them, and fracture lines running across the surface.
+- **Living worlds** get continents, caps and **weather** — streaks of cloud
+  lying along the latitudes.
+- **Furnace worlds** are charcoal-dark and **cracked open**, with glowing
+  fissures wandering out from the middle and bright calderas punched into them.
+- **Gemstones** are cut: flat panels with a bright top edge and a dark bottom,
+  facet against facet.
+- **Machine moons** are plated, panel by panel, with a rivet in every corner.
+- **The Galactic Heart** is banded, with a molten stripe through the middle.
+
+All of it seeded, so a world looks the same every time you come back to it, and
+the same picture is used for the chart, the dossier, and the thing hanging over
+your own horizon at home.
 
 ## The brain in the jar
 
@@ -440,8 +494,8 @@ a line of history under its blurb.
 | `src/pix.js` | Tiny pixel-drawing surface, where every round primitive is really an octagon or a chamfer; `outline()` traces the dark cartoon border that gives everything its look |
 | `src/pxd.js` | Runtime pixel primitives: hard-edged scanline polygons (no anti-aliased diagonals anywhere), octagons, hexagons, stepped rings, tapering limb segments, and a cached dither pattern |
 | `src/art.js` | The alien at 2x in idle, walk, fly, drill and roll poses, the drill, the pod, guns, six enemies, ore chunks, UI icons — all procedural |
-| `src/arthome.js` | Home at 2x: the small rock house seen from outside, wall and floor, the desk with the human computer, **the brain in the jar**, the moon rat, the cheese, the fridge, junk piles, litter, posters, ruins, and the cratered-moon generator |
-| `src/rig.js` | The limb rig: two-bone solves that stretch, a walk cycle driven by ground covered, the drilling brace, the recoil, the snatch, and hard-pixel limb segments |
+| `src/arthome.js` | Home at 2x: the planet generator (cratered, iced, living, cracked, cut, plated), the small rock house seen from outside, wall and floor, the desk with the human computer, **the brain in the jar**, the moon rat, the cheese, the fridge, junk piles, litter, posters, ruins, and the cratered-moon generator |
+| `src/rig.js` | The limb rig: two-bone solves that stretch, a walk cycle driven by ground covered, the drilling brace, the recoil, the snatch, the seven idle flourishes, and hard-pixel limb segments |
 | `src/mind.js` | The brain in the jar: the acid tank, the faceted brain, the neuron lattice and what each neuron grows into you |
 | `src/font.js` | Hand-drawn 5×7 bitmap font, cached per colour |
 | `src/audio.js` | WebAudio synthesis — a drill loop that tracks rock hardness, jetpack noise, explosions, and a villainous little groove |

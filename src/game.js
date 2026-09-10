@@ -379,7 +379,9 @@
   /* Tiny rendered thumbnails of each world for the nav computer. */
   const navIcons = {};
   g.navIcon = function (i) {
-    if (!navIcons[i]) navIcons[i] = PD.arthome.buildMoon(44, D.BODIES[i].tint, 1000 + i * 977);
+    // the chart and the sky over your house both show the real thing: an ice
+    // ball has caps, a furnace world is cracked open, a gemstone is cut
+    if (!navIcons[i]) navIcons[i] = PD.arthome.buildPlanet(56, D.BODIES[i].tint, 1000 + i * 977, D.BODIES[i].type);
     return navIcons[i];
   };
 
@@ -962,7 +964,7 @@
 
   /* ------------------------------------------------------------------- render */
   const HD = 2;
-  let cv, ctx, screen, sctx, lightCv, lctx, scale = 2, offX = 0, offY = 0;
+  let cv, ctx, screen, sctx, lightCv, lctx, homeCv, hctx, scale = 2, offX = 0, offY = 0;
 
   function setupCanvas() {
     screen = document.getElementById('screen');
@@ -977,6 +979,11 @@
     lightCv = document.createElement('canvas');
     lightCv.width = VW; lightCv.height = VH;
     lctx = lightCv.getContext('2d');
+    // the buffer the home scene is painted into before it is blown up
+    homeCv = document.createElement('canvas');
+    homeCv.width = VW * HD; homeCv.height = VH * HD;
+    hctx = homeCv.getContext('2d');
+    hctx.imageSmoothingEnabled = false;
     resize();
     window.addEventListener('resize', resize);
   }
@@ -1134,11 +1141,25 @@
     }
 
     if (g.state === 'home') {
-      PD.home.draw(ctx, g, g.time);
-      FX.drawWorld(ctx, { x: Math.round(g.intCam), y: 0 });
-      FX.drawFloaters(ctx, { x: Math.round(g.intCam), y: 0 }, (c, str, x, y, col, size) =>
+      /* HOME IS ZOOMED. The scene is painted into its own buffer at the usual
+         size, then a 240x135 window of it is blown up by exactly two to fill
+         the frame -- an integer scale, so every pixel stays a hard square.
+         Signs, speech and the touch pad go on afterwards at screen size, so
+         the lettering does not turn into billboards. */
+      const v = PD.home.view();
+      const vx = Math.round(v.x), vy = Math.round(v.y);
+      hctx.setTransform(HD, 0, 0, HD, 0, 0);
+      hctx.imageSmoothingEnabled = false;
+      hctx.clearRect(0, 0, VW, VH);
+      PD.home.drawScene(hctx, g, g.time);
+      FX.drawWorld(hctx, { x: Math.round(g.intCam), y: 0 });
+      FX.drawFloaters(hctx, { x: Math.round(g.intCam), y: 0 }, (c, str, x, y, col, size) =>
         F.draw(c, str, x, y, col, { center: true, scale: size >= 2 ? 2 : 1 }));
-      UI.homeBar(ctx, g);
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(homeCv, vx * HD, vy * HD, PD.home.ZW * HD, PD.home.ZH * HD, 0, 0, VW * HD, VH * HD);
+      ctx.setTransform(HD, 0, 0, HD, 0, 0);
+      PD.home.drawOverlay(ctx, g, g.time);
       PD.touch.draw(ctx, PD.home.touchMode(), g);
       UI.endFrame();
       blit();

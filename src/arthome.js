@@ -796,7 +796,12 @@
       if (x1 > x0) c.fillRect(x0, y, x1 - x0, 1);
     }
   }
-  function buildMoon(size, tint, seed) {
+  /* A WORLD. Rasterised at half size and blown up, so every feature is a hard
+     block of pixels, and painted differently depending on what kind of place
+     it is: a cratered rock, an ice ball with caps, a living world with
+     continents and weather, a furnace cracked open, a cut gemstone, a plated
+     machine-moon. All of it deterministic from the seed. */
+  function buildPlanet(size, tint, seed, type) {
     const K = 2;
     const S = Math.max(10, Math.round(size / K));
     const src = document.createElement('canvas');
@@ -804,35 +809,172 @@
     const c = src.getContext('2d');
     const r = S / 2 - 0.5, cx = S / 2, cy = S / 2;
     const rnd = U.mulberry32(seed || 7);
+    const px = (v) => Math.max(1, Math.round(v));
     function shade(col, f) {
       const n = parseInt(col.slice(1), 16);
       const R = U.clamp(((n >> 16) & 255) * f, 0, 255) | 0, G = U.clamp(((n >> 8) & 255) * f, 0, 255) | 0, B = U.clamp((n & 255) * f, 0, 255) | 0;
       return 'rgb(' + R + ',' + G + ',' + B + ')';
     }
+    /* Every feature is clipped to the disc, so nothing spills off the limb. */
+    const inside = (x, y, k) => U.dist(x, y, cx, cy) < r * (k === undefined ? 0.98 : k);
+
     pxDisc(c, cx, cy, r, shade(tint, 0.78));
     c.save();
     c.beginPath(); c.rect(0, 0, S, S); c.clip();
-    for (let i = 0; i < 5; i++) {                       // maria
-      const a = rnd() * U.TAU, d = rnd() * r * 0.65;
-      pxDisc(c, cx + Math.cos(a) * d, cy + Math.sin(a) * d, r * (0.14 + rnd() * 0.22), shade(tint, 0.55 + rnd() * 0.1));
+
+    /* ---- the ground itself, per kind ---- */
+    const craters = (n, big) => {
+      for (let i = 0; i < n; i++) {
+        const a = rnd() * U.TAU, d = Math.sqrt(rnd()) * r * 0.88;
+        const kx = cx + Math.cos(a) * d, ky = cy + Math.sin(a) * d;
+        const kr = Math.max(1, (0.4 + rnd() * rnd() * (big ? 3 : 2.2)) * (S / 24));
+        if (!inside(kx, ky, 0.92)) continue;
+        pxDisc(c, kx, ky - kr * 0.2, kr, shade(tint, 1.12));          // sunlit rim
+        pxDisc(c, kx, ky + kr * 0.25, kr * 0.7, shade(tint, 0.42));   // floor
+        if (kr > S / 14) {                                            // and ejecta
+          for (let q = 0; q < 5; q++) {
+            const ea = rnd() * U.TAU, ed = kr * (1.2 + rnd());
+            const ex = kx + Math.cos(ea) * ed, ey = ky + Math.sin(ea) * ed;
+            if (inside(ex, ey)) { c.fillStyle = shade(tint, 1.2); c.fillRect(ex | 0, ey | 0, 1, 1); }
+          }
+        }
+      }
+    };
+    const maria = (n, f) => {
+      for (let i = 0; i < n; i++) {
+        const a = rnd() * U.TAU, d = rnd() * r * 0.62;
+        pxDisc(c, cx + Math.cos(a) * d, cy + Math.sin(a) * d, r * (0.14 + rnd() * 0.24), shade(tint, f + rnd() * 0.1));
+      }
+    };
+    /* Latitude bands: whole-pixel rows, so a striped world stays striped. */
+    const bands = (cols, h) => {
+      for (let y = 0; y < S; y++) {
+        const f = (y / S);
+        const col = cols[Math.floor(f * cols.length * h) % cols.length];
+        const w = Math.floor(Math.sqrt(Math.max(0, r * r - (y - cy) * (y - cy))));
+        if (w <= 0) continue;
+        c.fillStyle = col;
+        c.fillRect(Math.round(cx - w), y, w * 2, 1);
+      }
+    };
+    const caps = (col) => {
+      for (let y = 0; y < S; y++) {
+        const dy = Math.abs(y - cy) / r;
+        if (dy < 0.62) continue;
+        const w = Math.floor(Math.sqrt(Math.max(0, r * r - (y - cy) * (y - cy))));
+        if (w <= 0) continue;
+        const bite = Math.round(rnd() * 2);
+        c.fillStyle = col;
+        c.fillRect(Math.round(cx - w + bite), y, w * 2 - bite * 2, 1);
+      }
+    };
+    const cracks = (n, col, glow) => {
+      for (let i = 0; i < n; i++) {
+        let a = rnd() * U.TAU, d = rnd() * r * 0.3;
+        let x = cx + Math.cos(a) * d, y = cy + Math.sin(a) * d;
+        const steps = Math.round(S * (0.3 + rnd() * 0.4));
+        for (let q = 0; q < steps; q++) {
+          a += (rnd() - 0.5) * 0.9;
+          x += Math.cos(a); y += Math.sin(a);
+          if (!inside(x, y, 0.94)) break;
+          c.fillStyle = col; c.fillRect(x | 0, y | 0, 1, 1);
+          if (glow && rnd() > 0.6) { c.fillStyle = glow; c.fillRect((x | 0) + 1, y | 0, 1, 1); }
+        }
+      }
+    };
+    /* Flat cut panels with a bright edge -- a gemstone, not a ball. */
+    const facets = (n) => {
+      for (let i = 0; i < n; i++) {
+        const a = rnd() * U.TAU, d = rnd() * r * 0.7;
+        const fx = cx + Math.cos(a) * d, fy = cy + Math.sin(a) * d;
+        const w = px(r * (0.3 + rnd() * 0.5)), h = px(r * (0.25 + rnd() * 0.45));
+        c.fillStyle = shade(tint, 0.8 + rnd() * 0.5);
+        c.fillRect(Math.round(fx - w / 2), Math.round(fy - h / 2), w, h);
+        c.fillStyle = shade(tint, 1.5);
+        c.fillRect(Math.round(fx - w / 2), Math.round(fy - h / 2), w, 1);
+        c.fillStyle = shade(tint, 0.45);
+        c.fillRect(Math.round(fx - w / 2), Math.round(fy + h / 2 - 1), w, 1);
+      }
+    };
+    /* Plates and rivets: somebody built this one. */
+    const plating = () => {
+      const step = Math.max(3, Math.round(S / 7));
+      for (let y = 0; y < S; y += step) {
+        for (let x = 0; x < S; x += step) {
+          if (!inside(x + step / 2, y + step / 2, 0.95)) continue;
+          c.fillStyle = shade(tint, 0.72 + rnd() * 0.5);
+          c.fillRect(x, y, step - 1, step - 1);
+          c.fillStyle = shade(tint, 1.35);
+          c.fillRect(x, y, step - 1, 1);
+          c.fillStyle = shade(tint, 1.5);
+          c.fillRect(x + 1, y + 1, 1, 1);
+        }
+      }
+    };
+    /* Weather: streaks of cloud lying along the latitudes. */
+    const clouds = (n) => {
+      for (let i = 0; i < n; i++) {
+        const y = Math.round(cy + (rnd() * 2 - 1) * r * 0.82);
+        const w = Math.floor(Math.sqrt(Math.max(0, r * r - (y - cy) * (y - cy))));
+        if (w <= 2) continue;
+        const x0 = Math.round(cx - w + rnd() * w), len = px(w * (0.4 + rnd() * 0.9));
+        c.globalAlpha = 0.5 + rnd() * 0.35;
+        c.fillStyle = '#ffffff';
+        c.fillRect(x0, y, Math.min(len, Math.round(cx + w - x0)), px(S / 26));
+        c.globalAlpha = 1;
+      }
+    };
+
+    switch (type) {
+      case 'ice':
+        bands([shade(tint, 0.9), shade(tint, 1.05), shade(tint, 0.8)], 3);
+        caps('#eaf6ff'); cracks(7, shade(tint, 1.5)); craters(6);
+        break;
+      case 'terra':
+        bands([shade(tint, 0.7), shade(tint, 0.78), shade(tint, 0.72)], 2);
+        maria(6, 1.25); caps('#f0f8ff'); clouds(Math.round(S / 5)); craters(3);
+        break;
+      case 'volcanic':
+        pxDisc(c, cx, cy, r, shade(tint, 0.32));
+        maria(5, 0.5); cracks(12, '#ff7a2a', '#ffd27a'); craters(7);
+        for (let i = 0; i < 4; i++) {                        // calderas, glowing
+          const a = rnd() * U.TAU, d = rnd() * r * 0.7;
+          const hx = cx + Math.cos(a) * d, hy = cy + Math.sin(a) * d;
+          if (!inside(hx, hy, 0.85)) continue;
+          pxDisc(c, hx, hy, px(S / 16), '#ff7a2a');
+          pxDisc(c, hx, hy, px(S / 26), '#ffe9a8');
+        }
+        break;
+      case 'gem': case 'titan':
+        facets(Math.round(S / 4)); cracks(5, shade(tint, 1.6));
+        break;
+      case 'metal':
+        plating(); craters(5); cracks(4, shade(tint, 0.4));
+        break;
+      case 'core':
+        bands([shade(tint, 0.6), shade(tint, 0.95), '#ff8a3d', shade(tint, 0.75)], 4);
+        cracks(10, '#ffd27a', '#ff7a2a'); craters(4);
+        break;
+      default:
+        maria(5, 0.55); craters(22, true);
     }
-    for (let i = 0; i < 22; i++) {                      // craters, rim then floor
-      const a = rnd() * U.TAU, d = Math.sqrt(rnd()) * r * 0.9;
-      const kx = cx + Math.cos(a) * d, ky = cy + Math.sin(a) * d, kr = Math.max(1, (0.4 + rnd() * rnd() * 2.4) * (S / 24));
-      pxDisc(c, kx, ky - kr * 0.2, kr, shade(tint, 1.05));
-      pxDisc(c, kx, ky + kr * 0.25, kr * 0.7, shade(tint, 0.45));
+
+    // dust, everywhere
+    for (let i = 0; i < S * 2; i++) {
+      const dx2 = (rnd() * S) | 0, dy2 = (rnd() * S) | 0;
+      if (!inside(dx2, dy2)) continue;
+      c.fillStyle = shade(tint, rnd() > 0.5 ? 1.18 : 0.68);
+      c.fillRect(dx2, dy2, 1, 1);
     }
-    for (let i = 0; i < S * 2; i++) {                   // dust
-      c.fillStyle = shade(tint, rnd() > 0.5 ? 1.15 : 0.7);
-      c.fillRect((rnd() * S) | 0, (rnd() * S) | 0, 1, 1);
-    }
-    for (let x = 0; x < S; x++) {                       // stepped terminator
+    // the night side, stepped in columns
+    for (let x = 0; x < S; x++) {
       const f = x / S;
       if (f > 0.45) continue;
       c.fillStyle = 'rgba(4,2,12,' + (0.9 - f * 1.8).toFixed(2) + ')';
       c.fillRect(x, 0, 1, S);
     }
     c.restore();
+
     c.fillStyle = shade(tint, 1.55);                    // lit limb, along the facets
     const k2 = r * 0.42;
     const lim = [[-r + k2, -r], [r - k2, -r], [r, -r + k2], [r, r - k2]];
@@ -844,6 +986,7 @@
         c.fillRect(Math.round(cx + a[0] + (b[0] - a[0]) * f), Math.round(cy + a[1] + (b[1] - a[1]) * f), 1, 1);
       }
     }
+
     const cv = document.createElement('canvas');
     cv.width = cv.height = S * K;
     const cc = cv.getContext('2d');
@@ -851,6 +994,9 @@
     cc.drawImage(src, 0, 0, S, S, 0, 0, S * K, S * K);
     return cv;
   }
+
+  /* A plain cratered rock: what hangs in the sky over a dig site. */
+  function buildMoon(size, tint, seed) { return buildPlanet(size, tint, seed, 'moon'); }
 
   /* -------------------------------------------------------------- register */
   reg('wall', [houseWall(240, 160)], 0, 0);
@@ -875,5 +1021,5 @@
   reg('skull', [celestialHead()]);
   reg('tape', [tapeDeck(0), tapeDeck(1)]);
 
-  PD.arthome = { S, P, buildMoon, blit, HD, mitten, reg };
+  PD.arthome = { S, P, buildMoon, buildPlanet, blit, HD, mitten, reg };
 })(window.PD);

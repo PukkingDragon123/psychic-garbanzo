@@ -72,9 +72,35 @@
     return {
       phase: 0, bob: 0, jolt: 0, grab: null, grabT: 0,
       lean: 0, brace: 0, recoil: 0, breathe: U.rand(0, TAU),
-      hand: [null, null], armS: [1, 1], legS: [1, 1]
+      hand: [null, null], armS: [1, 1], legS: [1, 1],
+      emote: null, emoteT: 0, emoteMax: 1, idleT: 0, nextEmote: U.rand(1.5, 4),
+      landT: 0, sway: 0, fresh: null
     };
   }
+
+  /* THE GOOFY BIT. Left standing about he cannot help himself: he waves at
+     nobody, has a big stretch, shrugs at the horizon, scratches his head,
+     flexes arms that have nothing on them, or points at something that is not
+     there. All of it is played through the live limbs, so there are no frames
+     to draw -- the arms just go somewhere silly and spring back. */
+  const EMOTES = ['wave', 'stretch', 'shrug', 'scratch', 'flex', 'point', 'sniff'];
+  const EMOTE_LEN = { wave: 1.5, stretch: 1.5, shrug: 1.1, scratch: 1.4, flex: 1.2, point: 1.2, sniff: 1.0 };
+
+  function emote(r, which) {
+    if (!r) return;
+    r.emote = which || U.pick(EMOTES);
+    r.emoteMax = EMOTE_LEN[r.emote] || 1.3;
+    r.emoteT = r.emoteMax;
+    r.fresh = r.emote;                     // the caller may want to react once
+  }
+  /* 0 at each end, 1 in the middle: everything eases in and springs back. */
+  function emoteK(r) {
+    if (!r.emote || r.emoteT <= 0) return 0;
+    const f = 1 - r.emoteT / r.emoteMax;
+    return Math.sin(U.clamp(f, 0, 1) * Math.PI);
+  }
+  /* He hit the floor: fling the arms out. */
+  function land(r, amt) { if (r) r.landT = Math.min(1, (amt === undefined ? 1 : amt)); }
 
   /* Advance the rig. `o` describes the body this frame:
        vx, vy      how fast it is moving, in logical px/s
@@ -96,6 +122,19 @@
     r.lean = U.damp(r.lean, o.drilling ? 1 : 0, 0.35, dt);
     r.brace = U.damp(r.brace, o.drilling && o.ground ? 1 : 0, 0.3, dt);
     r.walkAmt = U.damp(r.walkAmt === undefined ? 0 : r.walkAmt, o.ground ? U.clamp(speed / 70, 0, 1) : 0, 0.4, dt);
+    r.landT = Math.max(0, r.landT - dt * 3.4);
+    // he leans into wherever he is going and it takes a moment to come back
+    r.sway = U.damp(r.sway, U.clamp((o.vx || 0) / 130, -1, 1), 0.16, dt);
+
+    // and if he is left standing there he starts doing something silly
+    const idling = o.ground && !o.drilling && speed < 8 && !o.noEmote;
+    if (r.emoteT > 0) {
+      r.emoteT -= dt;
+      if (r.emoteT <= 0) { r.emote = null; r.idleT = 0; r.nextEmote = U.rand(2.2, 6); }
+    } else if (idling) {
+      r.idleT += dt;
+      if (r.idleT > r.nextEmote) { emote(r); r.idleT = 0; }
+    } else r.idleT = 0;
     return r;
   }
 
@@ -159,6 +198,13 @@
       // standing: knock-kneed, weight on one side, breathing
       fx = hx + face * (i ? -3 : 2);
       fy = FOOT_Y + Math.sin(r.breathe) * 0.6;
+      const ek = emoteK(r);
+      if (ek > 0.01) {
+        // up on his toes for a stretch, feet apart for a shrug or a flex
+        if (r.emote === 'stretch') fy -= 3 * ek;
+        if (r.emote === 'shrug' || r.emote === 'flex') fx += (i ? -6 : 6) * ek;
+        if (r.emote === 'wave') fx += face * (i ? -2 : 3) * ek;
+      }
     }
     const knee = ik(hx, hy, fx, fy, TH, SHIN, i ? -1 : 1, 1.3);
     // knees pull inward: he has never once stood straight
@@ -194,10 +240,49 @@
       hang = Math.PI / 2;
     } else {
       const ph = ((t + i * 0.5) % 1 + 1) % 1;
-      const sw = -Math.cos(ph * TAU) * 7 * r.walkAmt * face;
+      // a big loose swing, and the arm lifts as it comes forward
+      const sw = -Math.cos(ph * TAU) * 13 * r.walkAmt * face;
+      const rise = -Math.abs(Math.sin(ph * TAU)) * 5 * r.walkAmt;
       tx = sx + sw + (i ? -1 : 1);
-      ty = sy + 21 + Math.sin(r.breathe + i) * 0.8;
-      hang = Math.PI / 2 + sw * 0.04;
+      ty = sy + 21 + rise + Math.sin(r.breathe + i) * 1.4;
+      hang = Math.PI / 2 + sw * 0.05;
+      // just landed: both arms fly out sideways for a moment
+      if (r.landT > 0.02) {
+        tx = U.lerp(tx, sx + (i ? -20 : 20), r.landT);
+        ty = U.lerp(ty, sy + 4, r.landT);
+        hang = U.lerp(hang, i ? Math.PI : 0, r.landT);
+      }
+      // and whatever daft thing he has decided to do with them
+      const ek = emoteK(r);
+      if (ek > 0.01) {
+        const near = i === 0;
+        let ex = tx, ey = ty, eh = hang;
+        switch (r.emote) {
+          case 'wave':                                   // at nobody
+            if (near) { ex = sx + 15; ey = sy - 17 + Math.sin(r.emoteT * 24) * 6; eh = -1.2; }
+            break;
+          case 'stretch':                                // both arms straight up
+            ex = sx + (near ? 6 : -7); ey = sy - 22; eh = -Math.PI / 2;
+            break;
+          case 'shrug':                                  // palms out, no idea
+            ex = sx + (near ? 19 : -19); ey = sy + 9; eh = near ? 0.2 : Math.PI - 0.2;
+            break;
+          case 'scratch':                                // the head, thoughtfully
+            if (near) { ex = sx + 3; ey = sy - 21 + Math.sin(r.emoteT * 18) * 2; eh = -Math.PI / 2; }
+            else { ex = sx - 12; ey = sy + 18; eh = Math.PI / 2; }
+            break;
+          case 'flex':                                   // arms he does not have
+            ex = sx + (near ? 13 : -14); ey = sy - 12; eh = near ? -0.5 : Math.PI + 0.5;
+            break;
+          case 'point':                                  // at nothing in particular
+            if (near) { ex = sx + 24; ey = sy - 6; eh = -0.2; }
+            break;
+          case 'sniff':                                  // a hand to the moustache
+            if (near) { ex = sx + 8; ey = sy - 14; eh = -Math.PI / 2; }
+            break;
+        }
+        tx = U.lerp(tx, ex, ek); ty = U.lerp(ty, ey, ek); hang = U.lerp(hang, eh, ek);
+      }
     }
     const elb = ik(sx, sy, tx, ty, UP, FORE, i ? 1 : -1, 1.38);
     X.knob(ctx, sx, sy + 1, 5, mid, lit);                 // shoulder pad
@@ -215,15 +300,28 @@
      drilling, grip (logical, where the hands hold the tool), aim, ground,
      vx, vy, squash, tint. */
   function draw(ctx, r, o, P, B) {
-    const sq = o.squash || 1;
+    let sq = o.squash || 1;
     // the whole body breathes and takes the recoil; bobY is in sprite units
-    r.bobY = (o.ground ? -Math.abs(Math.cos(r.phase * TAU)) * 2 * (r.walkAmt || 0) : 0)
-      + Math.sin(r.breathe) * (o.drilling ? 1.2 : 0.5) + r.jolt * 1.5;
+    r.bobY = (o.ground ? -Math.abs(Math.cos(r.phase * TAU)) * 3.4 * (r.walkAmt || 0) : 0)
+      + Math.sin(r.breathe) * (o.drilling ? 1.6 : 1.1) + r.jolt * 1.5
+      - r.landT * 3;
+    // the emote pulls the whole body about as well: taller for a stretch,
+    // squatter for a shrug, and a wobble for a flex
+    const ek = emoteK(r);
+    if (ek > 0.01) {
+      if (r.emote === 'stretch') sq *= 1 - 0.12 * ek;
+      if (r.emote === 'shrug') sq *= 1 + 0.12 * ek;
+      if (r.emote === 'flex') sq *= 1 + Math.sin(r.emoteT * 20) * 0.05 * ek;
+      if (r.emote === 'wave' || r.emote === 'sniff') r.bobY -= 1.5 * ek;
+    }
     const ox = Math.round((o.x | 0) - (o.drilling ? Math.cos(o.aim) * r.recoil * 2 : 0));
     const oy = Math.round((o.y | 0) - LIFT_Y - (o.drilling ? Math.sin(o.aim) * r.recoil : 0));
 
     ctx.save();
     ctx.translate(ox, oy);
+    // he TIPS: a shear into whichever way he is travelling, or into the drill
+    const shear = -(r.sway * 0.16 + (o.drilling ? Math.cos(o.aim) * r.lean * 0.1 : 0)) * (o.flip ? -1 : 1);
+    if (shear) ctx.transform(1, 0, shear, 1, 0, 0);
     if (sq !== 1) ctx.scale(sq, 1 / sq);
     ctx.save();
     ctx.scale(0.5, 0.5);
@@ -259,5 +357,5 @@
     ctx.restore();
   }
 
-  PD.rig = { make, step, hit, grab, draw, ik, SH, HIP, FOOT_Y, LIFT_Y };
+  PD.rig = { make, step, hit, grab, emote, land, draw, ik, EMOTES, SH, HIP, FOOT_Y, LIFT_Y };
 })(window.PD);
