@@ -30,18 +30,19 @@
     return this;
   };
 
-  /* An OCTAGON inscribed in the box, not an ellipse. Nothing in this game is
-     allowed to be an oval: the corners come off at 45 degrees and the result
-     reads as a cut stone rather than a balloon. Same call signature as the
-     ellipse it replaced, so every sprite in the game turned faceted at once. */
+  /* A REAL ellipse, rasterised. This used to be an octagon -- the whole game
+     was built on a rule that nothing could be round -- and the cost was that
+     every planet in it looked like a cut gem rather than a world. It is a
+     true ellipse now, drawn a whole pixel at a time, so it is round without
+     ever being smooth: no anti-aliasing, no half-lit rim, just a circle made
+     of squares the way a circle in a pixel game should be. */
   Pix.prototype.ellipse = function (cx, cy, rx, ry, c) {
     const x0 = Math.floor(cx - rx - 1), x1 = Math.ceil(cx + rx + 1);
     const y0 = Math.floor(cy - ry - 1), y1 = Math.ceil(cy + ry + 1);
     for (let y = y0; y <= y1; y++) {
       for (let x = x0; x <= x1; x++) {
-        const dx = Math.abs(x + 0.5 - cx) / rx, dy = Math.abs(y + 0.5 - cy) / ry;
-        if (dx > 1 || dy > 1) continue;
-        if (dx + dy > 1.42) continue;                 // the four cut corners
+        const dx = (x + 0.5 - cx) / rx, dy = (y + 0.5 - cy) / ry;
+        if (dx * dx + dy * dy > 1) continue;
         this.set(x, y, c);
       }
     }

@@ -120,6 +120,44 @@
     }
   }
 
+  /* ------------------------------------------------------- cartoon effects
+     The particle system above does physics. These two do COMEDY: a puff of
+     smoke with a hard outline that swells and thins, and a ring of spinning
+     stars round something that has just been hit. They are drawn as their own
+     kind rather than as blobs, because the whole point is the outline. */
+  function puff(x, y, n, col, power) {
+    // a puff costs two scanline discs to draw, so it yields to the physics
+    // particles when the screen is already full of rock
+    if (parts.length > MAXP * 0.5) return;
+    n = n || 5; power = power || 1;
+    for (let i = 0; i < n; i++) {
+      const a = U.rand(0, U.TAU), sp = U.rand(18, 62) * power;
+      if (parts.length >= MAXP) parts.shift();
+      parts.push({
+        kind: 'puff', x: x + U.rand(-3, 3), y: y + U.rand(-3, 3),
+        vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 14,
+        life: U.rand(0.45, 0.9), max: 0.9, size: U.rand(3, 6.5) * power,
+        color: col || '#c9bce8', grav: -12, drag: 0.9, glow: 0, collide: 0, spin: 0
+      });
+    }
+  }
+
+  /* Spinning stars, the universal cartoon for OW. */
+  function stars(x, y, n, col) {
+    if (parts.length > MAXP * 0.7) return;
+    n = n || 5;
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * U.TAU + U.rand(-0.3, 0.3), sp = U.rand(40, 96);
+      if (parts.length >= MAXP) parts.shift();
+      parts.push({
+        kind: 'star', x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 30,
+        life: U.rand(0.5, 0.85), max: 0.85, size: U.rand(3, 5),
+        color: col || '#ffe86a', grav: 90, drag: 0.93, glow: 0, collide: 0,
+        spin: U.rand(-9, 9), rot: U.rand(0, U.TAU)
+      });
+    }
+  }
+
   function smoke(x, y, n, color) {
     for (let i = 0; i < n; i++) {
       spawn({
@@ -209,6 +247,7 @@
       const d = Math.pow(p.drag, dt * 60);
       p.vx *= d; p.vy *= d;
       if (p.kind === 'shard') p.spin += (p.vx * 0.02) * dt * 60;
+      if (p.kind === 'star') p.rot = (p.rot || 0) + p.spin * dt;
       const nx = p.x + p.vx * dt, ny = p.y + p.vy * dt;
       if (p.collide && world && world.solidAt(nx, ny)) {
         const b = p.bounce === undefined ? 0.4 : p.bounce;
@@ -291,6 +330,30 @@
         else { ctx.fillStyle = p.lit; ctx.fillRect(sx, sy, w - 1, 1); }
         continue;
       }
+      if (p.kind === 'puff') {
+        // a lumpy cloud that swells as it dies, with a hard rim round it
+        const r = Math.max(1, p.size * (1.5 - t * 0.7));
+        ctx.globalAlpha = t > 0.6 ? (1 - t) * 2.5 : t * 1.1;
+        const px2 = Math.round(p.x - cam.x), py2 = Math.round(p.y - cam.y);
+        PD.pxd.blob(ctx, px2, py2, r + 1, r * 0.85 + 1, '#1a1030');
+        PD.pxd.blob(ctx, px2, py2, r, r * 0.85, p.color);
+        continue;
+      }
+      if (p.kind === 'star') {
+        const px2 = Math.round(p.x - cam.x), py2 = Math.round(p.y - cam.y);
+        const r = Math.max(2, p.size);
+        ctx.globalAlpha = t > 0.4 ? 1 : t / 0.4;
+        ctx.save();
+        ctx.translate(px2, py2);
+        ctx.rotate(Math.round((p.rot || 0) / (Math.PI / 8)) * (Math.PI / 8));
+        for (const c2 of ['#1a1030', p.color]) {
+          const g2 = c2 === p.color ? 0 : 1;
+          PD.pxd.rect(ctx, -1 - g2, -r - g2, 2 + g2 * 2, r * 2 + g2 * 2, c2);
+          PD.pxd.rect(ctx, -r - g2, -1 - g2, r * 2 + g2 * 2, 2 + g2 * 2, c2);
+        }
+        ctx.restore();
+        continue;
+      }
       const s = Math.max(1, Math.round(p.size * (0.4 + t * 0.7)));
       ctx.globalAlpha = t > 0.5 ? 1 : t * 2;
       if (p.glow) {
@@ -340,7 +403,7 @@
   }
 
   PD.fx = {
-    reset, spawn, sparks, dust, burst, smoke, trail, text, ring, chunk, shards, crumble, pop,
+    reset, spawn, sparks, dust, burst, smoke, trail, text, ring, chunk, shards, crumble, pop, puff, stars,
     beginWipe, wipeActive, wipeBusy, updateWipe, drawWipe,
     shake, flash, hitStop, update, tickFreeze, shakeOffset, drawWorld, drawFloaters, drawOverlay,
     get freeze() { return freeze; },

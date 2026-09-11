@@ -118,6 +118,8 @@
     FX.flash(0.35, '#ff5a4d');
     FX.hitStop(0.06);
     FX.burst(this.x, this.y, 10, ['#ff8ab0', '#ffffff', '#ff5a4d'], 130);
+    FX.stars(this.x, this.y - 10, 5);                 // the universal OW
+    FX.puff(this.x, this.y, 3, '#ff9a7a', 0.9);
     A.sfx.hurt();
     // anything that really connects knocks him off his feet
     if (dmg >= 11) this.ragdoll(g, U.clamp(dmg / 22, 0.6, 1.8), (dir || 1) * U.rand(8, 15));
@@ -199,6 +201,8 @@
       if (this.rag <= 0 && (settled || h2.stuck || this.ragAll > 3)) {
         this.rag = 0; this.ragAng = 0; this.ragAll = 0;
         if (this.rig) { this.rig.woozyT = 1.4; PD.rig.land(this.rig, 0.8); }
+        FX.stars(this.x, this.y - 12, 6);
+        FX.puff(this.x, this.y + 4, 5, '#c9bce8', 1.1);
       } else if (this.rag <= 0) this.rag = 0.06;      // still in the air: keep tumbling
       this.doAir(dt, g);
       return;
@@ -568,7 +572,10 @@
     const r = this.rig;
     // no idle flourishes out here: both hands are on the tool
     PD.rig.step(r, { dt: this.g.dt, vx: this.vx, vy: this.vy, ground, drilling, noEmote: true });
-    if (ground && !this.wasGround && this.lastVy > 120) PD.rig.land(r, U.clamp(this.lastVy / 320, 0.4, 1));
+    if (ground && !this.wasGround && this.lastVy > 120) {
+      PD.rig.land(r, U.clamp(this.lastVy / 320, 0.4, 1));
+      FX.puff(this.x, this.y + 5, 4, '#c9bce8', U.clamp(this.lastVy / 260, 0.6, 1.4));
+    }
     this.wasGround = ground;
     this.lastVy = this.vy;
 

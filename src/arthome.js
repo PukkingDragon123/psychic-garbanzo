@@ -791,7 +791,7 @@
     for (let y = Math.ceil(cy - r); y <= Math.floor(cy + r); y++) {
       const dy = Math.abs(y - cy + 0.5) / r2;
       if (dy > 1) continue;
-      const w = r2 * Math.min(1, 1.42 - dy);
+      const w = r2 * Math.sqrt(Math.max(0, 1 - dy * dy));
       const x0 = Math.round(cx - w), x1 = Math.round(cx + w);
       if (x1 > x0) c.fillRect(x0, y, x1 - x0, 1);
     }
@@ -975,16 +975,28 @@
     }
     c.restore();
 
-    c.fillStyle = shade(tint, 1.55);                    // lit limb, along the facets
-    const k2 = r * 0.42;
-    const lim = [[-r + k2, -r], [r - k2, -r], [r, -r + k2], [r, r - k2]];
-    for (let i = 0; i < lim.length - 1; i++) {
-      const a = lim[i], b = lim[i + 1];
-      const n = Math.max(2, Math.round(Math.hypot(b[0] - a[0], b[1] - a[1])));
-      for (let q = 0; q <= n; q++) {
-        const f = q / n;
-        c.fillRect(Math.round(cx + a[0] + (b[0] - a[0]) * f), Math.round(cy + a[1] + (b[1] - a[1]) * f), 1, 1);
-      }
+    /* Cut the whole thing back to a disc. Bands, clouds and lava spill to the
+       corners of the square while they are being painted -- it is much easier
+       to let them and then punch out everything that is not the planet than
+       to clip each one. A hard-edged disc as the mask, so the limb stays
+       pixels rather than a soft path edge. */
+    /* The mask is built on its own canvas and composited in ONE call:
+       destination-in is a whole-surface operation, so a disc drawn row by row
+       would have each row erase the row before it. */
+    const mk = document.createElement('canvas');
+    mk.width = mk.height = S;
+    pxDisc(mk.getContext('2d'), cx, cy, r + 0.5, '#ffffff');
+    c.globalCompositeOperation = 'destination-in';
+    c.drawImage(mk, 0, 0);
+    c.globalCompositeOperation = 'source-over';
+
+    // the lit limb: one pixel of highlight walked round the top-right quarter
+    c.fillStyle = shade(tint, 1.55);
+    for (let a = -Math.PI * 0.95; a <= -Math.PI * 0.05; a += 0.05) {
+      c.fillRect(Math.round(cx + Math.cos(a) * r), Math.round(cy + Math.sin(a) * r), 1, 1);
+    }
+    for (let a = 0.35; a <= 1.2; a += 0.05) {
+      c.fillRect(Math.round(cx + Math.cos(a) * r), Math.round(cy + Math.sin(a) * r), 1, 1);
     }
 
     const cv = document.createElement('canvas');

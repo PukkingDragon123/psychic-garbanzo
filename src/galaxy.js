@@ -23,7 +23,7 @@
     for (let y = Math.ceil(cy - r); y <= Math.floor(cy + r); y++) {
       const dy = Math.abs(y - cy + 0.5) / r2;
       if (dy > 1) continue;
-      const w = r2 * Math.min(1, 1.42 - dy);
+      const w = r2 * Math.sqrt(Math.max(0, 1 - dy * dy));
       const x0 = Math.round(cx - w), x1 = Math.round(cx + w);
       if (x1 > x0) c.fillRect(x0, y, x1 - x0, 1);
     }
@@ -245,7 +245,7 @@
       for (let x = 0; x < W; x++) {
         const dx = (x - cx + 0.5) / r, dy = (y - cy + 0.5) / r;
         const ax = Math.abs(dx), ay = Math.abs(dy);
-        if (ax > 1 || ay > 1 || ax + ay > 1.42) continue;   // an octagon, not a disc
+        if (ax * ax + ay * ay > 1) continue;                // a real disc
         const d2 = Math.min(0.999, dx * dx + dy * dy);
         const nz = Math.sqrt(1 - d2);
         let lam = -dx * 0.55 - dy * 0.5 + nz * 0.62;          // light from the upper left
@@ -296,7 +296,7 @@
       for (let x = 0; x < S; x++) {
         // octagonal falloff: |x|+|y| clipped, so even the corona is faceted
         const ax2 = Math.abs(x - cx + 0.5) / R, ay2 = Math.abs(y - cy + 0.5) / R;
-        const d = Math.max(Math.max(ax2, ay2), (ax2 + ay2) / 1.42);
+        const d = Math.sqrt(ax2 * ax2 + ay2 * ay2);
         if (d > 3.4) continue;
         let a, f;
         if (d <= 0.55) { a = 1; f = 1.7; }

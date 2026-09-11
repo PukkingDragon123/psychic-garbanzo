@@ -309,6 +309,7 @@
         // EVERYTHING BOUNCES. He lands, squashes flat, and pops back up.
         P.land = 0.26;
         if (P.rig) PD.rig.land(P.rig, U.clamp(P.vy / 260, 0.4, 1));
+        FX.puff(P.x, P.y, 4, '#b8aed0', U.clamp(P.vy / 240, 0.6, 1.3));
         if (P.vy > 150 && P.hop < 2) { P.vy = -P.vy * 0.34; P.hop++; }
         else { P.vy = 0; P.hop = 0; }
         FX.dust(P.x, gy, 6, '#8e86a8', 18);
@@ -769,7 +770,7 @@
     // How high the sign floats, in SCREEN pixels -- the thing it names is
     // twice its old size now, so the clearance is measured after the zoom
     // rather than scaled up with it.
-    const LIFTS = { ufo: 104, door: 152, brain: 124, pc: 104, exit: 92, rat: 58 };
+    const LIFTS = { ufo: 78, door: 114, brain: 93, pc: 78, exit: 69, rat: 44 };
     const lift = LIFTS[s.id] || 100;
     const sp = toScreen(s.x - cam, groundY(s.x));
     const x = U.clamp(Math.round(sp.x), 60, VW - 60);
@@ -790,12 +791,15 @@
 
   /* ---------------------------------------------------------------- the view
      Home is ZOOMED: the scene is painted at its usual size and then a window
-     of it, ZW by ZH, is blown up to fill the screen at exactly twice the size.
-     Twice, not one-and-a-half times, so a pixel stays a square block.
-     `view()` picks that window -- following him about outside, and sitting
-     still over the room when he is indoors, which is smaller than the window
-     anyway. */
-  const ZW = 240, ZH = 135;
+     of it, ZW by ZH, is blown up to fill the screen.
+
+     The window used to be 240x135 at exactly 2x, which was too close -- you
+     could not see the house and the saucer at the same time. It is 320x180
+     now, which is a 1.5x blow-up of the logical frame; that would normally
+     smear pixels, except the frame itself is already drawn at HD=2, so a home
+     pixel lands on exactly THREE device pixels. Crisp, and a third more of
+     the moon in shot. */
+  const ZW = 320, ZH = 180, ZK = VW / ZW;
   const VIEW = { x: 120, y: 100 };
 
   function view(dt) {
@@ -811,7 +815,7 @@
       // the ground sits low in the window so there is sky above him, and the
       // window rises with him when he leaves the floor
       const head = P.air > 0.1 ? P.y - 34 : P.y;
-      ty = U.clamp(Math.min(gy, head) - 84, 0, VH - ZH);
+      ty = U.clamp(Math.min(gy, head) - 112, 0, VH - ZH);
     }
     if (dt === undefined) return VIEW;
     VIEW.x = U.damp(VIEW.x, tx, 0.22, dt);
@@ -819,8 +823,8 @@
     return VIEW;
   }
   /* Screen pixels back into scene pixels, for taps and for the prompt sign. */
-  function toScreen(x, y) { return { x: (x - Math.round(VIEW.x)) * 2, y: (y - Math.round(VIEW.y)) * 2 }; }
-  function fromScreenX(sx) { return Math.round(VIEW.x) + sx / 2; }
+  function toScreen(x, y) { return { x: (x - Math.round(VIEW.x)) * ZK, y: (y - Math.round(VIEW.y)) * ZK }; }
+  function fromScreenX(sx) { return Math.round(VIEW.x) + sx / ZK; }
 
   /* Everything in the world. Painted into the zoom buffer, never straight to
      the screen. */
@@ -914,5 +918,5 @@
     if (walking && !air && U.chance(0.2)) FX.dust(P.x - P.face * 5, P.y, 1, '#8e86a8', 10);
   }
 
-  PD.home = { enter, update, draw, drawScene, drawOverlay, view, toScreen, fromScreenX, closeScene, touchMode, leaveDesk, say, P, UI, S, groundY, ZW, ZH, ROOM_W: OUT_W, SPOTS };
+  PD.home = { enter, update, draw, drawScene, drawOverlay, view, toScreen, fromScreenX, closeScene, touchMode, leaveDesk, say, P, UI, S, groundY, ZW, ZH, ZK, ROOM_W: OUT_W, SPOTS };
 })(window.PD);

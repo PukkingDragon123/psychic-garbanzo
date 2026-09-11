@@ -69,6 +69,15 @@ open, one boot, an office chair, a bent antenna, a tyre, a stove-in crate and,
 inevitably, a rubber duck. The near ones are bigger, faster and dimmer, which
 is the whole of the depth effect.
 
+### Seen from a bit further back
+
+The home scene is zoomed, but it used to be zoomed too far: a 240x180 window
+blown up 2x, which meant you could not see the house and the saucer at the same
+time. The window is 320x180 now. That is a 1.5x blow-up of the logical frame,
+which would normally smear pixels — except the frame is already drawn at HD=2,
+so a home pixel lands on exactly **three** device pixels. Crisp, and a third
+more of the moon in shot.
+
 ## Home is a small rock, seen up close
 
 **Home is zoomed in.** The scene is painted at the game's usual size and then a
@@ -256,57 +265,64 @@ START button that does nothing, a clock stuck at 88:88, and a folder called
 
 ## ABAY
 
-An auction site for people who are not on speaking terms with the law. Buying
-and selling are two tabs of the same window.
+You are not clever with machines. You stole a computer off a human world and
+found a shopping site on it, and everything you will ever own comes from there.
 
-**BUY IT NOW** is a scrolling list of everything you will ever own, each one a
-blue underlined link with a thumbnail, a seller, a star rating and a review
-that should have been a warning: `BIG DRILL BIT (USED) — CHEWS ROCK GOOD. ONLY
-DROPPED ONCE. SMELLS FINE.` from `krunk_tools_99`. A `LEAF BLOWER (SPACE)`. A
-`VERY LONG STRING`. A `GREED GLAND (JAR)` from `wet_ted`, who also has a spare
-lung and is not saying whose. There are no crafting chains and no parts: you
-press the yellow button, the money goes, the thing is already on your moon, and
-nobody asks how.
+**BUY NOW** is the shop, and it is shelved: `ALL`, `DIG`, `BODY`, `SHIP`,
+`BANG`, `BIZ`, `JUNK`. Blue underlined links, star ratings, seller handles with
+feedback counts, an advert strip that comes back seven seconds after you close
+it.
 
-**SELL MY ROCKS** is your sack, lot by lot, with the live market's asking price
-against each one and a `HOT` or `COLD` badge where demand has drifted. One
-green button lists the lot; coins spray across the monitor.
+**AUCTIONS** is the other half, and it is live. Four lots at a time, each one
+thing with a clock on it and a rival who wants it as much as you do. The
+opening bid is a third of the shop price, so winning is a real saving — but
+`grunk_92`, `bidbot_prime`, `MOTHER` or `a_very_normal_guy` is watching, and
+the moment you go in front they start thinking about coming back over the top.
 
-**FEEDBACK** is what other people have said about you. It is 62% positive.
+- The rival has a **hidden ceiling** at roughly five-sixths of the buy-it-now,
+  so a lot is always worth a go and never a sure thing.
+- A bid in the last seconds **extends the clock**, from either side.
+- The clocks run whether or not you are looking at the tab, and the tab grows a
+  blinking green dot while you are the high bidder on anything.
+- Win, and it is yours at your bid and it arrives instantly, because the
+  warehouse does not exist. Lose, and ABAY tells you exactly who took it.
 
-Under all of it, a banner advert you can close, which comes back in seven
-seconds, because that is the deal.
+**MY ROCKS** lists what you dug and what the house will give you for it.
+**FEEDBACK** is people describing things you sold them.
 
-## Not one circle, and not one oval
+### Getting out of the chair
 
-Nothing in this game is round. It is not that the curves are pixelated — there
-are no curves. Every rounded primitive was replaced at the source, so the whole
-game turned faceted at once:
+Escape has always closed the computer, but nothing on screen said so and a
+phone has no Escape at all. There is a **GET UP** button on the desk now,
+outside the monitor, in the corner where your hand already is.
 
-- `pix.ellipse` draws an **octagon** inscribed in its box, and `pix.disc` calls
-  it, so every sprite in the game — the alien, the rat, the saucer, the ore —
-  is cut stone rather than a balloon.
-- `pix.round` cuts its corners with a straight **45-degree chamfer** instead of
-  a quarter-circle, so every rounded rectangle is a bevelled one.
-- A terrain tile is a **knapped flint**: exposed corners come off on the
-  diagonal and each open face takes one shallow kink. No `arcTo`, no
-  `quadraticCurveTo`, nothing.
-- Planets, moons and suns are rasterised as **octagons** with an octagonal
-  light falloff, and their lit limb is traced along their own facets.
-- `pxd.blob` is an octagon, `pxd.ring` is a stepped octagon, and `pxd.orbit`
-  walks eight straight runs of dots.
+## Round where it should be round
 
-## Not one circle
+For a long time this game had a rule that nothing in it could be a circle.
+Discs were octagons, blobs were octagons, shockwaves walked an octagon outline.
+It gave everything a cut-stone look — and it cost every planet its roundness.
+A world that is visibly eight-sided is not a world.
 
-Everything drawn at runtime is pixel art, built from primitives that never
-produce a smooth curve: discs are **octagons**, shockwaves are **stepped
-rings**, wires and dendrites are **chains of integer segments**, orbits are
-**dotted stepped ellipses**, and soft radial light is **concentric octagon
-bands**. The planets and suns in every sky are rasterised per pixel at a low
-resolution and blown up with nearest-neighbour, so a world is a chunky
-five-band sphere with a hard terminator rather than a vector ball. Nebulae
-and dust lanes are quantised colour steps. Plates and frames have cut pixel
-corners and a dithered edge.
+So the rule is gone, and a real one took its place: **round, but never
+smooth.** Every disc in the game is rasterised a whole pixel at a time — a
+scanline of solid pixels per row, no anti-aliasing, no half-lit rim. A circle
+made of squares, which is what a circle in a pixel game is supposed to be.
+
+- `pix.ellipse` is a true ellipse now, so every sprite built on it — the
+  alien's head, his gut, ore lumps — is properly round.
+- `pxd.blob` and `pxd.disc` scanline-fill a real disc; `pxd.ring` is the
+  difference between two of them, which is what finally made the menu's
+  shockwave read as a blast rather than a wireframe box.
+- Planets are masked to a hard-edged disc in **one** composite pass at the end
+  of the build. Bands, clouds and lava are allowed to spill to the corners of
+  the square while they are painted, and everything outside the circle is then
+  punched out in a single `destination-in` — a disc drawn row by row under that
+  mode would have each row erase the row before it.
+- Glow is still concentric discs stepped in hard bands, never a gradient.
+
+What has *not* changed: nothing is anti-aliased, nothing is stroked, and the
+UI still speaks in hexagons and plates. Hard edges everywhere; round shapes
+where a round shape is the honest one.
 
 ## Ore has sprites
 

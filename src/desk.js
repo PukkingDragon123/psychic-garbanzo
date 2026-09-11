@@ -103,7 +103,9 @@
   /* ---------------------------------------------------------------- state */
   const S = {
     app: 'home',            // home | abay | mail | setup
-    tab: 0,                 // abay: 0 buy, 1 sell, 2 feedback
+    tab: 0,                 // abay: 0 buy, 1 auctions, 2 sell, 3 feedback
+    cat: 0,                 // which shelf of BUY IT NOW you are looking at
+    auc: [], aucT: 0,
     scroll: 0, scrollTo: 0,
     cx: VW / 2, cy: VH / 2, vx: 0, vy: 0,
     want: null, wantT: 0, fire: false, fireX: 0, fireY: 0,
@@ -177,6 +179,8 @@
     S.want = null; S.fire = false;
     S.coins.length = 0;
     S.status = 'READY. PROBABLY.';
+    S.cat = 0;
+    seedAuctions(g);
     A.sfx.tone(90, { type: 'square', to: 190, dur: 0.18, vol: 0.07 });
     A.sfx.tone(1200, { type: 'square', dur: 0.04, vol: 0.03, delay: 0.2 });
   }
@@ -200,6 +204,8 @@
     S.flash = Math.max(0, S.flash - dt * 2);
     S.adT += dt;
     if (S.adT > 7) { S.adT = 0; S.ad = (S.ad + 1) % ADS.length; S.adOn = true; }
+    // the auction clocks run whether or not you are looking at them
+    if (S.auc.length) stepAuctions(dt, g);
 
     // the pointer. He has it by the wrong end, so it swings past and settles.
     const tx = U.clamp(m.x, SX + 2, SX + SW - 2), ty = U.clamp(m.y, SY + 2, SY + SH - 2);
@@ -325,8 +331,24 @@
 
     drawDesk(ctx, g, t);
     drawHands(ctx, g, t);
+    exitButton(ctx, g, t);
 
     if (S.fire) S.fire = false;
+  }
+
+  /* A real way out. Escape has always worked, but nothing on screen ever said
+     so and on a phone there is no Escape at all -- so there is a button on the
+     desk, outside the monitor, that gets him up and walks him away. */
+  function exitButton(ctx, g, t) {
+    const w = 88, h = 20, x = VW - w - 10, y = VH - h - 8;
+    const m = PD.input.mouse;
+    const over = m.inside && m.x >= x && m.x <= x + w && m.y >= y && m.y <= y + h;
+    X.plate(ctx, x + 2, y + 3, w, h, 'rgba(4,2,12,0.45)', null, null, 3);
+    X.plate(ctx, x, y, w, h, over ? '#8a3f3f' : '#66302f', over ? '#ffb0a8' : '#a05a55', '#2a1010', 3);
+    Gy().draw(ctx, 'arrowR', x + 7, y + 3, '#ffd9d0', '#a05a55');
+    F.draw(ctx, 'GET UP', x + 52, y + 3, '#ffe9e4', { center: true, shadow: '#2a1010' });
+    F.draw(ctx, 'ESC', x + 52, y + 12, over ? '#ffb0a8' : '#c08a86', { center: true, shadow: false });
+    if (over && m.leftPressed && S.lock <= 0) { A.sfx.click(); close(g); }
   }
 
   /* ------------------------------------------------------------- the room */
@@ -439,7 +461,7 @@
     for (let y = Math.ceil(cy - r); y <= Math.floor(cy + r); y++) {
       const dy = Math.abs(y - cy + 0.5) / r;
       if (dy > 1) continue;
-      const w = r * Math.min(1, 1.42 - dy);
+      const w = r * Math.sqrt(Math.max(0, 1 - dy * dy));
       const x0 = Math.round(cx - w), x1 = Math.round(cx + w);
       if (x1 > x0) ctx.fillRect(x0, y, x1 - x0, 1);
     }
@@ -511,8 +533,89 @@
     X.rect(ctx, WX + 2, WY + 14, WW - 4, WH - 16, C.page);
   }
 
+  /* ------------------------------------------------------------- AUCTIONS
+     ABAY is not only a shop. Half of it is people selling one thing each with
+     a clock on it, and a rival who wants it too. Bid and you are winning;
+     wait and grunk_92 takes it off you. Win and you pay well under the
+     buy-it-now, which is the whole reason to bother.
+
+     The rival has a hidden ceiling of about five-sixths of the shop price, so
+     an auction is always worth a go and never a sure thing. */
+  const RIVALS = ['grunk_92', 'notarobot4', 'MOTHER', 'bidbot_prime', 'zorb_jr',
+    'THE_CURATOR', 'a_very_normal_guy', 'kevin'];
+
+  function makeAuction(g) {
+    const pool = D.ABAY.filter(it => (g.save.upg[it.id] || 0) < g.abayMax(it.id));
+    if (!pool.length) return null;
+    const it = U.pick(pool);
+    const shop = g.abayPrice(it.id);
+    return {
+      it, shop,
+      bid: Math.max(10, Math.round(shop * U.rand(0.28, 0.46) / 10) * 10),
+      inc: Math.max(10, Math.round(shop * 0.06 / 10) * 10),
+      ceil: Math.round(shop * U.rand(0.72, 0.92)),
+      ends: U.rand(26, 70), mine: false,
+      rival: U.pick(RIVALS), think: U.rand(1.6, 4), done: 0
+    };
+  }
+
+  function seedAuctions(g) {
+    S.auc.length = 0;
+    for (let i = 0; i < 4; i++) { const a = makeAuction(g); if (a) S.auc.push(a); }
+  }
+
+  function stepAuctions(dt, g) {
+    for (let i = S.auc.length - 1; i >= 0; i--) {
+      const a = S.auc[i];
+      a.ends -= dt;
+      if (a.ends <= 0) {
+        // the hammer. If you are still the high bidder it is yours.
+        if (a.mine) {
+          if (g.save.credits >= a.bid) {
+            g.save.credits -= a.bid;
+            g.save.upg[a.it.id] = (g.save.upg[a.it.id] || 0) + 1;
+            g.recompute(); g.saveGame();
+            say('WON: ' + a.it.name + ' FOR $' + U.fmt(a.bid) + '. THAT IS A STEAL.');
+            A.sfx.fanfare ? A.sfx.fanfare() : A.sfx.coin();
+            S.flash = 1;
+            for (let k = 0; k < 18; k++) {
+              S.coins.push({ x: SX + SW / 2 + U.rand(-20, 20), y: SY + 60, vx: U.rand(-90, 90), vy: U.rand(-110, -30), t: 0, life: 1.2 });
+            }
+          } else { say('YOU WON AND CANNOT PAY. ABAY IS TELLING EVERYONE.'); A.sfx.deny(); }
+        } else if (a.seen) {
+          say(a.rival.toUpperCase() + ' GOT THE ' + a.it.name + '. OF COURSE THEY DID.');
+        }
+        S.auc.splice(i, 1);
+        const nu = makeAuction(g); if (nu) S.auc.push(nu);
+        continue;
+      }
+      // the rival only wakes up when you are ahead, and only up to its ceiling
+      if (!a.mine) continue;
+      a.think -= dt;
+      if (a.think > 0) continue;
+      a.think = U.rand(1.8, 5);
+      if (a.bid + a.inc > a.ceil) return;         // it has had enough
+      a.bid += a.inc; a.mine = false;
+      a.ends = Math.max(a.ends, 6);               // a late bid extends the clock
+      say(a.rival.toUpperCase() + ' BID $' + U.fmt(a.bid) + '. ON YOUR OWN ITEM.');
+      A.sfx.tone(300, { type: 'square', to: 180, dur: 0.12, vol: 0.08 });
+    }
+  }
+
+  function placeBid(g, a) {
+    const next = a.mine ? a.bid : a.bid + a.inc;
+    if (a.mine) { say('YOU ARE ALREADY WINNING. CALM DOWN.'); A.sfx.deny(); return; }
+    if (g.save.credits < next) { say('NOT ENOUGH MONEY. GO AND HIT A PLANET.'); A.sfx.deny(); return; }
+    a.bid = next; a.mine = true; a.seen = 1;
+    a.ends = Math.max(a.ends, 8);
+    a.think = U.rand(1.4, 4);
+    say('BID $' + U.fmt(a.bid) + '. YOU ARE WINNING. FOR NOW.');
+    A.sfx.click();
+  }
+
   /* ------------------------------------------------------------------ ABAY */
-  const TABS = ['BUY IT NOW', 'SELL MY ROCKS', 'FEEDBACK'];
+  const TABS = ['BUY NOW', 'AUCTIONS', 'MY ROCKS', 'FEEDBACK'];
+  const CATS = ['ALL', 'DIG', 'BODY', 'SHIP', 'BANG', 'BIZ', 'JUNK'];
   function drawAbay(ctx, g, t) {
     windowFrame(ctx, 'ABAY - THE PLACE WHERE THINGS ARE', g);
     const x0 = WX + 2, y0 = WY + 14, w = WW - 4;
@@ -529,21 +632,41 @@
 
     /* tabs */
     const ty = y0 + 18;
-    for (let i = 0; i < 3; i++) {
-      const tw = 84, tx = x0 + 4 + i * (tw + 3);
+    for (let i = 0; i < TABS.length; i++) {
+      const tw = 63, tx = x0 + 4 + i * (tw + 3);
       const on = S.tab === i;
       X.rect(ctx, tx, ty + (on ? 0 : 2), tw, on ? 12 : 10, on ? C.page : C.pageD);
       X.rect(ctx, tx, ty + (on ? 0 : 2), tw, 1, on ? '#ffffff' : C.pageDD);
       F.draw(ctx, TABS[i], tx + tw / 2, ty + (on ? 3 : 4), on ? C.ink : C.dim, { center: true, shadow: false });
       if (press(tx, ty, tw, 12)) { S.tab = i; S.scroll = S.scrollTo = 0; A.sfx.click(); }
+      if (i === 1 && S.auc.some(a => a.mine)) {   // you are winning something
+        X.rect(ctx, tx + tw - 5, ty - 2, 5, 5, Math.sin(t * 7) > 0 ? C.grn : '#1e6b2e');
+      }
     }
     X.rect(ctx, x0, ty + 12, w, 1, C.pageDD);
 
-    const bx = x0 + 4, by = ty + 15, bw = w - 8, bh = WY + WH - 4 - by - 12;
+    /* the shelf of categories, only where it means anything */
+    let shelf = 0;
+    if (S.tab === 0) {
+      shelf = 13;
+      X.rect(ctx, x0, ty + 13, w, 12, C.pageD);
+      for (let i = 0; i < CATS.length; i++) {
+        const cw = 38, cx2 = x0 + 5 + i * (cw + 2);
+        const on = S.cat === i;
+        X.rect(ctx, cx2, ty + 14, cw, 10, on ? C.blu : C.page);
+        X.rect(ctx, cx2, ty + 14, cw, 1, on ? '#8ab0ff' : '#ffffff');
+        F.draw(ctx, CATS[i], cx2 + cw / 2, ty + 16, on ? '#ffffff' : C.dim, { center: true, shadow: false });
+        if (press(cx2, ty + 14, cw, 10)) { S.cat = i; S.scroll = S.scrollTo = 0; A.sfx.click(); }
+      }
+      X.rect(ctx, x0, ty + 25, w, 1, C.pageDD);
+    }
+
+    const bx = x0 + 4, by = ty + 15 + shelf, bw = w - 8, bh = WY + WH - 4 - by - 12;
     ctx.save();
     ctx.beginPath(); ctx.rect(bx, by, bw, bh); ctx.clip();
     if (S.tab === 0) abayBuy(ctx, g, t, bx, by, bw, bh);
-    else if (S.tab === 1) abaySell(ctx, g, t, bx, by, bw, bh);
+    else if (S.tab === 1) abayAuctions(ctx, g, t, bx, by, bw, bh);
+    else if (S.tab === 2) abaySell(ctx, g, t, bx, by, bw, bh);
     else abayFeedback(ctx, g, t, bx, by, bw, bh);
     ctx.restore();
 
@@ -584,7 +707,12 @@
   /* -------------------------------------------------------------- BUY tab */
   function abayBuy(ctx, g, t, bx, by, bw, bh) {
     const ROW = 30;
-    const list = D.ABAY;
+    const want = CATS[S.cat];
+    const list = S.cat === 0 ? D.ABAY : D.ABAY.filter(it => (it.cat || 'JUNK') === want);
+    if (!list.length) {
+      F.draw(ctx, 'NOTHING ON THIS SHELF.', bx + bw / 2, by + 24, C.ink, { center: true, shadow: false, scale: 2 });
+      return;
+    }
     const total = list.length * ROW;
     const lw = bw - 9;
     const RCOL = 92;                       // price + button live here, nothing else
@@ -642,6 +770,48 @@
     for (let i = 0; i < 14; i++) {
       S.coins.push({ x: SX + SW - 60 + U.rand(-10, 10), y: SY + 40, vx: U.rand(-70, 70), vy: U.rand(-90, -20), t: 0, life: 1 });
     }
+  }
+
+  /* --------------------------------------------------------- AUCTIONS tab */
+  function abayAuctions(ctx, g, t, bx, by, bw, bh) {
+    const ROW = 44, lw = bw - 9;
+    if (!S.auc.length) {
+      F.draw(ctx, 'NO AUCTIONS. EVERYONE IS ASLEEP.', bx + lw / 2, by + 24, C.ink, { center: true, shadow: false, scale: 2 });
+      return;
+    }
+    for (let i = 0; i < S.auc.length; i++) {
+      const a = S.auc[i];
+      const y = by + i * ROW - Math.round(S.scroll);
+      if (y > by + bh || y + ROW < by) continue;
+      const over = hot(bx, y, lw, ROW - 2);
+      const soon = a.ends < 10;
+      X.rect(ctx, bx, y, lw, ROW - 2, over ? '#fdfaef' : (i % 2 ? '#e2ded0' : C.page));
+      X.rect(ctx, bx, y + ROW - 2, lw, 1, C.pageDD);
+      X.rect(ctx, bx, y, 2, ROW - 2, a.mine ? C.grn : (soon ? C.red : C.pageDD));
+
+      sunk(ctx, bx + 4, y + 7, 26, 26, '#ffffff');
+      Gy().draw(ctx, GLYPH_OF[a.it.id] || 'quest', bx + 10, y + 13, C.ink, C.dim);
+
+      /* the left half is the listing, the right half is the money -- they do
+         not share a column, because a big green number under a big yellow
+         button is how you end up unable to read either */
+      const TW = lw - 34 - 88;
+      F.draw(ctx, clip(a.it.name, TW), bx + 34, y + 4, C.link, { shadow: false });
+      X.rect(ctx, bx + 34, y + 12, Math.min(TW, F.width(a.it.name, 1)), 1, C.link);
+      F.draw(ctx, clip('SELLER ' + a.it.seller, TW), bx + 34, y + 15, '#7a7460', { shadow: false });
+      F.draw(ctx, a.mine ? 'YOU ARE THE HIGH BIDDER' : clip('HIGH BIDDER: ' + a.rival, TW),
+        bx + 34, y + 25, a.mine ? '#1e6b2e' : C.dim, { shadow: false });
+      F.draw(ctx, 'BUY IT NOW WAS $' + U.fmt(a.shop), bx + 34, y + 34, '#7a7460', { shadow: false });
+
+      const rx = bx + lw - 6;
+      const mm = Math.floor(a.ends / 60), ss = Math.floor(a.ends % 60);
+      const clockCol = soon ? (Math.sin(t * 9) > 0 ? C.red : '#8a2f2f') : C.dim;
+      F.draw(ctx, mm + ':' + (ss < 10 ? '0' : '') + ss, rx, y + 4, clockCol, { right: true, shadow: false });
+      F.draw(ctx, '$' + U.fmt(a.bid), rx, y + 13, '#1e6b2e', { right: true, shadow: false, scale: 2 });
+      if (btn(ctx, rx - 82, y + 29, 82, 12, a.mine ? 'WINNING' : 'BID $' + U.fmt(a.bid + a.inc),
+        { face: a.mine ? '#9fd9a8' : '#f2c23a', enabled: !a.mine, light: '#ffe08a' })) placeBid(g, a);
+    }
+    scrollbar(ctx, bx + bw - 7, by, bh, S.auc.length * ROW, bh);
   }
 
   /* ------------------------------------------------------------- SELL tab */

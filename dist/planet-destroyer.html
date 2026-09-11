@@ -299,18 +299,19 @@ window.PD = window.PD || {};
     return this;
   };
 
-  /* An OCTAGON inscribed in the box, not an ellipse. Nothing in this game is
-     allowed to be an oval: the corners come off at 45 degrees and the result
-     reads as a cut stone rather than a balloon. Same call signature as the
-     ellipse it replaced, so every sprite in the game turned faceted at once. */
+  /* A REAL ellipse, rasterised. This used to be an octagon -- the whole game
+     was built on a rule that nothing could be round -- and the cost was that
+     every planet in it looked like a cut gem rather than a world. It is a
+     true ellipse now, drawn a whole pixel at a time, so it is round without
+     ever being smooth: no anti-aliasing, no half-lit rim, just a circle made
+     of squares the way a circle in a pixel game should be. */
   Pix.prototype.ellipse = function (cx, cy, rx, ry, c) {
     const x0 = Math.floor(cx - rx - 1), x1 = Math.ceil(cx + rx + 1);
     const y0 = Math.floor(cy - ry - 1), y1 = Math.ceil(cy + ry + 1);
     for (let y = y0; y <= y1; y++) {
       for (let x = x0; x <= x1; x++) {
-        const dx = Math.abs(x + 0.5 - cx) / rx, dy = Math.abs(y + 0.5 - cy) / ry;
-        if (dx > 1 || dy > 1) continue;
-        if (dx + dy > 1.42) continue;                 // the four cut corners
+        const dx = (x + 0.5 - cx) / rx, dy = (y + 0.5 - cy) / ry;
+        if (dx * dx + dy * dy > 1) continue;
         this.set(x, y, c);
       }
     }
@@ -661,39 +662,44 @@ window.PD = window.PD || {};
     if (edge) polyEdge(ctx, pts, edge, lw);
   }
 
-  /* A blob of solid pixels: a true octagon, cut on the diagonal. There is no
-     round blob anywhere in the game -- rocks and craters are faceted stone. */
+  /* A blob of solid pixels: a REAL disc, scanline-filled one whole row at a
+     time. It used to be an octagon, on a rule that nothing in the game could
+     be round; the rule cost every planet its roundness, so it is gone. Round
+     but never smooth is the point -- each row is a run of whole pixels. */
   function blob(ctx, x, y, rx, ry, col) {
     x = Math.round(x); y = Math.round(y);
     rx = Math.max(1, Math.round(rx)); ry = Math.max(1, Math.round(ry));
     ctx.fillStyle = col;
     for (let j = -ry; j <= ry; j++) {
-      const dy = Math.abs(j) / ry;
-      const w = Math.round(rx * Math.min(1, 1.42 - dy));
+      const k = 1 - (j / (ry + 0.5)) * (j / (ry + 0.5));
+      if (k <= 0) continue;
+      const w = Math.round(rx * Math.sqrt(k));
       if (w <= 0) continue;
       ctx.fillRect(x - w, y + j, w * 2 + 1, 1);
     }
   }
 
-  /* A ring that expands as stepped bands: the pixel version of a shockwave. */
+  /* The same shape as an outline: a circle of whole pixels, for shockwaves.
+     The old one walked an octagon and at any size over about forty pixels it
+     read as a wireframe box rather than a blast. */
+  function disc(ctx, x, y, r, col) { blob(ctx, x, y, r, r, col); }
+
+  /* A ring of whole pixels: the difference between two discs, row by row. A
+     real circle, and still never a smooth one. */
   function ring(ctx, x, y, r, col, thick) {
     x = Math.round(x); y = Math.round(y); r = Math.max(1, Math.round(r));
     thick = Math.max(1, Math.round(thick || 1));
-    const c = Math.max(1, Math.round(r * 0.42));
+    const ri = Math.max(0, r - thick);
     ctx.fillStyle = col;
-    // top / bottom runs
-    ctx.fillRect(x - r + c, y - r, (r - c) * 2 + 1, thick);
-    ctx.fillRect(x - r + c, y + r - thick + 1, (r - c) * 2 + 1, thick);
-    // left / right runs
-    ctx.fillRect(x - r, y - r + c, thick, (r - c) * 2 + 1);
-    ctx.fillRect(x + r - thick + 1, y - r + c, thick, (r - c) * 2 + 1);
-    // stepped diagonals
-    for (let i = 0; i < c; i++) {
-      const px = x - r + i, py = y - r + c - i;
-      ctx.fillRect(px, py, thick, thick);
-      ctx.fillRect(x + r - i - thick + 1, py, thick, thick);
-      ctx.fillRect(px, y + r - c + i, thick, thick);
-      ctx.fillRect(x + r - i - thick + 1, y + r - c + i, thick, thick);
+    for (let j = -r; j <= r; j++) {
+      const ko = 1 - (j / (r + 0.5)) * (j / (r + 0.5));
+      if (ko <= 0) continue;
+      const wo = Math.round(r * Math.sqrt(ko));
+      const ki = ri > 0 ? 1 - (j / (ri + 0.5)) * (j / (ri + 0.5)) : -1;
+      if (ki <= 0) { ctx.fillRect(x - wo, y + j, wo * 2 + 1, 1); continue; }
+      const wi = Math.round(ri * Math.sqrt(ki));
+      ctx.fillRect(x - wo, y + j, wo - wi, 1);
+      ctx.fillRect(x + wi + 1, y + j, wo - wi, 1);
     }
   }
 
@@ -744,8 +750,8 @@ window.PD = window.PD || {};
   /* A knuckle or knee: a small solid octagon that hides the seam between two
      limb segments. */
   function knob(ctx, x, y, r, col, light) {
-    oct(ctx, x, y, r, col, null);
-    if (light) oct(ctx, x - Math.max(1, r * 0.3), y - Math.max(1, r * 0.3), Math.max(1, r * 0.45), light, null);
+    blob(ctx, x, y, r, r, col);
+    if (light) blob(ctx, x - Math.max(1, r * 0.3), y - Math.max(1, r * 0.3), Math.max(1, r * 0.45), Math.max(1, r * 0.45), light);
   }
 
   /* A quadratic sampled into integer segments, so wires and cables step. */
@@ -785,13 +791,15 @@ window.PD = window.PD || {};
     ctx.restore();
   }
 
-  /* Banded radial falloff: concentric octagons instead of a soft gradient. */
+  /* Banded radial falloff: concentric DISCS, stepped, instead of a soft
+     gradient. Hard rings of light, which is what a glow looks like when it is
+     made of pixels. */
   function glowBands(ctx, x, y, r, col, steps, peak) {
     steps = steps || 6;
     for (let i = steps; i >= 1; i--) {
       const f = i / steps;
       ctx.globalAlpha = (peak === undefined ? 0.5 : peak) * Math.pow(1 - f, 1.4);
-      poly(ctx, octPts(x, y, r * f), col);
+      blob(ctx, x, y, r * f, r * f, col);
     }
     ctx.globalAlpha = 1;
   }
@@ -830,7 +838,7 @@ window.PD = window.PD || {};
     ctx.fillRect(x, y, w, h);
   }
 
-  PD.pxd = { rect, plate, frame, oct, octPath, octPts, hex, hexPts, poly, polyEdge, blob, ring, line, limb, knob, curve, orbit, glowBands, scanlines, dither };
+  PD.pxd = { rect, plate, frame, oct, octPath, octPts, hex, hexPts, poly, polyEdge, blob, disc, ring, line, limb, knob, curve, orbit, glowBands, scanlines, dither };
 })(window.PD);
 
 /* ===== src/data.js ===== */
@@ -1029,61 +1037,61 @@ window.PD = window.PD || {};
      are all obviously dodgy. Delivery is instant because you are in orbit and
      they are lying about the warehouse. */
   const ABAY = [
-    { id: 'drill', name: 'BIG DRILL BIT (USED)', seller: 'krunk_tools_99', stars: 4,
+    { id: 'drill', cat: 'DIG', name: 'BIG DRILL BIT (USED)', seller: 'krunk_tools_99', stars: 4,
       blurb: 'CHEWS ROCK GOOD. ONLY DROPPED ONCE. SMELLS FINE.', base: 260, growth: 1.62, max: 12 },
-    { id: 'oxygen', name: 'AIR CAN, EXTRA BIG', seller: 'lungmart', stars: 5,
+    { id: 'oxygen', cat: 'BODY', name: 'AIR CAN, EXTRA BIG', seller: 'lungmart', stars: 5,
       blurb: 'BREATHE FOR LONGER TIME. HUMAN LUNG NOT INCLUDED.', base: 240, growth: 1.6, max: 14 },
-    { id: 'cargo', name: 'BIGGER POCKET SACK', seller: 'sack_dave', stars: 3,
+    { id: 'cargo', cat: 'BODY', name: 'BIGGER POCKET SACK', seller: 'sack_dave', stars: 3,
       blurb: 'HOLDS MORE ROCK. DO NOT PUT LIQUID IN SACK.', base: 280, growth: 1.6, max: 14 },
-    { id: 'hull', name: 'ARMOUR PLATE (DENTED)', seller: 'krunk_tools_99', stars: 4,
+    { id: 'hull', cat: 'BODY', name: 'ARMOUR PLATE (DENTED)', seller: 'krunk_tools_99', stars: 4,
       blurb: 'STOPS TEETH. MOSTLY. NO REFUND IF BITTEN.', base: 300, growth: 1.6, max: 12 },
-    { id: 'tether', name: 'VERY LONG STRING', seller: 'ropeguy', stars: 5,
+    { id: 'tether', cat: 'DIG', name: 'VERY LONG STRING', seller: 'ropeguy', stars: 5,
       blurb: 'LONGER STRING = GO DEEPER. IT IS JUST STRING.', base: 260, growth: 1.58, max: 12 },
-    { id: 'thruster', name: 'LEAF BLOWER (SPACE)', seller: 'garden_of_zorb', stars: 2,
+    { id: 'thruster', cat: 'SHIP', name: 'LEAF BLOWER (SPACE)', seller: 'garden_of_zorb', stars: 2,
       blurb: 'PUSHES YOU ALONG. LOUD. NEIGHBOURS COMPLAIN.', base: 320, growth: 1.62, max: 10 },
-    { id: 'pistol', name: 'ZAP GUN, POINTY END', seller: 'bang_bang_bort', stars: 4,
+    { id: 'pistol', cat: 'BANG', name: 'ZAP GUN, POINTY END', seller: 'bang_bang_bort', stars: 4,
       blurb: 'MAKES ALIEN GO AWAY. AIM AT THE ALIEN NOT YOU.', base: 340, growth: 1.62, max: 12 },
-    { id: 'lamp', name: 'TORCH ON HAT', seller: 'lungmart', stars: 5,
+    { id: 'lamp', cat: 'DIG', name: 'TORCH ON HAT', seller: 'lungmart', stars: 5,
       blurb: 'SEE IN DARK. BATTERY IS A SMALL ANGRY ROCK.', base: 200, growth: 1.55, max: 8 },
-    { id: 'warp', name: 'GO-FAST SPACE COIL', seller: 'garden_of_zorb', stars: 2,
+    { id: 'warp', cat: 'SHIP', name: 'GO-FAST SPACE COIL', seller: 'garden_of_zorb', stars: 2,
       blurb: 'TRIP IS SHORTER. SHIP TURNS BETTER. DO NOT LICK COIL.', base: 680, growth: 1.64, max: 10 },
-    { id: 'deflector', name: 'BOUNCY SPACE BUBBLE', seller: 'krunk_tools_99', stars: 4,
+    { id: 'deflector', cat: 'SHIP', name: 'BOUNCY SPACE BUBBLE', seller: 'krunk_tools_99', stars: 4,
       blurb: 'ROCK HITS BUBBLE NOT YOU. BUBBLE COMES BACK. MOSTLY.', base: 760, growth: 1.66, max: 8 },
-    { id: 'navcom', name: 'ROCK SHOUTING BOX', seller: 'bang_bang_bort', stars: 3,
+    { id: 'navcom', cat: 'SHIP', name: 'ROCK SHOUTING BOX', seller: 'bang_bang_bort', stars: 3,
       blurb: 'SHOUTS BEFORE ROCK ARRIVE. IT ONLY KNOWS ONE WORD.', base: 500, growth: 1.6, max: 8 },
-    { id: 'magnet', name: 'SUCKY MAGNET', seller: 'sack_dave', stars: 3,
+    { id: 'magnet', cat: 'DIG', name: 'SUCKY MAGNET', seller: 'sack_dave', stars: 3,
       blurb: 'ROCKS COME TO YOU. ALSO YOUR SPOON. SORRY.', base: 300, growth: 1.6, max: 8 },
-    { id: 'dash', name: 'PANIC BOOSTERS', seller: 'garden_of_zorb', stars: 3,
+    { id: 'dash', cat: 'SHIP', name: 'PANIC BOOSTERS', seller: 'garden_of_zorb', stars: 3,
       blurb: 'GO FAST SUDDENLY. GOOD FOR RUNNING AWAY.', base: 420, growth: 1.6, max: 8 },
-    { id: 'scanner', name: 'BEEPY FINDER BOX', seller: 'bort_electronics', stars: 4,
+    { id: 'scanner', cat: 'DIG', name: 'BEEPY FINDER BOX', seller: 'bort_electronics', stars: 4,
       blurb: 'BEEPS NEAR SHINY. BEEPS NEAR NOTHING TOO.', base: 380, growth: 1.6, max: 8 },
-    { id: 'reach', name: 'DRILL ARM EXTENDER', seller: 'krunk_tools_99', stars: 3,
+    { id: 'reach', cat: 'DIG', name: 'DRILL ARM EXTENDER', seller: 'krunk_tools_99', stars: 3,
       blurb: 'ARM LONGER. DIG WIDER. LOOKS SILLY.', base: 340, growth: 1.7, max: 8 },
-    { id: 'trigger', name: 'FASTER TRIGGER SPRING', seller: 'bang_bang_bort', stars: 4,
+    { id: 'trigger', cat: 'BANG', name: 'FASTER TRIGGER SPRING', seller: 'bang_bang_bort', stars: 4,
       blurb: 'PEW PEW BECOMES PEWPEWPEW.', base: 360, growth: 1.7, max: 8 },
-    { id: 'scatter', name: 'WIDE BANG GUN', seller: 'bang_bang_bort', stars: 5,
+    { id: 'scatter', cat: 'BANG', name: 'WIDE BANG GUN', seller: 'bang_bang_bort', stars: 5,
       blurb: 'FIVE BITS AT ONCE. PRESS Q TO SWAP TO IT.', base: 900, growth: 1.7, max: 10 },
-    { id: 'lance', name: 'HOT LINE MAKER', seller: 'bort_electronics', stars: 5,
+    { id: 'lance', cat: 'BANG', name: 'HOT LINE MAKER', seller: 'bort_electronics', stars: 5,
       blurb: 'MAKES A LONG HOT LINE. CUTS ROCK AND FRIENDS.', base: 4800, growth: 1.72, max: 10 },
-    { id: 'crew', name: 'SELLING ADVICE BOOK', seller: 'biz_grunk', stars: 2,
+    { id: 'crew', cat: 'BIZ', name: 'SELLING ADVICE BOOK', seller: 'biz_grunk', stars: 2,
       blurb: 'TEACHES HAGGLE. EVERY ROCK SELLS FOR MORE.', base: 700, growth: 1.7, max: 8 },
-    { id: 'refine', name: 'ROCK WASHING MACHINE', seller: 'biz_grunk', stars: 3,
+    { id: 'refine', cat: 'BIZ', name: 'ROCK WASHING MACHINE', seller: 'biz_grunk', stars: 3,
       blurb: 'CLEAN ROCK SELLS BETTER. DO NOT WASH SELF.', base: 1400, growth: 1.72, max: 8 },
-    { id: 'greed', name: 'GREED GLAND (JAR)', seller: 'wet_ted', stars: 1,
+    { id: 'greed', cat: 'BODY', name: 'GREED GLAND (JAR)', seller: 'wet_ted', stars: 1,
       blurb: 'PUT IN MOUTH. WANT MONEY MORE. THIS IS FINE.', base: 2400, growth: 1.9, max: 4 },
-    { id: 'lung', name: 'SPARE LUNG, USED', seller: 'wet_ted', stars: 1,
+    { id: 'lung', cat: 'BODY', name: 'SPARE LUNG, USED', seller: 'wet_ted', stars: 1,
       blurb: 'THIRD LUNG. DO NOT ASK WHERE FROM.', base: 1200, growth: 1.8, max: 4 },
-    { id: 'belly', name: 'STRETCHY STOMACH', seller: 'wet_ted', stars: 1,
+    { id: 'belly', cat: 'BODY', name: 'STRETCHY STOMACH', seller: 'wet_ted', stars: 1,
       blurb: 'CARRY MORE INSIDE YOU. LEGAL IN 2 SYSTEMS.', base: 1400, growth: 1.8, max: 4 },
-    { id: 'ironskin', name: 'SKIN, THICKER', seller: 'wet_ted', stars: 1,
+    { id: 'ironskin', cat: 'BODY', name: 'SKIN, THICKER', seller: 'wet_ted', stars: 1,
       blurb: 'BUY SKIN. WEAR SKIN. BE TOUGH.', base: 1300, growth: 1.8, max: 4 },
-    { id: 'drones', name: 'LITTLE ROBOT FRIENDS', seller: 'bort_electronics', stars: 3,
+    { id: 'drones', cat: 'SHIP', name: 'LITTLE ROBOT FRIENDS', seller: 'bort_electronics', stars: 3,
       blurb: 'THEY DIG WHILE YOU SIT. THEY DO NOT LIKE YOU.', base: 900, growth: 1.28, max: 40 },
-    { id: 'droneyield', name: 'ROBOT MOTIVATION POSTER', seller: 'biz_grunk', stars: 2,
+    { id: 'droneyield', cat: 'SHIP', name: 'ROBOT MOTIVATION POSTER', seller: 'biz_grunk', stars: 2,
       blurb: 'SAYS HANG IN THERE. ROBOTS DIG HARDER. FEAR.', base: 1400, growth: 1.34, max: 25 },
-    { id: 'scooter', name: 'ENGINE FOR THE SAUCER', seller: 'garden_of_zorb', stars: 2,
+    { id: 'scooter', cat: 'JUNK', name: 'ENGINE FOR THE SAUCER', seller: 'garden_of_zorb', stars: 2,
       blurb: 'SAUCER GOES. WAS A BOAT ENGINE. DO NOT CARE.', base: 400, growth: 1.6, max: 8 },
-    { id: 'warp', name: 'WARP THINGY', seller: 'bort_electronics', stars: 4,
+    { id: 'warp', cat: 'SHIP', name: 'WARP THINGY', seller: 'bort_electronics', stars: 4,
       blurb: 'GO TO FURTHER SECTORS. BUY MORE FOR MORE FAR.', base: 4000, growth: 3.4, max: 3 }
   ];
   /* ------------------------------------------------------------- the brain
@@ -4038,7 +4046,7 @@ window.PD = window.PD || {};
     for (let y = Math.ceil(cy - r); y <= Math.floor(cy + r); y++) {
       const dy = Math.abs(y - cy + 0.5) / r2;
       if (dy > 1) continue;
-      const w = r2 * Math.min(1, 1.42 - dy);
+      const w = r2 * Math.sqrt(Math.max(0, 1 - dy * dy));
       const x0 = Math.round(cx - w), x1 = Math.round(cx + w);
       if (x1 > x0) c.fillRect(x0, y, x1 - x0, 1);
     }
@@ -4222,16 +4230,28 @@ window.PD = window.PD || {};
     }
     c.restore();
 
-    c.fillStyle = shade(tint, 1.55);                    // lit limb, along the facets
-    const k2 = r * 0.42;
-    const lim = [[-r + k2, -r], [r - k2, -r], [r, -r + k2], [r, r - k2]];
-    for (let i = 0; i < lim.length - 1; i++) {
-      const a = lim[i], b = lim[i + 1];
-      const n = Math.max(2, Math.round(Math.hypot(b[0] - a[0], b[1] - a[1])));
-      for (let q = 0; q <= n; q++) {
-        const f = q / n;
-        c.fillRect(Math.round(cx + a[0] + (b[0] - a[0]) * f), Math.round(cy + a[1] + (b[1] - a[1]) * f), 1, 1);
-      }
+    /* Cut the whole thing back to a disc. Bands, clouds and lava spill to the
+       corners of the square while they are being painted -- it is much easier
+       to let them and then punch out everything that is not the planet than
+       to clip each one. A hard-edged disc as the mask, so the limb stays
+       pixels rather than a soft path edge. */
+    /* The mask is built on its own canvas and composited in ONE call:
+       destination-in is a whole-surface operation, so a disc drawn row by row
+       would have each row erase the row before it. */
+    const mk = document.createElement('canvas');
+    mk.width = mk.height = S;
+    pxDisc(mk.getContext('2d'), cx, cy, r + 0.5, '#ffffff');
+    c.globalCompositeOperation = 'destination-in';
+    c.drawImage(mk, 0, 0);
+    c.globalCompositeOperation = 'source-over';
+
+    // the lit limb: one pixel of highlight walked round the top-right quarter
+    c.fillStyle = shade(tint, 1.55);
+    for (let a = -Math.PI * 0.95; a <= -Math.PI * 0.05; a += 0.05) {
+      c.fillRect(Math.round(cx + Math.cos(a) * r), Math.round(cy + Math.sin(a) * r), 1, 1);
+    }
+    for (let a = 0.35; a <= 1.2; a += 0.05) {
+      c.fillRect(Math.round(cx + Math.cos(a) * r), Math.round(cy + Math.sin(a) * r), 1, 1);
     }
 
     const cv = document.createElement('canvas');
@@ -4297,7 +4317,7 @@ window.PD = window.PD || {};
     for (let y = Math.ceil(cy - r); y <= Math.floor(cy + r); y++) {
       const dy = Math.abs(y - cy + 0.5) / r2;
       if (dy > 1) continue;
-      const w = r2 * Math.min(1, 1.42 - dy);
+      const w = r2 * Math.sqrt(Math.max(0, 1 - dy * dy));
       const x0 = Math.round(cx - w), x1 = Math.round(cx + w);
       if (x1 > x0) c.fillRect(x0, y, x1 - x0, 1);
     }
@@ -4519,7 +4539,7 @@ window.PD = window.PD || {};
       for (let x = 0; x < W; x++) {
         const dx = (x - cx + 0.5) / r, dy = (y - cy + 0.5) / r;
         const ax = Math.abs(dx), ay = Math.abs(dy);
-        if (ax > 1 || ay > 1 || ax + ay > 1.42) continue;   // an octagon, not a disc
+        if (ax * ax + ay * ay > 1) continue;                // a real disc
         const d2 = Math.min(0.999, dx * dx + dy * dy);
         const nz = Math.sqrt(1 - d2);
         let lam = -dx * 0.55 - dy * 0.5 + nz * 0.62;          // light from the upper left
@@ -4570,7 +4590,7 @@ window.PD = window.PD || {};
       for (let x = 0; x < S; x++) {
         // octagonal falloff: |x|+|y| clipped, so even the corona is faceted
         const ax2 = Math.abs(x - cx + 0.5) / R, ay2 = Math.abs(y - cy + 0.5) / R;
-        const d = Math.max(Math.max(ax2, ay2), (ax2 + ay2) / 1.42);
+        const d = Math.sqrt(ax2 * ax2 + ay2 * ay2);
         if (d > 3.4) continue;
         let a, f;
         if (d <= 0.55) { a = 1; f = 1.7; }
@@ -5519,6 +5539,44 @@ window.PD = window.PD || {};
     }
   }
 
+  /* ------------------------------------------------------- cartoon effects
+     The particle system above does physics. These two do COMEDY: a puff of
+     smoke with a hard outline that swells and thins, and a ring of spinning
+     stars round something that has just been hit. They are drawn as their own
+     kind rather than as blobs, because the whole point is the outline. */
+  function puff(x, y, n, col, power) {
+    // a puff costs two scanline discs to draw, so it yields to the physics
+    // particles when the screen is already full of rock
+    if (parts.length > MAXP * 0.5) return;
+    n = n || 5; power = power || 1;
+    for (let i = 0; i < n; i++) {
+      const a = U.rand(0, U.TAU), sp = U.rand(18, 62) * power;
+      if (parts.length >= MAXP) parts.shift();
+      parts.push({
+        kind: 'puff', x: x + U.rand(-3, 3), y: y + U.rand(-3, 3),
+        vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 14,
+        life: U.rand(0.45, 0.9), max: 0.9, size: U.rand(3, 6.5) * power,
+        color: col || '#c9bce8', grav: -12, drag: 0.9, glow: 0, collide: 0, spin: 0
+      });
+    }
+  }
+
+  /* Spinning stars, the universal cartoon for OW. */
+  function stars(x, y, n, col) {
+    if (parts.length > MAXP * 0.7) return;
+    n = n || 5;
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * U.TAU + U.rand(-0.3, 0.3), sp = U.rand(40, 96);
+      if (parts.length >= MAXP) parts.shift();
+      parts.push({
+        kind: 'star', x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 30,
+        life: U.rand(0.5, 0.85), max: 0.85, size: U.rand(3, 5),
+        color: col || '#ffe86a', grav: 90, drag: 0.93, glow: 0, collide: 0,
+        spin: U.rand(-9, 9), rot: U.rand(0, U.TAU)
+      });
+    }
+  }
+
   function smoke(x, y, n, color) {
     for (let i = 0; i < n; i++) {
       spawn({
@@ -5608,6 +5666,7 @@ window.PD = window.PD || {};
       const d = Math.pow(p.drag, dt * 60);
       p.vx *= d; p.vy *= d;
       if (p.kind === 'shard') p.spin += (p.vx * 0.02) * dt * 60;
+      if (p.kind === 'star') p.rot = (p.rot || 0) + p.spin * dt;
       const nx = p.x + p.vx * dt, ny = p.y + p.vy * dt;
       if (p.collide && world && world.solidAt(nx, ny)) {
         const b = p.bounce === undefined ? 0.4 : p.bounce;
@@ -5690,6 +5749,30 @@ window.PD = window.PD || {};
         else { ctx.fillStyle = p.lit; ctx.fillRect(sx, sy, w - 1, 1); }
         continue;
       }
+      if (p.kind === 'puff') {
+        // a lumpy cloud that swells as it dies, with a hard rim round it
+        const r = Math.max(1, p.size * (1.5 - t * 0.7));
+        ctx.globalAlpha = t > 0.6 ? (1 - t) * 2.5 : t * 1.1;
+        const px2 = Math.round(p.x - cam.x), py2 = Math.round(p.y - cam.y);
+        PD.pxd.blob(ctx, px2, py2, r + 1, r * 0.85 + 1, '#1a1030');
+        PD.pxd.blob(ctx, px2, py2, r, r * 0.85, p.color);
+        continue;
+      }
+      if (p.kind === 'star') {
+        const px2 = Math.round(p.x - cam.x), py2 = Math.round(p.y - cam.y);
+        const r = Math.max(2, p.size);
+        ctx.globalAlpha = t > 0.4 ? 1 : t / 0.4;
+        ctx.save();
+        ctx.translate(px2, py2);
+        ctx.rotate(Math.round((p.rot || 0) / (Math.PI / 8)) * (Math.PI / 8));
+        for (const c2 of ['#1a1030', p.color]) {
+          const g2 = c2 === p.color ? 0 : 1;
+          PD.pxd.rect(ctx, -1 - g2, -r - g2, 2 + g2 * 2, r * 2 + g2 * 2, c2);
+          PD.pxd.rect(ctx, -r - g2, -1 - g2, r * 2 + g2 * 2, 2 + g2 * 2, c2);
+        }
+        ctx.restore();
+        continue;
+      }
       const s = Math.max(1, Math.round(p.size * (0.4 + t * 0.7)));
       ctx.globalAlpha = t > 0.5 ? 1 : t * 2;
       if (p.glow) {
@@ -5739,7 +5822,7 @@ window.PD = window.PD || {};
   }
 
   PD.fx = {
-    reset, spawn, sparks, dust, burst, smoke, trail, text, ring, chunk, shards, crumble, pop,
+    reset, spawn, sparks, dust, burst, smoke, trail, text, ring, chunk, shards, crumble, pop, puff, stars,
     beginWipe, wipeActive, wipeBusy, updateWipe, drawWipe,
     shake, flash, hitStop, update, tickFreeze, shakeOffset, drawWorld, drawFloaters, drawOverlay,
     get freeze() { return freeze; },
@@ -7432,6 +7515,8 @@ window.PD = window.PD || {};
     FX.flash(0.35, '#ff5a4d');
     FX.hitStop(0.06);
     FX.burst(this.x, this.y, 10, ['#ff8ab0', '#ffffff', '#ff5a4d'], 130);
+    FX.stars(this.x, this.y - 10, 5);                 // the universal OW
+    FX.puff(this.x, this.y, 3, '#ff9a7a', 0.9);
     A.sfx.hurt();
     // anything that really connects knocks him off his feet
     if (dmg >= 11) this.ragdoll(g, U.clamp(dmg / 22, 0.6, 1.8), (dir || 1) * U.rand(8, 15));
@@ -7513,6 +7598,8 @@ window.PD = window.PD || {};
       if (this.rag <= 0 && (settled || h2.stuck || this.ragAll > 3)) {
         this.rag = 0; this.ragAng = 0; this.ragAll = 0;
         if (this.rig) { this.rig.woozyT = 1.4; PD.rig.land(this.rig, 0.8); }
+        FX.stars(this.x, this.y - 12, 6);
+        FX.puff(this.x, this.y + 4, 5, '#c9bce8', 1.1);
       } else if (this.rag <= 0) this.rag = 0.06;      // still in the air: keep tumbling
       this.doAir(dt, g);
       return;
@@ -7882,7 +7969,10 @@ window.PD = window.PD || {};
     const r = this.rig;
     // no idle flourishes out here: both hands are on the tool
     PD.rig.step(r, { dt: this.g.dt, vx: this.vx, vy: this.vy, ground, drilling, noEmote: true });
-    if (ground && !this.wasGround && this.lastVy > 120) PD.rig.land(r, U.clamp(this.lastVy / 320, 0.4, 1));
+    if (ground && !this.wasGround && this.lastVy > 120) {
+      PD.rig.land(r, U.clamp(this.lastVy / 320, 0.4, 1));
+      FX.puff(this.x, this.y + 5, 4, '#c9bce8', U.clamp(this.lastVy / 260, 0.6, 1.4));
+    }
     this.wasGround = ground;
     this.lastVy = this.vy;
 
@@ -9174,18 +9264,21 @@ window.PD = window.PD || {};
   /* --------------------------------------------------------------- the traffic
      Everything that is not a rock. Some of it is worth flying into. */
   const NPC_LINES = {
-    skiff: ['REAVER SKIFF: NICE POD. SHAME.', 'SOMETHING WHISTLED AT YOU.', 'REAVER SKIFF: OI.'],
+    skiff: ['REAVER SKIFF: NICE POD. SHAME.', 'BLUEFIN WHISTLED AT YOU.', 'REAVER SKIFF: OI.'],
     patrol: ['NOVA WATCH: SCANNING. ...CARRY ON.', 'NOVA WATCH: WE HAVE A FORM FOR THAT.', 'NOVA WATCH: DO NOT DESTROY ANY PLANETS.'],
-    hulk: ['SOMEBODY ELSE GOT UNLUCKY HERE.', 'THAT USED TO BE A SHIP.'],
+    hulk: ['SOMEBODY ELSE GOT UNLUCKY HERE.', 'THE DISTRESS LIGHT IS STILL ON.'],
     whale: ['IT DOES NOT CARE ABOUT YOU.', 'IT HUMMED. YOU HUMMED BACK.'],
     scrap: ['FREE SCRAP. THE BEST KIND.'],
-    patch: ['A REPAIR KIT. SOMEONE WAS ORGANISED.']
+    patch: ['A REPAIR KIT. SOMEONE WAS ORGANISED.'],
+    rat: ['BRENDA\'S COUSIN. HE DOES NOT WAVE BACK.', 'A RAT. IN A SHIP. WITH CHEESE.', 'HE IS DOING BETTER THAN YOU.'],
+    bus: ['A TOUR BUS. THEY PHOTOGRAPHED YOU.', 'TOUR GUIDE: AND ON YOUR LEFT, NOTHING.', 'FOURTEEN TOURISTS SAW YOUR DENTS.'],
+    busker: ['SOMEONE IS PLAYING MUSIC AT SPACE.', 'THE SPEAKER IS BIGGER THAN THE SHIP.', 'IT IS NOT A GOOD SONG.']
   };
 
   function spawnThing() {
     const pool = S.dir === 'out'
-      ? ['scrap', 'scrap', 'patch', 'skiff', 'patrol', 'hulk', 'whale', 'comet']
-      : ['scrap', 'scrap', 'patch', 'patch', 'whale', 'hulk', 'patrol', 'skiff'];
+      ? ['scrap', 'scrap', 'patch', 'skiff', 'patrol', 'hulk', 'whale', 'comet', 'rat', 'bus', 'busker']
+      : ['scrap', 'scrap', 'patch', 'patch', 'whale', 'hulk', 'patrol', 'rat', 'bus', 'busker', 'skiff'];
     const kind = U.pick(pool);
     const y = U.rand(LANE.y0 + 10, LANE.y1 - 10);
     const t = { kind, x: VW + 30, y, a: 0, va: 0, got: 0, said: 0, r: 10, vy: 0 };
@@ -9195,6 +9288,9 @@ window.PD = window.PD || {};
     else if (kind === 'patrol') { t.vx = -54; t.r = 16; }
     else if (kind === 'hulk') { t.vx = -38; t.r = 26; t.pts = lump(26, 9); t.va = 0.22; }
     else if (kind === 'whale') { t.vx = -30; t.r = 30; t.y = U.rand(60, VH - 70); }
+    else if (kind === 'rat') { t.vx = -120; t.r = 12; t.vy = U.rand(-8, 8); }
+    else if (kind === 'bus') { t.vx = -46; t.r = 22; }
+    else if (kind === 'busker') { t.vx = -70; t.r = 12; t.notes = []; }
     else { t.vx = -58; t.r = 13; t.pts = lump(13, 8); t.va = 0.8; }   // comet
     return t;
   }
@@ -9262,6 +9358,13 @@ window.PD = window.PD || {};
     A.sfx.hurt();
     PD.touch.buzz(26);
     shed(1);
+    // cartoon first, physics second: stars round the pod and a hard puff
+    for (let i = 0; i < 6; i++) {
+      const a2 = (i / 6) * U.TAU;
+      S.dust.push({ x: S.px + Math.cos(a2) * 14, y: S.py + Math.sin(a2) * 10,
+        vx: Math.cos(a2) * 60 - 40, vy: Math.sin(a2) * 60,
+        life: 0.6, col: '#ffe86a', r: 2, star: 1 });
+    }
     for (let i = 0; i < 22; i++) {
       S.dust.push({ x: S.px, y: S.py, vx: U.rand(-220, 120), vy: U.rand(-180, 180),
         life: U.rand(0.3, 0.8), col: U.chance(0.5) ? '#ff8a3d' : '#c9bce8', r: U.rand(1, 3) });
@@ -9483,11 +9586,72 @@ window.PD = window.PD || {};
       return;
     }
     if (k === 'skiff') {
-      // a fast, mean little wedge with a whistling trail
-      X.poly(ctx, [[t.x - 16, t.y - 7], [t.x + 15, t.y], [t.x - 16, t.y + 7]], '#140c22');
-      X.poly(ctx, [[t.x - 14, t.y - 5], [t.x + 12, t.y], [t.x - 14, t.y + 5]], '#8a2f4a');
-      X.rect(ctx, t.x - 6, t.y - 2, 9, 3, '#ff5a4d');
-      for (let i = 1; i < 7; i++) X.rect(ctx, t.x + 14 + i * 5, t.y - 1, 4, 2, 'rgba(255,90,77,' + (0.5 / i).toFixed(2) + ')');
+      // a fast mean wedge with a Reaver visible in the bubble, mohawk and all
+      X.poly(ctx, [[t.x - 16, t.y - 8], [t.x + 16, t.y], [t.x - 16, t.y + 8]], '#140c22');
+      X.poly(ctx, [[t.x - 14, t.y - 6], [t.x + 13, t.y], [t.x - 14, t.y + 6]], '#8a2f4a');
+      X.poly(ctx, [[t.x - 14, t.y - 6], [t.x + 2, t.y - 3], [t.x - 14, t.y - 1]], '#c25070');
+      X.rect(ctx, t.x - 7, t.y - 4, 9, 6, '#1d2a3a');      // the bubble
+      X.rect(ctx, t.x - 5, t.y - 3, 5, 4, '#6fe0a0');      // a green pilot in it
+      X.rect(ctx, t.x - 4, t.y - 6, 1, 3, '#ff5a4d');      // and his mohawk
+      X.rect(ctx, t.x - 2, t.y - 7, 1, 4, '#ff5a4d');
+      X.rect(ctx, t.x, t.y - 6, 1, 3, '#ff5a4d');
+      X.rect(ctx, t.x - 16, t.y - 10, 4, 3, '#6a1f33');    // the fin
+      for (let i = 1; i < 8; i++) X.rect(ctx, t.x + 15 + i * 5, t.y - 1, 4, 2, 'rgba(255,90,77,' + (0.55 / i).toFixed(2) + ')');
+      return;
+    }
+    if (k === 'rat') {
+      /* Brenda's cousin, who has his own ship and a wheel of cheese on a rope
+         and is, by any measure, doing better than you. */
+      X.poly(ctx, [[t.x - 13, t.y - 6], [t.x + 12, t.y - 2], [t.x + 12, t.y + 4], [t.x - 13, t.y + 7]], '#140c22');
+      X.poly(ctx, [[t.x - 12, t.y - 5], [t.x + 10, t.y - 1], [t.x + 10, t.y + 3], [t.x - 12, t.y + 6]], '#9a6a8a');
+      X.rect(ctx, t.x - 6, t.y - 9, 12, 6, '#2a1d33');     // canopy
+      X.rect(ctx, t.x - 4, t.y - 8, 8, 4, '#c9bce8');
+      X.rect(ctx, t.x - 3, t.y - 7, 5, 3, '#6e5a50');      // the rat
+      X.rect(ctx, t.x - 4, t.y - 9, 2, 2, '#6e5a50');      // ears
+      X.rect(ctx, t.x + 1, t.y - 9, 2, 2, '#6e5a50');
+      X.rect(ctx, t.x + 2, t.y - 6, 1, 1, '#ffffff');      // eye
+      X.line(ctx, t.x - 12, t.y + 4, t.x - 24, t.y + 9, '#b8aed0', 1);
+      X.blob(ctx, t.x - 27, t.y + 10, 5, 5, '#b08a2a');    // the cheese
+      X.blob(ctx, t.x - 27, t.y + 10, 4, 4, '#ffd34d');
+      X.rect(ctx, t.x - 28, t.y + 9, 2, 2, '#b08a2a');
+      return;
+    }
+    if (k === 'bus') {
+      /* Fourteen tourists, every one of them photographing your dents. */
+      X.plate(ctx, t.x - 26, t.y - 11, 52, 22, '#141020', null, null, 4);
+      X.plate(ctx, t.x - 25, t.y - 10, 50, 20, '#e8c44d', '#fff3a8', '#8a6a1a', 4);
+      X.rect(ctx, t.x - 25, t.y - 2, 50, 3, '#8a6a1a');
+      for (let i = 0; i < 5; i++) {
+        const wx = t.x - 21 + i * 9;
+        X.rect(ctx, wx, t.y - 8, 7, 6, '#2a3a5a');
+        X.rect(ctx, wx + 1, t.y - 7, 5, 4, '#7fb0e8');
+        X.rect(ctx, wx + 2, t.y - 6, 3, 3, U.hash2(i, 3) > 0.5 ? '#6fe0a0' : '#e8a06f');
+        // and a camera flash, one window at a time
+        if ((Math.floor(time * 3) % 5) === i) X.rect(ctx, wx - 1, t.y - 9, 9, 8, 'rgba(255,255,255,0.8)');
+      }
+      X.rect(ctx, t.x + 24, t.y - 4, 6, 5, '#fff3c0');     // headlight
+      X.rect(ctx, t.x - 30, t.y - 2, 5, 4, '#ff5a4d');     // tail light
+      return;
+    }
+    if (k === 'busker') {
+      /* One small ship, one enormous speaker, and no sense of occasion. */
+      X.plate(ctx, t.x - 12, t.y - 6, 20, 13, '#141020', null, null, 3);
+      X.plate(ctx, t.x - 11, t.y - 5, 18, 11, '#5a4a8a', '#8a7ac4', '#2a2050', 3);
+      X.rect(ctx, t.x - 6, t.y - 3, 8, 5, '#c9bce8');
+      X.plate(ctx, t.x + 6, t.y - 12, 18, 24, '#140c22', null, null, 3);
+      X.plate(ctx, t.x + 7, t.y - 11, 16, 22, '#3a2a1a', '#6a5030', '#1a1008', 3);
+      const pu = 3 + Math.abs(Math.sin(time * 9)) * 2;
+      X.blob(ctx, t.x + 15, t.y - 4, pu + 1, pu + 1, '#1a1008');
+      X.blob(ctx, t.x + 15, t.y - 4, pu, pu, '#c9a06a');
+      X.blob(ctx, t.x + 15, t.y + 6, 3, 3, '#c9a06a');
+      for (let i = 0; i < 3; i++) {                         // notes, escaping
+        const f = ((time * 0.8 + i * 0.33) % 1);
+        const nx = t.x + 24 + f * 26, ny = t.y - 4 - f * 22 + Math.sin(f * 9 + i) * 4;
+        ctx.globalAlpha = 1 - f;
+        X.rect(ctx, nx, ny, 2, 6, '#8dff5a');
+        X.rect(ctx, nx - 2, ny + 5, 4, 3, '#8dff5a');
+        ctx.globalAlpha = 1;
+      }
       return;
     }
     if (k === 'patrol') {
@@ -9497,13 +9661,26 @@ window.PD = window.PD || {};
       const blink = Math.sin(time * 7) > 0;
       X.rect(ctx, t.x - 18, t.y - 11, 5, 3, blink ? '#ff5a4d' : '#7ef9ff');
       X.rect(ctx, t.x + 13, t.y - 11, 5, 3, blink ? '#7ef9ff' : '#ff5a4d');
+      // the scan: a cone that sweeps down over whatever is below it
+      const sw = Math.sin(time * 1.6) * 0.5;
+      ctx.globalAlpha = 0.16 + Math.abs(Math.sin(time * 3)) * 0.1;
+      X.poly(ctx, [[t.x - 4, t.y + 8], [t.x + 4, t.y + 8],
+        [t.x + 30 + sw * 40, t.y + 74], [t.x - 30 + sw * 40, t.y + 74]], '#a9d8ff');
+      ctx.globalAlpha = 1;
       return;
     }
     if (k === 'hulk') {
       X.poly(ctx, t.pts.map(p => rot(p, t, 1.25)), '#0e0a18');
       X.poly(ctx, t.pts.map(p => rot(p, t, 1)), '#46525e');
       X.poly(ctx, t.pts.slice(0, 4).map(p => rot(p, t, 0.55)), '#5c6a82');
-      X.rect(ctx, t.x - 4, t.y - 3, 9, 6, '#191320');
+      X.rect(ctx, t.x - 4, t.y - 3, 9, 6, '#191320');      // a hole clean through
+      X.line(ctx, t.x + 14, t.y - 8, t.x + 34, t.y - 22, '#3a4456', 3);  // snapped mast
+      X.line(ctx, t.x + 14, t.y - 8, t.x + 34, t.y - 22, '#7a8594', 1);
+      // the distress light nobody has come for
+      if (Math.sin(time * 2.6) > 0.55) {
+        X.blob(ctx, t.x + 34, t.y - 23, 5, 5, 'rgba(255,90,77,0.4)');
+        X.rect(ctx, t.x + 32, t.y - 25, 4, 4, '#ff5a4d');
+      }
       return;
     }
     if (k === 'whale') {
@@ -9611,7 +9788,12 @@ window.PD = window.PD || {};
 
     for (const d of S.dust) {
       ctx.globalAlpha = Math.min(1, d.life * 2.4);
-      X.rect(ctx, d.x, d.y, d.r, d.r, d.col);
+      if (d.star) {                                   // the cartoon OW
+        X.rect(ctx, d.x - 1, d.y - 3, 3, 7, '#1a1030');
+        X.rect(ctx, d.x - 3, d.y - 1, 7, 3, '#1a1030');
+        X.rect(ctx, d.x, d.y - 3, 1, 7, d.col);
+        X.rect(ctx, d.x - 3, d.y, 7, 1, d.col);
+      } else X.rect(ctx, d.x, d.y, d.r, d.r, d.col);
     }
     ctx.globalAlpha = 1;
 
@@ -9714,7 +9896,7 @@ window.PD = window.PD || {};
 
   function touchMode() { return S.phase === 'cruise' || S.phase === 'approach' ? 'travel' : 'ui'; }
 
-  PD.travel = { enter, enterReturn, update, draw, touchMode, S,
+  PD.travel = { enter, enterReturn, update, draw, touchMode, S, drawThing,
     drawPodOnly: (ctx, g) => pod(ctx, g, S.px, S.py, 0, 0.35) };
 })(window.PD);
 
@@ -10132,7 +10314,9 @@ window.PD = window.PD || {};
   /* ---------------------------------------------------------------- state */
   const S = {
     app: 'home',            // home | abay | mail | setup
-    tab: 0,                 // abay: 0 buy, 1 sell, 2 feedback
+    tab: 0,                 // abay: 0 buy, 1 auctions, 2 sell, 3 feedback
+    cat: 0,                 // which shelf of BUY IT NOW you are looking at
+    auc: [], aucT: 0,
     scroll: 0, scrollTo: 0,
     cx: VW / 2, cy: VH / 2, vx: 0, vy: 0,
     want: null, wantT: 0, fire: false, fireX: 0, fireY: 0,
@@ -10206,6 +10390,8 @@ window.PD = window.PD || {};
     S.want = null; S.fire = false;
     S.coins.length = 0;
     S.status = 'READY. PROBABLY.';
+    S.cat = 0;
+    seedAuctions(g);
     A.sfx.tone(90, { type: 'square', to: 190, dur: 0.18, vol: 0.07 });
     A.sfx.tone(1200, { type: 'square', dur: 0.04, vol: 0.03, delay: 0.2 });
   }
@@ -10229,6 +10415,8 @@ window.PD = window.PD || {};
     S.flash = Math.max(0, S.flash - dt * 2);
     S.adT += dt;
     if (S.adT > 7) { S.adT = 0; S.ad = (S.ad + 1) % ADS.length; S.adOn = true; }
+    // the auction clocks run whether or not you are looking at them
+    if (S.auc.length) stepAuctions(dt, g);
 
     // the pointer. He has it by the wrong end, so it swings past and settles.
     const tx = U.clamp(m.x, SX + 2, SX + SW - 2), ty = U.clamp(m.y, SY + 2, SY + SH - 2);
@@ -10354,8 +10542,24 @@ window.PD = window.PD || {};
 
     drawDesk(ctx, g, t);
     drawHands(ctx, g, t);
+    exitButton(ctx, g, t);
 
     if (S.fire) S.fire = false;
+  }
+
+  /* A real way out. Escape has always worked, but nothing on screen ever said
+     so and on a phone there is no Escape at all -- so there is a button on the
+     desk, outside the monitor, that gets him up and walks him away. */
+  function exitButton(ctx, g, t) {
+    const w = 88, h = 20, x = VW - w - 10, y = VH - h - 8;
+    const m = PD.input.mouse;
+    const over = m.inside && m.x >= x && m.x <= x + w && m.y >= y && m.y <= y + h;
+    X.plate(ctx, x + 2, y + 3, w, h, 'rgba(4,2,12,0.45)', null, null, 3);
+    X.plate(ctx, x, y, w, h, over ? '#8a3f3f' : '#66302f', over ? '#ffb0a8' : '#a05a55', '#2a1010', 3);
+    Gy().draw(ctx, 'arrowR', x + 7, y + 3, '#ffd9d0', '#a05a55');
+    F.draw(ctx, 'GET UP', x + 52, y + 3, '#ffe9e4', { center: true, shadow: '#2a1010' });
+    F.draw(ctx, 'ESC', x + 52, y + 12, over ? '#ffb0a8' : '#c08a86', { center: true, shadow: false });
+    if (over && m.leftPressed && S.lock <= 0) { A.sfx.click(); close(g); }
   }
 
   /* ------------------------------------------------------------- the room */
@@ -10468,7 +10672,7 @@ window.PD = window.PD || {};
     for (let y = Math.ceil(cy - r); y <= Math.floor(cy + r); y++) {
       const dy = Math.abs(y - cy + 0.5) / r;
       if (dy > 1) continue;
-      const w = r * Math.min(1, 1.42 - dy);
+      const w = r * Math.sqrt(Math.max(0, 1 - dy * dy));
       const x0 = Math.round(cx - w), x1 = Math.round(cx + w);
       if (x1 > x0) ctx.fillRect(x0, y, x1 - x0, 1);
     }
@@ -10540,8 +10744,89 @@ window.PD = window.PD || {};
     X.rect(ctx, WX + 2, WY + 14, WW - 4, WH - 16, C.page);
   }
 
+  /* ------------------------------------------------------------- AUCTIONS
+     ABAY is not only a shop. Half of it is people selling one thing each with
+     a clock on it, and a rival who wants it too. Bid and you are winning;
+     wait and grunk_92 takes it off you. Win and you pay well under the
+     buy-it-now, which is the whole reason to bother.
+
+     The rival has a hidden ceiling of about five-sixths of the shop price, so
+     an auction is always worth a go and never a sure thing. */
+  const RIVALS = ['grunk_92', 'notarobot4', 'MOTHER', 'bidbot_prime', 'zorb_jr',
+    'THE_CURATOR', 'a_very_normal_guy', 'kevin'];
+
+  function makeAuction(g) {
+    const pool = D.ABAY.filter(it => (g.save.upg[it.id] || 0) < g.abayMax(it.id));
+    if (!pool.length) return null;
+    const it = U.pick(pool);
+    const shop = g.abayPrice(it.id);
+    return {
+      it, shop,
+      bid: Math.max(10, Math.round(shop * U.rand(0.28, 0.46) / 10) * 10),
+      inc: Math.max(10, Math.round(shop * 0.06 / 10) * 10),
+      ceil: Math.round(shop * U.rand(0.72, 0.92)),
+      ends: U.rand(26, 70), mine: false,
+      rival: U.pick(RIVALS), think: U.rand(1.6, 4), done: 0
+    };
+  }
+
+  function seedAuctions(g) {
+    S.auc.length = 0;
+    for (let i = 0; i < 4; i++) { const a = makeAuction(g); if (a) S.auc.push(a); }
+  }
+
+  function stepAuctions(dt, g) {
+    for (let i = S.auc.length - 1; i >= 0; i--) {
+      const a = S.auc[i];
+      a.ends -= dt;
+      if (a.ends <= 0) {
+        // the hammer. If you are still the high bidder it is yours.
+        if (a.mine) {
+          if (g.save.credits >= a.bid) {
+            g.save.credits -= a.bid;
+            g.save.upg[a.it.id] = (g.save.upg[a.it.id] || 0) + 1;
+            g.recompute(); g.saveGame();
+            say('WON: ' + a.it.name + ' FOR $' + U.fmt(a.bid) + '. THAT IS A STEAL.');
+            A.sfx.fanfare ? A.sfx.fanfare() : A.sfx.coin();
+            S.flash = 1;
+            for (let k = 0; k < 18; k++) {
+              S.coins.push({ x: SX + SW / 2 + U.rand(-20, 20), y: SY + 60, vx: U.rand(-90, 90), vy: U.rand(-110, -30), t: 0, life: 1.2 });
+            }
+          } else { say('YOU WON AND CANNOT PAY. ABAY IS TELLING EVERYONE.'); A.sfx.deny(); }
+        } else if (a.seen) {
+          say(a.rival.toUpperCase() + ' GOT THE ' + a.it.name + '. OF COURSE THEY DID.');
+        }
+        S.auc.splice(i, 1);
+        const nu = makeAuction(g); if (nu) S.auc.push(nu);
+        continue;
+      }
+      // the rival only wakes up when you are ahead, and only up to its ceiling
+      if (!a.mine) continue;
+      a.think -= dt;
+      if (a.think > 0) continue;
+      a.think = U.rand(1.8, 5);
+      if (a.bid + a.inc > a.ceil) return;         // it has had enough
+      a.bid += a.inc; a.mine = false;
+      a.ends = Math.max(a.ends, 6);               // a late bid extends the clock
+      say(a.rival.toUpperCase() + ' BID $' + U.fmt(a.bid) + '. ON YOUR OWN ITEM.');
+      A.sfx.tone(300, { type: 'square', to: 180, dur: 0.12, vol: 0.08 });
+    }
+  }
+
+  function placeBid(g, a) {
+    const next = a.mine ? a.bid : a.bid + a.inc;
+    if (a.mine) { say('YOU ARE ALREADY WINNING. CALM DOWN.'); A.sfx.deny(); return; }
+    if (g.save.credits < next) { say('NOT ENOUGH MONEY. GO AND HIT A PLANET.'); A.sfx.deny(); return; }
+    a.bid = next; a.mine = true; a.seen = 1;
+    a.ends = Math.max(a.ends, 8);
+    a.think = U.rand(1.4, 4);
+    say('BID $' + U.fmt(a.bid) + '. YOU ARE WINNING. FOR NOW.');
+    A.sfx.click();
+  }
+
   /* ------------------------------------------------------------------ ABAY */
-  const TABS = ['BUY IT NOW', 'SELL MY ROCKS', 'FEEDBACK'];
+  const TABS = ['BUY NOW', 'AUCTIONS', 'MY ROCKS', 'FEEDBACK'];
+  const CATS = ['ALL', 'DIG', 'BODY', 'SHIP', 'BANG', 'BIZ', 'JUNK'];
   function drawAbay(ctx, g, t) {
     windowFrame(ctx, 'ABAY - THE PLACE WHERE THINGS ARE', g);
     const x0 = WX + 2, y0 = WY + 14, w = WW - 4;
@@ -10558,21 +10843,41 @@ window.PD = window.PD || {};
 
     /* tabs */
     const ty = y0 + 18;
-    for (let i = 0; i < 3; i++) {
-      const tw = 84, tx = x0 + 4 + i * (tw + 3);
+    for (let i = 0; i < TABS.length; i++) {
+      const tw = 63, tx = x0 + 4 + i * (tw + 3);
       const on = S.tab === i;
       X.rect(ctx, tx, ty + (on ? 0 : 2), tw, on ? 12 : 10, on ? C.page : C.pageD);
       X.rect(ctx, tx, ty + (on ? 0 : 2), tw, 1, on ? '#ffffff' : C.pageDD);
       F.draw(ctx, TABS[i], tx + tw / 2, ty + (on ? 3 : 4), on ? C.ink : C.dim, { center: true, shadow: false });
       if (press(tx, ty, tw, 12)) { S.tab = i; S.scroll = S.scrollTo = 0; A.sfx.click(); }
+      if (i === 1 && S.auc.some(a => a.mine)) {   // you are winning something
+        X.rect(ctx, tx + tw - 5, ty - 2, 5, 5, Math.sin(t * 7) > 0 ? C.grn : '#1e6b2e');
+      }
     }
     X.rect(ctx, x0, ty + 12, w, 1, C.pageDD);
 
-    const bx = x0 + 4, by = ty + 15, bw = w - 8, bh = WY + WH - 4 - by - 12;
+    /* the shelf of categories, only where it means anything */
+    let shelf = 0;
+    if (S.tab === 0) {
+      shelf = 13;
+      X.rect(ctx, x0, ty + 13, w, 12, C.pageD);
+      for (let i = 0; i < CATS.length; i++) {
+        const cw = 38, cx2 = x0 + 5 + i * (cw + 2);
+        const on = S.cat === i;
+        X.rect(ctx, cx2, ty + 14, cw, 10, on ? C.blu : C.page);
+        X.rect(ctx, cx2, ty + 14, cw, 1, on ? '#8ab0ff' : '#ffffff');
+        F.draw(ctx, CATS[i], cx2 + cw / 2, ty + 16, on ? '#ffffff' : C.dim, { center: true, shadow: false });
+        if (press(cx2, ty + 14, cw, 10)) { S.cat = i; S.scroll = S.scrollTo = 0; A.sfx.click(); }
+      }
+      X.rect(ctx, x0, ty + 25, w, 1, C.pageDD);
+    }
+
+    const bx = x0 + 4, by = ty + 15 + shelf, bw = w - 8, bh = WY + WH - 4 - by - 12;
     ctx.save();
     ctx.beginPath(); ctx.rect(bx, by, bw, bh); ctx.clip();
     if (S.tab === 0) abayBuy(ctx, g, t, bx, by, bw, bh);
-    else if (S.tab === 1) abaySell(ctx, g, t, bx, by, bw, bh);
+    else if (S.tab === 1) abayAuctions(ctx, g, t, bx, by, bw, bh);
+    else if (S.tab === 2) abaySell(ctx, g, t, bx, by, bw, bh);
     else abayFeedback(ctx, g, t, bx, by, bw, bh);
     ctx.restore();
 
@@ -10613,7 +10918,12 @@ window.PD = window.PD || {};
   /* -------------------------------------------------------------- BUY tab */
   function abayBuy(ctx, g, t, bx, by, bw, bh) {
     const ROW = 30;
-    const list = D.ABAY;
+    const want = CATS[S.cat];
+    const list = S.cat === 0 ? D.ABAY : D.ABAY.filter(it => (it.cat || 'JUNK') === want);
+    if (!list.length) {
+      F.draw(ctx, 'NOTHING ON THIS SHELF.', bx + bw / 2, by + 24, C.ink, { center: true, shadow: false, scale: 2 });
+      return;
+    }
     const total = list.length * ROW;
     const lw = bw - 9;
     const RCOL = 92;                       // price + button live here, nothing else
@@ -10671,6 +10981,48 @@ window.PD = window.PD || {};
     for (let i = 0; i < 14; i++) {
       S.coins.push({ x: SX + SW - 60 + U.rand(-10, 10), y: SY + 40, vx: U.rand(-70, 70), vy: U.rand(-90, -20), t: 0, life: 1 });
     }
+  }
+
+  /* --------------------------------------------------------- AUCTIONS tab */
+  function abayAuctions(ctx, g, t, bx, by, bw, bh) {
+    const ROW = 44, lw = bw - 9;
+    if (!S.auc.length) {
+      F.draw(ctx, 'NO AUCTIONS. EVERYONE IS ASLEEP.', bx + lw / 2, by + 24, C.ink, { center: true, shadow: false, scale: 2 });
+      return;
+    }
+    for (let i = 0; i < S.auc.length; i++) {
+      const a = S.auc[i];
+      const y = by + i * ROW - Math.round(S.scroll);
+      if (y > by + bh || y + ROW < by) continue;
+      const over = hot(bx, y, lw, ROW - 2);
+      const soon = a.ends < 10;
+      X.rect(ctx, bx, y, lw, ROW - 2, over ? '#fdfaef' : (i % 2 ? '#e2ded0' : C.page));
+      X.rect(ctx, bx, y + ROW - 2, lw, 1, C.pageDD);
+      X.rect(ctx, bx, y, 2, ROW - 2, a.mine ? C.grn : (soon ? C.red : C.pageDD));
+
+      sunk(ctx, bx + 4, y + 7, 26, 26, '#ffffff');
+      Gy().draw(ctx, GLYPH_OF[a.it.id] || 'quest', bx + 10, y + 13, C.ink, C.dim);
+
+      /* the left half is the listing, the right half is the money -- they do
+         not share a column, because a big green number under a big yellow
+         button is how you end up unable to read either */
+      const TW = lw - 34 - 88;
+      F.draw(ctx, clip(a.it.name, TW), bx + 34, y + 4, C.link, { shadow: false });
+      X.rect(ctx, bx + 34, y + 12, Math.min(TW, F.width(a.it.name, 1)), 1, C.link);
+      F.draw(ctx, clip('SELLER ' + a.it.seller, TW), bx + 34, y + 15, '#7a7460', { shadow: false });
+      F.draw(ctx, a.mine ? 'YOU ARE THE HIGH BIDDER' : clip('HIGH BIDDER: ' + a.rival, TW),
+        bx + 34, y + 25, a.mine ? '#1e6b2e' : C.dim, { shadow: false });
+      F.draw(ctx, 'BUY IT NOW WAS $' + U.fmt(a.shop), bx + 34, y + 34, '#7a7460', { shadow: false });
+
+      const rx = bx + lw - 6;
+      const mm = Math.floor(a.ends / 60), ss = Math.floor(a.ends % 60);
+      const clockCol = soon ? (Math.sin(t * 9) > 0 ? C.red : '#8a2f2f') : C.dim;
+      F.draw(ctx, mm + ':' + (ss < 10 ? '0' : '') + ss, rx, y + 4, clockCol, { right: true, shadow: false });
+      F.draw(ctx, '$' + U.fmt(a.bid), rx, y + 13, '#1e6b2e', { right: true, shadow: false, scale: 2 });
+      if (btn(ctx, rx - 82, y + 29, 82, 12, a.mine ? 'WINNING' : 'BID $' + U.fmt(a.bid + a.inc),
+        { face: a.mine ? '#9fd9a8' : '#f2c23a', enabled: !a.mine, light: '#ffe08a' })) placeBid(g, a);
+    }
+    scrollbar(ctx, bx + bw - 7, by, bh, S.auc.length * ROW, bh);
   }
 
   /* ------------------------------------------------------------- SELL tab */
@@ -11584,6 +11936,7 @@ window.PD = window.PD || {};
         // EVERYTHING BOUNCES. He lands, squashes flat, and pops back up.
         P.land = 0.26;
         if (P.rig) PD.rig.land(P.rig, U.clamp(P.vy / 260, 0.4, 1));
+        FX.puff(P.x, P.y, 4, '#b8aed0', U.clamp(P.vy / 240, 0.6, 1.3));
         if (P.vy > 150 && P.hop < 2) { P.vy = -P.vy * 0.34; P.hop++; }
         else { P.vy = 0; P.hop = 0; }
         FX.dust(P.x, gy, 6, '#8e86a8', 18);
@@ -12044,7 +12397,7 @@ window.PD = window.PD || {};
     // How high the sign floats, in SCREEN pixels -- the thing it names is
     // twice its old size now, so the clearance is measured after the zoom
     // rather than scaled up with it.
-    const LIFTS = { ufo: 104, door: 152, brain: 124, pc: 104, exit: 92, rat: 58 };
+    const LIFTS = { ufo: 78, door: 114, brain: 93, pc: 78, exit: 69, rat: 44 };
     const lift = LIFTS[s.id] || 100;
     const sp = toScreen(s.x - cam, groundY(s.x));
     const x = U.clamp(Math.round(sp.x), 60, VW - 60);
@@ -12065,12 +12418,15 @@ window.PD = window.PD || {};
 
   /* ---------------------------------------------------------------- the view
      Home is ZOOMED: the scene is painted at its usual size and then a window
-     of it, ZW by ZH, is blown up to fill the screen at exactly twice the size.
-     Twice, not one-and-a-half times, so a pixel stays a square block.
-     `view()` picks that window -- following him about outside, and sitting
-     still over the room when he is indoors, which is smaller than the window
-     anyway. */
-  const ZW = 240, ZH = 135;
+     of it, ZW by ZH, is blown up to fill the screen.
+
+     The window used to be 240x135 at exactly 2x, which was too close -- you
+     could not see the house and the saucer at the same time. It is 320x180
+     now, which is a 1.5x blow-up of the logical frame; that would normally
+     smear pixels, except the frame itself is already drawn at HD=2, so a home
+     pixel lands on exactly THREE device pixels. Crisp, and a third more of
+     the moon in shot. */
+  const ZW = 320, ZH = 180, ZK = VW / ZW;
   const VIEW = { x: 120, y: 100 };
 
   function view(dt) {
@@ -12086,7 +12442,7 @@ window.PD = window.PD || {};
       // the ground sits low in the window so there is sky above him, and the
       // window rises with him when he leaves the floor
       const head = P.air > 0.1 ? P.y - 34 : P.y;
-      ty = U.clamp(Math.min(gy, head) - 84, 0, VH - ZH);
+      ty = U.clamp(Math.min(gy, head) - 112, 0, VH - ZH);
     }
     if (dt === undefined) return VIEW;
     VIEW.x = U.damp(VIEW.x, tx, 0.22, dt);
@@ -12094,8 +12450,8 @@ window.PD = window.PD || {};
     return VIEW;
   }
   /* Screen pixels back into scene pixels, for taps and for the prompt sign. */
-  function toScreen(x, y) { return { x: (x - Math.round(VIEW.x)) * 2, y: (y - Math.round(VIEW.y)) * 2 }; }
-  function fromScreenX(sx) { return Math.round(VIEW.x) + sx / 2; }
+  function toScreen(x, y) { return { x: (x - Math.round(VIEW.x)) * ZK, y: (y - Math.round(VIEW.y)) * ZK }; }
+  function fromScreenX(sx) { return Math.round(VIEW.x) + sx / ZK; }
 
   /* Everything in the world. Painted into the zoom buffer, never straight to
      the screen. */
@@ -12189,7 +12545,7 @@ window.PD = window.PD || {};
     if (walking && !air && U.chance(0.2)) FX.dust(P.x - P.face * 5, P.y, 1, '#8e86a8', 10);
   }
 
-  PD.home = { enter, update, draw, drawScene, drawOverlay, view, toScreen, fromScreenX, closeScene, touchMode, leaveDesk, say, P, UI, S, groundY, ZW, ZH, ROOM_W: OUT_W, SPOTS };
+  PD.home = { enter, update, draw, drawScene, drawOverlay, view, toScreen, fromScreenX, closeScene, touchMode, leaveDesk, say, P, UI, S, groundY, ZW, ZH, ZK, ROOM_W: OUT_W, SPOTS };
 })(window.PD);
 
 /* ===== src/game.js ===== */
@@ -12648,6 +13004,8 @@ window.PD = window.PD || {};
     const dir = byDrill && g.player ? g.player.aim : undefined;
     FX.shards(x, y, m, m.shine ? 14 : 11, dir);
     FX.crumble(x, y, m);
+    // a cartoon puff of dust over the real debris, so a tile giving way READS
+    if (U.chance(0.28)) FX.puff(x, y, 1, m.c[1], 0.75);
     A.sfx.break_(U.clamp(m.hp / 255, 0, 1));
     A.sfx.tone(440 + Math.min(20, g.chain.n) * 28, { type: 'triangle', dur: 0.05, vol: 0.05 });
     FX.shake(1.2 + Math.min(1.5, g.chain.n * 0.05));

@@ -453,6 +453,8 @@
     const dir = byDrill && g.player ? g.player.aim : undefined;
     FX.shards(x, y, m, m.shine ? 14 : 11, dir);
     FX.crumble(x, y, m);
+    // a cartoon puff of dust over the real debris, so a tile giving way READS
+    if (U.chance(0.28)) FX.puff(x, y, 1, m.c[1], 0.75);
     A.sfx.break_(U.clamp(m.hp / 255, 0, 1));
     A.sfx.tone(440 + Math.min(20, g.chain.n) * 28, { type: 'triangle', dur: 0.05, vol: 0.05 });
     FX.shake(1.2 + Math.min(1.5, g.chain.n * 0.05));

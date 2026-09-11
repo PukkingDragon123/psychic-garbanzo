@@ -220,18 +220,21 @@
   /* --------------------------------------------------------------- the traffic
      Everything that is not a rock. Some of it is worth flying into. */
   const NPC_LINES = {
-    skiff: ['REAVER SKIFF: NICE POD. SHAME.', 'SOMETHING WHISTLED AT YOU.', 'REAVER SKIFF: OI.'],
+    skiff: ['REAVER SKIFF: NICE POD. SHAME.', 'BLUEFIN WHISTLED AT YOU.', 'REAVER SKIFF: OI.'],
     patrol: ['NOVA WATCH: SCANNING. ...CARRY ON.', 'NOVA WATCH: WE HAVE A FORM FOR THAT.', 'NOVA WATCH: DO NOT DESTROY ANY PLANETS.'],
-    hulk: ['SOMEBODY ELSE GOT UNLUCKY HERE.', 'THAT USED TO BE A SHIP.'],
+    hulk: ['SOMEBODY ELSE GOT UNLUCKY HERE.', 'THE DISTRESS LIGHT IS STILL ON.'],
     whale: ['IT DOES NOT CARE ABOUT YOU.', 'IT HUMMED. YOU HUMMED BACK.'],
     scrap: ['FREE SCRAP. THE BEST KIND.'],
-    patch: ['A REPAIR KIT. SOMEONE WAS ORGANISED.']
+    patch: ['A REPAIR KIT. SOMEONE WAS ORGANISED.'],
+    rat: ['BRENDA\'S COUSIN. HE DOES NOT WAVE BACK.', 'A RAT. IN A SHIP. WITH CHEESE.', 'HE IS DOING BETTER THAN YOU.'],
+    bus: ['A TOUR BUS. THEY PHOTOGRAPHED YOU.', 'TOUR GUIDE: AND ON YOUR LEFT, NOTHING.', 'FOURTEEN TOURISTS SAW YOUR DENTS.'],
+    busker: ['SOMEONE IS PLAYING MUSIC AT SPACE.', 'THE SPEAKER IS BIGGER THAN THE SHIP.', 'IT IS NOT A GOOD SONG.']
   };
 
   function spawnThing() {
     const pool = S.dir === 'out'
-      ? ['scrap', 'scrap', 'patch', 'skiff', 'patrol', 'hulk', 'whale', 'comet']
-      : ['scrap', 'scrap', 'patch', 'patch', 'whale', 'hulk', 'patrol', 'skiff'];
+      ? ['scrap', 'scrap', 'patch', 'skiff', 'patrol', 'hulk', 'whale', 'comet', 'rat', 'bus', 'busker']
+      : ['scrap', 'scrap', 'patch', 'patch', 'whale', 'hulk', 'patrol', 'rat', 'bus', 'busker', 'skiff'];
     const kind = U.pick(pool);
     const y = U.rand(LANE.y0 + 10, LANE.y1 - 10);
     const t = { kind, x: VW + 30, y, a: 0, va: 0, got: 0, said: 0, r: 10, vy: 0 };
@@ -241,6 +244,9 @@
     else if (kind === 'patrol') { t.vx = -54; t.r = 16; }
     else if (kind === 'hulk') { t.vx = -38; t.r = 26; t.pts = lump(26, 9); t.va = 0.22; }
     else if (kind === 'whale') { t.vx = -30; t.r = 30; t.y = U.rand(60, VH - 70); }
+    else if (kind === 'rat') { t.vx = -120; t.r = 12; t.vy = U.rand(-8, 8); }
+    else if (kind === 'bus') { t.vx = -46; t.r = 22; }
+    else if (kind === 'busker') { t.vx = -70; t.r = 12; t.notes = []; }
     else { t.vx = -58; t.r = 13; t.pts = lump(13, 8); t.va = 0.8; }   // comet
     return t;
   }
@@ -308,6 +314,13 @@
     A.sfx.hurt();
     PD.touch.buzz(26);
     shed(1);
+    // cartoon first, physics second: stars round the pod and a hard puff
+    for (let i = 0; i < 6; i++) {
+      const a2 = (i / 6) * U.TAU;
+      S.dust.push({ x: S.px + Math.cos(a2) * 14, y: S.py + Math.sin(a2) * 10,
+        vx: Math.cos(a2) * 60 - 40, vy: Math.sin(a2) * 60,
+        life: 0.6, col: '#ffe86a', r: 2, star: 1 });
+    }
     for (let i = 0; i < 22; i++) {
       S.dust.push({ x: S.px, y: S.py, vx: U.rand(-220, 120), vy: U.rand(-180, 180),
         life: U.rand(0.3, 0.8), col: U.chance(0.5) ? '#ff8a3d' : '#c9bce8', r: U.rand(1, 3) });
@@ -529,11 +542,72 @@
       return;
     }
     if (k === 'skiff') {
-      // a fast, mean little wedge with a whistling trail
-      X.poly(ctx, [[t.x - 16, t.y - 7], [t.x + 15, t.y], [t.x - 16, t.y + 7]], '#140c22');
-      X.poly(ctx, [[t.x - 14, t.y - 5], [t.x + 12, t.y], [t.x - 14, t.y + 5]], '#8a2f4a');
-      X.rect(ctx, t.x - 6, t.y - 2, 9, 3, '#ff5a4d');
-      for (let i = 1; i < 7; i++) X.rect(ctx, t.x + 14 + i * 5, t.y - 1, 4, 2, 'rgba(255,90,77,' + (0.5 / i).toFixed(2) + ')');
+      // a fast mean wedge with a Reaver visible in the bubble, mohawk and all
+      X.poly(ctx, [[t.x - 16, t.y - 8], [t.x + 16, t.y], [t.x - 16, t.y + 8]], '#140c22');
+      X.poly(ctx, [[t.x - 14, t.y - 6], [t.x + 13, t.y], [t.x - 14, t.y + 6]], '#8a2f4a');
+      X.poly(ctx, [[t.x - 14, t.y - 6], [t.x + 2, t.y - 3], [t.x - 14, t.y - 1]], '#c25070');
+      X.rect(ctx, t.x - 7, t.y - 4, 9, 6, '#1d2a3a');      // the bubble
+      X.rect(ctx, t.x - 5, t.y - 3, 5, 4, '#6fe0a0');      // a green pilot in it
+      X.rect(ctx, t.x - 4, t.y - 6, 1, 3, '#ff5a4d');      // and his mohawk
+      X.rect(ctx, t.x - 2, t.y - 7, 1, 4, '#ff5a4d');
+      X.rect(ctx, t.x, t.y - 6, 1, 3, '#ff5a4d');
+      X.rect(ctx, t.x - 16, t.y - 10, 4, 3, '#6a1f33');    // the fin
+      for (let i = 1; i < 8; i++) X.rect(ctx, t.x + 15 + i * 5, t.y - 1, 4, 2, 'rgba(255,90,77,' + (0.55 / i).toFixed(2) + ')');
+      return;
+    }
+    if (k === 'rat') {
+      /* Brenda's cousin, who has his own ship and a wheel of cheese on a rope
+         and is, by any measure, doing better than you. */
+      X.poly(ctx, [[t.x - 13, t.y - 6], [t.x + 12, t.y - 2], [t.x + 12, t.y + 4], [t.x - 13, t.y + 7]], '#140c22');
+      X.poly(ctx, [[t.x - 12, t.y - 5], [t.x + 10, t.y - 1], [t.x + 10, t.y + 3], [t.x - 12, t.y + 6]], '#9a6a8a');
+      X.rect(ctx, t.x - 6, t.y - 9, 12, 6, '#2a1d33');     // canopy
+      X.rect(ctx, t.x - 4, t.y - 8, 8, 4, '#c9bce8');
+      X.rect(ctx, t.x - 3, t.y - 7, 5, 3, '#6e5a50');      // the rat
+      X.rect(ctx, t.x - 4, t.y - 9, 2, 2, '#6e5a50');      // ears
+      X.rect(ctx, t.x + 1, t.y - 9, 2, 2, '#6e5a50');
+      X.rect(ctx, t.x + 2, t.y - 6, 1, 1, '#ffffff');      // eye
+      X.line(ctx, t.x - 12, t.y + 4, t.x - 24, t.y + 9, '#b8aed0', 1);
+      X.blob(ctx, t.x - 27, t.y + 10, 5, 5, '#b08a2a');    // the cheese
+      X.blob(ctx, t.x - 27, t.y + 10, 4, 4, '#ffd34d');
+      X.rect(ctx, t.x - 28, t.y + 9, 2, 2, '#b08a2a');
+      return;
+    }
+    if (k === 'bus') {
+      /* Fourteen tourists, every one of them photographing your dents. */
+      X.plate(ctx, t.x - 26, t.y - 11, 52, 22, '#141020', null, null, 4);
+      X.plate(ctx, t.x - 25, t.y - 10, 50, 20, '#e8c44d', '#fff3a8', '#8a6a1a', 4);
+      X.rect(ctx, t.x - 25, t.y - 2, 50, 3, '#8a6a1a');
+      for (let i = 0; i < 5; i++) {
+        const wx = t.x - 21 + i * 9;
+        X.rect(ctx, wx, t.y - 8, 7, 6, '#2a3a5a');
+        X.rect(ctx, wx + 1, t.y - 7, 5, 4, '#7fb0e8');
+        X.rect(ctx, wx + 2, t.y - 6, 3, 3, U.hash2(i, 3) > 0.5 ? '#6fe0a0' : '#e8a06f');
+        // and a camera flash, one window at a time
+        if ((Math.floor(time * 3) % 5) === i) X.rect(ctx, wx - 1, t.y - 9, 9, 8, 'rgba(255,255,255,0.8)');
+      }
+      X.rect(ctx, t.x + 24, t.y - 4, 6, 5, '#fff3c0');     // headlight
+      X.rect(ctx, t.x - 30, t.y - 2, 5, 4, '#ff5a4d');     // tail light
+      return;
+    }
+    if (k === 'busker') {
+      /* One small ship, one enormous speaker, and no sense of occasion. */
+      X.plate(ctx, t.x - 12, t.y - 6, 20, 13, '#141020', null, null, 3);
+      X.plate(ctx, t.x - 11, t.y - 5, 18, 11, '#5a4a8a', '#8a7ac4', '#2a2050', 3);
+      X.rect(ctx, t.x - 6, t.y - 3, 8, 5, '#c9bce8');
+      X.plate(ctx, t.x + 6, t.y - 12, 18, 24, '#140c22', null, null, 3);
+      X.plate(ctx, t.x + 7, t.y - 11, 16, 22, '#3a2a1a', '#6a5030', '#1a1008', 3);
+      const pu = 3 + Math.abs(Math.sin(time * 9)) * 2;
+      X.blob(ctx, t.x + 15, t.y - 4, pu + 1, pu + 1, '#1a1008');
+      X.blob(ctx, t.x + 15, t.y - 4, pu, pu, '#c9a06a');
+      X.blob(ctx, t.x + 15, t.y + 6, 3, 3, '#c9a06a');
+      for (let i = 0; i < 3; i++) {                         // notes, escaping
+        const f = ((time * 0.8 + i * 0.33) % 1);
+        const nx = t.x + 24 + f * 26, ny = t.y - 4 - f * 22 + Math.sin(f * 9 + i) * 4;
+        ctx.globalAlpha = 1 - f;
+        X.rect(ctx, nx, ny, 2, 6, '#8dff5a');
+        X.rect(ctx, nx - 2, ny + 5, 4, 3, '#8dff5a');
+        ctx.globalAlpha = 1;
+      }
       return;
     }
     if (k === 'patrol') {
@@ -543,13 +617,26 @@
       const blink = Math.sin(time * 7) > 0;
       X.rect(ctx, t.x - 18, t.y - 11, 5, 3, blink ? '#ff5a4d' : '#7ef9ff');
       X.rect(ctx, t.x + 13, t.y - 11, 5, 3, blink ? '#7ef9ff' : '#ff5a4d');
+      // the scan: a cone that sweeps down over whatever is below it
+      const sw = Math.sin(time * 1.6) * 0.5;
+      ctx.globalAlpha = 0.16 + Math.abs(Math.sin(time * 3)) * 0.1;
+      X.poly(ctx, [[t.x - 4, t.y + 8], [t.x + 4, t.y + 8],
+        [t.x + 30 + sw * 40, t.y + 74], [t.x - 30 + sw * 40, t.y + 74]], '#a9d8ff');
+      ctx.globalAlpha = 1;
       return;
     }
     if (k === 'hulk') {
       X.poly(ctx, t.pts.map(p => rot(p, t, 1.25)), '#0e0a18');
       X.poly(ctx, t.pts.map(p => rot(p, t, 1)), '#46525e');
       X.poly(ctx, t.pts.slice(0, 4).map(p => rot(p, t, 0.55)), '#5c6a82');
-      X.rect(ctx, t.x - 4, t.y - 3, 9, 6, '#191320');
+      X.rect(ctx, t.x - 4, t.y - 3, 9, 6, '#191320');      // a hole clean through
+      X.line(ctx, t.x + 14, t.y - 8, t.x + 34, t.y - 22, '#3a4456', 3);  // snapped mast
+      X.line(ctx, t.x + 14, t.y - 8, t.x + 34, t.y - 22, '#7a8594', 1);
+      // the distress light nobody has come for
+      if (Math.sin(time * 2.6) > 0.55) {
+        X.blob(ctx, t.x + 34, t.y - 23, 5, 5, 'rgba(255,90,77,0.4)');
+        X.rect(ctx, t.x + 32, t.y - 25, 4, 4, '#ff5a4d');
+      }
       return;
     }
     if (k === 'whale') {
@@ -657,7 +744,12 @@
 
     for (const d of S.dust) {
       ctx.globalAlpha = Math.min(1, d.life * 2.4);
-      X.rect(ctx, d.x, d.y, d.r, d.r, d.col);
+      if (d.star) {                                   // the cartoon OW
+        X.rect(ctx, d.x - 1, d.y - 3, 3, 7, '#1a1030');
+        X.rect(ctx, d.x - 3, d.y - 1, 7, 3, '#1a1030');
+        X.rect(ctx, d.x, d.y - 3, 1, 7, d.col);
+        X.rect(ctx, d.x - 3, d.y, 7, 1, d.col);
+      } else X.rect(ctx, d.x, d.y, d.r, d.r, d.col);
     }
     ctx.globalAlpha = 1;
 
@@ -760,6 +852,6 @@
 
   function touchMode() { return S.phase === 'cruise' || S.phase === 'approach' ? 'travel' : 'ui'; }
 
-  PD.travel = { enter, enterReturn, update, draw, touchMode, S,
+  PD.travel = { enter, enterReturn, update, draw, touchMode, S, drawThing,
     drawPodOnly: (ctx, g) => pod(ctx, g, S.px, S.py, 0, 0.35) };
 })(window.PD);

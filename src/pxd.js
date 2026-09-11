@@ -126,39 +126,44 @@
     if (edge) polyEdge(ctx, pts, edge, lw);
   }
 
-  /* A blob of solid pixels: a true octagon, cut on the diagonal. There is no
-     round blob anywhere in the game -- rocks and craters are faceted stone. */
+  /* A blob of solid pixels: a REAL disc, scanline-filled one whole row at a
+     time. It used to be an octagon, on a rule that nothing in the game could
+     be round; the rule cost every planet its roundness, so it is gone. Round
+     but never smooth is the point -- each row is a run of whole pixels. */
   function blob(ctx, x, y, rx, ry, col) {
     x = Math.round(x); y = Math.round(y);
     rx = Math.max(1, Math.round(rx)); ry = Math.max(1, Math.round(ry));
     ctx.fillStyle = col;
     for (let j = -ry; j <= ry; j++) {
-      const dy = Math.abs(j) / ry;
-      const w = Math.round(rx * Math.min(1, 1.42 - dy));
+      const k = 1 - (j / (ry + 0.5)) * (j / (ry + 0.5));
+      if (k <= 0) continue;
+      const w = Math.round(rx * Math.sqrt(k));
       if (w <= 0) continue;
       ctx.fillRect(x - w, y + j, w * 2 + 1, 1);
     }
   }
 
-  /* A ring that expands as stepped bands: the pixel version of a shockwave. */
+  /* The same shape as an outline: a circle of whole pixels, for shockwaves.
+     The old one walked an octagon and at any size over about forty pixels it
+     read as a wireframe box rather than a blast. */
+  function disc(ctx, x, y, r, col) { blob(ctx, x, y, r, r, col); }
+
+  /* A ring of whole pixels: the difference between two discs, row by row. A
+     real circle, and still never a smooth one. */
   function ring(ctx, x, y, r, col, thick) {
     x = Math.round(x); y = Math.round(y); r = Math.max(1, Math.round(r));
     thick = Math.max(1, Math.round(thick || 1));
-    const c = Math.max(1, Math.round(r * 0.42));
+    const ri = Math.max(0, r - thick);
     ctx.fillStyle = col;
-    // top / bottom runs
-    ctx.fillRect(x - r + c, y - r, (r - c) * 2 + 1, thick);
-    ctx.fillRect(x - r + c, y + r - thick + 1, (r - c) * 2 + 1, thick);
-    // left / right runs
-    ctx.fillRect(x - r, y - r + c, thick, (r - c) * 2 + 1);
-    ctx.fillRect(x + r - thick + 1, y - r + c, thick, (r - c) * 2 + 1);
-    // stepped diagonals
-    for (let i = 0; i < c; i++) {
-      const px = x - r + i, py = y - r + c - i;
-      ctx.fillRect(px, py, thick, thick);
-      ctx.fillRect(x + r - i - thick + 1, py, thick, thick);
-      ctx.fillRect(px, y + r - c + i, thick, thick);
-      ctx.fillRect(x + r - i - thick + 1, y + r - c + i, thick, thick);
+    for (let j = -r; j <= r; j++) {
+      const ko = 1 - (j / (r + 0.5)) * (j / (r + 0.5));
+      if (ko <= 0) continue;
+      const wo = Math.round(r * Math.sqrt(ko));
+      const ki = ri > 0 ? 1 - (j / (ri + 0.5)) * (j / (ri + 0.5)) : -1;
+      if (ki <= 0) { ctx.fillRect(x - wo, y + j, wo * 2 + 1, 1); continue; }
+      const wi = Math.round(ri * Math.sqrt(ki));
+      ctx.fillRect(x - wo, y + j, wo - wi, 1);
+      ctx.fillRect(x + wi + 1, y + j, wo - wi, 1);
     }
   }
 
@@ -209,8 +214,8 @@
   /* A knuckle or knee: a small solid octagon that hides the seam between two
      limb segments. */
   function knob(ctx, x, y, r, col, light) {
-    oct(ctx, x, y, r, col, null);
-    if (light) oct(ctx, x - Math.max(1, r * 0.3), y - Math.max(1, r * 0.3), Math.max(1, r * 0.45), light, null);
+    blob(ctx, x, y, r, r, col);
+    if (light) blob(ctx, x - Math.max(1, r * 0.3), y - Math.max(1, r * 0.3), Math.max(1, r * 0.45), Math.max(1, r * 0.45), light);
   }
 
   /* A quadratic sampled into integer segments, so wires and cables step. */
@@ -250,13 +255,15 @@
     ctx.restore();
   }
 
-  /* Banded radial falloff: concentric octagons instead of a soft gradient. */
+  /* Banded radial falloff: concentric DISCS, stepped, instead of a soft
+     gradient. Hard rings of light, which is what a glow looks like when it is
+     made of pixels. */
   function glowBands(ctx, x, y, r, col, steps, peak) {
     steps = steps || 6;
     for (let i = steps; i >= 1; i--) {
       const f = i / steps;
       ctx.globalAlpha = (peak === undefined ? 0.5 : peak) * Math.pow(1 - f, 1.4);
-      poly(ctx, octPts(x, y, r * f), col);
+      blob(ctx, x, y, r * f, r * f, col);
     }
     ctx.globalAlpha = 1;
   }
@@ -295,5 +302,5 @@
     ctx.fillRect(x, y, w, h);
   }
 
-  PD.pxd = { rect, plate, frame, oct, octPath, octPts, hex, hexPts, poly, polyEdge, blob, ring, line, limb, knob, curve, orbit, glowBands, scanlines, dither };
+  PD.pxd = { rect, plate, frame, oct, octPath, octPts, hex, hexPts, poly, polyEdge, blob, disc, ring, line, limb, knob, curve, orbit, glowBands, scanlines, dither };
 })(window.PD);
