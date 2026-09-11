@@ -375,6 +375,33 @@ The limbs are drawn in *sprite units* — two to the logical pixel, the density
 his body is drawn at — with every block landing on a whole unit, so an arm at
 any angle is still pixels rather than a smear.
 
+### The legs, rebuilt
+
+The legs used to be two stamped-square tubes in a grey one shade off the grey
+of the shoe under them, which fused thigh, shin, foot and the leg *behind* into
+a single lump. They are built out of four things now, each fixing one part of
+that:
+
+- **Hard-edged tapered quads** instead of stamped squares, so a leg has real
+  edges and can carry a one-pixel outline — and an outline is what separates
+  the near leg from the far one.
+- **A taper that narrows**, nine units at the hip down to six at the ankle,
+  then **flares back out into a cuff**, because a widening hem is what says
+  *trouser* at this size.
+- **Tan brogues against navy slacks.** Only about five logical pixels of leg is
+  ever visible — the jacket hangs over the rest — and at that size nothing but
+  a change of *hue* will separate a foot from the leg above it. The shoe is
+  built like a real one: stacked heel, an overhanging sole, an upper that is
+  tall at the ankle and low over the toes, a polished toecap and two pixels of
+  lace.
+- **The far leg gets its own darker set of all three**, so the two legs sit at
+  different depths instead of overlapping into one shape.
+
+The bones also solve to the **ankle** rather than to the sole. Aiming the chain
+at the ground while drawing the shin to the top of a ten-unit shoe left the
+shin far shorter than the bone the knee had been placed for — which is what
+turned standing still into a dark blob with no leg in it.
+
 At home he runs, jumps absurdly high in the low gravity, tucks into a **roll**
 (`Shift`), and bangs his head on his own ceiling. On a phone home has its own
 hex keys for jump, roll and use, and a held touch on the left half walks you.

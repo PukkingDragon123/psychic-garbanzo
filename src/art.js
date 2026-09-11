@@ -57,7 +57,15 @@
      wears a stolen human suit jacket that does not fit. */
   const BIZ = {
     jacket: '#4a5a3a', jacketL: '#647a4e', jacketD: '#2f3a24',
-    shirt: '#e8e4d0', trousers: '#3a3348', shoe: '#241f2e', shoeL: '#4a4260',
+    shirt: '#e8e4d0',
+    /* Dark slacks and bright tan brogues. The old legs were grey trousers over
+       grey shoes over a grey shadow, which fused both legs and both feet into
+       one lump: the only fix that works at this size is to make the foot a
+       different HUE from the leg, so the eye finds the edge for free. */
+    trousers: '#332e4a', trousersL: '#4f4870', trousersD: '#15121f',
+    trousersF: '#26223a', trousersFL: '#3a3457',
+    shoe: '#bd7d3c', shoeL: '#e3ab63', shoeD: '#603514',
+    shoeF: '#8d5a28', shoeFL: '#b4763a', sole: '#15111e',
     brass: '#b08a3a', brassL: '#e6c26a'
   };
 
@@ -99,7 +107,8 @@
       p.ellipse(32, 50, 23, 21, BIZ.jacket);
       p.shade(BIZ.jacket, BIZ.jacketD, 0, 1);
       p.ellipse(32, 40, 14, 6, BIZ.jacketL);
-      p.round(16, 62, 14, 8, 3, BIZ.shoe); p.round(34, 64, 14, 8, 3, BIZ.shoe);
+      p.round(16, 62, 14, 8, 3, BIZ.shoeD); p.round(34, 64, 14, 8, 3, BIZ.shoeD);
+      p.round(17, 62, 12, 6, 3, BIZ.shoe); p.round(35, 64, 12, 6, 3, BIZ.shoe);
       p.ellipse(30, 44, 14, 13, skin);
       p.shade(skin, skinD, 1, 1);
       p.round(20, 38, 10, 11, 4, C.white); p.round(33, 41, 6, 6, 2, C.white);
@@ -128,13 +137,23 @@
     const bx = 30 + lean;
     const hx = bx - (drill ? 1 : 0);
 
-    /* ---- legs: long, knock-kneed, ending in enormous flat shoes ---- */
+    /* A baked brogue for the two or three poses the live rig does not drive,
+       built out of the same three bands the rigged one is: a dark sole, a tan
+       upper and a polished toecap. Without them the feet in those poses were
+       flat orange sticks next to properly built ones everywhere else. */
+    const brogue = (x, y, w) => {
+      p.round(x, y, w, 7, 2, BIZ.shoeD);
+      p.round(x + 1, y, w - 2, 5, 2, BIZ.shoe);
+      p.rect(x + w - 9, y + 1, 6, 2, BIZ.shoeL);
+      p.rect(x, y + 5, w, 2, BIZ.sole);
+    };
+
+    /* ---- legs: long, knock-kneed, ending in enormous flat brogues ---- */
     if (bare) {
       // nothing: the hips are bare and the renderer hangs live legs off them
     } else if (fly) {
       p.round(21, 70, 8, 12, 3, BIZ.trousers); p.round(35, 72, 8, 10, 3, BIZ.trousers);
-      p.round(13, 78, 20, 6, 3, BIZ.shoe); p.round(33, 79, 20, 6, 3, BIZ.shoe);
-      p.rect(16, 79, 7, 2, BIZ.shoeL); p.rect(36, 80, 7, 2, BIZ.shoeL);
+      brogue(13, 78, 18); brogue(33, 79, 18);
     } else {
       const sw = walk ? [[-4, 4], [0, 0], [4, -4], [0, 0]][f % 4] : [0, 0];
       const lift = walk ? [[3, 0], [0, 0], [0, 3], [0, 0]][f % 4] : [0, 0];
@@ -144,9 +163,7 @@
         const ax = (s ? 35 : 21) + dx;                  // ankle, splayed outward
         p.round(kx, 68, 8, 8, 3, BIZ.trousers);
         p.round(ax, 74 - up, 8, 6 + up, 3, BIZ.trousers);
-        p.round(ax - 7, 78 - up, 21, 6, 3, BIZ.shoe);
-        p.rect(ax - 4, 79 - up, 8, 2, BIZ.shoeL);
-        p.rect(ax - 7, 82 - up, 21, 2, '#12101a');
+        brogue(ax - 6, 78 - up, 19);
       }
     }
 
