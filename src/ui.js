@@ -598,100 +598,296 @@
     X.plate(ctx, x, y, w, h, face, edge, '#0a0618', 3);
   }
 
-  /* A little mascot diorama: our alien caught mid-crime on a cracking world.
-     The world itself is a properly built planet -- craters, clouds, a
-     terminator -- not the flat octagon it used to be. */
-  let doomed = null;
-  function titleArt(ctx, t) {
-    const px = 384, py = 178, r = 40;
-    // volcanic: a dark cracked world with lava already showing through, which
-    // is a better thing for him to be standing on than a green marble
-    if (!doomed) doomed = PD.arthome.buildPlanet(r * 2, '#4f7d6a', 21, 'volcanic');
-    ctx.drawImage(doomed, px - doomed.width / 2 | 0, py - doomed.height / 2 | 0);
+  /* ------------------------------------------------------- the title cinema
+     The menu is not a picture, it is a loop. He drills a world until it comes
+     apart, the world goes up in one hard white frame, and then he tumbles off
+     across the galaxy on real physics until a new world drifts in and he does
+     it again. It runs for ever and never quite the same way twice. */
+  const SHOW_TINTS = ['#4f7d6a', '#7a5a8a', '#8a6a4a', '#4a6a9a', '#8a4a4a', '#5a8a5a'];
+  let show = null;
 
-    // glowing fissures, breathing in time with the drill
-    const glow = 0.7 + 0.3 * Math.sin(t * 4);
-    const cracks = [
-      [[-4, -39], [-2, -24], [-10, -13], [-4, 2]],
-      [[-2, -24], [11, -19], [16, -6]]
-    ];
-    const walk = (col, w) => {
-      for (const ln of cracks) for (let i = 1; i < ln.length; i++)
-        X.line(ctx, px + ln[i - 1][0], py + ln[i - 1][1], px + ln[i][0], py + ln[i][1], col, w);
+  function showWorld(next) {
+    const i = next === undefined ? (U.randInt(0, SHOW_TINTS.length - 1)) : next;
+    show.tint = SHOW_TINTS[i];
+    show.seed = 7 + i * 13 + U.randInt(0, 40);
+    show.planet = PD.arthome.buildPlanet(80, show.tint, show.seed, 'volcanic');
+  }
+
+  function showInit() {
+    show = {
+      mode: 'drill', t: 0, chunks: [], sparks: [], flash: 0, ring: -1,
+      shake: 0, fade: 0, rig: PD.rig.make(),
+      al: { x: 0, y: 0, vx: 0, vy: 0, a: 0, va: 0 }
     };
-    walk('rgba(120,18,4,' + (glow * 0.9).toFixed(2) + ')', 3);
-    walk('rgba(255,190,80,' + glow.toFixed(2) + ')', 1);
-    X.glowBands(ctx, px - 4, py - 39, 17, '#ffe0a0', 4, glow * 0.8);
+    showWorld(0);
+  }
 
-    // sparks off the bit
-    for (let i = 0; i < 9; i++) {
-      const a = -1.9 + (i * 0.21) + Math.sin(t * 3 + i) * 0.1;
-      const d = 7 + ((i * 7 + Math.floor(t * 30)) % 18);
-      ctx.fillStyle = i % 3 ? '#ffd34d' : '#fff6c8';
-      ctx.fillRect(px - 4 + Math.cos(a) * d | 0, py - 41 + Math.sin(a) * d | 0, 2, 2);
+  const SHOW_X = 372, SHOW_Y = 166;                  // where the doomed world sits
+
+  /* The moment it goes. One white frame, a stepped shockwave, a starburst of
+     hard spikes, forty-odd chunks of the crust and a shower of embers -- and
+     he takes the whole of it in the chest. */
+  function showBlow() {
+    show.mode = 'float'; show.t = 0;
+    show.flash = 1; show.ring = 0; show.shake = 1;
+    show.chunks.length = 0; show.sparks.length = 0;
+    for (let i = 0; i < 54; i++) {
+      const a = U.rand(0, U.TAU), sp = U.rand(42, 265);
+      const r = U.rand(1.6, 4.6), n = U.randInt(5, 7), pts = [];
+      // an irregular hard-edged lump, not a disc: this game has no circles
+      for (let j = 0; j < n; j++) {
+        const ang = j * U.TAU / n + U.rand(-0.2, 0.2), rr = r * U.rand(0.68, 1.25);
+        pts.push([Math.cos(ang) * rr, Math.sin(ang) * rr]);
+      }
+      show.chunks.push({
+        x: SHOW_X, y: SHOW_Y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
+        pts, r, a: U.rand(0, U.TAU), va: U.rand(-3, 3),
+        hot: U.chance(0.28), life: U.rand(5, 9)
+      });
+    }
+    for (let i = 0; i < 90; i++) {
+      const a = U.rand(0, U.TAU), sp = U.rand(60, 320);
+      show.sparks.push({ x: SHOW_X, y: SHOW_Y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: U.rand(0.5, 1.6) });
+    }
+    // he is directly above it, so he goes up and away, spinning hard -- and
+    // always off to the right, where there is nothing for him to land on top of
+    show.al.x = SHOW_X - 22; show.al.y = SHOW_Y - 42;
+    show.al.vx = U.rand(26, 74); show.al.vy = U.rand(-86, -40);
+    show.al.a = 0; show.al.va = U.rand(1.8, 3.6) * (U.chance(0.5) ? -1 : 1);
+    PD.audio.sfx.boom && PD.audio.sfx.boom();
+  }
+
+  function showStep(dt) {
+    show.t += dt;
+    // the fade only ever rises at the tail of a tumble; everywhere else it
+    // falls, which is what opens the new world back up
+    if (!(show.mode === 'float' && show.t > 7.2)) show.fade = Math.max(0, show.fade - dt * 2.6);
+    show.flash = Math.max(0, show.flash - dt * 3.4);
+    show.shake = Math.max(0, show.shake - dt * 3.6);
+    if (show.ring >= 0) { show.ring += dt * 380; if (show.ring > 150) show.ring = -1; }
+
+    for (let i = show.chunks.length - 1; i >= 0; i--) {
+      const c = show.chunks[i];
+      c.x += c.vx * dt; c.y += c.vy * dt; c.a += c.va * dt;
+      c.vx *= 1 - dt * 0.22; c.vy *= 1 - dt * 0.22;
+      c.life -= dt;
+      if (c.life <= 0) show.chunks.splice(i, 1);
+    }
+    for (let i = show.sparks.length - 1; i >= 0; i--) {
+      const s2 = show.sparks[i];
+      s2.x += s2.vx * dt; s2.y += s2.vy * dt;
+      s2.vx *= 1 - dt * 1.9; s2.vy *= 1 - dt * 1.9;
+      s2.life -= dt;
+      if (s2.life <= 0) show.sparks.splice(i, 1);
     }
 
-    // the culprit, stood on the limb of the thing he is ruining
-    const bob = Math.sin(t * 2.2) * 3;
-    const al = PD.art.sprites.alien, dr = PD.art.sprites.drill;
-    const K = 1.3;
-    const feet = al.h - al.oy;
-    const ax = px - 24, ay = py - 35 - feet * K + bob;
+    if (show.mode === 'drill') {
+      if (show.t > 3.6) showBlow();
+      return;
+    }
+
+    /* Floating. No gravity out here, so he keeps whatever he was given and
+       only loses a little to nothing at all; the walls of the screen are the
+       only thing that ever changes his mind. */
+    const a2 = show.al;
+    a2.x += a2.vx * dt; a2.y += a2.vy * dt; a2.a += a2.va * dt;
+    a2.va *= 1 - dt * 0.12;
+    if (a2.x < 28 && a2.vx < 0) { a2.vx = -a2.vx * 0.86; a2.va = -a2.va * 0.9; }
+    if (a2.x > VW - 28 && a2.vx > 0) { a2.vx = -a2.vx * 0.86; a2.va = -a2.va * 0.9; }
+    if (a2.y < 28 && a2.vy < 0) { a2.vy = -a2.vy * 0.86; a2.va = -a2.va * 0.9; }
+    if (a2.y > VH - 24 && a2.vy > 0) { a2.vy = -a2.vy * 0.86; a2.va = -a2.va * 0.9; }
+    PD.rig.step(show.rig, { dt, vx: a2.vx, vy: a2.vy, ground: 0, drilling: false });
+
+    // the last of the tumble dips to black, and a new world is there
+    if (show.t > 7.2) {
+      show.fade = Math.min(1, show.fade + dt * 2.6);
+      if (show.fade >= 1) {
+        showWorld(); show.mode = 'drill'; show.t = 0;
+        show.chunks.length = 0; show.sparks.length = 0;
+      }
+    }
+  }
+
+  function showDraw(ctx, t) {
+    // everything in the diorama shakes for a third of a second after the bang
+    const sh = show.shake > 0 ? show.shake * show.shake * 5 : 0;
     ctx.save();
-    ctx.translate(ax + 9, ay + 3);
-    ctx.rotate(0.85);
-    ctx.drawImage(dr.frames[Math.floor(t * 12) % dr.frames.length], 0, 0,
-      dr.frames[0].width, dr.frames[0].height, -dr.ox * K, -dr.oy * K, dr.w * K, dr.h * K);
+    if (sh) ctx.translate(Math.round(U.rand(-sh, sh)), Math.round(U.rand(-sh, sh)));
+
+    if (show.mode === 'drill') {
+      const px = SHOW_X, py = SHOW_Y;
+      ctx.drawImage(show.planet, px - show.planet.width / 2 | 0, py - show.planet.height / 2 | 0);
+      // the fissures widen and brighten the closer it is to going
+      const near = U.clamp(show.t / 3.6, 0, 1);
+      const glow = (0.55 + 0.45 * Math.sin(t * (4 + near * 12))) * (0.5 + near * 0.5);
+      const cracks = [
+        [[-4, -39], [-2, -24], [-10, -13], [-4, 4]],
+        [[-2, -24], [11, -19], [17, -4]],
+        [[-10, -13], [-24, -9], [-33, -15]]
+      ];
+      const walk = (col, w) => {
+        for (const ln of cracks) for (let i = 1; i < ln.length; i++)
+          X.line(ctx, px + ln[i - 1][0], py + ln[i - 1][1], px + ln[i][0], py + ln[i][1], col, w);
+      };
+      walk('rgba(120,18,4,' + (glow * 0.9).toFixed(2) + ')', 2 + Math.round(near * 2));
+      walk('rgba(255,190,80,' + glow.toFixed(2) + ')', 1 + Math.round(near));
+      X.glowBands(ctx, px - 4, py - 39, 16 + near * 14, '#ffe0a0', 4, glow * 0.8);
+
+      for (let i = 0; i < 12; i++) {
+        const a = -1.9 + (i * 0.18) + Math.sin(t * 3 + i) * 0.12;
+        const d = 7 + ((i * 7 + Math.floor(t * 34)) % 20);
+        ctx.fillStyle = i % 3 ? '#ffd34d' : '#fff6c8';
+        ctx.fillRect(px - 4 + Math.cos(a) * d | 0, py - 41 + Math.sin(a) * d | 0, 2, 2);
+      }
+
+      const bob = Math.sin(t * 2.2) * 3 + Math.sin(t * 26) * near * 1.6;
+      const al = PD.art.sprites.alien, dr = PD.art.sprites.drill;
+      const K = 1.3, feet = al.h - al.oy;
+      const ax = px - 24, ay = py - 35 - feet * K + bob;
+      ctx.save();
+      ctx.translate(ax + 9, ay + 3); ctx.rotate(0.85);
+      ctx.drawImage(dr.frames[Math.floor(t * 12) % dr.frames.length], 0, 0,
+        dr.frames[0].width, dr.frames[0].height, -dr.ox * K, -dr.oy * K, dr.w * K, dr.h * K);
+      ctx.restore();
+      ctx.drawImage(al.frames[Math.floor(t * 7) % 4], 0, 0, al.frames[0].width, al.frames[0].height,
+        Math.round(ax - al.ox * K), Math.round(ay - al.oy * K), Math.round(al.w * K), Math.round(al.h * K));
+    }
+
+    /* THE IMPACT. A fireball of stacked octagons, one stepped shockwave and a
+       short starburst of hard spikes -- all of it over in half a second,
+       which is what makes it hit rather than drift. */
+    if (show.ring >= 0) {
+      const f = 1 - show.ring / 150;
+      if (f > 0.45) {
+        const fb = (f - 0.45) / 0.55;
+        const R = 16 + (1 - fb) * 28;
+        X.blob(ctx, SHOW_X, SHOW_Y, R * 1.2, R * 1.2, 'rgba(90,28,10,' + (fb * 0.3).toFixed(2) + ')');
+        X.blob(ctx, SHOW_X, SHOW_Y, R, R, 'rgba(255,120,40,' + (fb * 0.85).toFixed(2) + ')');
+        X.blob(ctx, SHOW_X, SHOW_Y, R * 0.62, R * 0.62, 'rgba(255,206,110,' + fb.toFixed(2) + ')');
+        X.blob(ctx, SHOW_X, SHOW_Y, R * 0.3, R * 0.3, 'rgba(255,252,236,' + fb.toFixed(2) + ')');
+      }
+      X.ring(ctx, SHOW_X, SHOW_Y, show.ring, 'rgba(255,240,200,' + (f * f * 0.95).toFixed(2) + ')', Math.max(1, Math.round(f * 4)));
+      X.ring(ctx, SHOW_X, SHOW_Y, show.ring * 0.66, 'rgba(255,150,60,' + (f * f * 0.7).toFixed(2) + ')', Math.max(1, Math.round(f * 3)));
+      if (f > 0.55) {
+        const k = (f - 0.55) / 0.45;                 // 1 at the bang, 0 by 0.25s
+        const len = 34 + (1 - k) * 120;
+        for (let i = 0; i < 8; i++) {
+          const a = i * (U.TAU / 8) + 0.39;
+          const nx = Math.cos(a), ny = Math.sin(a), tx = -ny, ty = nx;
+          const w = 11 * k;
+          X.poly(ctx, [
+            [SHOW_X + nx * len, SHOW_Y + ny * len],
+            [SHOW_X + tx * w, SHOW_Y + ty * w],
+            [SHOW_X - tx * w, SHOW_Y - ty * w]
+          ], 'rgba(255,248,220,' + (k * 0.9).toFixed(2) + ')');
+        }
+      }
+    }
+
+    for (const c of show.chunks) {
+      ctx.globalAlpha = Math.min(1, c.life / 2);
+      const co = Math.cos(c.a), si = Math.sin(c.a);
+      const at = (p, g) => [c.x + (p[0] * co - p[1] * si) * g, c.y + (p[0] * si + p[1] * co) * g];
+      X.poly(ctx, c.pts.map(p => at(p, 1.4)), '#140c22');
+      X.poly(ctx, c.pts.map(p => at(p, 1)), c.hot ? '#e8631f' : show.tint);
+      X.poly(ctx, c.pts.slice(0, 3).map(p => at(p, 0.62)), c.hot ? '#ffd27a' : '#ffffff22');
+      ctx.globalAlpha = 1;
+    }
+    for (const s2 of show.sparks) {
+      ctx.globalAlpha = Math.min(1, s2.life);
+      ctx.fillStyle = s2.life > 0.9 ? '#fff6c8' : '#ffb04d';
+      ctx.fillRect(s2.x | 0, s2.y | 0, 2, 2);
+      ctx.globalAlpha = 1;
+    }
+
+    if (show.mode === 'float') {
+      const a2 = show.al, skin = PD.art.skinFor({});
+      PD.rig.draw(ctx, show.rig, {
+        x: a2.x, y: a2.y, flip: a2.vx < 0, spr: skin.alienCore,
+        frame: PD.rig.FACE.shock, drilling: false, grip: null, aim: 0,
+        ground: 0, vx: a2.vx, vy: a2.vy, squash: 1, ragdoll: 1, ang: a2.a
+      }, skin.P, PD.art.BIZ);
+    }
     ctx.restore();
-    ctx.drawImage(al.frames[Math.floor(t * 7) % 4], 0, 0, al.frames[0].width, al.frames[0].height,
-      Math.round(ax - al.ox * K), Math.round(ay - al.oy * K), Math.round(al.w * K), Math.round(al.h * K));
+
+    if (show.flash > 0) {
+      ctx.fillStyle = 'rgba(255,255,255,' + (show.flash * show.flash).toFixed(3) + ')';
+      ctx.fillRect(0, 0, VW, VH);
+    }
+    if (show.fade > 0) {
+      ctx.fillStyle = 'rgba(4,2,12,' + show.fade.toFixed(2) + ')';
+      ctx.fillRect(0, 0, VW, VH);
+    }
+  }
+
+  /* ------------------------------------------------------------- the wordmark
+     Alien, and loud about it: acid green and gold over a magenta/cyan split,
+     a breathing glow behind, and a line of nonsense runes top and bottom that
+     shimmer one after another like something is reading them out. */
+  function runes(ctx, cx, y, t) {
+    const N = 15, gap = 15;
+    for (let i = 0; i < N; i++) {
+      const x = Math.round(cx - (N - 1) * gap / 2 + i * gap);
+      const h = U.hash2(i * 7 + 1, 3);
+      ctx.globalAlpha = 0.3 + 0.7 * Math.max(0, Math.sin(t * 2.2 - i * 0.5));
+      const col = i % 3 === 0 ? '#8dff5a' : (i % 3 === 1 ? '#33e6ff' : '#ff4d9e');
+      X.rect(ctx, x, y, 2, 9, col);
+      if (h > 0.28) X.rect(ctx, x - 4, y + 2, 9, 2, col);
+      if (h > 0.55) X.rect(ctx, x - 4, y + 7, 6, 2, col);
+      if (h > 0.76) X.rect(ctx, x + 4, y - 3, 2, 5, col);
+      if (h > 0.9) X.rect(ctx, x - 4, y - 3, 2, 4, col);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function wordmark(ctx, cx, y, t) {
+    const pulse = 0.5 + 0.5 * Math.sin(t * 1.5);
+    X.glowBands(ctx, cx, y + 26, 132, '#3fd98a', 6, 0.1 + pulse * 0.07);
+    runes(ctx, cx, y - 15, t);
+    const drift = Math.round(Math.sin(t * 2.1) * 1.5) + 2;
+    F.draw(ctx, 'PLANET', cx - drift, y, '#ff2f8a', { center: true, scale: 5 });
+    F.draw(ctx, 'PLANET', cx + drift, y, '#22e0ff', { center: true, scale: 5 });
+    F.draw(ctx, 'PLANET', cx, y, '#b6ff4d', { center: true, scale: 5, shadow: '#14461f' });
+    F.draw(ctx, 'DESTROYER', cx - drift, y + 40, '#22e0ff', { center: true, scale: 4 });
+    F.draw(ctx, 'DESTROYER', cx + drift, y + 40, '#ff2f8a', { center: true, scale: 4 });
+    F.draw(ctx, 'DESTROYER', cx, y + 40, '#ffd34d', { center: true, scale: 4, shadow: '#5c0f2c' });
+    runes(ctx, cx, y + 70, t);
   }
 
   /* The menu. Everything on it hangs in front of the galaxy on its own bob at
      its own rate, so nothing is nailed to the screen. */
   function title(ctx, g, t, dt) {
+    dt = dt === undefined ? 1 / 60 : Math.min(0.05, dt);
+    if (!show) showInit();
     PD.galaxy.spiral(ctx, t, 7);
-    junkDraw(ctx, dt === undefined ? 1 / 60 : dt);
-    titleArt(ctx, t);
+    junkDraw(ctx, dt);
+    showStep(dt);
+    showDraw(ctx, t);
 
-    const cx = 160;
+    const cx = 158;
     const bobA = Math.sin(t * 0.9) * 3;
     const bobB = Math.sin(t * 1.24 + 1.1) * 2.5;
     const bobC = Math.sin(t * 0.72 + 2.4) * 2;
 
-    // the logo, on its own slab
-    floater(ctx, cx - 132, 22 + bobA, 264, 86, 'rgba(14,8,34,0.78)', '#6b4fb0', 6);
-    F.draw(ctx, 'PLANET', cx, 30 + bobA, '#ffd34d', { center: true, scale: 5, shadow: '#7a2a10' });
-    F.draw(ctx, 'DESTROYER', cx, 68 + bobA, '#ff5fa8', { center: true, scale: 4, shadow: '#3a0c30' });
-    F.draw(ctx, 'A GREEDY LITTLE ALIEN MINING GAME', cx, 96 + bobA, COL.dim, { center: true });
+    wordmark(ctx, cx, 46 + bobA, t);
 
     const m = PD.input.mouse;
-    const py = 142 + bobB;
+    const py = 168 + bobB;
     const hot = m.inside && Math.abs(m.x - cx) < 74 && Math.abs(m.y - py) < 16;
-    floater(ctx, cx - 74, py - 16, 148, 32, hot ? '#3f9a5a' : '#2a6b42', hot ? '#b8ffc8' : '#8affa0', 5);
+    floater(ctx, cx - 74, py - 16, 148, 32, hot ? '#2f8f6a' : '#1f6b4c', hot ? '#8dff5a' : '#4fd99a', 5);
     ctx.save(); ctx.translate(cx - 52, py); ctx.rotate(-Math.PI / 2);
-    PD.glyph.draw(ctx, 'play', -7, -7, '#ffffff', '#8affa0'); ctx.restore();
+    PD.glyph.draw(ctx, 'play', -7, -7, '#ffffff', '#8dff5a'); ctx.restore();
     F.draw(ctx, g.save.totalEarned > 0 ? 'CONTINUE' : 'START', cx + 8, py - 7, '#ffffff', { center: true, scale: 2 });
     const start = hot && m.leftPressed;
     if (start) PD.audio.sfx.click();
 
     let wipe = false;
     if (g.save.totalEarned > 0) {
-      const sy = 174 + bobC;
-      floater(ctx, cx - 92, sy - 5, 184, 32, 'rgba(14,8,34,0.78)', '#4a3a78', 4);
+      const sy = 200 + bobC;
+      floater(ctx, cx - 92, sy - 5, 184, 32, 'rgba(14,8,34,0.78)', '#33e6ff', 4);
       F.draw(ctx, '$' + U.fmt(g.save.credits) + '   GALAXY ' + g.save.dominion.toFixed(1) + '%', cx, sy, COL.gold, { center: true });
       wipe = button(ctx, cx - 40, sy + 12, 80, 12, 'NEW GAME', { accent: '#8a2f4a' });
     }
-
-    // the controls, floating along the bottom on their own slab
-    const ly = 232 + Math.sin(t * 1.05 + 0.6) * 2;
-    floater(ctx, 8, ly - 6, VW - 16, 32, 'rgba(10,6,26,0.74)', '#3c2f66', 4);
-    const legend = [['hand', 'FLY'], ['drill', 'DIG'], ['gun', 'SHOOT'], ['sell', 'ABAY']];
-    for (let i = 0; i < legend.length; i++) {
-      PD.glyph.draw(ctx, legend[i][0], 22 + i * 78, ly - 3, COL.gold, '#b8860b');
-      F.draw(ctx, legend[i][1], 38 + i * 78, ly + 1, COL.text);
-    }
-    F.draw(ctx, 'HOLD TO FLY AND DIG    E USE    Q SWAP    R GO LIMP', VW / 2, ly + 15, COL.dim, { center: true });
     return { start, wipe };
   }
 
@@ -768,6 +964,7 @@
 
   PD.ui = {
     VW, VH, COL, panel, bar, button, icon, hud, homeBar, shop, title, pause, victory,
+    showState: () => show, showBlow,
     sellSplash, ending, endFrame
   };
 })(window.PD);

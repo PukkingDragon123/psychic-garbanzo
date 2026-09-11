@@ -873,10 +873,15 @@
     const gy = groundY(P.x);
     const air = P.y < gy - 1;
     const walking = Math.abs(P.vx) > 8;
-    const x = (P.x - cam) | 0, y = (P.y + 2) | 0;
+    const x = (P.x - cam) | 0;
+    /* The rig's soles sit thirteen logical pixels below the anchor it is
+       handed, and P.y is the ground. Anchoring at P.y + 2 therefore buried him
+       fifteen pixels into the regolith -- which the old compact shoes mostly
+       hid and the tentacles did not. */
+    const y = (P.y - 13) | 0;
     if (P.roll > 0) {
       ctx.save();
-      ctx.translate(x, y - 14);
+      ctx.translate(x, (P.y + 2 | 0) - 14);
       ctx.rotate(P.rollA);
       const s = skin.alienRoll;
       ctx.drawImage(s.frames[0], -s.ox, -s.oy + 14, s.w, s.h);

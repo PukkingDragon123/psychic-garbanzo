@@ -24,32 +24,50 @@ python3 -m http.server 8000   # then visit http://localhost:8000
 node tools/build.js           # -> dist/planet-destroyer.html
 ```
 
-## The menu is a galaxy
+## The menu is a loop, not a picture
 
-The title screen is no longer a starfield with a logo on it. It is a whole
-**spiral galaxy**, built once and sat in front of.
+It runs a little film, over and over, and never quite the same way twice.
 
-Two logarithmic arms are walked outwards and stars scattered along them with a
-falloff, so each arm is dense where it leaves the bulge and frays at the rim.
-Dark **dust lanes** are walked down the inside edge of each arm first, because
-the dust is what makes a spiral read as a spiral rather than a smear. Colour
-runs out with radius — gold in the bulge, coral and violet through the arms,
-cold blue at the rim — which is roughly what a real one does and, more to the
-point, is beautiful. The core breathes; a layer of live twinkles goes over the
-top so nothing looks airbrushed.
+He drills a world. The fissures widen and brighten and beat faster the closer
+it gets, until the whole thing goes in **one hard white frame** — a fireball of
+stacked octagons, a starburst of eight hard spikes, a stepped shockwave, fifty
+irregular chunks of crust and ninety embers, and a third of a second of screen
+shake. Nothing in it lasts longer than half a second, which is what makes it
+hit rather than drift.
 
-**Everything on the menu floats.** Each panel — the logo, the button, the
-purse, the controls — hangs on its own bob at its own rate over a hard shadow
-cast well below it, so it reads as suspended in front of the galaxy rather than
-painted on it.
+Then **he takes the whole of it in the chest**. He goes limp — the ragdoll rig,
+so his arms and all six tentacles trail — and tumbles off across the galaxy on
+real physics: no gravity out here, so he keeps whatever the blast gave him and
+only the edges of the screen ever change his mind. He bounces off them, losing
+a little spin each time. After seven seconds it dips to black, a new world of a
+new colour has drifted in, and he starts again.
+
+### The wordmark
+
+Alien, and loud about it: acid green and gold split against magenta and cyan
+ghosts that drift apart and back together, a glow behind it that breathes, and
+a line of nonsense runes top and bottom that shimmer one after another like
+something is reading them out.
+
+### The sky behind it
+
+A whole **spiral galaxy**, built once and sat in front of. Two logarithmic arms
+are walked outwards and stars scattered along them with a falloff, so each arm
+is dense where it leaves the bulge and frays at the rim. Dark **dust lanes** are
+walked down the inside edge of each arm first, because the dust is what makes a
+spiral read as a spiral rather than a smear. Colour runs out with radius — gold
+in the bulge, coral and violet through the arms, cold blue at the rim.
+
+**The panels float.** Each one hangs on its own bob at its own rate over a hard
+shadow cast well below it. There is no legend and no control list along the
+bottom any more; the bottom of the screen is sky, and the debris drifts through
+it.
 
 **And it is full of somebody else's rubbish.** Thirteen bits of space trash
-tumble slowly across: a dead satellite, a traffic cone, a fridge with the door
-hanging open, one boot, an office chair, a bent antenna, a tyre, a stove-in
-crate and, inevitably, a rubber duck. Each keeps its own spin and drift and
-wraps round when it leaves, so the screen never repeats an arrangement. The
-near ones are bigger, faster and dimmer, which is the whole of the depth
-effect.
+tumble across: a dead satellite, a traffic cone, a fridge with the door hanging
+open, one boot, an office chair, a bent antenna, a tyre, a stove-in crate and,
+inevitably, a rubber duck. The near ones are bigger, faster and dimmer, which
+is the whole of the depth effect.
 
 ## Home is a small rock, seen up close
 
@@ -404,14 +422,18 @@ any angle is still pixels rather than a smear.
 
 ### He does not have legs
 
-He has two **tentacles**. Not a two-bone chain in a pair of slacks pretending
-to have a knee — that was always going to look wrong on something with one big
-eye and one small one.
+He has **six tentacles**, three a side, because he is an octopus in a suit.
+Not a two-bone chain in a pair of slacks pretending to have a knee — that was
+always going to look wrong on something with one big eye and one small one.
 
-A tentacle is not a chain of bones, so there is no IK in here at all. It is a
-**curve** swept from the hip to wherever the foot wants to be, sampled into
-hard-edged quads that taper to a point:
+A tentacle is not a chain of bones, so there is no IK in here at all. Each one
+is a **curve** swept from the hip to wherever the foot wants to be, sampled
+into hard-edged quads that taper to a point:
 
+- **Only the middle one of each trio walks properly.** The other two are
+  shorter, rooted a little in front of and behind it along the belt, splayed
+  further out, and run a third of a cycle out of step — so the six of them
+  ripple round him instead of marching in pairs.
 - **The bow grows as the tip comes closer to the hip**, because a tentacle with
   slack in it coils rather than bending. Reach further and the curve simply
   straightens out, which is exactly what a real one does — no bone to run out
@@ -419,18 +441,19 @@ hard-edged quads that taper to a point:
 - **The tip hooks.** Planted, the last two points run forward along the rock
   and flick up at the end, so it splays out flat instead of stopping in mid-air
   the way a foot does. In the air they curl back up under him.
-- **Suckers** march down the leading side in pale coral, every other sample.
-  At four pixels across they are the only thing that says *tentacle* rather
-  than *tube*, so they matter more than the silhouette does.
-- **A slow wave** runs down both of them the whole time, scaled by how far
-  along the curve you are, so they are never quite still even when he is.
-- The tentacles are a deep teal-green rather than his own mint skin, and the
-  far one gets its own darker pair, so they read apart from his head, from the
-  olive jacket, and from each other.
+- **Suckers** march down the leading side of the front three in pale coral,
+  every other sample. At four pixels across they are the only thing that says
+  *tentacle* rather than *tube*, so they matter more than the silhouette does.
+- **A slow wave** runs down all six the whole time, each on its own beat, so
+  they are never quite still even when he is.
+- The back three are a darker green again, so the two ranks sit at different
+  depths.
 
-The walk cycle underneath is unchanged — stance still slides the tip backwards
-at exactly hip speed — but a tentacle following it looks nothing like a leg
-did.
+The curve is aimed two units **above** the foot mark, not at it. A tentacle is
+drawn from its centreline outwards, so aiming the centreline at the ground
+buried half its width plus its outline in the rock. That, plus a home scene
+that anchored him fifteen pixels below his own feet, is why he used to stand
+knee-deep in the moon.
 
 At home he runs, jumps absurdly high in the low gravity, tucks into a **roll**
 (`Shift`), and bangs his head on his own ceiling. On a phone home has its own

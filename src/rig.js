@@ -78,6 +78,14 @@
      A slow wave runs down both of them all the time, scaled by how far along
      the curve you are, so they are never quite still even when he is. */
   const TSEG = 7;                         // samples along the body of the curve
+  /* Three tentacles a side. THIP nudges each one's root along the belt, TOUT
+     splays its tip, TLAG puts it a third of a cycle out of step with the one
+     that walks, TAMP shortens its stride and TW thins it. */
+  const THIP = [[0, 0], [-6, 3], [6, 4]];
+  const TOUT = [0, -12, 11];
+  const TLAG = [0, 0.33, 0.66];
+  const TAMP = [1, 0.55, 0.5];
+  const TW = [13, 10, 9];
 
   /* Hip to tip as a cubic, plus two points past the tip for the hook. `bow` is
      how far it bellies out behind him: it grows as the tip comes CLOSER to the
@@ -96,8 +104,8 @@
     // the hook. Planted, the last two points run FORWARD along the rock and
     // flick up at the very end, so it splays out flat instead of stopping in
     // mid-air the way a foot does; in the air they curl back up under him.
-    pts.push([tx + face * hook * 0.6, ty + 1]);
-    pts.push([tx + face * hook, ty + (hook > 0 ? 0 : -3)]);
+    pts.push([tx + face * hook * 0.6, ty]);
+    pts.push([tx + face * hook, ty + (hook > 0 ? -1 : -4)]);
     return pts;
   }
 
@@ -255,16 +263,21 @@
   /* Everything the two call sites below share: pick the bow from how much
      slack there is between hip and tip, run the wave off the walk phase, and
      shade the far tentacle darker so the two sit at different depths. */
-  function drawTent(ctx, r, hx, hy, fx, fy, face, i, hook, B) {
-    const far = i === 1;
+  function drawTent(ctx, r, hx, hy, fx, fy, face, i, k, hook, B) {
+    const far = i === 1;                             // the back three sit in shadow
     const reach = Math.hypot(fx - hx, fy - hy);
     const slack = U.clamp(1 - reach / 26, 0, 1);
-    const bow = 4 + slack * 15;
-    const pts = curvePts(hx, hy, fx, fy + 1, face, bow, hook,
-      1.6 + (r.walkAmt || 0) * 1.4, r.breathe * 1.3 + r.phase * 6.283 + i * 2.1);
-    tentacle(ctx, pts, 13, face,
+    const bow = (4 + slack * 15) * (k === 2 ? -0.7 : 1);
+    /* The curve is aimed two units ABOVE the foot mark, not at it. A tentacle
+       is drawn from its centreline outwards, so aiming the centreline at the
+       ground buried half its width plus its outline in the rock -- which is
+       exactly what it looked like: legs sunk into the moon. Two units up puts
+       the bottom edge of the tip back on the same line the old sole sat on. */
+    const pts = curvePts(hx, hy, fx, fy - 2, face, bow, hook,
+      1.6 + (r.walkAmt || 0) * 1.4, r.breathe * 1.3 + r.phase * 6.283 + i * 2.1 + k * 1.7);
+    tentacle(ctx, pts, TW[k], face,
       far ? B.tentF : B.tent, far ? B.tentFL : B.tentL, B.tentD,
-      far ? null : B.suck);
+      far ? null : B.suck);   // only the front three show their suckers
   }
 
   /* ------------------------------------------------------------------- draw
@@ -282,71 +295,82 @@
     // dark green body a dark green arm is invisible
     const dark = B.jacketD, mid = B.jacket, lit = B.jacketL;
 
-    /* ------------------------------------------------------------ the legs */
+    /* ------------------------------------------------------- the tentacles
+       THREE a side, six in all, because he is an octopus in a suit. Only the
+       middle one of each trio walks properly: the other two are shorter, set
+       a little in front of and behind the hip, and run a third of a cycle out
+       of step, so the six of them ripple round him instead of marching in
+       pairs. They are drawn outer-first so the walking one ends up on top. */
     const i = half;
     const hip = HIP[i];
-    const hx = hip[0] * flip, hy = hip[1] + r.bobY;
-    let fx, fy, planted = true;
-    if (o.ragdoll) {
-      // legs out too, trailing the tumble
-      const w3 = r.ang * 2.6 + i * 1.7 + 1;
-      fx = hx + (i ? -11 : 11) + Math.sin(w3) * 9;
-      fy = FOOT_Y - 6 + Math.cos(w3 * 0.9) * 9;
-      drawTent(ctx, r, hx, hy, fx, fy, face, i, -7, B);
-      return;
-    }
-    if (!o.ground) {
-      // in the air the legs trail whichever way he is moving, knees tucked
-      const tuck = U.clamp((o.vy || 0) / 260, -1, 1);
-      fx = hx - face * (6 + i * 4) - U.clamp((o.vx || 0) / 26, -8, 8);
-      fy = FOOT_Y - 6 + tuck * 5 + i * 2;
-      planted = false;
-    } else if (drilling) {
-      // braced. Aiming along the ground he plants one foot forward and drives
-      // the other straight out behind, stretched against the recoil; aiming
-      // up or down there is nothing to brace against fore and aft, so the
-      // legs go wide instead and he squats over the hole.
-      const br = r.brace;
-      const push = r.recoil * 4;
-      const vert = Math.abs(Math.sin(o.aim));
-      const wide = (i ? -13 : 13) * vert;
-      fx = hx + (face * (i ? -15 - push : 12) * (1 - vert) + wide) * br;
-      fy = FOOT_Y - vert * 3 * br + (i ? -1 : 0);
-    } else if (r.walkAmt > 0.04) {
-      /* A real cycle in two halves. STANCE: the foot is on the floor, so it
-         slides backwards relative to the hip in a straight line at exactly
-         the speed the hip is moving forwards -- it does not move at all in
-         the world, which is the whole point. SWING: it lifts and arcs back
-         out in front. A cosine for both (which is what this used to do) makes
-         the planted foot skate, because a cosine is not a constant speed. */
-      const ph = ((t + i * 0.5) % 1 + 1) % 1;
-      const w = r.walkAmt;
-      let up = 0;
-      if (ph < 0.5) {
-        fx = hx + AMP * (1 - 4 * ph) * face * w;         // planted, sliding back
+    const hx0 = hip[0] * flip, hy0 = hip[1] + r.bobY;
+
+    /* Where one tentacle's tip wants to be, given how far round the ripple it
+       is and how far out along the belt it hangs. */
+    function foot(k) {
+      const lag = TLAG[k];
+      const out = TOUT[k] * flip;
+      const hx = hx0 + THIP[k][0] * flip, hy = hy0 + THIP[k][1];
+      let fx, fy, planted = true, hook = 6;
+      if (o.ragdoll) {
+        const w3 = r.ang * 2.6 + i * 1.7 + k * 1.3 + 1;
+        fx = hx + (i ? -11 : 11) + out + Math.sin(w3) * 9;
+        fy = FOOT_Y - 6 + Math.cos(w3 * 0.9) * 9;
+        hook = -7;
+      } else if (!o.ground) {
+        // in the air they all stream whichever way he is moving
+        const tuck = U.clamp((o.vy || 0) / 260, -1, 1);
+        fx = hx - face * (6 + i * 4) + out * 0.7 - U.clamp((o.vx || 0) / 26, -8, 8);
+        fy = FOOT_Y - 6 + tuck * 5 + i * 2 + k * 2;
+        hook = -5;
+      } else if (drilling) {
+        // braced: one tip forward, the rest driven out behind and to the sides
+        const br = r.brace;
+        const push = r.recoil * 4;
+        const vert = Math.abs(Math.sin(o.aim));
+        const wide = (i ? -13 : 13) * vert;
+        fx = hx + (face * (i ? -15 - push : 12) * (1 - vert) + wide) * br + out;
+        fy = FOOT_Y - vert * 3 * br + (i ? -1 : 0);
+      } else if (r.walkAmt > 0.04) {
+        /* A real cycle in two halves. STANCE: the tip is on the floor, so it
+           slides backwards relative to the hip in a straight line at exactly
+           the speed the hip is moving forwards -- it does not move at all in
+           the world, which is the whole point. SWING: it lifts and arcs back
+           out in front. A cosine for both makes the planted tip skate,
+           because a cosine is not a constant speed. */
+        const ph = ((t + i * 0.5 + lag) % 1 + 1) % 1;
+        const w = r.walkAmt * TAMP[k];
+        let up = 0;
+        if (ph < 0.5) {
+          fx = hx + AMP * (1 - 4 * ph) * face * w;
+        } else {
+          const f = (ph - 0.5) * 2;
+          fx = hx + AMP * (-1 + 2 * f) * face * w;
+          up = Math.sin(f * Math.PI);
+        }
+        fx += out * 0.5;
+        fy = FOOT_Y - up * LIFT * w;
+        planted = up < 0.05;
       } else {
-        const f = (ph - 0.5) * 2;                        // 0..1 through the swing
-        fx = hx + AMP * (-1 + 2 * f) * face * w;
-        up = Math.sin(f * Math.PI);
+        // standing: splayed round him, each one breathing on its own beat
+        fx = hx + face * (i ? -5 : 3) + out;
+        fy = FOOT_Y + Math.sin(r.breathe + k * 2.1) * 0.9;
+        const ek = emoteK(r);
+        if (ek > 0.01) {
+          if (r.emote === 'stretch') fy -= 3 * ek;
+          if (r.emote === 'shrug' || r.emote === 'flex') fx += (i ? -6 : 6) * ek;
+          if (r.emote === 'wave') fx += face * (i ? -2 : 3) * ek;
+        }
       }
-      fy = FOOT_Y - up * LIFT * w;
-      planted = up < 0.05;
-    } else {
-      // standing: knock-kneed, weight on one side, breathing
-      fx = hx + face * (i ? -5 : 3);
-      fy = FOOT_Y + Math.sin(r.breathe) * 0.6;
-      const ek = emoteK(r);
-      if (ek > 0.01) {
-        // up on his toes for a stretch, feet apart for a shrug or a flex
-        if (r.emote === 'stretch') fy -= 3 * ek;
-        if (r.emote === 'shrug' || r.emote === 'flex') fx += (i ? -6 : 6) * ek;
-        if (r.emote === 'wave') fx += face * (i ? -2 : 3) * ek;
-      }
+      return { hx, hy, fx, fy, hook: planted ? hook : (hook > 0 ? -5 : hook) };
     }
-    /* Planted, the tip hooks forward and lies along the rock; off the ground
-       it curls back up under him. Everything else about the tentacle falls
-       out of where the foot wanted to be. */
-    drawTent(ctx, r, hx, hy, fx, fy, face, i, planted ? 6 : -5, B);
+
+    // outer pair first, the walking one last, so it lands on top of them
+    for (const k of [2, 1, 0]) {
+      const f = foot(k);
+      drawTent(ctx, r, f.hx, f.hy, f.fx, f.fy, face, i, k, f.hook, B);
+    }
+    if (o.ragdoll) return;
 
     /* ------------------------------------------------------------ the arms */
     const sh = SH[i];
