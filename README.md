@@ -39,8 +39,9 @@ worlds is scratched into the rock wall, and the wooden signs tell you what
 everything does. What is left is the place.
 
 **Outside** is the top of a moon, and you are standing close enough to it that
-it is not a ball any more: the curve is gentle, the limb runs off the bottom
-corners of the screen, and the surface is **lumpy** rather than a clean arc —
+it is not a ball any more: the curve is almost flat, the limb runs off the
+bottom corners of the screen, and the surface is **lumpy** rather than a clean
+arc —
 ridges, a dip and a shoulder rolled into it, with craters sunk into the curve
 and boulders half-buried all the way out to both horizons. It is a chipped rock,
 not a globe. The star is off to one side, so the crust is pale on that side and
@@ -70,6 +71,44 @@ door and press `E`.
 
 The high jump reaches the junk hanging off the roof beam, and head-butting it
 sets the whole lot swinging.
+
+## Going in through the iris
+
+Pressing `E` at the computer or the brain does not cut. A grid of chunky
+squares swells shut, converging on the thing you pressed `E` on, the screen
+changes behind them at the halfway point, and then they shrink away again in
+the opposite order — near the focus closes last and opens first, so it reads as
+being pulled **into** the thing rather than a curtain dropping. Coming back out
+irises the other way.
+
+## Ragdoll
+
+He goes limp and tumbles. Out on a dig there is nothing to catch him, so he
+bounces off the walls of his own tunnel — each surface with its own restitution,
+the spin bleeding off every time he hits the floor — until he runs out, then
+gets up with **X for eyes** for a second or so. During it there is no steering,
+no drill and no jets: only gravity, drag and the spin, and the limbs hang off
+the shoulders and hips and flap about with the tumble.
+
+Three things set it off: a hit that really connects (11 damage or more, with the
+knock scaled to how hard), slamming into rock above 300 units a second while
+dashing, and pressing `R`, because it is funny. He is capped at three seconds so
+that being wedged somewhere he cannot land never strands him.
+
+## Seven faces
+
+The face is no longer one expression plus a blink. The big eye carries nearly
+all of it, because the moustache has the mouth:
+
+**normal** (pupils down in the corner), **blink**, **happy** (both eyes
+upturned arcs), **cross** (brows driven down into the middle), **shock** (both
+eyes blown wide, pupils tiny, brows up), **woozy** (X for eyes) and **smug**
+(one eye half-lidded).
+
+Nobody wires them up. The rig picks one off its own state: woozy while
+ragdolling and for a moment after, shock on a heavy landing, happy when he
+waves or points, smug when he shrugs or scratches, cross while he flexes or
+takes a hit mid-drill, and otherwise the nose-jiggle frames.
 
 ## He cannot stand still
 
@@ -129,7 +168,9 @@ stem.
 
 A neuron only lights up once something it is wired to is already on, so the
 lattice has to grow outward from `HIT IT HARDER` in the middle. Buying one runs
-a pulse of light down the dendrite it grew along. They are all a little
+a pulse of light down the dendrite it grew along. There are two panels and no
+more — a chip with your THOTS on it, and one slim bar naming what is selected,
+what it does and what it costs. The brain only speaks when it has been prodded. They are all a little
 horrible: `BIGGER LUNGS`, `THICKER MEAT`, `STICKY HANDS`, `SPRINGY FEET`,
 `GREEDY LUCK` (sometimes one rock is secretly two), `ARGUE BETTER` (everything
 sells for more) and `KNOW A GUY` (ABAY prices drop; he owes the brain).
@@ -308,10 +349,14 @@ bones reach, **the bones themselves pull long** — up to about a third again �
 which is the whole point: an arm reaching for the drill or a leg braced against
 the recoil visibly stretches, then springs back.
 
-- **Walking** is a real cycle driven by ground covered rather than by the
-  clock, so his feet never skate: each foot swings forward through the air,
-  then holds still on the ground while his hips travel over it, and his whole
-  body bobs twice a stride.
+- **Walking** is a real cycle in two halves. In STANCE the foot is on the
+  floor, so it slides backwards relative to the hip **in a straight line at
+  exactly the speed the hip moves forwards** — it does not move at all in the
+  world. In SWING it lifts and arcs back out in front. The cycle advances on
+  ground covered, and on *speed* rather than signed velocity, so it never runs
+  backwards when he walks left. (Both of those were wrong, and together they
+  are why the walk used to look so odd: a cosine stance skates, and a signed
+  phase moonwalks.)
 - **Drilling** braces him. Aiming along the ground he plants one foot forward
   and drives the other straight out behind, stretched; aiming up or down there
   is nothing to brace against, so his legs go wide and he squats over the hole.
@@ -375,6 +420,7 @@ tab shows the asking price per lot and flags the ones that have gone `HOT` or
 | `Q` / wheel | Swap weapon (pistol → scattergun → lance, as the gun shack grows) |
 | `Shift` / double-tap a direction | **Burst dash** with invulnerability frames (on the moon: roll) |
 | `Tab` | **Scanner ping** — paints ore on the minimap |
+| `R` | **Go limp** — tumble, bounce off the rock, get up dizzy |
 | `E` | Board the pod / sit at the desk / talk to the brain / get in the saucer / drop on a world |
 | `Esc` | Back out of the computer, the brain, or an app |
 | Hold `R` | Emergency tractor beam home — costs 10% of your cargo |
@@ -502,8 +548,8 @@ a line of history under its blurb.
 | `src/data.js` | 30 materials, 9 enemy species, ten worlds in four sectors, nine strata templates, the ABAY catalogue, **the twelve neurons**, the factions and lore, the evil-title ladder |
 | `src/world.js` | Tile grid; strata + pocket-biome generation, tunnels and caverns, veins on a rarity curve, magma lakes, geodes, fossil beds, ruins; fog of war; the three-layer rounded terrain renderer |
 | `src/entities.js` | Mobs with four AI kinds, bullets, ore pickups, falling boulders |
-| `src/player.js` | Movement, the drill, weapons, dash, air, cargo, damage, and the tether to the pod |
-| `src/fx.js` | Particles, floating numbers, shockwave rings, terrain chunks, screen shake, hit-stop |
+| `src/player.js` | Movement, the drill, weapons, dash, the ragdoll, air, cargo, damage, and the tether to the pod |
+| `src/fx.js` | Particles, floating numbers, shockwave rings, terrain chunks, bouncing debris, screen shake, hit-stop, and the block iris |
 | `src/ui.js` | The cardboard-and-masking-tape HUD (air tank, hull chips, sack tube), the action strip, the plank over the door, pause, victory and title screens |
 | `src/home.js` | Both halves of home: the lumpy moon surface outside with the house and the saucer standing on the curve of it, the very small room inside with the computer and the jar, and Brenda |
 | `src/desk.js` | First person at the computer: hands, keyboard, CRT, the loose-spring pointer, ZORB OS and ABAY |

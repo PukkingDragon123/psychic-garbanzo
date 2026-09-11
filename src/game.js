@@ -114,6 +114,13 @@
   g.saveGame = saveGame;
   g.wipeSave = wipeSave;
 
+  /* Change screens through the iris rather than cutting. */
+  g.wipeTo = function (sx, sy, col, fn) {
+    FX.beginWipe(sx, sy, col, fn);
+    A.sfx.tone(180, { type: 'square', to: 900, dur: 0.16, vol: 0.07 });
+    A.sfx.tone(900, { type: 'triangle', to: 300, dur: 0.2, vol: 0.05, delay: 0.26 });
+  };
+
   g.valueMult = function () { return 1 + g.save.bonus / 100 + g.save.dominion * 0.004; };
 
   /* ---------------------------------------------------------------- the brain
@@ -1237,6 +1244,12 @@
   }
 
   function blit() {
+    // the iris goes on last, over whatever screen is underneath it
+    if (FX.wipeActive()) {
+      ctx.setTransform(HD, 0, 0, HD, 0, 0);
+      ctx.imageSmoothingEnabled = false;
+      FX.drawWipe(ctx, VW, VH);
+    }
     sctx.fillStyle = '#05030f';
     sctx.fillRect(0, 0, screen.width, screen.height);
     sctx.imageSmoothingEnabled = false;
@@ -1267,6 +1280,7 @@
     m.y = U.clamp((m.sy - offY) / scale, 0, VH);
 
     FX.tickFreeze(dt);
+    FX.updateWipe(dt);
     // touch overwrites the pointer, so world space is resolved AFTER it -- get
     // this the wrong way round and a finger drag aims at the top-left corner
     // forever, which is exactly how the drill used to feel on a phone

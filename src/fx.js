@@ -14,7 +14,7 @@
 
   function reset() {
     parts.length = 0; floaters.length = 0; rings.length = 0; chunks.length = 0;
-    shakeAmt = 0; flashAmt = 0; freeze = 0;
+    shakeAmt = 0; flashAmt = 0; freeze = 0; wipe = null;
   }
 
   function spawn(o) {
@@ -146,6 +146,53 @@
   /* A flying piece of the world, painted from the tile colours it came from. */
   function chunk(x, y, vx, vy, cv, life) {
     chunks.push({ x, y, vx, vy, rot: U.rand(0, U.TAU), spin: U.rand(-6, 6), cv, life: life || 2.4, max: life || 2.4 });
+  }
+
+  /* ------------------------------------------------------------- the WIPE
+     Going into the computer or the brain does not cut -- it irises. A grid of
+     chunky squares swells shut, converging on whatever you pressed E on, the
+     scene changes behind them at the halfway point, and then they shrink away
+     again in the opposite order. Ordered by distance from the focus, so it
+     reads as being pulled INTO the thing rather than a curtain dropping. */
+  let wipe = null;
+  const WCOL = 24, WROW = 14;
+  function beginWipe(x, y, col, onMid) {
+    wipe = { x: x, y: y, t: 0, dur: 0.54, col: col || '#0b0718', mid: onMid, fired: false };
+  }
+  function wipeActive() { return !!wipe; }
+  function wipeBusy() { return !!wipe && !wipe.fired; }
+  function updateWipe(dt) {
+    if (!wipe) return;
+    wipe.t += dt;
+    if (!wipe.fired && wipe.t >= wipe.dur * 0.5) {
+      wipe.fired = true;
+      flash(0.32, '#ffffff');
+      if (wipe.mid) { const f = wipe.mid; wipe.mid = null; f(); }
+    }
+    if (wipe.t >= wipe.dur) wipe = null;
+  }
+  function drawWipe(ctx, w, h) {
+    if (!wipe) return;
+    const half = wipe.dur * 0.5;
+    const closing = wipe.t < half;
+    // k: 0 nothing covered, 1 everything covered
+    const k = closing ? wipe.t / half : 1 - (wipe.t - half) / half;
+    const cw = w / WCOL, ch = h / WROW;
+    const maxD = Math.hypot(w, h) * 0.5;
+    ctx.fillStyle = wipe.col;
+    for (let j = 0; j < WROW; j++) {
+      for (let i = 0; i < WCOL; i++) {
+        const cx = (i + 0.5) * cw, cy = (j + 0.5) * ch;
+        // near the focus closes last and opens first, so the squares chase
+        // inwards and then blow back out
+        const d = U.clamp(U.dist(cx, cy, wipe.x, wipe.y) / maxD, 0, 1);
+        const lead = closing ? (1 - d) : d;
+        const local = U.clamp((k - lead * 0.48) / 0.52, 0, 1);
+        if (local <= 0) continue;
+        const sw = Math.ceil(cw * local), sh = Math.ceil(ch * local);
+        ctx.fillRect(Math.round(cx - sw / 2), Math.round(cy - sh / 2), sw, sh);
+      }
+    }
   }
 
   function shake(amount) { shakeAmt = Math.max(shakeAmt, amount); }
@@ -294,6 +341,7 @@
 
   PD.fx = {
     reset, spawn, sparks, dust, burst, smoke, trail, text, ring, chunk, shards, crumble, pop,
+    beginWipe, wipeActive, wipeBusy, updateWipe, drawWipe,
     shake, flash, hitStop, update, tickFreeze, shakeOffset, drawWorld, drawFloaters, drawOverlay,
     get freeze() { return freeze; },
     get counts() { return { parts: parts.length, chunks: chunks.length }; }

@@ -119,10 +119,29 @@
     FX.hitStop(0.06);
     FX.burst(this.x, this.y, 10, ['#ff8ab0', '#ffffff', '#ff5a4d'], 130);
     A.sfx.hurt();
+    // anything that really connects knocks him off his feet
+    if (dmg >= 11) this.ragdoll(g, U.clamp(dmg / 22, 0.6, 1.8), (dir || 1) * U.rand(8, 15));
     if (this.hull <= 0) { this.hull = 0; g.onPlayerDown(); }
   };
 
   Player.prototype.heal = function (n) { this.hull = Math.min(this.stat('hull'), this.hull + n); };
+
+  /* ---------------------------------------------------------------- RAGDOLL
+     He goes limp and tumbles. Out here there is nothing to catch him, so he
+     bounces off the walls of his own tunnel until he runs out of spin, then
+     gets up looking like he has been somewhere. Set off by a solid hit, by
+     slamming into rock at speed, or by pressing R because it is funny. */
+  Player.prototype.ragdoll = function (g, power, spin) {
+    if (this.docked || this.dead) return;
+    power = U.clamp(power === undefined ? 1 : power, 0.5, 2);
+    this.rag = Math.max(this.rag || 0, 0.55 + power * 0.55);
+    this.ragSpin = spin !== undefined ? spin : (Math.sign(this.vx || 1) * U.rand(7, 14));
+    this.drilling = false;
+    A.drill(false);
+    if (this.rig) { this.rig.emote = null; this.rig.emoteT = 0; }
+    FX.dust(this.x, this.y, 6, '#c9bce8', 40);
+    A.sfx.tone(380, { type: 'square', to: 120, dur: 0.22, vol: 0.08 });
+  };
 
   /* ------------------------------------------------------------------ update */
   Player.prototype.update = function (dt, g) {
@@ -145,6 +164,45 @@
     this.invuln = Math.max(0, this.invuln - dt);
     this.hurtT = Math.max(0, this.hurtT - dt);
     this.squish = U.damp(this.squish, 0, 0.2, dt);
+
+    /* LIMP. No steering, no drill, no jets -- just gravity, drag and a spin,
+       and he bounces off anything he lands on. */
+    if (this.rag > 0) {
+      this.rag -= dt;
+      this.ragAll = (this.ragAll || 0) + dt;
+      this.ragAng = (this.ragAng || 0) + this.ragSpin * dt;
+      this.vy += w.gravityAt(this.y) * dt * 1.15;
+      this.vx *= Math.pow(0.988, dt * 60);
+      this.vy *= Math.pow(0.995, dt * 60);
+      const pvx = this.vx, pvy = this.vy;
+      const h2 = PD.ent.moveBody(this, w, dt);
+      if (h2.x) {
+        this.vx = -pvx * 0.52; this.ragSpin = -this.ragSpin * 0.7;
+        if (Math.abs(pvx) > 60) { FX.dust(this.x, this.y, 4, '#8e86a8', 30); A.sfx.tone(200, { type: 'square', to: 90, dur: 0.08, vol: 0.05 }); }
+      }
+      if (h2.ground) {
+        if (pvy > 60) { this.vy = -pvy * 0.44; FX.dust(this.x, this.y + 5, 5, '#8e86a8', 34); A.sfx.tone(160, { type: 'triangle', to: 80, dur: 0.1, vol: 0.05 }); }
+        else this.vy = 0;
+        this.vx *= 0.86;
+        this.ragSpin *= 0.72;
+      }
+      if (h2.ceil && pvy < 0) this.vy = -pvy * 0.4;
+      this.thrusting.x = this.thrusting.y = 0;
+      A.thrust(0);
+      this.drilling = false;
+      A.drill(false);
+      if (U.chance(dt * 8)) FX.trail(this.x + U.rand(-4, 4), this.y + U.rand(-4, 4), '#c9bce8', 1.4);
+      /* Up again once the spin is out of him, looking rough about it. The
+         three-second cap is the important half: buried in rock, or wedged
+         somewhere he cannot land, he would otherwise tumble for ever. */
+      const settled = this.onGround(w) && Math.abs(this.vy) < 40;
+      if (this.rag <= 0 && (settled || h2.stuck || this.ragAll > 3)) {
+        this.rag = 0; this.ragAng = 0; this.ragAll = 0;
+        if (this.rig) { this.rig.woozyT = 1.4; PD.rig.land(this.rig, 0.8); }
+      } else if (this.rag <= 0) this.rag = 0.06;      // still in the air: keep tumbling
+      this.doAir(dt, g);
+      return;
+    }
 
     // aim always follows the cursor
     const dxm = IN.mouse.wx - this.x, dym = IN.mouse.wy - this.y;
@@ -169,6 +227,7 @@
         }
       }
       if (wantDash) this.dash(ix, iy, g);
+      if (IN.hit('KeyR')) this.ragdoll(g, 1, (this.facing || 1) * U.rand(9, 15));
     }
 
     const load = this.loadFactor();
@@ -215,8 +274,14 @@
     }
 
     const before = { x: this.x, y: this.y };
+    const pvx2 = this.vx, pvy2 = this.vy;
     const hit = PD.ent.moveBody(this, w, dt);
     if (hit.ground && before.y < this.y) this.squish = Math.min(1, Math.abs(this.vy) / 200 + this.squish);
+    // slamming into rock at speed while dashing puts him on the floor
+    if (dashing && (hit.x || hit.ground) && Math.hypot(pvx2, pvy2) > 300) {
+      this.ragdoll(g, 1.2, Math.sign(pvx2 || 1) * U.rand(10, 16));
+      FX.shake(4);
+    }
 
     if (ix || iy) {
       // jetpack exhaust
@@ -513,8 +578,8 @@
     const spr = drilling ? skin.alienCoreDrill : skin.alienCore;
     this.anim += 1 / 60 * (moving ? 8 : 3);
     let frame;
-    if (drilling) frame = Math.floor(t * 30) % 3;
-    else frame = this.blink < 0 ? 4 : Math.floor(t * 7) % 4;   // the nose never settles
+    if (drilling) frame = this.hurtT > 0 ? 3 : Math.floor(t * 30) % 3;
+    else frame = PD.rig.faceOf(r, t, this.blink < 0);
 
     // where the tool sits in his hands
     const hx = px + Math.cos(this.aim) * (drilling ? 11 : 8), hy = py + Math.sin(this.aim) * (drilling ? 11 : 8) + 1;
@@ -530,10 +595,14 @@
       c.drawImage(df, -drill.ox, -drill.oy, drill.w, drill.h);
       c.restore();
     };
+    const limp = this.rag > 0;
+    if (limp) r.ragdoll = 1; else r.ragdoll = 0;
     const body = {
-      x: px, y: py - 1, flip, spr, frame, drilling, twoHand: drilling,
-      grip: { x: hx, y: hy }, aim: this.aim, ground, vx: this.vx, vy: this.vy,
-      squash: airsq, tint: this.hurtT > 0.15, tool: drawTool
+      x: px, y: py - 1, flip, spr, frame, drilling: drilling && !limp, twoHand: drilling && !limp,
+      grip: limp ? null : { x: hx, y: hy }, aim: this.aim, ground, vx: this.vx, vy: this.vy,
+      squash: limp ? 1 : airsq, tint: this.hurtT > 0.15,
+      ragdoll: limp, ang: limp ? this.ragAng : 0,
+      tool: limp ? null : drawTool
     };
 
     if (this.dashT > 0) {

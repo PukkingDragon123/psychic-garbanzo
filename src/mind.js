@@ -43,20 +43,22 @@
     return { x: Math.round(CX + Math.cos(a) * RING[n.ring]), y: Math.round(CY + Math.sin(a) * RING[n.ring] * RY) };
   }
 
-  function say(m) { S.line = m; S.lineT = 4.2; }
+  function say(m) { S.line = m; S.lineT = 3.2; }
 
   function open(g) {
     g.state = 'mind';
     S.t = 0; S.sel = 'dig'; S.pulses.length = 0; S.flash = 0;
-    say(U.pick(D.BRAIN_IDLE));
+    S.line = ''; S.lineT = 0;
     A.sfx.tone(120, { type: 'sine', to: 380, dur: 0.55, vol: 0.1 });
     A.sfx.tone(380, { type: 'triangle', to: 700, dur: 0.4, vol: 0.05, delay: 0.28 });
   }
 
   function close(g) {
-    g.state = 'home';
-    PD.home.P.lock = 0.28;
-    A.sfx.click();
+    if (PD.fx.wipeActive()) return;
+    g.wipeTo(CX, CY, '#12503a', () => {
+      g.state = 'home';
+      PD.home.P.lock = 0.3;
+    });
   }
 
   function buy(g, n) {
@@ -277,37 +279,34 @@
     }
     ctx.restore();
 
-    /* ------------------------------------------------------------ the panels */
-    // THOTS, top left, on a plate bolted to the glass
-    X.plate(ctx, 20, 22, 152, 26, '#241f36', '#4a4260', '#120e1c', 4);
-    G.draw(ctx, 'star', 26, 28, '#4cff9a', '#1e9e5c');
-    F.draw(ctx, U.fmt(g.save.thots) + ' THOTS', 46, 26, '#8affd0');
-    F.draw(ctx, 'HIT ROCKS TO MAKE MORE', 46, 36, '#6fbf9e', { shadow: false });
+    /* ------------------------------------------------------------ the panels
+       Two, and no more. A chip with the number on it, and one slim bar naming
+       what is selected. The brain only speaks when it has been prodded. */
+    X.plate(ctx, 18, 20, 86, 18, '#241f36', '#4a4260', '#120e1c', 4);
+    G.draw(ctx, 'star', 22, 22, '#4cff9a', '#1e9e5c');
+    F.draw(ctx, U.fmt(g.save.thots), 42, 25, '#8affd0');
 
-    // the selected neuron, bottom, on the brain's own stolen keyboard
     const n = D.NEUR[S.sel];
     const lvl = g.brain(n.id);
     const st = nodeState(g, n);
     const cost = g.brainCost(n.id);
-    X.plate(ctx, 8, VH - 62, VW - 16, 54, '#241f36', '#4a4260', '#120e1c', 5);
-    F.draw(ctx, n.name, 18, VH - 56, '#ffe9a8');
-    F.draw(ctx, n.blurb, 18, VH - 44, '#c9bce8', { shadow: false });
-    F.draw(ctx, 'NOW: ' + (lvl ? n.show(lvl) : 'NOTHING') + '   NEXT: ' + n.show(lvl + 1 > n.max ? n.max : lvl + 1),
-      18, VH - 30, '#8affd0', { shadow: false });
-    F.draw(ctx, 'LVL ' + lvl + '/' + n.max, VW - 20, VH - 56, '#c9bce8', { right: true });
-    if (st === 'full') F.draw(ctx, 'FULL', VW - 20, VH - 30, '#ffd34d', { right: true });
-    else if (st === 'dead') F.draw(ctx, 'NOT WIRED UP', VW - 20, VH - 30, '#ff8ad8', { right: true });
+    X.plate(ctx, 18, VH - 36, VW - 36, 24, '#241f36', '#4a4260', '#120e1c', 4);
+    F.draw(ctx, n.name, 26, VH - 29, '#ffe9a8');
+    F.draw(ctx, n.show(Math.min(n.max, lvl + 1)), 26, VH - 20, '#8affd0', { shadow: false });
+    F.draw(ctx, lvl + '/' + n.max, VW - 96, VH - 29, '#c9bce8', { right: true });
+    if (st === 'full') F.draw(ctx, 'FULL', VW - 26, VH - 25, '#ffd34d', { right: true });
+    else if (st === 'dead') F.draw(ctx, 'LOCKED', VW - 26, VH - 25, '#ff8ad8', { right: true });
     else {
       const can = st === 'ready';
-      F.draw(ctx, cost + ' THOTS', VW - 20, VH - 42, can ? '#ffd34d' : '#8a5a5a', { right: true });
-      F.draw(ctx, can ? 'PRESS E TO GROW IT' : 'CANNOT AFFORD', VW - 20, VH - 30, can ? '#8affa0' : '#8a5a5a', { right: true });
+      G.draw(ctx, 'star', VW - 84, VH - 31, can ? '#4cff9a' : '#5a6a62', '#1e9e5c');
+      F.draw(ctx, String(cost), VW - 64, VH - 29, can ? '#ffd34d' : '#8a5a5a');
+      F.draw(ctx, can ? 'E' : '--', VW - 26, VH - 30, can ? '#8affa0' : '#8a5a5a', { right: true, scale: 2 });
     }
-    F.draw(ctx, 'ESC TO LEAVE THE BRAIN ALONE', VW / 2, VH - 16, '#5f8f7e', { center: true, shadow: false });
 
-    // whatever it is currently saying, in a speech plate off its own eye
+    // whatever it is currently saying, and only when it has something to say
     if (S.lineT > 0) {
       const w = F.width(S.line, 1) + 16;
-      const bx = U.clamp(CX + 96, 20, VW - w - 20), by = 24;
+      const bx = U.clamp(CX + 96, 20, VW - w - 20), by = 22;
       ctx.globalAlpha = Math.min(1, S.lineT * 1.6);
       X.plate(ctx, bx, by, w, 18, '#3a1f36', '#6a3f5c', '#1a0e18', 4);
       F.draw(ctx, S.line, bx + 8, by + 5, '#ffb0d6', { shadow: false });

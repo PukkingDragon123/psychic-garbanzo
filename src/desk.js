@@ -182,8 +182,8 @@
   }
 
   function close(g) {
-    A.sfx.tone(220, { type: 'square', to: 90, dur: 0.16, vol: 0.06 });
-    PD.home.leaveDesk(g);
+    if (PD.fx.wipeActive()) return;
+    g.wipeTo(SX + SW / 2, SY + SH / 2, '#1b2430', () => { PD.home.leaveDesk(g); });
   }
 
   function say(s) { S.status = s; }
@@ -471,7 +471,14 @@
   function openApp(id, g) {
     A.sfx.click();
     S.scroll = S.scrollTo = 0;
-    if (id === 'map') { say('GOING TO THE SKY.'); close(g); g.openChart(); return; }
+    // the chart has to open on the far side of the iris, not before it: doing
+    // both at once let the deferred close land afterwards and drop you home
+    if (id === 'map') {
+      say('GOING TO THE SKY.');
+      if (PD.fx.wipeActive()) return;
+      g.wipeTo(SX + SW / 2, SY + SH / 2, '#1b2430', () => { PD.home.leaveDesk(g); g.openChart(); });
+      return;
+    }
     S.app = id;
     if (id === 'abay') { S.tab = 0; say('ABAY: BUY IT NOW OR DO NOT, I AM NOT YOUR DAD.'); }
     if (id === 'mail') say('6 MESSAGES. 6 ARE BAD.');

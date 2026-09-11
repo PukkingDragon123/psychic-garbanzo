@@ -28,7 +28,7 @@
      the screen, and the surface is LUMPY rather than a clean arc. It is a
      chipped rock, not a ball. Outside is exactly one screen wide and never
      scrolls -- the moon is an object you look at, not a corridor. */
-  const MOON = { cx: 240, cy: 440, r: 300 };
+  const MOON = { cx: 240, cy: 960, r: 820 };
   const OUT_W = 480, IN_W = 232;
   const WALK = 150;                  // how far round the curve he can get
   const FLOOR = 216;                 // the room floor, inside
@@ -54,8 +54,8 @@
      the ground you can see. The wobbles are what stop it being a ball: ridges,
      a dip and a shoulder, all deterministic. */
   function lumpAt(x) {
-    return Math.sin(x * 0.0131 + 0.4) * 7
-      + Math.sin(x * 0.0327 + 1.7) * 4
+    return Math.sin(x * 0.0131 + 0.4) * 6
+      + Math.sin(x * 0.0327 + 1.7) * 3.5
       + Math.sin(x * 0.0713 + 2.9) * 2;
   }
   function groundY(x) {
@@ -176,16 +176,23 @@
 
   function use(g, s) {
     if (!s) return;
+    if (FX.wipeActive()) return;
+    // where on the screen the iris should close on: the thing he pressed E at
+    const at = toScreen(s.x - Math.round(g.intCam), groundY(s.x) - 20);
+    const fx2 = U.clamp(at.x, 0, VW), fy2 = U.clamp(at.y, 0, VH);
     if (s.id === 'door') { goIn(g); return; }
     if (s.id === 'exit') { goOut(g); return; }
     if (s.id === 'ufo') { A.sfx.dock(); g.openChart(); return; }
     if (s.id === 'pc') {
-      g.state = 'desk';
-      PD.desk.enter(g);
-      A.sfx.tone(160, { type: 'square', to: 320, dur: 0.12, vol: 0.07 });
+      P.lock = 1;
+      g.wipeTo(fx2, fy2, '#1b2430', () => { g.state = 'desk'; PD.desk.enter(g); });
       return;
     }
-    if (s.id === 'brain') { PD.mind.open(g); return; }
+    if (s.id === 'brain') {
+      P.lock = 1;
+      g.wipeTo(fx2, fy2, '#12503a', () => { PD.mind.open(g); });
+      return;
+    }
     if (s.id === 'rat') { feedRat(g); return; }
   }
 
@@ -217,6 +224,7 @@
     const IN = PD.input;
     g0 = g;
     S.t += dt;
+    if (FX.wipeActive()) { view(dt); return; }
     P.lock = Math.max(0, P.lock - dt);
     UI.msgT = Math.max(0, UI.msgT - dt);
 
@@ -888,7 +896,7 @@
       A.sfx.tone(r.fresh === 'shrug' ? 300 : 620, { type: 'square', to: r.fresh === 'shrug' ? 220 : 820, dur: 0.09, vol: 0.035 });
       r.fresh = null;
     }
-    const frame = Math.sin(t * 1.3) > 0.94 ? 4 : Math.floor(t * 7) % 4;
+    const frame = PD.rig.faceOf(r, t, Math.sin(t * 1.3) > 0.94);
     // BOUNCY: a deep squash on landing, a stretch on the way up, and a little
     // extra wobble the whole time so nothing in this game is ever rigid.
     const wob = walking ? Math.sin(P.walk * 2.2) * 0.05 : Math.sin(t * 3.4) * 0.022;

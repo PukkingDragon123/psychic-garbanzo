@@ -1664,8 +1664,12 @@ window.PD = window.PD || {};
     };
   }
 
-  function buildAlien(pose, f, P, blink) {
+  function buildAlien(pose, f, P, face) {
     P = P || C;
+    // the old call passed `true` for a blink; a name is clearer now there are
+    // seven of them
+    if (face === true) face = 'blink';
+    face = face || 'norm';
     const sheet = pix(72, 104);
     const p = offsetPix(sheet, 4, 16);
     // 'core' and 'coredrill' draw the body with NO arms and NO legs: the
@@ -1794,13 +1798,54 @@ window.PD = window.PD || {};
     p.set(hx - 14, hy + 2, skinD); p.set(hx + 13, hy - 1, skinD);
     p.rect(hx - 11, hy - 10, 11, 3, skinD);             // heavy brow, one side only
     p.rect(hx + 3, hy - 7, 8, 2, skinD);
-    if (blink) {
+    /* THE FACE. One enormous eye and one that gave up, in seven states. The
+       big eye carries nearly all of it, because the moustache has the mouth. */
+    const EYE_L = { x: hx - 11, y: hy - 8, w: 11, h: 13 };   // the big one
+    const EYE_R = { x: hx + 4, y: hy - 5, w: 7, h: 7 };      // the small one
+    const white = (e, sq) => p.round(e.x, e.y + (sq ? e.h * 0.25 : 0), e.w, sq ? e.h * 0.5 : e.h, Math.min(5, e.w / 2), C.white);
+    const pupil = (e, dx, dy, r) => {
+      p.disc(e.x + e.w / 2 + (dx || 0), e.y + e.h / 2 + (dy || 0), r || e.w / 3.4, C.eye);
+      p.set(e.x + e.w / 2 + (dx || 0) - 2, e.y + e.h / 2 + (dy || 0) - 2, C.white);
+    };
+    const lid = (e, from) => { for (let i = 0; i < e.w; i++) p.rect(e.x + i, e.y + (from ? 0 : e.h - 2), 1, 2, skinD); };
+    const cross = (e) => {
+      const cx2 = e.x + e.w / 2, cy2 = e.y + e.h / 2, k = Math.min(e.w, e.h) / 2;
+      p.line(cx2 - k, cy2 - k, cx2 + k, cy2 + k, C.ink);
+      p.line(cx2 + k, cy2 - k, cx2 - k, cy2 + k, C.ink);
+      p.line(cx2 - k, cy2 - k + 1, cx2 + k, cy2 + k + 1, C.ink);
+    };
+    const arc = (e) => {                                   // a happy upturned eye
+      for (let i = 0; i < e.w; i++) {
+        const t2 = i / (e.w - 1), dip = Math.round(Math.sin(t2 * Math.PI) * (e.h * 0.32));
+        p.rect(e.x + i, e.y + e.h / 2 - dip, 1, 3, C.ink);
+      }
+    };
+    if (face === 'blink') {
       p.rect(hx - 10, hy - 2, 9, 2, C.ink); p.rect(hx + 4, hy, 6, 2, C.ink);
+    } else if (face === 'happy') {
+      arc(EYE_L); arc(EYE_R);
+    } else if (face === 'woozy') {
+      white(EYE_L); white(EYE_R); cross(EYE_L); cross(EYE_R);
+    } else if (face === 'shock') {
+      // both eyes blown wide, pupils tiny
+      p.round(EYE_L.x - 2, EYE_L.y - 3, EYE_L.w + 4, EYE_L.h + 5, 6, C.white);
+      p.round(EYE_R.x - 2, EYE_R.y - 3, EYE_R.w + 4, EYE_R.h + 5, 5, C.white);
+      p.disc(hx - 6, hy - 1, 1.6, C.eye); p.disc(hx + 7, hy - 1, 1.2, C.eye);
+      p.rect(hx - 13, hy - 14, 12, 2, skinD); p.rect(hx + 3, hy - 12, 9, 2, skinD);
+    } else if (face === 'cross') {
+      white(EYE_L); white(EYE_R);
+      pupil(EYE_L, 0, 1); pupil(EYE_R, 0, 1);
+      // brows driven down into the middle
+      for (let i = 0; i < 12; i++) p.rect(hx - 12 + i, hy - 10 + Math.round(i * 0.42), 2, 3, skinD);
+      for (let i = 0; i < 8; i++) p.rect(hx + 12 - i, hy - 8 + Math.round(i * 0.42), 2, 3, skinD);
+    } else if (face === 'smug') {
+      white(EYE_L, true); white(EYE_R);
+      pupil(EYE_L, 1, -1, 2.4); pupil(EYE_R, 1, 0);
+      lid(EYE_L, true);
+      p.rect(hx - 12, hy - 11, 11, 2, skinD);
     } else {
-      p.round(hx - 11, hy - 8, 11, 13, 5, C.white);      // one enormous eye
-      p.round(hx + 4, hy - 5, 7, 7, 3, C.white);         // one that gave up
-      p.disc(hx - 6, hy - 1, 3.2, C.eye); p.disc(hx + 7, hy - 1, 1.8, C.eye);
-      p.set(hx - 8, hy - 3, C.white); p.set(hx + 6, hy - 2, C.white);
+      white(EYE_L); white(EYE_R);
+      pupil(EYE_L, 1, 1, 3.2); pupil(EYE_R, 1, 1, 1.8);
       p.rect(hx - 11, hy - 8, 11, 1, skinD);
       p.rect(hx - 11, hy + 4, 11, 1, skinD);
     }
@@ -1875,10 +1920,15 @@ window.PD = window.PD || {};
 
   /* The bare body, for the live rig. Four nose-jiggle frames plus a blink,
      and three braced frames for when he is leaning on the drill. */
+  /* Frames 0-3 are the nose jiggle; everything after is a face he can pull.
+     PD.rig.FACE names the indices. */
+  const FACES = ['blink', 'happy', 'cross', 'shock', 'woozy', 'smug'];
   function coreSet(P) {
     return {
-      core: [0, 1, 2, 3].map(i => buildAlien('core', i, P)).concat([buildAlien('core', 0, P, true)]),
+      core: [0, 1, 2, 3].map(i => buildAlien('core', i, P))
+        .concat(FACES.map(fc => buildAlien('core', 0, P, fc))),
       coreDrill: [0, 1, 2].map(i => buildAlien('coredrill', i, P))
+        .concat([buildAlien('coredrill', 0, P, 'cross')])
     };
   }
 
@@ -2551,7 +2601,7 @@ window.PD = window.PD || {};
     return set;
   }
 
-  PD.art = { C, BIZ, sprites, gemFor, oreChip, buildOre, ICON, skinFor, optOf, reg, blit, buildSaucer, alienSet, coreSet, pixOf: pix };
+  PD.art = { C, BIZ, FACES, sprites, gemFor, oreChip, buildOre, ICON, skinFor, optOf, reg, blit, buildSaucer, alienSet, coreSet, pixOf: pix };
 })(window.PD);
 
 /* ===== src/rig.js ===== */
@@ -2577,7 +2627,11 @@ window.PD = window.PD || {};
   const FOOT_Y = 32;                      // where the shoes sit at rest
   const UP = 9, FORE = 10;                // arm bones: short and spindly
   const TH = 14, SHIN = 14;               // leg bones
-  const STRIDE = 20, LIFT = 10;           // walk: how far and how high
+  /* THE WALK. AMP is how far the foot swings in front of and behind the hip,
+     so one step covers 2*AMP and a whole cycle covers 4*AMP of ground. The
+     phase rate below is derived from exactly that, which is what stops the
+     planted foot skating. */
+  const AMP = 18, LIFT = 11;
   /* The body is lifted by this much so the longer legs have somewhere to be;
      LIFT_Y + the extra leg length cancel out, so his shoes still meet the
      ground exactly where the old baked sprite put them. */
@@ -2631,7 +2685,7 @@ window.PD = window.PD || {};
       lean: 0, brace: 0, recoil: 0, breathe: U.rand(0, TAU),
       hand: [null, null], armS: [1, 1], legS: [1, 1],
       emote: null, emoteT: 0, emoteMax: 1, idleT: 0, nextEmote: U.rand(1.5, 4),
-      landT: 0, sway: 0, fresh: null
+      landT: 0, sway: 0, fresh: null, ragdoll: 0, woozyT: 0, spin: 0, ang: 0
     };
   }
 
@@ -2668,10 +2722,15 @@ window.PD = window.PD || {};
   function step(r, o) {
     const dt = Math.min(0.05, o.dt || 0.016);
     const speed = Math.abs(o.vx || 0);
-    // the walk cycle is driven by ground covered, not by the clock, so his
-    // feet never skate
-    if (o.ground) r.phase += (o.vx || 0) * dt / (STRIDE * 0.5) * 0.5;
+    /* The cycle is driven by ground covered, not by the clock. It advances on
+       SPEED, never on signed velocity -- feeding it a negative vx ran the
+       whole cycle backwards whenever he walked left, which is what made the
+       walk look wrong half the time. One cycle per 4*AMP of ground covered
+       (in sprite units, hence the doubling) means the stance foot travels
+       backwards at exactly the speed the hips travel forwards. */
+    if (o.ground) r.phase += (speed * 2) * dt / (4 * AMP);
     else r.phase += dt * 1.2;
+    r.phase = r.phase % 1;
     r.breathe += dt * (o.drilling ? 7 : 2.2);
     r.jolt = Math.max(0, r.jolt - dt * 6);
     r.recoil = Math.max(0, r.recoil - dt * 9);
@@ -2680,6 +2739,7 @@ window.PD = window.PD || {};
     r.brace = U.damp(r.brace, o.drilling && o.ground ? 1 : 0, 0.3, dt);
     r.walkAmt = U.damp(r.walkAmt === undefined ? 0 : r.walkAmt, o.ground ? U.clamp(speed / 70, 0, 1) : 0, 0.4, dt);
     r.landT = Math.max(0, r.landT - dt * 3.4);
+    r.woozyT = Math.max(0, r.woozyT - dt);
     // he leans into wherever he is going and it takes a moment to come back
     r.sway = U.damp(r.sway, U.clamp((o.vx || 0) / 130, -1, 1), 0.16, dt);
 
@@ -2693,6 +2753,26 @@ window.PD = window.PD || {};
       if (r.idleT > r.nextEmote) { emote(r); r.idleT = 0; }
     } else r.idleT = 0;
     return r;
+  }
+
+  /* WHICH FACE. Frames 0-3 are the nose jiggle; 4 up are the expressions, in
+     the order art.js builds them. The rig picks one off its own state, so the
+     face follows what the body is already doing without anyone wiring it up. */
+  const FACE = { blink: 4, happy: 5, cross: 6, shock: 7, woozy: 8, smug: 9 };
+  const EMOTE_FACE = {
+    wave: FACE.happy, point: FACE.happy, sniff: FACE.happy,
+    shrug: FACE.smug, scratch: FACE.smug,
+    flex: FACE.cross, stretch: FACE.blink
+  };
+  function faceOf(r, t, blinking) {
+    if (r.ragdoll || r.woozyT > 0) return FACE.woozy;
+    if (r.landT > 0.55) return FACE.shock;
+    if (r.emote && r.emoteT > 0 && emoteK(r) > 0.25) {
+      const f = EMOTE_FACE[r.emote];
+      if (f !== undefined) return f;
+    }
+    if (blinking) return FACE.blink;
+    return Math.floor(t * 7) % 4;                 // the nose, never still
   }
 
   /* A drill bite landed: yank the whole rig backwards for a couple of frames. */
@@ -2710,6 +2790,9 @@ window.PD = window.PD || {};
   /* ------------------------------------------------------------------- draw
      Called between the two halves of the body: back limbs, body, front limbs.
      `half` is 1 for the far side (drawn behind) and 0 for the near side. */
+  /* One side of the body. Called twice: the far half behind the torso, the
+     near half in front of it. Each half draws its leg and then its arm; the
+     ragdoll branches bail out early with their own limp versions. */
   function limbs(ctx, r, o, half, P, B) {
     const flip = o.flip ? -1 : 1;
     const face = flip;
@@ -2725,6 +2808,18 @@ window.PD = window.PD || {};
     const hip = HIP[i];
     const hx = hip[0] * flip, hy = hip[1] + r.bobY;
     let fx, fy, planted = true;
+    if (o.ragdoll) {
+      // legs out too, trailing the tumble
+      const w3 = r.ang * 2.6 + i * 1.7 + 1;
+      fx = hx + (i ? -11 : 11) + Math.sin(w3) * 9;
+      fy = FOOT_Y - 6 + Math.cos(w3 * 0.9) * 9;
+      const kn2 = ik(hx, hy, fx, fy, TH, SHIN, i ? -1 : 1, 1.2);
+      X.limb(ctx, hx, hy, kn2.x, kn2.y, 10, 9, legc, legl, '#221d2c');
+      X.limb(ctx, kn2.x, kn2.y, fx, fy - 3, 9, 8, legc, legl, '#221d2c');
+      X.knob(ctx, kn2.x, kn2.y, 4, legc, legl);
+      shoe(ctx, fx, fy, face, B);
+      return;
+    }
     if (!o.ground) {
       // in the air the legs trail whichever way he is moving, knees tucked
       const tuck = U.clamp((o.vy || 0) / 260, -1, 1);
@@ -2743,13 +2838,23 @@ window.PD = window.PD || {};
       fx = hx + (face * (i ? -15 - push : 12) * (1 - vert) + wide) * br;
       fy = FOOT_Y - vert * 3 * br + (i ? -1 : 0);
     } else if (r.walkAmt > 0.04) {
-      // a real cycle: the foot swings forward through the air, then holds
-      // still on the ground while the hips travel over it
+      /* A real cycle in two halves. STANCE: the foot is on the floor, so it
+         slides backwards relative to the hip in a straight line at exactly
+         the speed the hip is moving forwards -- it does not move at all in
+         the world, which is the whole point. SWING: it lifts and arcs back
+         out in front. A cosine for both (which is what this used to do) makes
+         the planted foot skate, because a cosine is not a constant speed. */
       const ph = ((t + i * 0.5) % 1 + 1) % 1;
-      const swing = Math.cos(ph * TAU);
-      fx = hx + swing * STRIDE * 0.5 * face * r.walkAmt;
-      const up = ph > 0.5 ? Math.sin((ph - 0.5) * 2 * Math.PI) : 0;
-      fy = FOOT_Y - up * LIFT * r.walkAmt;
+      const w = r.walkAmt;
+      let up = 0;
+      if (ph < 0.5) {
+        fx = hx + AMP * (1 - 4 * ph) * face * w;         // planted, sliding back
+      } else {
+        const f = (ph - 0.5) * 2;                        // 0..1 through the swing
+        fx = hx + AMP * (-1 + 2 * f) * face * w;
+        up = Math.sin(f * Math.PI);
+      }
+      fy = FOOT_Y - up * LIFT * w;
       planted = up < 0.05;
     } else {
       // standing: knock-kneed, weight on one side, breathing
@@ -2775,6 +2880,21 @@ window.PD = window.PD || {};
     const sh = SH[i];
     const sx = sh[0] * flip + r.lean * face * 3, sy = sh[1] + r.bobY;
     let tx, ty, hang;
+    if (o.ragdoll) {
+      // limp: the arms trail off the shoulders and flap about with the spin
+      const w2 = r.ang * 3 + i * 2.1;
+      tx = sx + (i ? -13 : 13) + Math.sin(w2) * 7;
+      ty = sy + 15 + Math.cos(w2 * 0.8) * 8;
+      hang = Math.atan2(ty - sy, tx - sx);
+      X.knob(ctx, sx, sy + 1, 5, mid, lit);
+      const el2 = ik(sx, sy, tx, ty, UP, FORE, i ? 1 : -1, 1.2);
+      X.limb(ctx, sx, sy, el2.x, el2.y, 7, 6, mid, lit, dark);
+      X.limb(ctx, el2.x, el2.y, tx, ty, 6, 5, mid, lit, dark);
+      X.knob(ctx, el2.x, el2.y, 3, mid, lit);
+      hand(ctx, tx, ty, hang, P);
+      r.hand[i] = { x: tx, y: ty };
+      return;
+    }
     const holds = o.grip && (i === 0 || o.twoHand);
     if (holds && !(r.grabT > 0.02 && i === 0 && !o.twoHand)) {
       // a hand on the tool. Drilling, the far hand comes across to the front
@@ -2798,7 +2918,7 @@ window.PD = window.PD || {};
     } else {
       const ph = ((t + i * 0.5) % 1 + 1) % 1;
       // a big loose swing, and the arm lifts as it comes forward
-      const sw = -Math.cos(ph * TAU) * 13 * r.walkAmt * face;
+      const sw = -Math.cos(ph * TAU) * 12 * r.walkAmt * face;
       const rise = -Math.abs(Math.sin(ph * TAU)) * 5 * r.walkAmt;
       tx = sx + sw + (i ? -1 : 1);
       ty = sy + 21 + rise + Math.sin(r.breathe + i) * 1.4;
@@ -2876,6 +2996,8 @@ window.PD = window.PD || {};
 
     ctx.save();
     ctx.translate(ox, oy);
+    r.ang = o.ang || 0;
+    if (r.ang) ctx.rotate(r.ang);
     // he TIPS: a shear into whichever way he is travelling, or into the drill
     const shear = -(r.sway * 0.16 + (o.drilling ? Math.cos(o.aim) * r.lean * 0.1 : 0)) * (o.flip ? -1 : 1);
     if (shear) ctx.transform(1, 0, shear, 1, 0, 0);
@@ -2885,7 +3007,7 @@ window.PD = window.PD || {};
     const grip = o.grip ? { x: (o.grip.x - ox) * 2 * (o.flip ? -1 : 1), y: (o.grip.y - oy) * 2 } : null;
     void LIFT_Y;
     const oo = {
-      flip: o.flip, drilling: o.drilling, twoHand: o.twoHand, aim: o.flip ? Math.PI - o.aim : o.aim,
+      flip: o.flip, drilling: o.drilling, twoHand: o.twoHand, ragdoll: o.ragdoll, aim: o.flip ? Math.PI - o.aim : o.aim,
       grip: grip, ground: o.ground, vx: (o.flip ? -1 : 1) * (o.vx || 0), vy: o.vy || 0
     };
     // mirroring happens here, once, so the limb code only ever faces right
@@ -2914,7 +3036,7 @@ window.PD = window.PD || {};
     ctx.restore();
   }
 
-  PD.rig = { make, step, hit, grab, emote, land, draw, ik, EMOTES, SH, HIP, FOOT_Y, LIFT_Y };
+  PD.rig = { make, step, hit, grab, emote, land, draw, ik, faceOf, EMOTES, FACE, SH, HIP, FOOT_Y, LIFT_Y };
 })(window.PD);
 
 /* ===== src/arthome.js ===== */
@@ -4948,7 +5070,7 @@ window.PD = window.PD || {};
 
   function reset() {
     parts.length = 0; floaters.length = 0; rings.length = 0; chunks.length = 0;
-    shakeAmt = 0; flashAmt = 0; freeze = 0;
+    shakeAmt = 0; flashAmt = 0; freeze = 0; wipe = null;
   }
 
   function spawn(o) {
@@ -5080,6 +5202,53 @@ window.PD = window.PD || {};
   /* A flying piece of the world, painted from the tile colours it came from. */
   function chunk(x, y, vx, vy, cv, life) {
     chunks.push({ x, y, vx, vy, rot: U.rand(0, U.TAU), spin: U.rand(-6, 6), cv, life: life || 2.4, max: life || 2.4 });
+  }
+
+  /* ------------------------------------------------------------- the WIPE
+     Going into the computer or the brain does not cut -- it irises. A grid of
+     chunky squares swells shut, converging on whatever you pressed E on, the
+     scene changes behind them at the halfway point, and then they shrink away
+     again in the opposite order. Ordered by distance from the focus, so it
+     reads as being pulled INTO the thing rather than a curtain dropping. */
+  let wipe = null;
+  const WCOL = 24, WROW = 14;
+  function beginWipe(x, y, col, onMid) {
+    wipe = { x: x, y: y, t: 0, dur: 0.54, col: col || '#0b0718', mid: onMid, fired: false };
+  }
+  function wipeActive() { return !!wipe; }
+  function wipeBusy() { return !!wipe && !wipe.fired; }
+  function updateWipe(dt) {
+    if (!wipe) return;
+    wipe.t += dt;
+    if (!wipe.fired && wipe.t >= wipe.dur * 0.5) {
+      wipe.fired = true;
+      flash(0.32, '#ffffff');
+      if (wipe.mid) { const f = wipe.mid; wipe.mid = null; f(); }
+    }
+    if (wipe.t >= wipe.dur) wipe = null;
+  }
+  function drawWipe(ctx, w, h) {
+    if (!wipe) return;
+    const half = wipe.dur * 0.5;
+    const closing = wipe.t < half;
+    // k: 0 nothing covered, 1 everything covered
+    const k = closing ? wipe.t / half : 1 - (wipe.t - half) / half;
+    const cw = w / WCOL, ch = h / WROW;
+    const maxD = Math.hypot(w, h) * 0.5;
+    ctx.fillStyle = wipe.col;
+    for (let j = 0; j < WROW; j++) {
+      for (let i = 0; i < WCOL; i++) {
+        const cx = (i + 0.5) * cw, cy = (j + 0.5) * ch;
+        // near the focus closes last and opens first, so the squares chase
+        // inwards and then blow back out
+        const d = U.clamp(U.dist(cx, cy, wipe.x, wipe.y) / maxD, 0, 1);
+        const lead = closing ? (1 - d) : d;
+        const local = U.clamp((k - lead * 0.48) / 0.52, 0, 1);
+        if (local <= 0) continue;
+        const sw = Math.ceil(cw * local), sh = Math.ceil(ch * local);
+        ctx.fillRect(Math.round(cx - sw / 2), Math.round(cy - sh / 2), sw, sh);
+      }
+    }
   }
 
   function shake(amount) { shakeAmt = Math.max(shakeAmt, amount); }
@@ -5228,6 +5397,7 @@ window.PD = window.PD || {};
 
   PD.fx = {
     reset, spawn, sparks, dust, burst, smoke, trail, text, ring, chunk, shards, crumble, pop,
+    beginWipe, wipeActive, wipeBusy, updateWipe, drawWipe,
     shake, flash, hitStop, update, tickFreeze, shakeOffset, drawWorld, drawFloaters, drawOverlay,
     get freeze() { return freeze; },
     get counts() { return { parts: parts.length, chunks: chunks.length }; }
@@ -6920,10 +7090,29 @@ window.PD = window.PD || {};
     FX.hitStop(0.06);
     FX.burst(this.x, this.y, 10, ['#ff8ab0', '#ffffff', '#ff5a4d'], 130);
     A.sfx.hurt();
+    // anything that really connects knocks him off his feet
+    if (dmg >= 11) this.ragdoll(g, U.clamp(dmg / 22, 0.6, 1.8), (dir || 1) * U.rand(8, 15));
     if (this.hull <= 0) { this.hull = 0; g.onPlayerDown(); }
   };
 
   Player.prototype.heal = function (n) { this.hull = Math.min(this.stat('hull'), this.hull + n); };
+
+  /* ---------------------------------------------------------------- RAGDOLL
+     He goes limp and tumbles. Out here there is nothing to catch him, so he
+     bounces off the walls of his own tunnel until he runs out of spin, then
+     gets up looking like he has been somewhere. Set off by a solid hit, by
+     slamming into rock at speed, or by pressing R because it is funny. */
+  Player.prototype.ragdoll = function (g, power, spin) {
+    if (this.docked || this.dead) return;
+    power = U.clamp(power === undefined ? 1 : power, 0.5, 2);
+    this.rag = Math.max(this.rag || 0, 0.55 + power * 0.55);
+    this.ragSpin = spin !== undefined ? spin : (Math.sign(this.vx || 1) * U.rand(7, 14));
+    this.drilling = false;
+    A.drill(false);
+    if (this.rig) { this.rig.emote = null; this.rig.emoteT = 0; }
+    FX.dust(this.x, this.y, 6, '#c9bce8', 40);
+    A.sfx.tone(380, { type: 'square', to: 120, dur: 0.22, vol: 0.08 });
+  };
 
   /* ------------------------------------------------------------------ update */
   Player.prototype.update = function (dt, g) {
@@ -6946,6 +7135,45 @@ window.PD = window.PD || {};
     this.invuln = Math.max(0, this.invuln - dt);
     this.hurtT = Math.max(0, this.hurtT - dt);
     this.squish = U.damp(this.squish, 0, 0.2, dt);
+
+    /* LIMP. No steering, no drill, no jets -- just gravity, drag and a spin,
+       and he bounces off anything he lands on. */
+    if (this.rag > 0) {
+      this.rag -= dt;
+      this.ragAll = (this.ragAll || 0) + dt;
+      this.ragAng = (this.ragAng || 0) + this.ragSpin * dt;
+      this.vy += w.gravityAt(this.y) * dt * 1.15;
+      this.vx *= Math.pow(0.988, dt * 60);
+      this.vy *= Math.pow(0.995, dt * 60);
+      const pvx = this.vx, pvy = this.vy;
+      const h2 = PD.ent.moveBody(this, w, dt);
+      if (h2.x) {
+        this.vx = -pvx * 0.52; this.ragSpin = -this.ragSpin * 0.7;
+        if (Math.abs(pvx) > 60) { FX.dust(this.x, this.y, 4, '#8e86a8', 30); A.sfx.tone(200, { type: 'square', to: 90, dur: 0.08, vol: 0.05 }); }
+      }
+      if (h2.ground) {
+        if (pvy > 60) { this.vy = -pvy * 0.44; FX.dust(this.x, this.y + 5, 5, '#8e86a8', 34); A.sfx.tone(160, { type: 'triangle', to: 80, dur: 0.1, vol: 0.05 }); }
+        else this.vy = 0;
+        this.vx *= 0.86;
+        this.ragSpin *= 0.72;
+      }
+      if (h2.ceil && pvy < 0) this.vy = -pvy * 0.4;
+      this.thrusting.x = this.thrusting.y = 0;
+      A.thrust(0);
+      this.drilling = false;
+      A.drill(false);
+      if (U.chance(dt * 8)) FX.trail(this.x + U.rand(-4, 4), this.y + U.rand(-4, 4), '#c9bce8', 1.4);
+      /* Up again once the spin is out of him, looking rough about it. The
+         three-second cap is the important half: buried in rock, or wedged
+         somewhere he cannot land, he would otherwise tumble for ever. */
+      const settled = this.onGround(w) && Math.abs(this.vy) < 40;
+      if (this.rag <= 0 && (settled || h2.stuck || this.ragAll > 3)) {
+        this.rag = 0; this.ragAng = 0; this.ragAll = 0;
+        if (this.rig) { this.rig.woozyT = 1.4; PD.rig.land(this.rig, 0.8); }
+      } else if (this.rag <= 0) this.rag = 0.06;      // still in the air: keep tumbling
+      this.doAir(dt, g);
+      return;
+    }
 
     // aim always follows the cursor
     const dxm = IN.mouse.wx - this.x, dym = IN.mouse.wy - this.y;
@@ -6970,6 +7198,7 @@ window.PD = window.PD || {};
         }
       }
       if (wantDash) this.dash(ix, iy, g);
+      if (IN.hit('KeyR')) this.ragdoll(g, 1, (this.facing || 1) * U.rand(9, 15));
     }
 
     const load = this.loadFactor();
@@ -7016,8 +7245,14 @@ window.PD = window.PD || {};
     }
 
     const before = { x: this.x, y: this.y };
+    const pvx2 = this.vx, pvy2 = this.vy;
     const hit = PD.ent.moveBody(this, w, dt);
     if (hit.ground && before.y < this.y) this.squish = Math.min(1, Math.abs(this.vy) / 200 + this.squish);
+    // slamming into rock at speed while dashing puts him on the floor
+    if (dashing && (hit.x || hit.ground) && Math.hypot(pvx2, pvy2) > 300) {
+      this.ragdoll(g, 1.2, Math.sign(pvx2 || 1) * U.rand(10, 16));
+      FX.shake(4);
+    }
 
     if (ix || iy) {
       // jetpack exhaust
@@ -7314,8 +7549,8 @@ window.PD = window.PD || {};
     const spr = drilling ? skin.alienCoreDrill : skin.alienCore;
     this.anim += 1 / 60 * (moving ? 8 : 3);
     let frame;
-    if (drilling) frame = Math.floor(t * 30) % 3;
-    else frame = this.blink < 0 ? 4 : Math.floor(t * 7) % 4;   // the nose never settles
+    if (drilling) frame = this.hurtT > 0 ? 3 : Math.floor(t * 30) % 3;
+    else frame = PD.rig.faceOf(r, t, this.blink < 0);
 
     // where the tool sits in his hands
     const hx = px + Math.cos(this.aim) * (drilling ? 11 : 8), hy = py + Math.sin(this.aim) * (drilling ? 11 : 8) + 1;
@@ -7331,10 +7566,14 @@ window.PD = window.PD || {};
       c.drawImage(df, -drill.ox, -drill.oy, drill.w, drill.h);
       c.restore();
     };
+    const limp = this.rag > 0;
+    if (limp) r.ragdoll = 1; else r.ragdoll = 0;
     const body = {
-      x: px, y: py - 1, flip, spr, frame, drilling, twoHand: drilling,
-      grip: { x: hx, y: hy }, aim: this.aim, ground, vx: this.vx, vy: this.vy,
-      squash: airsq, tint: this.hurtT > 0.15, tool: drawTool
+      x: px, y: py - 1, flip, spr, frame, drilling: drilling && !limp, twoHand: drilling && !limp,
+      grip: limp ? null : { x: hx, y: hy }, aim: this.aim, ground, vx: this.vx, vy: this.vy,
+      squash: limp ? 1 : airsq, tint: this.hurtT > 0.15,
+      ragdoll: limp, ang: limp ? this.ragAng : 0,
+      tool: limp ? null : drawTool
     };
 
     if (this.dashT > 0) {
@@ -8609,8 +8848,8 @@ window.PD = window.PD || {};
   }
 
   function close(g) {
-    A.sfx.tone(220, { type: 'square', to: 90, dur: 0.16, vol: 0.06 });
-    PD.home.leaveDesk(g);
+    if (PD.fx.wipeActive()) return;
+    g.wipeTo(SX + SW / 2, SY + SH / 2, '#1b2430', () => { PD.home.leaveDesk(g); });
   }
 
   function say(s) { S.status = s; }
@@ -8898,7 +9137,14 @@ window.PD = window.PD || {};
   function openApp(id, g) {
     A.sfx.click();
     S.scroll = S.scrollTo = 0;
-    if (id === 'map') { say('GOING TO THE SKY.'); close(g); g.openChart(); return; }
+    // the chart has to open on the far side of the iris, not before it: doing
+    // both at once let the deferred close land afterwards and drop you home
+    if (id === 'map') {
+      say('GOING TO THE SKY.');
+      if (PD.fx.wipeActive()) return;
+      g.wipeTo(SX + SW / 2, SY + SH / 2, '#1b2430', () => { PD.home.leaveDesk(g); g.openChart(); });
+      return;
+    }
     S.app = id;
     if (id === 'abay') { S.tab = 0; say('ABAY: BUY IT NOW OR DO NOT, I AM NOT YOUR DAD.'); }
     if (id === 'mail') say('6 MESSAGES. 6 ARE BAD.');
@@ -9388,20 +9634,22 @@ window.PD = window.PD || {};
     return { x: Math.round(CX + Math.cos(a) * RING[n.ring]), y: Math.round(CY + Math.sin(a) * RING[n.ring] * RY) };
   }
 
-  function say(m) { S.line = m; S.lineT = 4.2; }
+  function say(m) { S.line = m; S.lineT = 3.2; }
 
   function open(g) {
     g.state = 'mind';
     S.t = 0; S.sel = 'dig'; S.pulses.length = 0; S.flash = 0;
-    say(U.pick(D.BRAIN_IDLE));
+    S.line = ''; S.lineT = 0;
     A.sfx.tone(120, { type: 'sine', to: 380, dur: 0.55, vol: 0.1 });
     A.sfx.tone(380, { type: 'triangle', to: 700, dur: 0.4, vol: 0.05, delay: 0.28 });
   }
 
   function close(g) {
-    g.state = 'home';
-    PD.home.P.lock = 0.28;
-    A.sfx.click();
+    if (PD.fx.wipeActive()) return;
+    g.wipeTo(CX, CY, '#12503a', () => {
+      g.state = 'home';
+      PD.home.P.lock = 0.3;
+    });
   }
 
   function buy(g, n) {
@@ -9622,37 +9870,34 @@ window.PD = window.PD || {};
     }
     ctx.restore();
 
-    /* ------------------------------------------------------------ the panels */
-    // THOTS, top left, on a plate bolted to the glass
-    X.plate(ctx, 20, 22, 152, 26, '#241f36', '#4a4260', '#120e1c', 4);
-    G.draw(ctx, 'star', 26, 28, '#4cff9a', '#1e9e5c');
-    F.draw(ctx, U.fmt(g.save.thots) + ' THOTS', 46, 26, '#8affd0');
-    F.draw(ctx, 'HIT ROCKS TO MAKE MORE', 46, 36, '#6fbf9e', { shadow: false });
+    /* ------------------------------------------------------------ the panels
+       Two, and no more. A chip with the number on it, and one slim bar naming
+       what is selected. The brain only speaks when it has been prodded. */
+    X.plate(ctx, 18, 20, 86, 18, '#241f36', '#4a4260', '#120e1c', 4);
+    G.draw(ctx, 'star', 22, 22, '#4cff9a', '#1e9e5c');
+    F.draw(ctx, U.fmt(g.save.thots), 42, 25, '#8affd0');
 
-    // the selected neuron, bottom, on the brain's own stolen keyboard
     const n = D.NEUR[S.sel];
     const lvl = g.brain(n.id);
     const st = nodeState(g, n);
     const cost = g.brainCost(n.id);
-    X.plate(ctx, 8, VH - 62, VW - 16, 54, '#241f36', '#4a4260', '#120e1c', 5);
-    F.draw(ctx, n.name, 18, VH - 56, '#ffe9a8');
-    F.draw(ctx, n.blurb, 18, VH - 44, '#c9bce8', { shadow: false });
-    F.draw(ctx, 'NOW: ' + (lvl ? n.show(lvl) : 'NOTHING') + '   NEXT: ' + n.show(lvl + 1 > n.max ? n.max : lvl + 1),
-      18, VH - 30, '#8affd0', { shadow: false });
-    F.draw(ctx, 'LVL ' + lvl + '/' + n.max, VW - 20, VH - 56, '#c9bce8', { right: true });
-    if (st === 'full') F.draw(ctx, 'FULL', VW - 20, VH - 30, '#ffd34d', { right: true });
-    else if (st === 'dead') F.draw(ctx, 'NOT WIRED UP', VW - 20, VH - 30, '#ff8ad8', { right: true });
+    X.plate(ctx, 18, VH - 36, VW - 36, 24, '#241f36', '#4a4260', '#120e1c', 4);
+    F.draw(ctx, n.name, 26, VH - 29, '#ffe9a8');
+    F.draw(ctx, n.show(Math.min(n.max, lvl + 1)), 26, VH - 20, '#8affd0', { shadow: false });
+    F.draw(ctx, lvl + '/' + n.max, VW - 96, VH - 29, '#c9bce8', { right: true });
+    if (st === 'full') F.draw(ctx, 'FULL', VW - 26, VH - 25, '#ffd34d', { right: true });
+    else if (st === 'dead') F.draw(ctx, 'LOCKED', VW - 26, VH - 25, '#ff8ad8', { right: true });
     else {
       const can = st === 'ready';
-      F.draw(ctx, cost + ' THOTS', VW - 20, VH - 42, can ? '#ffd34d' : '#8a5a5a', { right: true });
-      F.draw(ctx, can ? 'PRESS E TO GROW IT' : 'CANNOT AFFORD', VW - 20, VH - 30, can ? '#8affa0' : '#8a5a5a', { right: true });
+      G.draw(ctx, 'star', VW - 84, VH - 31, can ? '#4cff9a' : '#5a6a62', '#1e9e5c');
+      F.draw(ctx, String(cost), VW - 64, VH - 29, can ? '#ffd34d' : '#8a5a5a');
+      F.draw(ctx, can ? 'E' : '--', VW - 26, VH - 30, can ? '#8affa0' : '#8a5a5a', { right: true, scale: 2 });
     }
-    F.draw(ctx, 'ESC TO LEAVE THE BRAIN ALONE', VW / 2, VH - 16, '#5f8f7e', { center: true, shadow: false });
 
-    // whatever it is currently saying, in a speech plate off its own eye
+    // whatever it is currently saying, and only when it has something to say
     if (S.lineT > 0) {
       const w = F.width(S.line, 1) + 16;
-      const bx = U.clamp(CX + 96, 20, VW - w - 20), by = 24;
+      const bx = U.clamp(CX + 96, 20, VW - w - 20), by = 22;
       ctx.globalAlpha = Math.min(1, S.lineT * 1.6);
       X.plate(ctx, bx, by, w, 18, '#3a1f36', '#6a3f5c', '#1a0e18', 4);
       F.draw(ctx, S.line, bx + 8, by + 5, '#ffb0d6', { shadow: false });
@@ -9695,7 +9940,7 @@ window.PD = window.PD || {};
      the screen, and the surface is LUMPY rather than a clean arc. It is a
      chipped rock, not a ball. Outside is exactly one screen wide and never
      scrolls -- the moon is an object you look at, not a corridor. */
-  const MOON = { cx: 240, cy: 440, r: 300 };
+  const MOON = { cx: 240, cy: 960, r: 820 };
   const OUT_W = 480, IN_W = 232;
   const WALK = 150;                  // how far round the curve he can get
   const FLOOR = 216;                 // the room floor, inside
@@ -9721,8 +9966,8 @@ window.PD = window.PD || {};
      the ground you can see. The wobbles are what stop it being a ball: ridges,
      a dip and a shoulder, all deterministic. */
   function lumpAt(x) {
-    return Math.sin(x * 0.0131 + 0.4) * 7
-      + Math.sin(x * 0.0327 + 1.7) * 4
+    return Math.sin(x * 0.0131 + 0.4) * 6
+      + Math.sin(x * 0.0327 + 1.7) * 3.5
       + Math.sin(x * 0.0713 + 2.9) * 2;
   }
   function groundY(x) {
@@ -9843,16 +10088,23 @@ window.PD = window.PD || {};
 
   function use(g, s) {
     if (!s) return;
+    if (FX.wipeActive()) return;
+    // where on the screen the iris should close on: the thing he pressed E at
+    const at = toScreen(s.x - Math.round(g.intCam), groundY(s.x) - 20);
+    const fx2 = U.clamp(at.x, 0, VW), fy2 = U.clamp(at.y, 0, VH);
     if (s.id === 'door') { goIn(g); return; }
     if (s.id === 'exit') { goOut(g); return; }
     if (s.id === 'ufo') { A.sfx.dock(); g.openChart(); return; }
     if (s.id === 'pc') {
-      g.state = 'desk';
-      PD.desk.enter(g);
-      A.sfx.tone(160, { type: 'square', to: 320, dur: 0.12, vol: 0.07 });
+      P.lock = 1;
+      g.wipeTo(fx2, fy2, '#1b2430', () => { g.state = 'desk'; PD.desk.enter(g); });
       return;
     }
-    if (s.id === 'brain') { PD.mind.open(g); return; }
+    if (s.id === 'brain') {
+      P.lock = 1;
+      g.wipeTo(fx2, fy2, '#12503a', () => { PD.mind.open(g); });
+      return;
+    }
     if (s.id === 'rat') { feedRat(g); return; }
   }
 
@@ -9884,6 +10136,7 @@ window.PD = window.PD || {};
     const IN = PD.input;
     g0 = g;
     S.t += dt;
+    if (FX.wipeActive()) { view(dt); return; }
     P.lock = Math.max(0, P.lock - dt);
     UI.msgT = Math.max(0, UI.msgT - dt);
 
@@ -10555,7 +10808,7 @@ window.PD = window.PD || {};
       A.sfx.tone(r.fresh === 'shrug' ? 300 : 620, { type: 'square', to: r.fresh === 'shrug' ? 220 : 820, dur: 0.09, vol: 0.035 });
       r.fresh = null;
     }
-    const frame = Math.sin(t * 1.3) > 0.94 ? 4 : Math.floor(t * 7) % 4;
+    const frame = PD.rig.faceOf(r, t, Math.sin(t * 1.3) > 0.94);
     // BOUNCY: a deep squash on landing, a stretch on the way up, and a little
     // extra wobble the whole time so nothing in this game is ever rigid.
     const wob = walking ? Math.sin(P.walk * 2.2) * 0.05 : Math.sin(t * 3.4) * 0.022;
@@ -10687,6 +10940,13 @@ window.PD = window.PD || {};
   }
   g.saveGame = saveGame;
   g.wipeSave = wipeSave;
+
+  /* Change screens through the iris rather than cutting. */
+  g.wipeTo = function (sx, sy, col, fn) {
+    FX.beginWipe(sx, sy, col, fn);
+    A.sfx.tone(180, { type: 'square', to: 900, dur: 0.16, vol: 0.07 });
+    A.sfx.tone(900, { type: 'triangle', to: 300, dur: 0.2, vol: 0.05, delay: 0.26 });
+  };
 
   g.valueMult = function () { return 1 + g.save.bonus / 100 + g.save.dominion * 0.004; };
 
@@ -11811,6 +12071,12 @@ window.PD = window.PD || {};
   }
 
   function blit() {
+    // the iris goes on last, over whatever screen is underneath it
+    if (FX.wipeActive()) {
+      ctx.setTransform(HD, 0, 0, HD, 0, 0);
+      ctx.imageSmoothingEnabled = false;
+      FX.drawWipe(ctx, VW, VH);
+    }
     sctx.fillStyle = '#05030f';
     sctx.fillRect(0, 0, screen.width, screen.height);
     sctx.imageSmoothingEnabled = false;
@@ -11841,6 +12107,7 @@ window.PD = window.PD || {};
     m.y = U.clamp((m.sy - offY) / scale, 0, VH);
 
     FX.tickFreeze(dt);
+    FX.updateWipe(dt);
     // touch overwrites the pointer, so world space is resolved AFTER it -- get
     // this the wrong way round and a finger drag aims at the top-left corner
     // forever, which is exactly how the drill used to feel on a phone

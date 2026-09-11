@@ -20,7 +20,11 @@
   const FOOT_Y = 32;                      // where the shoes sit at rest
   const UP = 9, FORE = 10;                // arm bones: short and spindly
   const TH = 14, SHIN = 14;               // leg bones
-  const STRIDE = 20, LIFT = 10;           // walk: how far and how high
+  /* THE WALK. AMP is how far the foot swings in front of and behind the hip,
+     so one step covers 2*AMP and a whole cycle covers 4*AMP of ground. The
+     phase rate below is derived from exactly that, which is what stops the
+     planted foot skating. */
+  const AMP = 18, LIFT = 11;
   /* The body is lifted by this much so the longer legs have somewhere to be;
      LIFT_Y + the extra leg length cancel out, so his shoes still meet the
      ground exactly where the old baked sprite put them. */
@@ -74,7 +78,7 @@
       lean: 0, brace: 0, recoil: 0, breathe: U.rand(0, TAU),
       hand: [null, null], armS: [1, 1], legS: [1, 1],
       emote: null, emoteT: 0, emoteMax: 1, idleT: 0, nextEmote: U.rand(1.5, 4),
-      landT: 0, sway: 0, fresh: null
+      landT: 0, sway: 0, fresh: null, ragdoll: 0, woozyT: 0, spin: 0, ang: 0
     };
   }
 
@@ -111,10 +115,15 @@
   function step(r, o) {
     const dt = Math.min(0.05, o.dt || 0.016);
     const speed = Math.abs(o.vx || 0);
-    // the walk cycle is driven by ground covered, not by the clock, so his
-    // feet never skate
-    if (o.ground) r.phase += (o.vx || 0) * dt / (STRIDE * 0.5) * 0.5;
+    /* The cycle is driven by ground covered, not by the clock. It advances on
+       SPEED, never on signed velocity -- feeding it a negative vx ran the
+       whole cycle backwards whenever he walked left, which is what made the
+       walk look wrong half the time. One cycle per 4*AMP of ground covered
+       (in sprite units, hence the doubling) means the stance foot travels
+       backwards at exactly the speed the hips travel forwards. */
+    if (o.ground) r.phase += (speed * 2) * dt / (4 * AMP);
     else r.phase += dt * 1.2;
+    r.phase = r.phase % 1;
     r.breathe += dt * (o.drilling ? 7 : 2.2);
     r.jolt = Math.max(0, r.jolt - dt * 6);
     r.recoil = Math.max(0, r.recoil - dt * 9);
@@ -123,6 +132,7 @@
     r.brace = U.damp(r.brace, o.drilling && o.ground ? 1 : 0, 0.3, dt);
     r.walkAmt = U.damp(r.walkAmt === undefined ? 0 : r.walkAmt, o.ground ? U.clamp(speed / 70, 0, 1) : 0, 0.4, dt);
     r.landT = Math.max(0, r.landT - dt * 3.4);
+    r.woozyT = Math.max(0, r.woozyT - dt);
     // he leans into wherever he is going and it takes a moment to come back
     r.sway = U.damp(r.sway, U.clamp((o.vx || 0) / 130, -1, 1), 0.16, dt);
 
@@ -136,6 +146,26 @@
       if (r.idleT > r.nextEmote) { emote(r); r.idleT = 0; }
     } else r.idleT = 0;
     return r;
+  }
+
+  /* WHICH FACE. Frames 0-3 are the nose jiggle; 4 up are the expressions, in
+     the order art.js builds them. The rig picks one off its own state, so the
+     face follows what the body is already doing without anyone wiring it up. */
+  const FACE = { blink: 4, happy: 5, cross: 6, shock: 7, woozy: 8, smug: 9 };
+  const EMOTE_FACE = {
+    wave: FACE.happy, point: FACE.happy, sniff: FACE.happy,
+    shrug: FACE.smug, scratch: FACE.smug,
+    flex: FACE.cross, stretch: FACE.blink
+  };
+  function faceOf(r, t, blinking) {
+    if (r.ragdoll || r.woozyT > 0) return FACE.woozy;
+    if (r.landT > 0.55) return FACE.shock;
+    if (r.emote && r.emoteT > 0 && emoteK(r) > 0.25) {
+      const f = EMOTE_FACE[r.emote];
+      if (f !== undefined) return f;
+    }
+    if (blinking) return FACE.blink;
+    return Math.floor(t * 7) % 4;                 // the nose, never still
   }
 
   /* A drill bite landed: yank the whole rig backwards for a couple of frames. */
@@ -153,6 +183,9 @@
   /* ------------------------------------------------------------------- draw
      Called between the two halves of the body: back limbs, body, front limbs.
      `half` is 1 for the far side (drawn behind) and 0 for the near side. */
+  /* One side of the body. Called twice: the far half behind the torso, the
+     near half in front of it. Each half draws its leg and then its arm; the
+     ragdoll branches bail out early with their own limp versions. */
   function limbs(ctx, r, o, half, P, B) {
     const flip = o.flip ? -1 : 1;
     const face = flip;
@@ -168,6 +201,18 @@
     const hip = HIP[i];
     const hx = hip[0] * flip, hy = hip[1] + r.bobY;
     let fx, fy, planted = true;
+    if (o.ragdoll) {
+      // legs out too, trailing the tumble
+      const w3 = r.ang * 2.6 + i * 1.7 + 1;
+      fx = hx + (i ? -11 : 11) + Math.sin(w3) * 9;
+      fy = FOOT_Y - 6 + Math.cos(w3 * 0.9) * 9;
+      const kn2 = ik(hx, hy, fx, fy, TH, SHIN, i ? -1 : 1, 1.2);
+      X.limb(ctx, hx, hy, kn2.x, kn2.y, 10, 9, legc, legl, '#221d2c');
+      X.limb(ctx, kn2.x, kn2.y, fx, fy - 3, 9, 8, legc, legl, '#221d2c');
+      X.knob(ctx, kn2.x, kn2.y, 4, legc, legl);
+      shoe(ctx, fx, fy, face, B);
+      return;
+    }
     if (!o.ground) {
       // in the air the legs trail whichever way he is moving, knees tucked
       const tuck = U.clamp((o.vy || 0) / 260, -1, 1);
@@ -186,13 +231,23 @@
       fx = hx + (face * (i ? -15 - push : 12) * (1 - vert) + wide) * br;
       fy = FOOT_Y - vert * 3 * br + (i ? -1 : 0);
     } else if (r.walkAmt > 0.04) {
-      // a real cycle: the foot swings forward through the air, then holds
-      // still on the ground while the hips travel over it
+      /* A real cycle in two halves. STANCE: the foot is on the floor, so it
+         slides backwards relative to the hip in a straight line at exactly
+         the speed the hip is moving forwards -- it does not move at all in
+         the world, which is the whole point. SWING: it lifts and arcs back
+         out in front. A cosine for both (which is what this used to do) makes
+         the planted foot skate, because a cosine is not a constant speed. */
       const ph = ((t + i * 0.5) % 1 + 1) % 1;
-      const swing = Math.cos(ph * TAU);
-      fx = hx + swing * STRIDE * 0.5 * face * r.walkAmt;
-      const up = ph > 0.5 ? Math.sin((ph - 0.5) * 2 * Math.PI) : 0;
-      fy = FOOT_Y - up * LIFT * r.walkAmt;
+      const w = r.walkAmt;
+      let up = 0;
+      if (ph < 0.5) {
+        fx = hx + AMP * (1 - 4 * ph) * face * w;         // planted, sliding back
+      } else {
+        const f = (ph - 0.5) * 2;                        // 0..1 through the swing
+        fx = hx + AMP * (-1 + 2 * f) * face * w;
+        up = Math.sin(f * Math.PI);
+      }
+      fy = FOOT_Y - up * LIFT * w;
       planted = up < 0.05;
     } else {
       // standing: knock-kneed, weight on one side, breathing
@@ -218,6 +273,21 @@
     const sh = SH[i];
     const sx = sh[0] * flip + r.lean * face * 3, sy = sh[1] + r.bobY;
     let tx, ty, hang;
+    if (o.ragdoll) {
+      // limp: the arms trail off the shoulders and flap about with the spin
+      const w2 = r.ang * 3 + i * 2.1;
+      tx = sx + (i ? -13 : 13) + Math.sin(w2) * 7;
+      ty = sy + 15 + Math.cos(w2 * 0.8) * 8;
+      hang = Math.atan2(ty - sy, tx - sx);
+      X.knob(ctx, sx, sy + 1, 5, mid, lit);
+      const el2 = ik(sx, sy, tx, ty, UP, FORE, i ? 1 : -1, 1.2);
+      X.limb(ctx, sx, sy, el2.x, el2.y, 7, 6, mid, lit, dark);
+      X.limb(ctx, el2.x, el2.y, tx, ty, 6, 5, mid, lit, dark);
+      X.knob(ctx, el2.x, el2.y, 3, mid, lit);
+      hand(ctx, tx, ty, hang, P);
+      r.hand[i] = { x: tx, y: ty };
+      return;
+    }
     const holds = o.grip && (i === 0 || o.twoHand);
     if (holds && !(r.grabT > 0.02 && i === 0 && !o.twoHand)) {
       // a hand on the tool. Drilling, the far hand comes across to the front
@@ -241,7 +311,7 @@
     } else {
       const ph = ((t + i * 0.5) % 1 + 1) % 1;
       // a big loose swing, and the arm lifts as it comes forward
-      const sw = -Math.cos(ph * TAU) * 13 * r.walkAmt * face;
+      const sw = -Math.cos(ph * TAU) * 12 * r.walkAmt * face;
       const rise = -Math.abs(Math.sin(ph * TAU)) * 5 * r.walkAmt;
       tx = sx + sw + (i ? -1 : 1);
       ty = sy + 21 + rise + Math.sin(r.breathe + i) * 1.4;
@@ -319,6 +389,8 @@
 
     ctx.save();
     ctx.translate(ox, oy);
+    r.ang = o.ang || 0;
+    if (r.ang) ctx.rotate(r.ang);
     // he TIPS: a shear into whichever way he is travelling, or into the drill
     const shear = -(r.sway * 0.16 + (o.drilling ? Math.cos(o.aim) * r.lean * 0.1 : 0)) * (o.flip ? -1 : 1);
     if (shear) ctx.transform(1, 0, shear, 1, 0, 0);
@@ -328,7 +400,7 @@
     const grip = o.grip ? { x: (o.grip.x - ox) * 2 * (o.flip ? -1 : 1), y: (o.grip.y - oy) * 2 } : null;
     void LIFT_Y;
     const oo = {
-      flip: o.flip, drilling: o.drilling, twoHand: o.twoHand, aim: o.flip ? Math.PI - o.aim : o.aim,
+      flip: o.flip, drilling: o.drilling, twoHand: o.twoHand, ragdoll: o.ragdoll, aim: o.flip ? Math.PI - o.aim : o.aim,
       grip: grip, ground: o.ground, vx: (o.flip ? -1 : 1) * (o.vx || 0), vy: o.vy || 0
     };
     // mirroring happens here, once, so the limb code only ever faces right
@@ -357,5 +429,5 @@
     ctx.restore();
   }
 
-  PD.rig = { make, step, hit, grab, emote, land, draw, ik, EMOTES, SH, HIP, FOOT_Y, LIFT_Y };
+  PD.rig = { make, step, hit, grab, emote, land, draw, ik, faceOf, EMOTES, FACE, SH, HIP, FOOT_Y, LIFT_Y };
 })(window.PD);

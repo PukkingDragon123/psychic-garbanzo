@@ -78,8 +78,12 @@
     };
   }
 
-  function buildAlien(pose, f, P, blink) {
+  function buildAlien(pose, f, P, face) {
     P = P || C;
+    // the old call passed `true` for a blink; a name is clearer now there are
+    // seven of them
+    if (face === true) face = 'blink';
+    face = face || 'norm';
     const sheet = pix(72, 104);
     const p = offsetPix(sheet, 4, 16);
     // 'core' and 'coredrill' draw the body with NO arms and NO legs: the
@@ -208,13 +212,54 @@
     p.set(hx - 14, hy + 2, skinD); p.set(hx + 13, hy - 1, skinD);
     p.rect(hx - 11, hy - 10, 11, 3, skinD);             // heavy brow, one side only
     p.rect(hx + 3, hy - 7, 8, 2, skinD);
-    if (blink) {
+    /* THE FACE. One enormous eye and one that gave up, in seven states. The
+       big eye carries nearly all of it, because the moustache has the mouth. */
+    const EYE_L = { x: hx - 11, y: hy - 8, w: 11, h: 13 };   // the big one
+    const EYE_R = { x: hx + 4, y: hy - 5, w: 7, h: 7 };      // the small one
+    const white = (e, sq) => p.round(e.x, e.y + (sq ? e.h * 0.25 : 0), e.w, sq ? e.h * 0.5 : e.h, Math.min(5, e.w / 2), C.white);
+    const pupil = (e, dx, dy, r) => {
+      p.disc(e.x + e.w / 2 + (dx || 0), e.y + e.h / 2 + (dy || 0), r || e.w / 3.4, C.eye);
+      p.set(e.x + e.w / 2 + (dx || 0) - 2, e.y + e.h / 2 + (dy || 0) - 2, C.white);
+    };
+    const lid = (e, from) => { for (let i = 0; i < e.w; i++) p.rect(e.x + i, e.y + (from ? 0 : e.h - 2), 1, 2, skinD); };
+    const cross = (e) => {
+      const cx2 = e.x + e.w / 2, cy2 = e.y + e.h / 2, k = Math.min(e.w, e.h) / 2;
+      p.line(cx2 - k, cy2 - k, cx2 + k, cy2 + k, C.ink);
+      p.line(cx2 + k, cy2 - k, cx2 - k, cy2 + k, C.ink);
+      p.line(cx2 - k, cy2 - k + 1, cx2 + k, cy2 + k + 1, C.ink);
+    };
+    const arc = (e) => {                                   // a happy upturned eye
+      for (let i = 0; i < e.w; i++) {
+        const t2 = i / (e.w - 1), dip = Math.round(Math.sin(t2 * Math.PI) * (e.h * 0.32));
+        p.rect(e.x + i, e.y + e.h / 2 - dip, 1, 3, C.ink);
+      }
+    };
+    if (face === 'blink') {
       p.rect(hx - 10, hy - 2, 9, 2, C.ink); p.rect(hx + 4, hy, 6, 2, C.ink);
+    } else if (face === 'happy') {
+      arc(EYE_L); arc(EYE_R);
+    } else if (face === 'woozy') {
+      white(EYE_L); white(EYE_R); cross(EYE_L); cross(EYE_R);
+    } else if (face === 'shock') {
+      // both eyes blown wide, pupils tiny
+      p.round(EYE_L.x - 2, EYE_L.y - 3, EYE_L.w + 4, EYE_L.h + 5, 6, C.white);
+      p.round(EYE_R.x - 2, EYE_R.y - 3, EYE_R.w + 4, EYE_R.h + 5, 5, C.white);
+      p.disc(hx - 6, hy - 1, 1.6, C.eye); p.disc(hx + 7, hy - 1, 1.2, C.eye);
+      p.rect(hx - 13, hy - 14, 12, 2, skinD); p.rect(hx + 3, hy - 12, 9, 2, skinD);
+    } else if (face === 'cross') {
+      white(EYE_L); white(EYE_R);
+      pupil(EYE_L, 0, 1); pupil(EYE_R, 0, 1);
+      // brows driven down into the middle
+      for (let i = 0; i < 12; i++) p.rect(hx - 12 + i, hy - 10 + Math.round(i * 0.42), 2, 3, skinD);
+      for (let i = 0; i < 8; i++) p.rect(hx + 12 - i, hy - 8 + Math.round(i * 0.42), 2, 3, skinD);
+    } else if (face === 'smug') {
+      white(EYE_L, true); white(EYE_R);
+      pupil(EYE_L, 1, -1, 2.4); pupil(EYE_R, 1, 0);
+      lid(EYE_L, true);
+      p.rect(hx - 12, hy - 11, 11, 2, skinD);
     } else {
-      p.round(hx - 11, hy - 8, 11, 13, 5, C.white);      // one enormous eye
-      p.round(hx + 4, hy - 5, 7, 7, 3, C.white);         // one that gave up
-      p.disc(hx - 6, hy - 1, 3.2, C.eye); p.disc(hx + 7, hy - 1, 1.8, C.eye);
-      p.set(hx - 8, hy - 3, C.white); p.set(hx + 6, hy - 2, C.white);
+      white(EYE_L); white(EYE_R);
+      pupil(EYE_L, 1, 1, 3.2); pupil(EYE_R, 1, 1, 1.8);
       p.rect(hx - 11, hy - 8, 11, 1, skinD);
       p.rect(hx - 11, hy + 4, 11, 1, skinD);
     }
@@ -289,10 +334,15 @@
 
   /* The bare body, for the live rig. Four nose-jiggle frames plus a blink,
      and three braced frames for when he is leaning on the drill. */
+  /* Frames 0-3 are the nose jiggle; everything after is a face he can pull.
+     PD.rig.FACE names the indices. */
+  const FACES = ['blink', 'happy', 'cross', 'shock', 'woozy', 'smug'];
   function coreSet(P) {
     return {
-      core: [0, 1, 2, 3].map(i => buildAlien('core', i, P)).concat([buildAlien('core', 0, P, true)]),
+      core: [0, 1, 2, 3].map(i => buildAlien('core', i, P))
+        .concat(FACES.map(fc => buildAlien('core', 0, P, fc))),
       coreDrill: [0, 1, 2].map(i => buildAlien('coredrill', i, P))
+        .concat([buildAlien('coredrill', 0, P, 'cross')])
     };
   }
 
@@ -965,5 +1015,5 @@
     return set;
   }
 
-  PD.art = { C, BIZ, sprites, gemFor, oreChip, buildOre, ICON, skinFor, optOf, reg, blit, buildSaucer, alienSet, coreSet, pixOf: pix };
+  PD.art = { C, BIZ, FACES, sprites, gemFor, oreChip, buildOre, ICON, skinFor, optOf, reg, blit, buildSaucer, alienSet, coreSet, pixOf: pix };
 })(window.PD);
