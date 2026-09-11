@@ -555,6 +555,10 @@
   };
 
   /* -------------------------------------------------------------- docking */
+  /* Boarding the pod at the dig site starts the RETURN crossing. Everything
+     else that calls dock -- a reset, a death, the end of a world -- is a
+     teleport and goes straight home, because nobody wants to fly a rock field
+     after being eaten. */
   function dock(teleport) {
     const p = g.player;
     if (teleport && g.ship) { p.x = g.ship.x; p.y = g.ship.y + 34; p.vx = p.vy = 0; }
@@ -563,6 +567,11 @@
     p.hull = p.stat('hull');
     p.invuln = 1;
     const n = stow();
+    if (!teleport) { A.drill(false); A.thrust(0); PD.travel.enterReturn(g, n); return; }
+    arriveHome(n);
+  }
+
+  function arriveHome(n) {
     g.state = 'home';
     const pad = PD.home.SPOTS[1].x;
     PD.home.enter(g, pad - 70);
@@ -579,6 +588,7 @@
     }
     saveGame();
   }
+  g.arriveHome = arriveHome;
 
   /* The launch pad opens the chart: pick a sector, pick a world, drop. */
   g.undock = function () {

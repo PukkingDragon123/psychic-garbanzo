@@ -210,12 +210,19 @@
 
     let ix = 0, iy = 0;
     if (!frozen) {
-      if (IN.down('left')) ix -= 1;
-      if (IN.down('right')) ix += 1;
-      if (IN.down('up')) iy -= 1;
-      if (IN.down('down')) iy += 1;
+      /* The phone stick is ANALOGUE: a gentle lean is a gentle thrust, which
+         is the whole difference between flying this thing on a phone and
+         fighting it. Keys still work and still mean full tilt. */
+      const ax = PD.touch.axis ? PD.touch.axis() : null;
+      if (ax && ax.on) { ix = ax.x; iy = ax.y; }
+      else {
+        if (IN.down('left')) ix -= 1;
+        if (IN.down('right')) ix += 1;
+        if (IN.down('up')) iy -= 1;
+        if (IN.down('down')) iy += 1;
+      }
     }
-    if (ix) this.facing = ix;
+    if (ix) this.facing = Math.sign(ix);
     else if (Math.abs(dxm) > 6) this.facing = Math.sign(dxm);
 
     if (!frozen) {

@@ -10,17 +10,21 @@
 
   /* Three keys, never more, each one big enough to hit without looking and
      labelled with a word rather than a symbol you have to decode. */
+  /* Sized for a thumb, not a mouse. The stick sits low and left where the
+     hand already is, and the keys are big enough to hit without looking --
+     the old ones were a fifth smaller and stacked three high, which is why
+     nobody ever pressed the top one. */
   const cfg = {
-    stick: { x: 62, y: VH - 60, r: 36, knob: 15 },
+    stick: { x: 54, y: VH - 64, r: 40, knob: 17 },
     play: {
-      dash: { x: VW - 40, y: VH - 44, r: 22, glyph: 'dash', col: '#ffd34d', key: 'shift', label: 'DASH' },
-      scan: { x: VW - 40, y: VH - 100, r: 20, glyph: 'scan', col: '#8affa0', key: 'Tab', label: 'FIND' },
-      use:  { x: VW - 40, y: VH - 152, r: 20, glyph: 'home', col: '#ffb03d', key: 'KeyE', label: 'SHIP' }
+      dash: { x: VW - 42, y: VH - 46, r: 26, glyph: 'dash', col: '#ffd34d', key: 'shift', label: 'DASH' },
+      scan: { x: VW - 42, y: VH - 110, r: 23, glyph: 'scan', col: '#8affa0', key: 'Tab', label: 'FIND' },
+      use:  { x: VW - 104, y: VH - 40, r: 22, glyph: 'home', col: '#ffb03d', key: 'KeyE', label: 'SHIP' }
     },
     home: {
-      jump: { x: VW - 40, y: VH - 44, r: 24, glyph: 'up', col: '#7ef9ff', key: 'up', label: 'JUMP' },
-      use:  { x: VW - 40, y: VH - 104, r: 22, glyph: 'hand', col: '#ffb03d', key: 'KeyE', label: 'USE' },
-      roll: { x: VW - 40, y: VH - 158, r: 18, glyph: 'dash', col: '#ffd34d', key: 'shift', label: 'ROLL' }
+      jump: { x: VW - 42, y: VH - 46, r: 28, glyph: 'up', col: '#7ef9ff', key: 'up', label: 'JUMP' },
+      use:  { x: VW - 42, y: VH - 112, r: 24, glyph: 'hand', col: '#ffb03d', key: 'KeyE', label: 'USE' },
+      roll: { x: VW - 106, y: VH - 40, r: 20, glyph: 'dash', col: '#ffd34d', key: 'shift', label: 'ROLL' }
     }
   };
 
@@ -173,12 +177,12 @@
       // the drill is the whole right half: hold anywhere and aim with the same
       // finger. It is the one thing you do most, so it gets the most screen.
       const held = state.aiming;
-      ctx.globalAlpha = held ? 0.1 : 0.05;
-      X.dither(ctx, VW * 0.44, 26, VW * 0.56 - 76, VH - 52, held ? '#ffd34d' : '#c9bce8', 0);
+      ctx.globalAlpha = held ? 0.13 : 0.07;
+      X.dither(ctx, VW * 0.40, 44, VW * 0.60 - 86, VH - 126, held ? '#ffd34d' : '#c9bce8', 0);
       ctx.globalAlpha = 1;
       // the hint stops nagging the moment you have actually drilled something
-      if (!held && g && g.save && g.save.totalMined < 8) {
-        PD.font.draw(ctx, 'HOLD HERE TO AIM + DRILL', VW * 0.5 + 88, VH - 22, 'rgba(255,211,77,0.8)', { center: true, shadow: '#0b0718' });
+      if (!held && g && g.save && g.save.totalMined < 30) {
+        PD.font.draw(ctx, 'HOLD HERE TO AIM + DRILL', VW * 0.68, VH * 0.30, 'rgba(255,211,77,0.85)', { center: true, shadow: '#0b0718' });
       }
       const s = cfg.stick;
       G.hex(ctx, s.x, s.y, s.r + 4, 'rgba(8,4,18,0.55)', null);
@@ -204,6 +208,17 @@
     }
   }
 
+  /* The stick as two real numbers rather than four booleans. A gentle lean is
+     a gentle thrust now, which is the whole difference between flying a pod
+     on a phone and fighting it. */
+  function axis() {
+    if (!state.enabled || state.stickId === null) return { x: 0, y: 0, on: false };
+    const m = Math.hypot(state.dx, state.dy);
+    if (m < 0.14) return { x: 0, y: 0, on: false };
+    const k = Math.min(1, (m - 0.14) / 0.72);
+    return { x: state.dx / m * k, y: state.dy / m * k, on: true };
+  }
+
   function setEnabled(on) { state.forced = on; state.enabled = on; }
-  PD.touch = { attach, apply, clearEdges, draw, setEnabled, buzz, cfg, state, get enabled() { return state.enabled; } };
+  PD.touch = { attach, apply, clearEdges, draw, setEnabled, buzz, axis, cfg, state, get enabled() { return state.enabled; } };
 })(window.PD);

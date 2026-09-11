@@ -474,31 +474,54 @@ more reach. Press `E` under the pod to board and go home.
 ## Getting there is the game now
 
 Picking a world on the chart used to teleport you on to it between two frames.
-Now you have to **fly there**, and it takes as long as it takes.
+Now you **fly there**, and when the hold is full you fly home again.
 
-**LAUNCH.** He lifts off the moon on a column of fire, the regolith drops away
+**LAUNCH.** He lifts off on a column of fire, the regolith drops away
 underneath him, and the stars start to streak.
 
-**THE CROSSING.** A real run through a rock field that is genuinely trying to
-hit you. The pod holds the left of the screen, the field comes at you from the
-right, and the only thing you do is not be where a rock is. Steering is a
-*thrust*, not a teleport — the pod has weight, so it drifts and has to be
-caught. Hold the pointer and it flies at it; WASD or the arrows work; on a
-phone there is a stick and nothing else, because steering is the whole game.
+**THE CROSSING.** A real run through a rock field. The pod holds the left of
+the screen, the field comes at you from the right, and the only thing you do is
+not be where a rock is. Steering is a *thrust*, not a teleport — the pod has
+weight, so it drifts and has to be caught. Hold the pointer and it flies at it;
+WASD or the arrows work; on a phone there is a stick and nothing else, and it
+is **analogue** — a gentle lean is a gentle thrust.
 
-The field thickens the further out you go, and the trip is longer the further
-the world is: a dozen seconds to the first rock, the better part of a minute
-to the last one. **Every rock you eat comes off the hull you start the dive
-with.** Arrive without a scratch and you are paid a clean-run bonus that scales
-with the distance.
+It is not a shooting gallery. Rocks **drift** rather than sprint, and the big
+ones drift slowest, so the scariest-looking thing out there is always the one
+you have the most time to get round. The gaps narrow as you go but never close
+right up.
 
-**THE BURN-IN.** Nothing new arrives, the world swells out of a dot in the
-corner until it fills the frame, and you are handed back the controls for —
+**THE TRAFFIC.** There is as much worth steering *towards* as away from:
+**scrap** to scoop for cash, **repair kits** that patch a hole or put your
+shield back, **Reaver skiffs** that whistle past at four times your speed,
+**Nova Watch cutters** that scan you and lose interest, a drifting **hulk** that
+used to be somebody's ship, a bright slow **comet** you could not miss if you
+tried, and one enormous **animal** that has no opinion about any of it. Most of
+them have something to say as they pass.
+
+**DAMAGE STAYS ON THE SHIP.** Every hit tears a panel off the pod — it tumbles
+away behind you and the hull is drawn with that hole for the rest of the trip,
+scorched at the edges and spitting the odd spark. Three panels down and he is
+visibly on fire and trailing smoke.
+
+**THE BURN-IN.** Nothing new arrives, and the world swells out of a dot in the
+corner until it fills the frame.
 
 **THE LANDING.** The round world gives way to a jagged horizon in its own
-colour, a pad is cleared and lit where you are coming down, the retro-burn
-flips to fire downwards, three legs telescope out of the rim, dust comes up off
-the rock to meet you, and you set it down. *Then* the dive begins.
+colour, a pad is cleared and lit where you are coming down, the retro-burn flips
+to fire downwards, three legs telescope out of the rim, dust comes up off the
+rock to meet you, and you set it down. *Then* the dive begins.
+
+### And the way home
+
+Boarding the pod at the dig site starts the **return** crossing, and that one is
+the chill leg: shorter, barely half the rocks, mostly things to look at. Nothing
+out there can take the hold off you — a hit only shakes a rock or two loose, and
+it shakes out the cheapest ones first, because he is not going to throw the ruby
+away when there is regolith on top of it.
+
+Every other way home — a reset, a death, the end of a world — is still a
+teleport. Nobody wants to fly a rock field after being eaten.
 
 ### Three things that make it survivable
 
@@ -536,13 +559,14 @@ tab shows the asking price per lot and flags the ones that have gone `HOT` or
 | Input | Action |
 | --- | --- |
 | `W A S D` / arrows | Thrusters (free-floating; gravity rises as you near the rock) |
+| Phone stick | Thrusters, **analogue** — a gentle lean is a gentle thrust |
 | Mouse | Aim the drill and the pistol |
 | Left mouse | **Drill** — bites the first rock along the bit, bores wider than you are |
 | Right mouse / `Space` | **Fire** the current weapon |
 | `Q` / wheel | Swap weapon (pistol → scattergun → lance, as the gun shack grows) |
 | `Shift` / double-tap a direction | **Burst dash** with invulnerability frames (on the moon: roll) |
 | `Tab` | **Scanner ping** — paints ore on the minimap |
-| `W A S D` / arrows / hold the pointer | **Steer the pod** during a crossing |
+| `W A S D` / arrows / hold the pointer / the stick | **Steer the pod** during a crossing |
 | `Esc` (in flight) | Turn back — the trip is aborted, not skipped |
 | `R` | **Go limp** — tumble, bounce off the rock, get up dizzy |
 | `E` | Board the pod / sit at the desk / talk to the brain / get in the saucer / drop on a world |

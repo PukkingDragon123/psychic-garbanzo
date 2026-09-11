@@ -5183,17 +5183,21 @@ window.PD = window.PD || {};
 
   /* Three keys, never more, each one big enough to hit without looking and
      labelled with a word rather than a symbol you have to decode. */
+  /* Sized for a thumb, not a mouse. The stick sits low and left where the
+     hand already is, and the keys are big enough to hit without looking --
+     the old ones were a fifth smaller and stacked three high, which is why
+     nobody ever pressed the top one. */
   const cfg = {
-    stick: { x: 62, y: VH - 60, r: 36, knob: 15 },
+    stick: { x: 54, y: VH - 64, r: 40, knob: 17 },
     play: {
-      dash: { x: VW - 40, y: VH - 44, r: 22, glyph: 'dash', col: '#ffd34d', key: 'shift', label: 'DASH' },
-      scan: { x: VW - 40, y: VH - 100, r: 20, glyph: 'scan', col: '#8affa0', key: 'Tab', label: 'FIND' },
-      use:  { x: VW - 40, y: VH - 152, r: 20, glyph: 'home', col: '#ffb03d', key: 'KeyE', label: 'SHIP' }
+      dash: { x: VW - 42, y: VH - 46, r: 26, glyph: 'dash', col: '#ffd34d', key: 'shift', label: 'DASH' },
+      scan: { x: VW - 42, y: VH - 110, r: 23, glyph: 'scan', col: '#8affa0', key: 'Tab', label: 'FIND' },
+      use:  { x: VW - 104, y: VH - 40, r: 22, glyph: 'home', col: '#ffb03d', key: 'KeyE', label: 'SHIP' }
     },
     home: {
-      jump: { x: VW - 40, y: VH - 44, r: 24, glyph: 'up', col: '#7ef9ff', key: 'up', label: 'JUMP' },
-      use:  { x: VW - 40, y: VH - 104, r: 22, glyph: 'hand', col: '#ffb03d', key: 'KeyE', label: 'USE' },
-      roll: { x: VW - 40, y: VH - 158, r: 18, glyph: 'dash', col: '#ffd34d', key: 'shift', label: 'ROLL' }
+      jump: { x: VW - 42, y: VH - 46, r: 28, glyph: 'up', col: '#7ef9ff', key: 'up', label: 'JUMP' },
+      use:  { x: VW - 42, y: VH - 112, r: 24, glyph: 'hand', col: '#ffb03d', key: 'KeyE', label: 'USE' },
+      roll: { x: VW - 106, y: VH - 40, r: 20, glyph: 'dash', col: '#ffd34d', key: 'shift', label: 'ROLL' }
     }
   };
 
@@ -5346,12 +5350,12 @@ window.PD = window.PD || {};
       // the drill is the whole right half: hold anywhere and aim with the same
       // finger. It is the one thing you do most, so it gets the most screen.
       const held = state.aiming;
-      ctx.globalAlpha = held ? 0.1 : 0.05;
-      X.dither(ctx, VW * 0.44, 26, VW * 0.56 - 76, VH - 52, held ? '#ffd34d' : '#c9bce8', 0);
+      ctx.globalAlpha = held ? 0.13 : 0.07;
+      X.dither(ctx, VW * 0.40, 44, VW * 0.60 - 86, VH - 126, held ? '#ffd34d' : '#c9bce8', 0);
       ctx.globalAlpha = 1;
       // the hint stops nagging the moment you have actually drilled something
-      if (!held && g && g.save && g.save.totalMined < 8) {
-        PD.font.draw(ctx, 'HOLD HERE TO AIM + DRILL', VW * 0.5 + 88, VH - 22, 'rgba(255,211,77,0.8)', { center: true, shadow: '#0b0718' });
+      if (!held && g && g.save && g.save.totalMined < 30) {
+        PD.font.draw(ctx, 'HOLD HERE TO AIM + DRILL', VW * 0.68, VH * 0.30, 'rgba(255,211,77,0.85)', { center: true, shadow: '#0b0718' });
       }
       const s = cfg.stick;
       G.hex(ctx, s.x, s.y, s.r + 4, 'rgba(8,4,18,0.55)', null);
@@ -5377,8 +5381,19 @@ window.PD = window.PD || {};
     }
   }
 
+  /* The stick as two real numbers rather than four booleans. A gentle lean is
+     a gentle thrust now, which is the whole difference between flying a pod
+     on a phone and fighting it. */
+  function axis() {
+    if (!state.enabled || state.stickId === null) return { x: 0, y: 0, on: false };
+    const m = Math.hypot(state.dx, state.dy);
+    if (m < 0.14) return { x: 0, y: 0, on: false };
+    const k = Math.min(1, (m - 0.14) / 0.72);
+    return { x: state.dx / m * k, y: state.dy / m * k, on: true };
+  }
+
   function setEnabled(on) { state.forced = on; state.enabled = on; }
-  PD.touch = { attach, apply, clearEdges, draw, setEnabled, buzz, cfg, state, get enabled() { return state.enabled; } };
+  PD.touch = { attach, apply, clearEdges, draw, setEnabled, buzz, axis, cfg, state, get enabled() { return state.enabled; } };
 })(window.PD);
 
 /* ===== src/fx.js ===== */
@@ -7509,12 +7524,19 @@ window.PD = window.PD || {};
 
     let ix = 0, iy = 0;
     if (!frozen) {
-      if (IN.down('left')) ix -= 1;
-      if (IN.down('right')) ix += 1;
-      if (IN.down('up')) iy -= 1;
-      if (IN.down('down')) iy += 1;
+      /* The phone stick is ANALOGUE: a gentle lean is a gentle thrust, which
+         is the whole difference between flying this thing on a phone and
+         fighting it. Keys still work and still mean full tilt. */
+      const ax = PD.touch.axis ? PD.touch.axis() : null;
+      if (ax && ax.on) { ix = ax.x; iy = ax.y; }
+      else {
+        if (IN.down('left')) ix -= 1;
+        if (IN.down('right')) ix += 1;
+        if (IN.down('up')) iy -= 1;
+        if (IN.down('down')) iy += 1;
+      }
     }
-    if (ix) this.facing = ix;
+    if (ix) this.facing = Math.sign(ix);
     else if (Math.abs(dxm) > 6) this.facing = Math.sign(dxm);
 
     if (!frozen) {
@@ -8930,18 +8952,24 @@ window.PD = window.PD || {};
 })(window.PD);
 
 /* ===== src/travel.js ===== */
-/* THE CROSSING.
+/* THE CROSSING, both ways.
    Picking a world on the chart used to teleport you there between two frames.
-   Now you have to actually fly it, and it takes as long as it takes: a launch
-   off the moon, a long run through a rock field that is genuinely trying to
-   hit you, a burn-in, and a landing you have to set down yourself.
+   Now you fly it, and when you are done you fly home again with the hold full.
 
-   Everything in here is one screen wide and hand-steered. The pod sits on the
-   left, the field comes at you from the right, and the only thing you do is
-   not be where a rock is. Three upgrades make that easier -- a WARP COIL that
-   shortens the trip and sharpens the turn, a DEFLECTOR that eats rocks before
-   they reach the paint, and a NAV COMPUTER that calls them out early -- so the
-   twentieth crossing is nothing like the first. */
+   The trip out is the sharper one: a launch off the moon, a run through a rock
+   field that is genuinely trying to hit you, a burn-in and a landing. The trip
+   home is the chill one -- half the rocks, a shorter haul, and mostly things to
+   look at rather than dodge.
+
+   Neither leg is a shooting gallery. Rocks drift rather than sprint, every one
+   is telegraphed, and there is as much out there worth steering TOWARDS as
+   away from: scrap to scoop, repair kits, Reaver skiffs that whistle past,
+   Nova Watch cutters that scan you and lose interest, drifting hulks and one
+   enormous animal that has no opinion about any of it.
+
+   Three upgrades make it easier -- a WARP COIL that shortens the trip and
+   sharpens the turn, a DEFLECTOR that eats rocks before they reach the paint,
+   and a NAV COMPUTER that calls them out early. */
 (function (PD) {
   'use strict';
   const U = PD.util;
@@ -8952,21 +8980,23 @@ window.PD = window.PD || {};
   const D = PD.data;
 
   const VW = 480, VH = 270;
-  const LANE = { x0: 34, x1: 286, y0: 34, y1: VH - 40 };
+  const LANE = { x0: 30, x1: 300, y0: 30, y1: VH - 34 };
+  const MOON_TINT = '#8e86a8';
 
   const S = {
-    phase: 'launch', t: 0, index: 0, body: null,
-    dur: 14, dist: 0, rocks: [], stars: [], dust: [],
+    phase: 'launch', t: 0, index: 0, body: null, dir: 'out', ore: 0,
+    dur: 14, dist: 0, rocks: [], things: [], stars: [], dust: [], bits: [],
     px: 90, py: VH / 2, vx: 0, vy: 0, tilt: 0,
     hits: 0, shield: 0, shieldMax: 0, shieldT: 0, invuln: 0,
-    shake: 0, spawn: 0, warpK: 1, handling: 1, navLead: 0,
-    planet: null, legs: 0, land: 0, touched: 0, saidT: 0, said: '',
-    flashT: 0, flashCol: '#ffffff'
+    shake: 0, spawn: 0, evt: 0, handling: 1, navLead: 0, fieldK: 1,
+    planet: null, moon: null, legs: 0, touched: 0, saidT: 0, said: '',
+    flashT: 0, flashCol: '#ffffff', gained: 0
   };
 
   /* ------------------------------------------------------------------ setup */
-  function rockShape(r) {
-    const n = U.randInt(6, 9), pts = [];
+  function lump(r, n) {
+    const pts = [];
+    n = n || U.randInt(6, 9);
     for (let i = 0; i < n; i++) {
       const a = i * U.TAU / n + U.rand(-0.18, 0.18);
       const rr = r * U.rand(0.7, 1.26);
@@ -8975,33 +9005,47 @@ window.PD = window.PD || {};
     return pts;
   }
 
-  function enter(g, index) {
-    const b = D.BODIES[index];
+  function common(g, index) {
     const upg = g.save.upg;
-    const lv = id => (upg[id] || 0) + (g.brain ? 0 : 0);
-    const warp = lv('warp'), defl = lv('deflector'), nav = lv('navcom');
-
-    S.phase = 'launch'; S.t = 0; S.index = index; S.body = b;
-    /* Far worlds are long trips. Every level of coil takes six per cent off,
-       so a maxed one turns a forty-second haul into a twenty-two. */
-    S.dur = Math.max(7, (11 + index * 2.8) * (1 - warp * 0.06));
+    const warp = upg.warp || 0, defl = upg.deflector || 0, nav = upg.navcom || 0;
+    S.t = 0; S.index = index; S.body = D.BODIES[index];
     S.dist = 0;
-    S.rocks.length = 0; S.dust.length = 0;
+    S.rocks.length = 0; S.things.length = 0; S.dust.length = 0; S.bits.length = 0;
     S.px = 74; S.py = VH / 2; S.vx = 0; S.vy = 0; S.tilt = 0;
-    S.hits = 0; S.invuln = 0; S.shake = 0; S.spawn = 0.9;
+    S.hits = 0; S.invuln = 0; S.shake = 0; S.spawn = 1.4; S.evt = U.rand(3, 6);
     S.shieldMax = defl; S.shield = defl; S.shieldT = 0;
     S.handling = 1 + warp * 0.09;
     S.navLead = nav * 0.28;
-    S.fieldK = 1 - nav * 0.05;                    // the box also thins the field
-    S.legs = 0; S.land = 0; S.touched = 0; S.flashT = 0;
-    S.planet = PD.arthome.buildPlanet(320, b.tint, 100 + index * 17, planetKind(b.type));
+    S.legs = 0; S.touched = 0; S.flashT = 0; S.gained = 0;
     S.stars = [];
     for (let i = 0; i < 150; i++) {
       S.stars.push({ x: U.rand(0, VW), y: U.rand(0, VH), z: U.rand(0.25, 1), s: U.chance(0.12) ? 2 : 1 });
     }
-    say('DEPARTING. NOBODY WAVED.');
+    if (!S.moon) S.moon = PD.arthome.buildPlanet(320, MOON_TINT, 4, 'moon');
+    S.planet = PD.arthome.buildPlanet(320, S.body.tint, 100 + index * 17, planetKind(S.body.type));
     A.sfx.warp();
     g.state = 'travel';
+    return warp;
+  }
+
+  /* Out: the long leg, the full field, and the hull you arrive with matters. */
+  function enter(g, index) {
+    const warp = common(g, index);
+    S.dir = 'out'; S.phase = 'launch'; S.ore = 0;
+    S.dur = Math.max(7, (11 + index * 2.6) * (1 - warp * 0.06));
+    S.fieldK = 1 - (g.save.upg.navcom || 0) * 0.05;
+    say('DEPARTING. NOBODY WAVED.');
+  }
+
+  /* Home: shorter, thinner, and nothing out there can take the hold off you --
+     it can only shake a rock or two loose. You have earned a quiet ride. */
+  function enterReturn(g, ore) {
+    const warp = common(g, g.bodyIndex || 0);
+    S.dir = 'home'; S.phase = 'launch'; S.ore = ore || 0;
+    S.dur = Math.max(6, (8 + S.index * 1.5) * (1 - warp * 0.06));
+    S.fieldK = (1 - (g.save.upg.navcom || 0) * 0.05) * 0.55;
+    S.evt = U.rand(2, 4);
+    say(S.ore > 0 ? 'HOLD IS FULL. GOING HOME.' : 'NOTHING IN THE HOLD. GOING HOME ANYWAY.');
   }
 
   function planetKind(type) {
@@ -9014,7 +9058,11 @@ window.PD = window.PD || {};
     return 'moon';
   }
 
-  function say(line) { S.said = line; S.saidT = 2.6; }
+  function say(line) { S.said = line; S.saidT = 3; }
+  function fromTint() { return S.dir === 'out' ? MOON_TINT : S.body.tint; }
+  function toTint() { return S.dir === 'out' ? S.body.tint : MOON_TINT; }
+  function toName() { return S.dir === 'out' ? S.body.name : 'HOME'; }
+  function toCanvasImg() { return S.dir === 'out' ? S.planet : S.moon; }
 
   /* ----------------------------------------------------------------- update */
   function update(dt, g) {
@@ -9025,10 +9073,10 @@ window.PD = window.PD || {};
     S.flashT = Math.max(0, S.flashT - dt * 3.4);
 
     const IN = PD.input;
-    if (IN.hit('Escape') && S.phase !== 'land') { g.openChart(); return; }
+    if (IN.hit('Escape') && S.phase !== 'land' && S.dir === 'out') { g.openChart(); return; }
 
     for (const st of S.stars) {
-      st.x -= (40 + st.z * 380) * dt * speedK();
+      st.x -= (40 + st.z * 300) * dt * speedK();
       if (st.x < 0) { st.x += VW; st.y = U.rand(0, VH); }
     }
     for (let i = S.dust.length - 1; i >= 0; i--) {
@@ -9036,6 +9084,12 @@ window.PD = window.PD || {};
       d.x += d.vx * dt; d.y += d.vy * dt; d.life -= dt;
       d.vx *= 1 - dt * 1.4; d.vy *= 1 - dt * 1.4;
       if (d.life <= 0) S.dust.splice(i, 1);
+    }
+    // pieces of his own ship, tumbling away behind him for ever
+    for (let i = S.bits.length - 1; i >= 0; i--) {
+      const b = S.bits[i];
+      b.x += b.vx * dt; b.y += b.vy * dt; b.a += b.va * dt; b.life -= dt;
+      if (b.life <= 0) S.bits.splice(i, 1);
     }
 
     if (S.phase === 'launch') { launch(dt); return; }
@@ -9052,7 +9106,6 @@ window.PD = window.PD || {};
   }
 
   function launch(dt) {
-    // he climbs out of the bottom of the frame on a column of fire
     const f = U.clamp(S.t / 1.8, 0, 1);
     S.py = U.lerp(VH + 40, VH / 2, U.smoothstep(0, 1, f));
     S.px = 74;
@@ -9060,62 +9113,140 @@ window.PD = window.PD || {};
       S.dust.push({ x: S.px - 8, y: S.py + 10, vx: U.rand(-40, -160), vy: U.rand(-24, 46),
         life: U.rand(0.3, 0.8), col: U.chance(0.4) ? '#ffd27a' : '#ff8a3d', r: U.rand(1, 3) });
     }
-    if (S.t > 1.8) { S.phase = 'cruise'; S.t = 0; say('WATCH THE ROCKS.'); }
+    if (S.t > 1.8) {
+      S.phase = 'cruise'; S.t = 0;
+      say(S.dir === 'out' ? 'WATCH THE ROCKS.' : 'EASY DOES IT.');
+    }
   }
 
-  /* The dodging. Steering is a thrust, not a teleport, so the pod has weight
-     and the coil is worth buying; rocks are spawned on a curve that gets
-     meaner as the trip goes on, and the nav box both warns you early and
-     thins the field. */
+  /* Steering is a thrust, not a teleport, so the pod has weight and the coil
+     is worth buying. Pointer, keys and the phone stick all feed the same two
+     numbers, so nothing is second-class. */
   function steer(dt) {
     const IN = PD.input;
     const m = IN.mouse;
-    const acc = 620 * S.handling;
+    const acc = 700 * S.handling;
     let ax = 0, ay = 0;
-    if (IN.keys.left) ax -= 1;
-    if (IN.keys.right) ax += 1;
-    if (IN.keys.up) ay -= 1;
-    if (IN.keys.down) ay += 1;
-    // holding the pointer flies straight at it, which is the whole control
-    // scheme on a mouse and the one everyone tries first
-    if (!ax && !ay && m.inside && m.left) {
-      const dx = m.x - S.px, dy = m.y - S.py;
-      const d = Math.max(1, Math.hypot(dx, dy));
-      if (d > 3) { ax = dx / d; ay = dy / d; }
+    const axis = PD.touch.axis ? PD.touch.axis() : null;
+    if (axis && axis.on) { ax = axis.x; ay = axis.y; }
+    else {
+      if (IN.down('left')) ax -= 1;
+      if (IN.down('right')) ax += 1;
+      if (IN.down('up')) ay -= 1;
+      if (IN.down('down')) ay += 1;
+      // holding the pointer flies straight at it -- the thing everyone tries
+      if (!ax && !ay && m.inside && m.left) {
+        const dx = m.x - S.px, dy = m.y - S.py;
+        const d = Math.max(1, Math.hypot(dx, dy));
+        if (d > 3) { ax = dx / d; ay = dy / d; }
+      }
     }
     S.vx += ax * acc * dt; S.vy += ay * acc * dt;
-    S.vx *= 1 - Math.min(0.6, dt * 5.2); S.vy *= 1 - Math.min(0.6, dt * 5.2);
+    S.vx *= 1 - Math.min(0.6, dt * 4.6); S.vy *= 1 - Math.min(0.6, dt * 4.6);
     S.px = U.clamp(S.px + S.vx * dt, LANE.x0, LANE.x1);
     S.py = U.clamp(S.py + S.vy * dt, LANE.y0, LANE.y1);
     if (S.px <= LANE.x0 || S.px >= LANE.x1) S.vx *= 0.3;
     if (S.py <= LANE.y0 || S.py >= LANE.y1) S.vy *= 0.3;
     S.tilt = U.damp(S.tilt, U.clamp(S.vy / 260, -1, 1), 0.3, dt);
     if (U.chance(0.6)) {
-      S.dust.push({ x: S.px - 11, y: S.py + 2, vx: U.rand(-120, -230), vy: U.rand(-12, 12),
+      S.dust.push({ x: S.px - 11, y: S.py + 2, vx: U.rand(-120, -200), vy: U.rand(-12, 12),
         life: U.rand(0.12, 0.3), col: U.chance(0.5) ? '#7ef9ff' : '#ffd27a', r: 1 });
     }
   }
 
+  /* Rocks drift. The big ones drift SLOWEST, so the scary-looking thing is
+     always the one you have the most time to get round. */
   function spawnRock() {
     const hard = U.clamp(S.t / S.dur, 0, 1);
-    const r = U.rand(4, 7 + hard * 9);
-    const y = U.rand(LANE.y0 - 8, LANE.y1 + 8);
-    // the nav box sees them earlier, so they are spawned further out when you
-    // own one -- the warning is real lead time, not a cosmetic arrow
+    const big = U.chance(0.28);
+    const r = big ? U.rand(11, 19) : U.rand(4, 8);
+    const y = U.rand(LANE.y0 - 6, LANE.y1 + 6);
     const lead = S.navLead * 110;
+    const speed = big ? U.rand(44, 72) : (62 + hard * 44 + U.rand(0, 34));
     S.rocks.push({
-      x: VW + 24 + lead, y, r, pts: rockShape(r),
-      vx: -(96 + hard * 78 + U.rand(0, 60)), vy: U.rand(-22, 22),
-      a: U.rand(0, U.TAU), va: U.rand(-2.6, 2.6),
+      x: VW + 24 + lead, y, r, pts: lump(r),
+      vx: -speed, vy: U.rand(-14, 14),
+      a: U.rand(0, U.TAU), va: U.rand(-1.8, 1.8),
       ice: U.chance(0.22)
     });
   }
 
-  function hitPod(g) {
+  /* --------------------------------------------------------------- the traffic
+     Everything that is not a rock. Some of it is worth flying into. */
+  const NPC_LINES = {
+    skiff: ['REAVER SKIFF: NICE POD. SHAME.', 'SOMETHING WHISTLED AT YOU.', 'REAVER SKIFF: OI.'],
+    patrol: ['NOVA WATCH: SCANNING. ...CARRY ON.', 'NOVA WATCH: WE HAVE A FORM FOR THAT.', 'NOVA WATCH: DO NOT DESTROY ANY PLANETS.'],
+    hulk: ['SOMEBODY ELSE GOT UNLUCKY HERE.', 'THAT USED TO BE A SHIP.'],
+    whale: ['IT DOES NOT CARE ABOUT YOU.', 'IT HUMMED. YOU HUMMED BACK.'],
+    scrap: ['FREE SCRAP. THE BEST KIND.'],
+    patch: ['A REPAIR KIT. SOMEONE WAS ORGANISED.']
+  };
+
+  function spawnThing() {
+    const pool = S.dir === 'out'
+      ? ['scrap', 'scrap', 'patch', 'skiff', 'patrol', 'hulk', 'whale', 'comet']
+      : ['scrap', 'scrap', 'patch', 'patch', 'whale', 'hulk', 'patrol', 'skiff'];
+    const kind = U.pick(pool);
+    const y = U.rand(LANE.y0 + 10, LANE.y1 - 10);
+    const t = { kind, x: VW + 30, y, a: 0, va: 0, got: 0, said: 0, r: 10, vy: 0 };
+    if (kind === 'scrap') { t.vx = -80; t.r = 8; t.pts = lump(8, 5); t.va = 1.1; }
+    else if (kind === 'patch') { t.vx = -76; t.r = 8; }
+    else if (kind === 'skiff') { t.vx = -290; t.r = 12; t.vy = U.rand(-16, 16); }
+    else if (kind === 'patrol') { t.vx = -54; t.r = 16; }
+    else if (kind === 'hulk') { t.vx = -38; t.r = 26; t.pts = lump(26, 9); t.va = 0.22; }
+    else if (kind === 'whale') { t.vx = -30; t.r = 30; t.y = U.rand(60, VH - 70); }
+    else { t.vx = -58; t.r = 13; t.pts = lump(13, 8); t.va = 0.8; }   // comet
+    return t;
+  }
+
+  const SOLID = { hulk: 1, comet: 1 };
+  const PICKUP = { scrap: 1, patch: 1 };
+
+  function takeThing(t, g) {
+    t.got = 1;
+    if (t.kind === 'scrap') {
+      const v = Math.round((120 + S.index * 90) * U.rand(0.8, 1.4));
+      g.save.credits += v; g.save.totalEarned += v; S.gained += v;
+      say('+$' + U.fmt(v) + ' OF SOMEBODY ELSE\'S SHIP');
+      A.sfx.coin();
+    } else {
+      if (S.hits > 0) { S.hits--; say('PATCHED. GOOD AS SOME OTHER SHIP.'); }
+      else if (S.shield < S.shieldMax) { S.shield++; say('SHIELD BACK UP.'); }
+      else { const v = 140; g.save.credits += v; g.save.totalEarned += v; S.gained += v; say('NOTHING BROKEN. SOLD IT.'); }
+      A.sfx.buy ? A.sfx.buy() : A.sfx.coin();
+    }
+    for (let i = 0; i < 16; i++) {
+      S.dust.push({ x: t.x, y: t.y, vx: U.rand(-90, 90), vy: U.rand(-90, 90),
+        life: U.rand(0.2, 0.5), col: t.kind === 'scrap' ? '#ffd34d' : '#8affa0', r: U.rand(1, 2) });
+    }
+  }
+
+  /* A hit takes a piece OFF him: a panel, a fin, the dish. It tumbles away and
+     the pod is drawn with that piece missing for the rest of the trip. */
+  /* Placed on the hull the sprite actually has: the rim runs from about -33
+     to +33 across and +2 to +14 down, with the dome above it. A hole in empty
+     space is not damage, it is a bug you can see. */
+  const PARTS = [
+    { x: 17, y: 7, w: 14, h: 7 }, { x: -19, y: 8, w: 13, h: 7 },
+    { x: 0, y: 12, w: 15, h: 6 }, { x: 27, y: 4, w: 11, h: 6 },
+    { x: -28, y: 4, w: 11, h: 6 }
+  ];
+
+  function shed(n) {
+    for (let i = 0; i < n && S.hits + i - 1 < PARTS.length; i++) {
+      const p = PARTS[(S.hits - 1 + i) % PARTS.length];
+      S.bits.push({
+        x: S.px + p.x * 0.6, y: S.py + p.y * 0.6, w: p.w * 0.6, h: p.h * 0.6,
+        vx: U.rand(-170, -60), vy: U.rand(-70, 70), a: 0, va: U.rand(-5, 5), life: 4
+      });
+    }
+  }
+
+  function hitPod(g, soft) {
     if (S.invuln > 0) return;
     if (S.shield > 0) {
       S.shield--; S.shieldT = 0;
-      S.invuln = 0.5; S.shake = 0.6;
+      S.invuln = 0.6; S.shake = 0.5;
       S.flashT = 0.8; S.flashCol = '#7ef9ff';
       A.sfx.tone(880, { type: 'square', to: 300, dur: 0.14, vol: 0.11 });
       for (let i = 0; i < 14; i++) {
@@ -9125,29 +9256,34 @@ window.PD = window.PD || {};
       return;
     }
     S.hits++;
-    S.invuln = 1.2; S.shake = 1;
+    S.invuln = 1.4; S.shake = 1;
     S.flashT = 1; S.flashCol = '#ff5a4d';
-    S.vx -= 90; S.vy += U.rand(-140, 140);
+    S.vx -= soft ? 40 : 80; S.vy += U.rand(-110, 110);
     A.sfx.hurt();
     PD.touch.buzz(26);
+    shed(1);
     for (let i = 0; i < 22; i++) {
       S.dust.push({ x: S.px, y: S.py, vx: U.rand(-220, 120), vy: U.rand(-180, 180),
         life: U.rand(0.3, 0.8), col: U.chance(0.5) ? '#ff8a3d' : '#c9bce8', r: U.rand(1, 3) });
     }
-    say(U.pick(['OW.', 'THAT WAS THE PAINT.', 'IT IS FINE. IT IS FINE.', 'WHO PUT THAT THERE.']));
+    say(S.dir === 'home'
+      ? U.pick(['A ROCK FELL OUT OF THE HOLD.', 'THAT WAS THE GOOD ONE.', 'OW. AND ALSO OW.'])
+      : U.pick(['OW.', 'THAT WAS THE PAINT.', 'IT IS FINE. IT IS FINE.', 'WHO PUT THAT THERE.']));
   }
 
   function cruise(dt, g) {
     steer(dt);
     S.dist = U.clamp(S.t / S.dur, 0, 1);
-
-    // the field thickens as you get further out, and the nav box thins it
     const hard = S.dist;
+
     S.spawn -= dt;
     if (S.spawn <= 0) {
       spawnRock();
-      S.spawn = (0.62 - hard * 0.34) / S.fieldK * U.rand(0.6, 1.4);
+      // a gentler curve than it was: the gaps never close right up
+      S.spawn = (0.95 - hard * 0.4) / S.fieldK * U.rand(0.7, 1.35);
     }
+    S.evt -= dt;
+    if (S.evt <= 0) { S.things.push(spawnThing()); S.evt = U.rand(4.5, 8); }
 
     if (S.shieldMax > 0 && S.shield < S.shieldMax) {
       S.shieldT += dt;
@@ -9158,9 +9294,8 @@ window.PD = window.PD || {};
     for (let i = S.rocks.length - 1; i >= 0; i--) {
       const k = S.rocks[i];
       k.x += k.vx * dt; k.y += k.vy * dt; k.a += k.va * dt;
-      if (k.y < LANE.y0 - 20 || k.y > LANE.y1 + 20) k.vy = -k.vy;
+      if (k.y < LANE.y0 - 18 || k.y > LANE.y1 + 18) k.vy = -k.vy;
       if (k.x < -30) { S.rocks.splice(i, 1); continue; }
-      // the pod is a squat ellipse, so the hit box is too
       const dx = (k.x - S.px) / (k.r + 16), dy = (k.y - S.py) / (k.r + 10);
       if (dx * dx + dy * dy < 1) {
         hitPod(g);
@@ -9169,25 +9304,43 @@ window.PD = window.PD || {};
       }
     }
 
-    if (S.t >= S.dur) { S.phase = 'approach'; S.t = 0; say('THAT IS THE ONE. BRACE.'); A.sfx.tone(220, { type: 'sawtooth', to: 90, dur: 0.7, vol: 0.1 }); }
+    for (let i = S.things.length - 1; i >= 0; i--) {
+      const t = S.things[i];
+      t.x += t.vx * dt; t.y += t.vy * dt; t.a += t.va * dt;
+      if (t.x < -60) { S.things.splice(i, 1); continue; }
+      // they talk once, as they pass the middle of the screen
+      if (!t.said && t.x < VW * 0.72 && NPC_LINES[t.kind]) { t.said = 1; say(U.pick(NPC_LINES[t.kind])); }
+      const dx = (t.x - S.px) / (t.r + 16), dy = (t.y - S.py) / (t.r + 10);
+      const touching = dx * dx + dy * dy < 1;
+      if (!touching) continue;
+      if (PICKUP[t.kind] && !t.got) { takeThing(t, g); S.things.splice(i, 1); }
+      else if (SOLID[t.kind]) { hitPod(g, t.kind === 'hulk'); t.vy += U.rand(-40, 40); }
+    }
+
+    if (S.t >= S.dur) {
+      S.phase = 'approach'; S.t = 0;
+      say(S.dir === 'out' ? 'THAT IS THE ONE. BRACE.' : 'THERE IT IS. HOME.');
+      A.sfx.tone(220, { type: 'sawtooth', to: 90, dur: 0.7, vol: 0.1 });
+    }
   }
 
   function approach(dt, g) {
     steer(dt);
-    // nothing new arrives; whatever is still out there streams past
     for (let i = S.rocks.length - 1; i >= 0; i--) {
       const k = S.rocks[i];
       k.x += k.vx * dt * 1.3; k.y += k.vy * dt; k.a += k.va * dt;
       if (k.x < -30) S.rocks.splice(i, 1);
     }
-    // slide him back to the middle for the descent
+    for (let i = S.things.length - 1; i >= 0; i--) {
+      const t = S.things[i];
+      t.x += t.vx * dt * 1.3; t.a += t.va * dt;
+      if (t.x < -60) S.things.splice(i, 1);
+    }
     S.px = U.damp(S.px, 200, 0.5, dt);
     S.py = U.damp(S.py, 92, 0.5, dt);
     if (S.t > 2.4) { S.phase = 'land'; S.t = 0; say('LANDING. PROBABLY.'); }
   }
 
-  /* The set-down. Retro-burn, legs out, dust, thump -- and only then does the
-     dive actually begin. */
   function land(dt, g) {
     const t = S.t;
     for (let i = S.rocks.length - 1; i >= 0; i--) {
@@ -9204,29 +9357,36 @@ window.PD = window.PD || {};
         S.dust.push({ x: S.px + U.rand(-6, 6), y: S.py + 10, vx: U.rand(-30, 30), vy: U.rand(40, 150),
           life: U.rand(0.2, 0.5), col: U.chance(0.5) ? '#ffd27a' : '#ff8a3d', r: U.rand(1, 3) });
       }
-      // the surface answers back: dust kicked up off the rock below him
       if (t > 1.9 && U.chance(0.8)) {
         S.dust.push({ x: S.px + U.rand(-26, 26), y: groundY + 10, vx: U.rand(-130, 130), vy: U.rand(-60, -10),
-          life: U.rand(0.4, 1), col: S.body.tint, r: U.rand(1, 3) });
+          life: U.rand(0.4, 1), col: toTint(), r: U.rand(1, 3) });
       }
     } else if (!S.touched) {
       S.touched = 1; S.shake = 1.2;
-      A.sfx.dock ? A.sfx.dock() : A.sfx.tone(120, { type: 'square', dur: 0.3, vol: 0.14 });
+      A.sfx.dock();
       FX.flash(0.3, '#ffe0a0');
       for (let i = 0; i < 40; i++) {
         S.dust.push({ x: S.px + U.rand(-14, 14), y: groundY + 10, vx: U.rand(-230, 230), vy: U.rand(-110, 10),
-          life: U.rand(0.5, 1.3), col: U.chance(0.4) ? '#fff3c0' : S.body.tint, r: U.rand(1, 4) });
+          life: U.rand(0.5, 1.3), col: U.chance(0.4) ? '#fff3c0' : toTint(), r: U.rand(1, 4) });
       }
-      say('TOUCHDOWN. NOBODY DIED.');
+      say(S.dir === 'out' ? 'TOUCHDOWN. NOBODY DIED.' : 'HOME. PUT THE KETTLE ON.');
     }
     if (t > 4.2) arrive(g);
   }
 
-  /* What the crossing was worth. Rocks you ate come off the hull you start the
-     dive with, and a clean run pays. */
+  /* What the crossing was worth. On the way out, rocks you ate come off the
+     hull you start the dive with and a clean run pays. On the way home they
+     only shake loose ore -- you are not going to be punished for coming back. */
   function arrive(g) {
+    if (S.dir === 'home') {
+      let lost = 0;
+      if (S.hits > 0) lost = dropFromVault(g, S.hits);
+      g.travelResult = { dir: 'home', hits: S.hits, lost, gained: S.gained };
+      g.arriveHome(Math.max(0, S.ore - lost));
+      return;
+    }
     const dmg = S.hits;
-    g.travelResult = { hits: dmg, clean: dmg === 0 };
+    g.travelResult = { dir: 'out', hits: dmg, clean: dmg === 0, gained: S.gained };
     g.dive(S.index);
     const p = g.player;
     if (dmg > 0) {
@@ -9236,14 +9396,25 @@ window.PD = window.PD || {};
       const bonus = Math.round(400 + S.index * 340);
       g.save.credits += bonus; g.save.totalEarned += bonus;
       FX.text(p.x, p.y - 30, 'CLEAN RUN +$' + U.fmt(bonus), '#8affa0', 2);
-      A.sfx.fanfare && A.sfx.fanfare();
     }
   }
 
+  /* Shake `n` units out of the hold, cheapest first -- he is not going to
+     throw the ruby away when there is regolith on top of it. */
+  function dropFromVault(g, n) {
+    const v = g.save.vault || {};
+    const ids = Object.keys(v).map(Number).filter(k => v[k] > 0)
+      .sort((a, b) => (D.MAT[a] ? D.MAT[a].cr : 0) - (D.MAT[b] ? D.MAT[b].cr : 0));
+    let lost = 0;
+    for (const id of ids) {
+      while (v[id] > 0 && lost < n) { v[id]--; lost++; }
+      if (v[id] <= 0) delete v[id];
+      if (lost >= n) break;
+    }
+    return lost;
+  }
+
   /* ------------------------------------------------------------------- draw */
-  /* The pod, drawn at a bit over half size so the lane has room to dodge in,
-     with the burn and the landing legs hung off the sprite's own edges rather
-     than off guessed numbers. */
   const POD_K = 0.6;
   function pod(ctx, g, x, y, tilt, thrust) {
     const spr = PD.art.skinFor(g.save.cos).pod;
@@ -9254,7 +9425,6 @@ window.PD = window.PD || {};
     ctx.scale(POD_K, POD_K);
     const back = -spr.ox + 3, bottom = spr.oy - 4;
     if (S.phase === 'land' && !S.touched) {
-      // the retro-burn fires DOWNWARD on the way in, not backwards
       const L = 14 + thrust * 26 + Math.sin(t * 40) * 5;
       X.poly(ctx, [[-14, bottom], [0, bottom + L], [14, bottom]], '#ff8a3d');
       X.poly(ctx, [[-7, bottom], [0, bottom + L * 0.6], [7, bottom]], '#fff3c0');
@@ -9273,27 +9443,112 @@ window.PD = window.PD || {};
       }
     }
     ctx.drawImage(spr.frames[Math.floor(t * 8) % 2], -spr.ox, -spr.oy);
+    /* The damage: every hit punched a panel off him and it stays punched. A
+       torn scorched gap where it was, and a spark out of it now and then. */
+    for (let i = 0; i < Math.min(S.hits, PARTS.length); i++) {
+      const p = PARTS[i], L = p.x - p.w / 2, T = p.y - p.h / 2;
+      X.rect(ctx, L - 1, T - 1, p.w + 2, p.h + 2, '#3a2430');       // scorch
+      X.rect(ctx, L, T, p.w, p.h, '#0a0614');                       // the hole
+      // torn edge: a couple of teeth left hanging off the rim
+      X.rect(ctx, L + 2, T, 3, 2, '#6a5a70');
+      X.rect(ctx, L + p.w - 5, T + p.h - 2, 3, 2, '#6a5a70');
+      if (Math.sin(t * 9 + i * 2) > 0.8) X.rect(ctx, p.x + U.rand(-4, 4), p.y + U.rand(-2, 2), 2, 2, '#ffd34d');
+    }
+    // past three panels he is visibly on fire and trailing smoke
+    if (S.hits >= 3) {
+      for (let i = 0; i < 3; i++) {
+        const f = (t * 1.4 + i * 0.33) % 1;
+        ctx.globalAlpha = 0.5 * (1 - f);
+        X.blob(ctx, -34 - f * 60, 6 + Math.sin(t * 3 + i) * 5, 4 + f * 9, 4 + f * 9, '#6a6478');
+      }
+      ctx.globalAlpha = 1;
+      X.rect(ctx, 10, 4, 4, 4, Math.sin(t * 17) > 0 ? '#ff8a3d' : '#ffd34d');
+    }
     ctx.restore();
   }
 
+  function drawThing(ctx, t, time) {
+    const k = t.kind;
+    if (k === 'scrap') {
+      X.poly(ctx, t.pts.map(p => rot(p, t, 1.4)), '#140c22');
+      X.poly(ctx, t.pts.map(p => rot(p, t, 1)), '#b08a4d');
+      X.rect(ctx, t.x - 5, t.y - 1, 10, 2, '#ffd34d');
+      if (Math.sin(time * 6) > 0) X.rect(ctx, t.x - 1, t.y - 6, 2, 2, '#fff3c0');
+      return;
+    }
+    if (k === 'patch') {
+      X.plate(ctx, t.x - 8, t.y - 7, 16, 14, '#dfe6ea', '#ffffff', '#6e7a84', 3);
+      X.rect(ctx, t.x - 5, t.y - 1, 10, 3, '#3fa85a');
+      X.rect(ctx, t.x - 1, t.y - 5, 3, 10, '#3fa85a');
+      return;
+    }
+    if (k === 'skiff') {
+      // a fast, mean little wedge with a whistling trail
+      X.poly(ctx, [[t.x - 16, t.y - 7], [t.x + 15, t.y], [t.x - 16, t.y + 7]], '#140c22');
+      X.poly(ctx, [[t.x - 14, t.y - 5], [t.x + 12, t.y], [t.x - 14, t.y + 5]], '#8a2f4a');
+      X.rect(ctx, t.x - 6, t.y - 2, 9, 3, '#ff5a4d');
+      for (let i = 1; i < 7; i++) X.rect(ctx, t.x + 14 + i * 5, t.y - 1, 4, 2, 'rgba(255,90,77,' + (0.5 / i).toFixed(2) + ')');
+      return;
+    }
+    if (k === 'patrol') {
+      X.plate(ctx, t.x - 20, t.y - 8, 40, 16, '#3f6ea8', '#a9d8ff', '#1a2f52', 4);
+      X.rect(ctx, t.x - 12, t.y - 4, 18, 4, '#c8e4ff');
+      X.rect(ctx, t.x + 14, t.y - 2, 7, 4, '#e6f0fa');
+      const blink = Math.sin(time * 7) > 0;
+      X.rect(ctx, t.x - 18, t.y - 11, 5, 3, blink ? '#ff5a4d' : '#7ef9ff');
+      X.rect(ctx, t.x + 13, t.y - 11, 5, 3, blink ? '#7ef9ff' : '#ff5a4d');
+      return;
+    }
+    if (k === 'hulk') {
+      X.poly(ctx, t.pts.map(p => rot(p, t, 1.25)), '#0e0a18');
+      X.poly(ctx, t.pts.map(p => rot(p, t, 1)), '#46525e');
+      X.poly(ctx, t.pts.slice(0, 4).map(p => rot(p, t, 0.55)), '#5c6a82');
+      X.rect(ctx, t.x - 4, t.y - 3, 9, 6, '#191320');
+      return;
+    }
+    if (k === 'whale') {
+      // one enormous animal, entirely uninterested in any of this
+      const w = 52, h = 20, fl = Math.sin(time * 1.3) * 5;
+      X.poly(ctx, [[t.x - w, t.y], [t.x - 18, t.y - h], [t.x + 24, t.y - 9],
+        [t.x + 34, t.y], [t.x + 24, t.y + 9], [t.x - 18, t.y + h]], '#0e1a2a');
+      X.poly(ctx, [[t.x - w + 3, t.y], [t.x - 17, t.y - h + 3], [t.x + 22, t.y - 8],
+        [t.x + 31, t.y], [t.x + 22, t.y + 8], [t.x - 17, t.y + h - 3]], '#2f5a8a');
+      X.poly(ctx, [[t.x - 17, t.y - h + 5], [t.x + 18, t.y - 6], [t.x + 6, t.y + 2]], '#4d84c4');
+      X.poly(ctx, [[t.x - w, t.y], [t.x - w - 16, t.y - 14 + fl], [t.x - w - 14, t.y + 12 + fl]], '#2f5a8a');
+      X.rect(ctx, t.x + 22, t.y - 4, 3, 3, '#d8eeff');
+      return;
+    }
+    // comet: a slow bright lump with a long tail, impossible to miss
+    for (let i = 1; i < 14; i++) {
+      ctx.globalAlpha = 0.4 / Math.sqrt(i);
+      X.blob(ctx, t.x + i * 9, t.y - i * 0.6, t.r * (1 - i / 18), t.r * 0.55 * (1 - i / 18), '#7ef9ff');
+    }
+    ctx.globalAlpha = 1;
+    X.poly(ctx, t.pts.map(p => rot(p, t, 1.3)), '#0e1a2a');
+    X.poly(ctx, t.pts.map(p => rot(p, t, 1)), '#a9e6f5');
+    X.poly(ctx, t.pts.slice(0, 3).map(p => rot(p, t, 0.55)), '#ffffff');
+  }
+
+  function rot(p, t, grow) {
+    const co = Math.cos(t.a), si = Math.sin(t.a);
+    return [t.x + (p[0] * co - p[1] * si) * grow, t.y + (p[0] * si + p[1] * co) * grow];
+  }
+
   function hud(ctx, g) {
-    const b = S.body;
-    // the run bar: where you set off, where you are, where you are going
     const x0 = 96, x1 = VW - 24, y = 16;
     X.plate(ctx, 86, 7, VW - 104, 18, 'rgba(10,6,26,0.8)', '#3c2f66', '#0a0618', 3);
     X.rect(ctx, x0, y, x1 - x0, 1, '#3c2f66');
     for (let i = 0; i <= 10; i++) X.rect(ctx, x0 + (x1 - x0) * i / 10, y - 2, 1, 5, '#4a3a78');
     const f = S.phase === 'launch' ? 0 : (S.phase === 'cruise' ? S.dist : 1);
-    PD.glyph.draw(ctx, 'home', x0 - 8, y - 7, '#8a7ab0', '#4a3a78');
-    PD.glyph.draw(ctx, 'planet', x1 - 5, y - 7, b.tint, '#4a3a78');
+    PD.glyph.draw(ctx, S.dir === 'out' ? 'home' : 'planet', x0 - 8, y - 7, fromTint(), '#4a3a78');
+    PD.glyph.draw(ctx, S.dir === 'out' ? 'planet' : 'home', x1 - 5, y - 7, toTint(), '#4a3a78');
     const mx = Math.round(x0 + (x1 - x0) * f);
     X.rect(ctx, x0, y, mx - x0, 1, '#7ef9ff');
     X.poly(ctx, [[mx - 4, y - 4], [mx + 4, y], [mx - 4, y + 4]], '#7ef9ff');
 
-    F.draw(ctx, b.name.toUpperCase(), 10, 8, '#ffd34d', { shadow: '#0b0718' });
-    F.draw(ctx, b.kind.toUpperCase(), 10, 17, '#8a7ab0', { shadow: '#0b0718' });
+    F.draw(ctx, toName().toUpperCase(), 10, 8, '#ffd34d', { shadow: '#0b0718' });
+    F.draw(ctx, S.dir === 'out' ? S.body.kind.toUpperCase() : 'THE ROCK HOUSE', 10, 17, '#8a7ab0', { shadow: '#0b0718' });
 
-    // hull pips and shield pips, both read at a glance and neither is a number
     const hp = Math.max(0, 5 - S.hits);
     for (let i = 0; i < 5; i++) {
       X.plate(ctx, 10 + i * 9, 28, 7, 8, i < hp ? '#ff5a4d' : '#2a1c33', i < hp ? '#ffb0a8' : null, '#140c22', 2);
@@ -9302,49 +9557,56 @@ window.PD = window.PD || {};
       const on = i < S.shield;
       PD.glyph.hex(ctx, 14 + i * 10, 46, 4, on ? '#7ef9ff' : '#1e2a44', on ? '#eafcff' : '#2a3a58', 1);
     }
+    if (S.dir === 'home' && S.ore > 0) {
+      PD.glyph.draw(ctx, 'ore', 8, VH - 22, '#ffb03d', '#8a5c1a');
+      F.draw(ctx, 'x' + S.ore, 25, VH - 18, '#ffb03d', { shadow: '#0b0718' });
+    }
     if (S.saidT > 0) {
       ctx.globalAlpha = Math.min(1, S.saidT * 1.6);
       F.draw(ctx, S.said, VW / 2, VH - 16, '#ffe9a8', { center: true, shadow: '#0b0718' });
       ctx.globalAlpha = 1;
     }
     if (S.phase === 'cruise') {
-      const left = Math.max(0, S.dur - S.t);
-      F.draw(ctx, 'ETA ' + left.toFixed(1) + 's', VW - 10, 30, '#8a7ab0', { right: true, shadow: '#0b0718' });
+      F.draw(ctx, 'ETA ' + Math.max(0, S.dur - S.t).toFixed(1) + 's', VW - 10, 30, '#8a7ab0', { right: true, shadow: '#0b0718' });
     }
   }
 
   function draw(ctx, g, time) {
     const b = S.body || D.BODIES[0];
-    // deep space, tinted by where you are headed
     const grd = ctx.createLinearGradient(0, 0, 0, VH);
-    grd.addColorStop(0, b.sky || '#0b0720');
+    grd.addColorStop(0, S.dir === 'out' ? (b.sky || '#0b0720') : '#0b0720');
     grd.addColorStop(1, '#04030d');
     ctx.fillStyle = grd; ctx.fillRect(0, 0, VW, VH);
-    PD.galaxy.ensure(400 + S.index * 31);
 
     const sh = S.shake > 0 ? S.shake * S.shake * 4 : 0;
     ctx.save();
     if (sh) ctx.translate(Math.round(U.rand(-sh, sh)), Math.round(U.rand(-sh, sh)));
 
-    // stars, streaked by how fast you are going
     const sk = speedK();
     for (const st of S.stars) {
-      const len = 1 + st.z * 16 * sk;
+      const len = 1 + st.z * 14 * sk;
       ctx.globalAlpha = 0.3 + st.z * 0.6;
       ctx.fillStyle = st.z > 0.8 ? '#ffffff' : (st.z > 0.5 ? '#c9d8ff' : '#7a6aa8');
       ctx.fillRect(st.x | 0, st.y | 0, Math.max(st.s, len | 0), st.s);
     }
     ctx.globalAlpha = 1;
 
-    drawPlanet(ctx, g);
+    drawDest(ctx);
 
-    // the rocks
+    for (const t of S.things) drawThing(ctx, t, time);
+
     for (const k of S.rocks) {
-      const co = Math.cos(k.a), si = Math.sin(k.a);
-      const at = (p, grow) => [k.x + (p[0] * co - p[1] * si) * grow, k.y + (p[0] * si + p[1] * co) * grow];
-      X.poly(ctx, k.pts.map(p => at(p, 1.3)), '#140c22');
-      X.poly(ctx, k.pts.map(p => at(p, 1)), k.ice ? '#79c4de' : '#8a6a4f');
-      X.poly(ctx, k.pts.slice(0, 3).map(p => at(p, 0.6)), k.ice ? '#d4eef7' : '#b08a6a');
+      X.poly(ctx, k.pts.map(p => rot(p, k, 1.3)), '#140c22');
+      X.poly(ctx, k.pts.map(p => rot(p, k, 1)), k.ice ? '#79c4de' : '#8a6a4f');
+      X.poly(ctx, k.pts.slice(0, 3).map(p => rot(p, k, 0.6)), k.ice ? '#d4eef7' : '#b08a6a');
+    }
+
+    for (const bit of S.bits) {
+      ctx.save();
+      ctx.translate(bit.x | 0, bit.y | 0); ctx.rotate(bit.a);
+      X.rect(ctx, -bit.w / 2 - 1, -bit.h / 2 - 1, bit.w + 2, bit.h + 2, '#140c22');
+      X.rect(ctx, -bit.w / 2, -bit.h / 2, bit.w, bit.h, '#8fa0b8');
+      ctx.restore();
     }
 
     for (const d of S.dust) {
@@ -9355,10 +9617,9 @@ window.PD = window.PD || {};
 
     if (S.phase === 'land') {
       const f = U.clamp(S.t / 1.4, 0, 1);
-      drawGround(ctx, VH - 36 + (1 - f) * 60, S.body.tint, S.index + 3, S.px);
+      drawGround(ctx, VH - 36 + (1 - f) * 60, toTint(), S.index + 3, S.px);
     } else if (S.phase === 'launch') {
-      // the moon he is leaving, dropping away underneath him
-      drawGround(ctx, VH - 24 + S.t * 150, '#8e86a8', 11, null);
+      drawGround(ctx, VH - 24 + S.t * 150, fromTint(), S.index + 11, null);
     }
 
     const thrust = S.phase === 'launch' ? 1 : (S.phase === 'land' && !S.touched ? 0.8 : 0.35);
@@ -9371,13 +9632,11 @@ window.PD = window.PD || {};
     }
     ctx.restore();
 
-    // rocks still off the right edge get called out, if you paid for that
     if (S.navLead > 0 && (S.phase === 'cruise' || S.phase === 'approach')) {
-      for (const k of S.rocks) {
+      const blink = Math.sin(time * 16) > -0.3;
+      if (blink) for (const k of S.rocks) {
         if (k.x < VW - 4) continue;
         const y = U.clamp(k.y, 8, VH - 8);
-        const blink = Math.sin(time * 16) > -0.3;
-        if (!blink) continue;
         X.poly(ctx, [[VW - 3, y], [VW - 11, y - 5], [VW - 11, y + 5]], '#ffd34d');
       }
     }
@@ -9393,11 +9652,9 @@ window.PD = window.PD || {};
     PD.touch.draw(ctx, touchMode(), g);
   }
 
-  /* The destination, growing out of a dot on the horizon. One canvas, scaled:
-     the planet is already blocky, so a nearest-neighbour squeeze of it still
-     reads as pixels. */
-  function drawPlanet(ctx, g) {
-    if (!S.planet) return;
+  function drawDest(ctx) {
+    const img = toCanvasImg();
+    if (!img) return;
     let size, cx, cy;
     if (S.phase === 'launch') { size = 14; cx = VW - 40; cy = 60; }
     else if (S.phase === 'cruise') { size = 14 + S.dist * 26; cx = VW - 40; cy = 60; }
@@ -9407,19 +9664,18 @@ window.PD = window.PD || {};
       cx = U.lerp(VW - 40, 200, f); cy = U.lerp(60, VH + 120, f);
     } else {
       size = 420; cx = 200; cy = VH + 120;
-      // once the horizon is in, the round world is just a pale plate behind it
       ctx.globalAlpha = U.clamp(1 - S.t / 1.2, 0, 1);
     }
     const s = Math.round(size);
-    ctx.drawImage(S.planet, 0, 0, S.planet.width, S.planet.height,
+    ctx.drawImage(img, 0, 0, img.width, img.height,
       Math.round(cx - s / 2), Math.round(cy - s / 2), s, s);
     ctx.globalAlpha = 1;
   }
 
   /* Ground, close up: a jagged horizon in the body's own colour with a flat
-     pad cleared where the pod is coming down. Hard edges only -- it is the
-     same rock you are about to drill. Used for the moon you leave as well as
-     the world you arrive at, so both ends of the trip have somewhere solid. */
+     pad cleared where the pod is coming down. Used for the rock he leaves as
+     well as the one he arrives at, so both ends of the trip have somewhere
+     solid. */
   function drawGround(ctx, baseY, tint, seed, padX) {
     const dark = shade(tint, 0.46), mid = shade(tint, 0.72);
     const lit = shade(tint, 1.05), hi = shade(tint, 1.4);
@@ -9432,7 +9688,6 @@ window.PD = window.PD || {};
       X.rect(ctx, x, y + 4, 3, VH - y, dark);
       X.rect(ctx, x, y + 1, 3, 4, mid);
       X.rect(ctx, x, y, 3, 1, lit);
-      // speckle, so it is regolith and not a painted slab
       for (let k = 0; k < 3; k++) {
         const hv = U.hash2(x, Math.round(seed) + k * 17);
         if (hv > 0.72) X.rect(ctx, x + (k % 3), y + 7 + (hv * 46 | 0), 1, 1, k ? shade(tint, 0.3) : hi);
@@ -9440,7 +9695,6 @@ window.PD = window.PD || {};
       if (U.hash2(x, Math.round(seed) + 3) > 0.9) X.rect(ctx, x, y + 3, 3, 3, shade(tint, 0.3));
     }
     if (padX !== null) {
-      // the pad he is aiming at, marked out in lights that run inwards
       const t = PD.game.time;
       for (let i = -3; i <= 3; i++) {
         const on = (Math.floor(t * 7) + i + 8) % 4 === 0;
@@ -9460,7 +9714,8 @@ window.PD = window.PD || {};
 
   function touchMode() { return S.phase === 'cruise' || S.phase === 'approach' ? 'travel' : 'ui'; }
 
-  PD.travel = { enter, update, draw, touchMode, S };
+  PD.travel = { enter, enterReturn, update, draw, touchMode, S,
+    drawPodOnly: (ctx, g) => pod(ctx, g, S.px, S.py, 0, 0.35) };
 })(window.PD);
 
 /* ===== src/starmap.js ===== */
@@ -12495,6 +12750,10 @@ window.PD = window.PD || {};
   };
 
   /* -------------------------------------------------------------- docking */
+  /* Boarding the pod at the dig site starts the RETURN crossing. Everything
+     else that calls dock -- a reset, a death, the end of a world -- is a
+     teleport and goes straight home, because nobody wants to fly a rock field
+     after being eaten. */
   function dock(teleport) {
     const p = g.player;
     if (teleport && g.ship) { p.x = g.ship.x; p.y = g.ship.y + 34; p.vx = p.vy = 0; }
@@ -12503,6 +12762,11 @@ window.PD = window.PD || {};
     p.hull = p.stat('hull');
     p.invuln = 1;
     const n = stow();
+    if (!teleport) { A.drill(false); A.thrust(0); PD.travel.enterReturn(g, n); return; }
+    arriveHome(n);
+  }
+
+  function arriveHome(n) {
     g.state = 'home';
     const pad = PD.home.SPOTS[1].x;
     PD.home.enter(g, pad - 70);
@@ -12519,6 +12783,7 @@ window.PD = window.PD || {};
     }
     saveGame();
   }
+  g.arriveHome = arriveHome;
 
   /* The launch pad opens the chart: pick a sector, pick a world, drop. */
   g.undock = function () {
