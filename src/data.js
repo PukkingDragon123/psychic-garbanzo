@@ -209,6 +209,12 @@
       blurb: 'MAKES ALIEN GO AWAY. AIM AT THE ALIEN NOT YOU.', base: 340, growth: 1.62, max: 12 },
     { id: 'lamp', name: 'TORCH ON HAT', seller: 'lungmart', stars: 5,
       blurb: 'SEE IN DARK. BATTERY IS A SMALL ANGRY ROCK.', base: 200, growth: 1.55, max: 8 },
+    { id: 'warp', name: 'GO-FAST SPACE COIL', seller: 'garden_of_zorb', stars: 2,
+      blurb: 'TRIP IS SHORTER. SHIP TURNS BETTER. DO NOT LICK COIL.', base: 680, growth: 1.64, max: 10 },
+    { id: 'deflector', name: 'BOUNCY SPACE BUBBLE', seller: 'krunk_tools_99', stars: 4,
+      blurb: 'ROCK HITS BUBBLE NOT YOU. BUBBLE COMES BACK. MOSTLY.', base: 760, growth: 1.66, max: 8 },
+    { id: 'navcom', name: 'ROCK SHOUTING BOX', seller: 'bang_bang_bort', stars: 3,
+      blurb: 'SHOUTS BEFORE ROCK ARRIVE. IT ONLY KNOWS ONE WORD.', base: 500, growth: 1.6, max: 8 },
     { id: 'magnet', name: 'SUCKY MAGNET', seller: 'sack_dave', stars: 3,
       blurb: 'ROCKS COME TO YOU. ALSO YOUR SPOON. SORRY.', base: 300, growth: 1.6, max: 8 },
     { id: 'dash', name: 'PANIC BOOSTERS', seller: 'garden_of_zorb', stars: 3,
@@ -564,6 +570,25 @@
       blurb: 'Each drone brings back a whole lot more.',
       value: l => 1 + l * 0.55,
       show: l => 'X' + (1 + l * 0.55).toFixed(2) + ' EACH'
+    },
+    /* ---- the three that make the crossing survivable ---- */
+    {
+      id: 'warp', mats: [['titan', 3], ['void', 1]], late: ['star', 2], name: 'Warp Coil', icon: 'speed', max: 10, base: 640, growth: 1.64,
+      blurb: 'Shorter crossings and a pod that turns when you ask it to.',
+      value: l => l,
+      show: l => '-' + (l * 6) + '% TRIP  +' + (l * 9) + '% TURN'
+    },
+    {
+      id: 'deflector', mats: [['silver', 5], ['crystal', 4]], late: ['diamond', 1], name: 'Deflector', icon: 'hull', max: 8, base: 720, growth: 1.66,
+      blurb: 'Eats rocks before they reach the paint. Recharges in flight.',
+      value: l => l,
+      show: l => l === 0 ? 'NONE' : l + ' SHIELD  ' + (16 - l).toFixed(0) + 's RECHARGE'
+    },
+    {
+      id: 'navcom', mats: [['copper', 6], ['sapphire', 2]], late: ['void', 1], name: 'Nav Computer', icon: 'scan', max: 8, base: 480, growth: 1.6,
+      blurb: 'Calls the rocks out early and steers you round the worst of them.',
+      value: l => l,
+      show: l => l === 0 ? 'BLIND' : (l * 0.28).toFixed(2) + 's WARNING  -' + (l * 5) + '% FIELD'
     }
   ];
 

@@ -110,8 +110,9 @@
   function drop(g, i) {
     if (i > g.save.unlocked) { say('DESTROY ' + D.BODIES[g.save.unlocked].name.toUpperCase() + ' FIRST.'); A.sfx.deny(); return; }
     if (!zoneOpen(g, D.zoneOf(i))) { A.sfx.deny(); return; }
-    A.sfx.warp();
-    g.dive(i);
+    /* The crossing is a real journey now: the chart hands off to the flight
+       rather than dropping you on the rock between two frames. */
+    PD.travel.enter(g, i);
   }
 
   function bodyPos(k, n) {

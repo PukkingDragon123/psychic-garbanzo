@@ -112,13 +112,13 @@
       if (keys[k].hold) IN.keys[key] = !!state.down[k];
       else if (state.edge[k]) { IN.keys[key] = true; IN.pressedSet(key); state.edge[k] = false; }
     }
-    if (mode === 'play') {
+    if (mode === 'play' || mode === 'travel') {
       const dz = 0.26;
       IN.keys.left = state.dx < -dz; IN.keys.right = state.dx > dz;
       IN.keys.up = state.dy < -dz;   IN.keys.down = state.dy > dz;
       // one button: a held touch on the right aims and drills; the gun is automatic
-      if (state.aiming) { IN.mouse.x = state.ax; IN.mouse.y = state.ay; IN.mouse.inside = true; IN.mouse.left = true; }
-      else IN.mouse.left = false;
+      if (mode !== 'travel' && state.aiming) { IN.mouse.x = state.ax; IN.mouse.y = state.ay; IN.mouse.inside = true; IN.mouse.left = true; }
+      else if (mode !== 'travel') IN.mouse.left = false;
     } else {
       if (mode === 'home') {
         const dz = 0.3;
@@ -159,6 +159,16 @@
       return;
     }
     const t = g ? g.time : 0;
+    if (mode === 'travel') {
+      // the crossing needs the stick and nothing else: steering is the game
+      const s2 = cfg.stick;
+      G.hex(ctx, s2.x, s2.y, s2.r + 4, 'rgba(8,4,18,0.55)', null);
+      G.hex(ctx, s2.x, s2.y, s2.r, null, '#7ef9ff', 1);
+      const kx2 = s2.x + state.dx * (s2.r - s2.knob), ky2 = s2.y + state.dy * (s2.r - s2.knob);
+      G.hex(ctx, kx2, ky2, s2.knob * (state.stickId !== null ? 1.12 : 1), 'rgba(126,249,255,' + (state.stickId !== null ? 0.65 : 0.35) + ')', '#eafcff', 2);
+      PD.font.draw(ctx, 'STEER', s2.x, s2.y + s2.r + 6, 'rgba(126,249,255,0.8)', { center: true, shadow: '#0b0718' });
+      return;
+    }
     if (mode === 'play') {
       // the drill is the whole right half: hold anywhere and aim with the same
       // finger. It is the one thing you do most, so it gets the most screen.

@@ -279,7 +279,7 @@
   g.travelTo = function (index) {
     if (index > g.save.unlocked) return;
     startBody(index, false);
-    g.dive(index);
+    PD.travel.enter(g, index);
     toast(['hole', 'arrowR', 'planet'], UI.COL.o2);
   };
 
@@ -795,6 +795,12 @@
       return;
     }
 
+    if (g.state === 'travel') {
+      PD.travel.update(dt, g);
+      FX.update(dt, null);
+      return;
+    }
+
     if (g.state === 'home') {
       PD.home.update(dt, g);
       FX.update(dt, null);
@@ -1124,6 +1130,14 @@
 
     if (g.state === 'starmap') {
       PD.starmap.draw(ctx, g, g.time);
+      FX.drawOverlay(ctx, VW, VH);
+      UI.endFrame();
+      blit();
+      return;
+    }
+
+    if (g.state === 'travel') {
+      PD.travel.draw(ctx, g, g.time);
       FX.drawOverlay(ctx, VW, VH);
       UI.endFrame();
       blit();

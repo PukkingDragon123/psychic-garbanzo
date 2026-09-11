@@ -471,6 +471,48 @@ The wire is the leash: run out of reach and it snaps taut, flashes red and
 yanks you back. The `WIRE` bar shows the slack left, and the winch tower buys
 more reach. Press `E` under the pod to board and go home.
 
+## Getting there is the game now
+
+Picking a world on the chart used to teleport you on to it between two frames.
+Now you have to **fly there**, and it takes as long as it takes.
+
+**LAUNCH.** He lifts off the moon on a column of fire, the regolith drops away
+underneath him, and the stars start to streak.
+
+**THE CROSSING.** A real run through a rock field that is genuinely trying to
+hit you. The pod holds the left of the screen, the field comes at you from the
+right, and the only thing you do is not be where a rock is. Steering is a
+*thrust*, not a teleport — the pod has weight, so it drifts and has to be
+caught. Hold the pointer and it flies at it; WASD or the arrows work; on a
+phone there is a stick and nothing else, because steering is the whole game.
+
+The field thickens the further out you go, and the trip is longer the further
+the world is: a dozen seconds to the first rock, the better part of a minute
+to the last one. **Every rock you eat comes off the hull you start the dive
+with.** Arrive without a scratch and you are paid a clean-run bonus that scales
+with the distance.
+
+**THE BURN-IN.** Nothing new arrives, the world swells out of a dot in the
+corner until it fills the frame, and you are handed back the controls for —
+
+**THE LANDING.** The round world gives way to a jagged horizon in its own
+colour, a pad is cleared and lit where you are coming down, the retro-burn
+flips to fire downwards, three legs telescope out of the rim, dust comes up off
+the rock to meet you, and you set it down. *Then* the dive begins.
+
+### Three things that make it survivable
+
+Bought on ABAY like everything else, so the twentieth crossing is nothing like
+the first:
+
+| | |
+|---|---|
+| **WARP COIL** | Six per cent off the trip and nine per cent more turn per level. A maxed coil turns a forty-second haul into a twenty-two and a barge into something that answers the stick. |
+| **DEFLECTOR** | Eats rocks before they reach the paint, one per level, and recharges *in flight* — so a long crossing gives it back to you. |
+| **NAV COMPUTER** | Calls rocks out early. The warning is real lead time, not a cosmetic arrow: it spawns them further out and paints a chevron on the edge of the screen. It thins the field a little as well. |
+
+Escape aborts the trip and puts you back on the chart. It does not skip it.
+
 ## The chart
 
 The saucer — or the STAR MAP app — opens the **galaxy chart**: four sectors,
@@ -500,6 +542,8 @@ tab shows the asking price per lot and flags the ones that have gone `HOT` or
 | `Q` / wheel | Swap weapon (pistol → scattergun → lance, as the gun shack grows) |
 | `Shift` / double-tap a direction | **Burst dash** with invulnerability frames (on the moon: roll) |
 | `Tab` | **Scanner ping** — paints ore on the minimap |
+| `W A S D` / arrows / hold the pointer | **Steer the pod** during a crossing |
+| `Esc` (in flight) | Turn back — the trip is aborted, not skipped |
 | `R` | **Go limp** — tumble, bounce off the rock, get up dizzy |
 | `E` | Board the pod / sit at the desk / talk to the brain / get in the saucer / drop on a world |
 | `Esc` | Back out of the computer, the brain, or an app |
