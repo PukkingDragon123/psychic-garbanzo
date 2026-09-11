@@ -1174,10 +1174,9 @@
     }
 
     if (g.state === 'title') {
-      // slow drifting starfield behind the logo
-      // the title has its own hero art, so the backdrop moon stays out of it
-      g.world.drawSky(ctx, { x: g.time * 6, y: 20 }, VW, VH, g.time, true);
-      const r = UI.title(ctx, g, g.time);
+      // the menu has its own sky: a whole spiral galaxy, with somebody else's
+      // rubbish tumbling across it and every panel hanging in front
+      const r = UI.title(ctx, g, g.time, g.dt);
       if (r.start) {
         A.resume(); A.music(true);
         startBody(g.save.bodyIndex || 0, false);

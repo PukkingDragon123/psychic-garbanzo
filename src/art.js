@@ -58,14 +58,13 @@
   const BIZ = {
     jacket: '#4a5a3a', jacketL: '#647a4e', jacketD: '#2f3a24',
     shirt: '#e8e4d0',
-    /* Dark slacks and bright tan brogues. The old legs were grey trousers over
-       grey shoes over a grey shadow, which fused both legs and both feet into
-       one lump: the only fix that works at this size is to make the foot a
-       different HUE from the leg, so the eye finds the edge for free. */
-    trousers: '#332e4a', trousersL: '#4f4870', trousersD: '#15121f',
-    trousersF: '#26223a', trousersFL: '#3a3457',
-    shoe: '#bd7d3c', shoeL: '#e3ab63', shoeD: '#603514',
-    shoeF: '#8d5a28', shoeFL: '#b4763a', sole: '#15111e',
+    /* Tentacles, not legs. A deep teal-green rather than his own mint skin, so
+       they read apart from his head and from the olive jacket, with pale coral
+       suckers down the leading side -- at this size the suckers are the only
+       thing that says TENTACLE rather than tube. The far one gets its own
+       darker pair so the two sit at different depths. */
+    tent: '#2f8f6a', tentL: '#57c79a', tentD: '#10362a',
+    tentF: '#236b50', tentFL: '#3f9a78', suck: '#ffd3b8',
     brass: '#b08a3a', brassL: '#e6c26a'
   };
 
@@ -107,8 +106,11 @@
       p.ellipse(32, 50, 23, 21, BIZ.jacket);
       p.shade(BIZ.jacket, BIZ.jacketD, 0, 1);
       p.ellipse(32, 40, 14, 6, BIZ.jacketL);
-      p.round(16, 62, 14, 8, 3, BIZ.shoeD); p.round(34, 64, 14, 8, 3, BIZ.shoeD);
-      p.round(17, 62, 12, 6, 3, BIZ.shoe); p.round(35, 64, 12, 6, 3, BIZ.shoe);
+      // two tentacles tucked in and trailing out of the ball
+      p.round(12, 62, 18, 7, 3, BIZ.tentD); p.round(34, 64, 18, 7, 3, BIZ.tentD);
+      p.round(13, 62, 16, 5, 2, BIZ.tent); p.round(35, 64, 16, 5, 2, BIZ.tent);
+      p.set(18, 65, BIZ.suck); p.set(23, 65, BIZ.suck);
+      p.set(40, 67, BIZ.suck); p.set(45, 67, BIZ.suck);
       p.ellipse(30, 44, 14, 13, skin);
       p.shade(skin, skinD, 1, 1);
       p.round(20, 38, 10, 11, 4, C.white); p.round(33, 41, 6, 6, 2, C.white);
@@ -137,33 +139,33 @@
     const bx = 30 + lean;
     const hx = bx - (drill ? 1 : 0);
 
-    /* A baked brogue for the two or three poses the live rig does not drive,
-       built out of the same three bands the rigged one is: a dark sole, a tan
-       upper and a polished toecap. Without them the feet in those poses were
-       flat orange sticks next to properly built ones everywhere else. */
-    const brogue = (x, y, w) => {
-      p.round(x, y, w, 7, 2, BIZ.shoeD);
-      p.round(x + 1, y, w - 2, 5, 2, BIZ.shoe);
-      p.rect(x + w - 9, y + 1, 6, 2, BIZ.shoeL);
-      p.rect(x, y + 5, w, 2, BIZ.sole);
+    /* Baked tentacles, for the two or three poses the live rig does not
+       drive: a tapered stub out of the hip and a hook on the end, with the
+       same suckers the rigged ones have. */
+    const stub = (x, y, w, dir) => {
+      p.round(x, y, w, 8, 3, BIZ.tentD);
+      p.round(x + 1, y + 1, w - 2, 5, 2, BIZ.tent);
+      p.round(dir > 0 ? x + w - 5 : x, y - 2, 5, 5, 2, BIZ.tentD);
+      p.rect(dir > 0 ? x + w - 4 : x + 1, y - 1, 3, 3, BIZ.tent);
+      p.set(x + 3, y + 5, BIZ.suck); p.set(x + 7, y + 5, BIZ.suck);
+      p.set(x + 11, y + 5, BIZ.suck);
     };
 
-    /* ---- legs: long, knock-kneed, ending in enormous flat brogues ---- */
+    /* ---- no legs: two tentacles, hooked on the ends ---- */
     if (bare) {
-      // nothing: the hips are bare and the renderer hangs live legs off them
+      // bare hips; the renderer sweeps live tentacles off them
     } else if (fly) {
-      p.round(21, 70, 8, 12, 3, BIZ.trousers); p.round(35, 72, 8, 10, 3, BIZ.trousers);
-      brogue(13, 78, 18); brogue(33, 79, 18);
+      p.round(21, 70, 8, 12, 3, BIZ.tent); p.round(35, 72, 8, 10, 3, BIZ.tent);
+      stub(13, 78, 17, -1); stub(33, 79, 17, 1);
     } else {
       const sw = walk ? [[-4, 4], [0, 0], [4, -4], [0, 0]][f % 4] : [0, 0];
       const lift = walk ? [[3, 0], [0, 0], [0, 3], [0, 0]][f % 4] : [0, 0];
       for (let s = 0; s < 2; s++) {
         const dx = sw[s], up = lift[s];
-        const kx = (s ? 33 : 23) + dx * 0.5;            // knee, pulled inward
-        const ax = (s ? 35 : 21) + dx;                  // ankle, splayed outward
-        p.round(kx, 68, 8, 8, 3, BIZ.trousers);
-        p.round(ax, 74 - up, 8, 6 + up, 3, BIZ.trousers);
-        brogue(ax - 6, 78 - up, 19);
+        const ax = (s ? 35 : 21) + dx;
+        p.round(ax, 68, 9, 12 - up, 3, BIZ.tentD);
+        p.round(ax + 1, 69, 7, 10 - up, 3, BIZ.tent);
+        stub(ax - 5, 78 - up, 17, s ? 1 : -1);
       }
     }
 
@@ -991,6 +993,64 @@
     return cat.options.find(o => o.id === id) || cat.options[0];
   }
 
+  /* --------------------------------------------------------------- the trash
+     Space is full of other people's rubbish and he is going to sell all of it.
+     Nine bits of junk, built once and tumbled across the menu: a dead
+     satellite, a traffic cone, a fridge, a boot, an office chair, a bent
+     antenna, a tyre, a crate and, inevitably, a rubber duck. */
+  let junkCache = null;
+  function buildJunk() {
+    if (junkCache) return junkCache;
+    const mk = (w, h, fn) => { const p = pix(w, h); fn(p); p.outline('#100a1c'); return p.toCanvas(); };
+    junkCache = [
+      mk(22, 16, p => {                                  // dead satellite
+        p.rect(8, 5, 7, 6, '#8fa0b8'); p.rect(9, 6, 5, 2, '#c8d6ea');
+        p.rect(1, 6, 6, 4, '#3f6ea8'); p.rect(16, 6, 6, 4, '#3f6ea8');
+        p.rect(2, 7, 4, 1, '#7fb0e8'); p.rect(17, 7, 4, 1, '#7fb0e8');
+        p.rect(11, 1, 1, 4, '#8fa0b8'); p.rect(9, 1, 5, 1, '#8fa0b8');
+      }),
+      mk(13, 15, p => {                                  // traffic cone
+        p.spike(6, 1, 11, 12, 1, '#e8792a'); p.rect(1, 12, 11, 3, '#e8792a');
+        p.rect(3, 5, 7, 2, '#f5e6d0'); p.rect(1, 13, 11, 1, '#a8501a');
+      }),
+      mk(14, 19, p => {                                  // a fridge, door open
+        p.rect(1, 1, 10, 17, '#dfe6ea'); p.rect(2, 2, 8, 6, '#b9c4cc');
+        p.rect(1, 8, 10, 1, '#8e9aa4'); p.rect(9, 3, 1, 3, '#6e7a84');
+        p.rect(9, 11, 1, 4, '#6e7a84'); p.rect(11, 4, 3, 10, '#c8d2d8');
+      }),
+      mk(16, 12, p => {                                  // one boot
+        p.round(2, 1, 7, 8, 2, '#5d3b1c'); p.rect(2, 7, 13, 4, '#4a2e13');
+        p.rect(2, 10, 13, 2, '#241a12'); p.rect(3, 3, 4, 1, '#8a5c2c');
+      }),
+      mk(15, 17, p => {                                  // office chair
+        p.round(2, 1, 9, 7, 2, '#3a3450'); p.rect(2, 8, 11, 3, '#4a4166');
+        p.rect(7, 11, 2, 3, '#8e9aa4'); p.rect(3, 14, 10, 2, '#2a2440');
+        p.set(3, 16, '#8e9aa4'); p.set(12, 16, '#8e9aa4');
+      }),
+      mk(19, 14, p => {                                  // bent antenna
+        p.rect(8, 10, 3, 4, '#7a8594'); p.line(9, 10, 3, 3, '#9aa6b8');
+        p.line(9, 10, 16, 5, '#9aa6b8'); p.line(3, 3, 6, 1, '#9aa6b8');
+        p.rect(15, 3, 3, 3, '#e8c44d');
+      }),
+      mk(15, 15, p => {                                  // tyre
+        p.round(0, 0, 15, 15, 5, '#241f2e'); p.round(4, 4, 7, 7, 2, '#6a6480');
+        p.round(5, 5, 5, 5, 2, '#3a3448');
+        for (let i = 0; i < 15; i += 3) { p.set(i, 0, '#4a4458'); p.set(i, 14, '#4a4458'); }
+      }),
+      mk(15, 13, p => {                                  // crate, stove in
+        p.rect(0, 1, 15, 11, '#8a6a3c'); p.rect(1, 2, 13, 2, '#b08a4d');
+        p.rect(0, 6, 15, 2, '#5c4423'); p.rect(4, 3, 5, 6, '#2a1e12');
+        p.rect(5, 4, 3, 4, '#100a1c');
+      }),
+      mk(14, 12, p => {                                  // rubber duck
+        p.round(1, 4, 10, 7, 3, '#ffd34d'); p.round(6, 1, 6, 5, 2, '#ffd34d');
+        p.rect(11, 3, 3, 2, '#e8792a'); p.set(9, 3, '#100a1c');
+        p.rect(2, 6, 4, 1, '#e0a92b');
+      })
+    ];
+    return junkCache;
+  }
+
   function skinFor(cos) {
     cos = cos || {};
     const key = [cos.suit, cos.skin, cos.glass, cos.drill, cos.trim].join('|');
@@ -1032,5 +1092,5 @@
     return set;
   }
 
-  PD.art = { C, BIZ, FACES, sprites, gemFor, oreChip, buildOre, ICON, skinFor, optOf, reg, blit, buildSaucer, alienSet, coreSet, pixOf: pix };
+  PD.art = { C, BIZ, FACES, buildJunk, sprites, gemFor, oreChip, buildOre, ICON, skinFor, optOf, reg, blit, buildSaucer, alienSet, coreSet, pixOf: pix };
 })(window.PD);

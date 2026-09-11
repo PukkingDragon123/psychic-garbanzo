@@ -24,12 +24,6 @@
      knee shot out sideways and the leg read as a dog-leg wedge rather than a
      leg. Just over half the drop each means he stands nearly straight and
      only bends when he actually needs to. */
-  const TH = 9, SHIN = 9;                 // leg bones
-  /* The bones solve to the ANKLE, not to the sole: the brogue is ten units
-     tall, and aiming the chain at the ground instead left the shin drawn far
-     shorter than the bone the knee had been placed for, which is what turned
-     the standing pose into a dark lump with no leg in it. */
-  const ANK = 7;
   /* THE WALK. AMP is how far the foot swings in front of and behind the hip,
      so one step covers 2*AMP and a whole cycle covers 4*AMP of ground. The
      phase rate below is derived from exactly that, which is what stops the
@@ -68,100 +62,83 @@
     }
   }
 
-  /* --------------------------------------------------------------- the leg
-     Legs used to be two calls to X.limb -- a line of stamped squares, ten
-     units across, in a grey a shade off the grey of the shoe under it. At
-     this size that fuses thigh, shin, foot and the leg BEHIND it into one
-     blob. Rebuilt here out of three things that each fix one of those:
+  /* ---------------------------------------------------------- the tentacles
+     He does not have legs. He never really did -- he had a two-bone chain in a
+     pair of slacks, pretending to have a knee, and it was always going to look
+     wrong on something with one big eye and one small one.
 
-       * hard-edged tapered QUADS instead of stamped squares, so the leg has
-         real edges and can carry a 1px outline;
-       * a taper that actually narrows -- 11 units at the hip down to 6 at the
-         ankle -- so it reads as a leg and not as a pipe;
-       * a shoe in a completely different hue (tan brogues against navy
-         slacks), because at four pixels across only hue separates them.
+     A tentacle is not a chain of bones. It is a CURVE swept from the hip to
+     wherever the foot wants to be, sampled into hard-edged quads that taper to
+     a point, with a row of suckers down the leading side and a tip that hooks
+     forward when it is planted and curls back up when it is not. There is no
+     IK in here at all: a tentacle has no bones to run out of, so the target is
+     simply obeyed, and reaching further just straightens the curve -- which is
+     exactly what a real one does.
 
-     The far leg gets its own darker set of all three, so the two legs sit at
-     different depths instead of overlapping into one shape. */
+     A slow wave runs down both of them all the time, scaled by how far along
+     the curve you are, so they are never quite still even when he is. */
+  const TSEG = 7;                         // samples along the body of the curve
 
-  /* One tapered segment: fill, 1px outline, and a straight highlight strip
-     down the lit side. Everything is a polygon, so no diagonal is smeared. */
-  function seg(ctx, x0, y0, x1, y1, w0, w1, col, light, dark) {
-    const dx = x1 - x0, dy = y1 - y0;
-    const len = Math.max(0.001, Math.hypot(dx, dy));
-    let px = -dy / len, py = dx / len;
-    const ux = dx / len, uy = dy / len;
-    // the light is up and to the left on every other part of him, so the
-    // highlight goes on whichever side of the bone faces left, never on
-    // whichever side the maths happened to hand us
-    if (px > 0) { px = -px; py = -py; }
-    const quad = (a, b, e) => [
-      [x0 + px * a - ux * e, y0 + py * a - uy * e],
-      [x1 + px * b + ux * e, y1 + py * b + uy * e],
-      [x1 - px * b + ux * e, y1 - py * b + uy * e],
-      [x0 - px * a - ux * e, y0 - py * a - uy * e]
-    ];
-    if (dark) X.poly(ctx, quad(w0 / 2 + 1, w1 / 2 + 1, 1), dark);
-    X.poly(ctx, quad(w0 / 2, w1 / 2, 0), col);
-    // one unit of edge light, not a band: any wider and the trouser turns
-    // into a pale smudge with a dark rim
-    if (light) X.poly(ctx, [
-      [x0 + px * (w0 / 2 - 0.5), y0 + py * (w0 / 2 - 0.5)],
-      [x1 + px * (w1 / 2 - 0.5), y1 + py * (w1 / 2 - 0.5)],
-      [x1 + px * (w1 / 2 - 1.5), y1 + py * (w1 / 2 - 1.5)],
-      [x0 + px * (w0 / 2 - 1.5), y0 + py * (w0 / 2 - 1.5)]
-    ], light);
-  }
-
-  /* A brogue: stacked heel, a sole that overhangs, a wedge of an upper that
-     is tall at the ankle and low over the toes, a bright toecap and two
-     pixels of lace. Axis-aligned always -- a tilted shoe this small is a
-     smudge -- but the toe points the way he is facing. */
-  function shoe(ctx, x, y, face, far, B) {
-    const f = face > 0 ? 1 : -1;
-    x = Math.round(x); y = Math.round(y);
-    const b = y + 1;                                 // the sole rests here
-    const col = far ? B.shoeF : B.shoe;
-    const lit = far ? B.shoeFL : B.shoeL;
-    const toe = 11, heel = 5;
-    const L = x - (f > 0 ? heel : toe), W = toe + heel;
-    X.poly(ctx, [
-      [x - heel * f, b - 9], [x + 2 * f, b - 9], [x + (toe - 4) * f, b - 6],
-      [x + toe * f, b - 4], [x + toe * f, b - 2], [x - heel * f, b - 2]
-    ], B.shoeD);
-    X.poly(ctx, [
-      [x - (heel - 1) * f, b - 8], [x + 2 * f, b - 8], [x + (toe - 4) * f, b - 5],
-      [x + (toe - 1) * f, b - 4], [x + (toe - 1) * f, b - 3], [x - (heel - 1) * f, b - 3]
-    ], col);
-    X.poly(ctx, [                                    // the toecap, polished
-      [x + 4 * f, b - 6], [x + (toe - 4) * f, b - 5], [x + (toe - 1) * f, b - 4],
-      [x + (toe - 1) * f, b - 3], [x + 4 * f, b - 4]
-    ], lit);
-    if (!far) {                                      // laces
-      X.rect(ctx, x - (f > 0 ? 1 : 2), b - 8, 3, 1, '#efe7d2');
-      X.rect(ctx, x + (f > 0 ? 2 : -4), b - 7, 2, 1, '#efe7d2');
+  /* Hip to tip as a cubic, plus two points past the tip for the hook. `bow` is
+     how far it bellies out behind him: it grows as the tip comes CLOSER to the
+     hip, because a tentacle with slack in it coils rather than bending. */
+  function curvePts(hx, hy, tx, ty, face, bow, hook, wob, ph) {
+    const dy = Math.max(4, ty - hy);
+    const c1x = hx - face * bow * 0.35, c1y = hy + dy * 0.5;
+    const c2x = tx - face * bow, c2y = ty - dy * 0.28;
+    const pts = [];
+    for (let i = 0; i < TSEG; i++) {
+      const t = i / (TSEG - 1), u = 1 - t;
+      const x = u * u * u * hx + 3 * u * u * t * c1x + 3 * u * t * t * c2x + t * t * t * tx;
+      const y = u * u * u * hy + 3 * u * u * t * c1y + 3 * u * t * t * c2y + t * t * t * ty;
+      pts.push([x + Math.sin(ph + t * 4.2) * wob * t, y]);
     }
-    X.rect(ctx, L, b - 2, W, 2, B.sole);             // sole
-    X.rect(ctx, f > 0 ? x - heel : x + toe - 3, b - 4, 3, 2, B.shoeD);
+    // the hook. Planted, the last two points run FORWARD along the rock and
+    // flick up at the very end, so it splays out flat instead of stopping in
+    // mid-air the way a foot does; in the air they curl back up under him.
+    pts.push([tx + face * hook * 0.6, ty + 1]);
+    pts.push([tx + face * hook, ty + (hook > 0 ? 0 : -3)]);
+    return pts;
   }
 
-  /* Hip to knee to ankle to brogue. Only about five logical pixels of leg is
-     ever visible -- the jacket hangs over the rest -- so everything here is
-     spent on making that strip read: dark slacks between an olive coat and a
-     tan shoe, and a cuff that FLARES instead of tapering, because a widening
-     hem is what says trouser at this size. */
-  function leg(ctx, hx, hy, kx, ky, fx, fy, face, far, B) {
-    const c = far ? B.trousersF : B.trousers;
-    const l = far ? B.trousersFL : B.trousersL;
-    const d = B.trousersD;
-    X.oct(ctx, kx, ky, 4, d);                        // the knee, drawn under
-    seg(ctx, hx, hy, kx, ky, 9, 7, c, l, d);         // thigh
-    seg(ctx, kx, ky, fx, fy - ANK, 7, 9, c, l, d);   // shin, flaring to a cuff
-    X.oct(ctx, kx, ky, 3, c);                        // and capped, flush
-    const cy2 = Math.round(fy) - 9, cx2 = Math.round(fx);
-    X.rect(ctx, cx2 - 5, cy2, 10, 2, d);             // the hem, breaking over
-    X.rect(ctx, cx2 - 4, cy2 - 2, 3, 2, l);          // the shoe it never fits
-    shoe(ctx, fx, fy, face, far, B);
+  /* Sweep the curve: outline pass, fill pass, then the lit edge and the
+     suckers. Three separate passes over the whole chain rather than one pass
+     per segment, so a segment's outline never paints over its neighbour's
+     fill and the tentacle reads as one continuous thing. */
+  function tentacle(ctx, pts, w0, face, c, l, d, suck) {
+    const n = pts.length - 1;
+    const wAt = i => Math.max(1.8, w0 * (1 - (i / n) * 0.78));
+    const norm = i => {
+      const a = pts[i], b = pts[i + 1];
+      let ux = b[0] - a[0], uy = b[1] - a[1];
+      const m = Math.hypot(ux, uy) || 1;
+      return [ux / m, uy / m];
+    };
+    const quad = (i, grow, ext) => {
+      const a = pts[i], b = pts[i + 1], u = norm(i);
+      const px = -u[1], py = u[0];
+      const wa = wAt(i) / 2 + grow, wb = wAt(i + 1) / 2 + grow;
+      return [
+        [a[0] + px * wa - u[0] * ext, a[1] + py * wa - u[1] * ext],
+        [b[0] + px * wb + u[0] * ext, b[1] + py * wb + u[1] * ext],
+        [b[0] - px * wb + u[0] * ext, b[1] - py * wb + u[1] * ext],
+        [a[0] - px * wa - u[0] * ext, a[1] - py * wa - u[1] * ext]
+      ];
+    };
+    for (let i = 0; i < n; i++) X.poly(ctx, quad(i, 1, 1), d);
+    for (let i = 0; i < n; i++) X.poly(ctx, quad(i, 0, 0.7), c);
+    for (let i = 0; i < n; i++) {
+      const a = pts[i], u = norm(i);
+      let px = -u[1], py = u[0];
+      if (px > 0) { px = -px; py = -py; }             // the light is up-left
+      const w = wAt(i) / 2;
+      if (w > 1.6) X.rect(ctx, a[0] + px * (w - 0.9) - 0.5, a[1] + py * (w - 0.9) - 0.5, 2, 2, l);
+      // suckers march down whichever side he is facing, every other sample
+      if (suck && i % 2 === 1 && w > 1.4) {
+        const sx = (-u[1]) * face > 0 ? 1 : -1;
+        X.rect(ctx, a[0] - u[1] * sx * w * 0.5 - 1, a[1] + u[0] * sx * w * 0.5 - 1, 2, 2, suck);
+      }
+    }
   }
 
   /* ------------------------------------------------------------------ state
@@ -169,7 +146,7 @@
      while the hips move over them. */
   function make() {
     return {
-      phase: 0, bob: 0, jolt: 0, grab: null, grabT: 0,
+      phase: 0, bob: 0, jolt: 0, grab: null, grabT: 0, walkAmt: 0,
       lean: 0, brace: 0, recoil: 0, breathe: U.rand(0, TAU),
       hand: [null, null], armS: [1, 1], legS: [1, 1],
       emote: null, emoteT: 0, emoteMax: 1, idleT: 0, nextEmote: U.rand(1.5, 4),
@@ -275,6 +252,21 @@
     r.grabT = 1;
   }
 
+  /* Everything the two call sites below share: pick the bow from how much
+     slack there is between hip and tip, run the wave off the walk phase, and
+     shade the far tentacle darker so the two sit at different depths. */
+  function drawTent(ctx, r, hx, hy, fx, fy, face, i, hook, B) {
+    const far = i === 1;
+    const reach = Math.hypot(fx - hx, fy - hy);
+    const slack = U.clamp(1 - reach / 26, 0, 1);
+    const bow = 4 + slack * 15;
+    const pts = curvePts(hx, hy, fx, fy + 1, face, bow, hook,
+      1.6 + (r.walkAmt || 0) * 1.4, r.breathe * 1.3 + r.phase * 6.283 + i * 2.1);
+    tentacle(ctx, pts, 13, face,
+      far ? B.tentF : B.tent, far ? B.tentFL : B.tentL, B.tentD,
+      far ? null : B.suck);
+  }
+
   /* ------------------------------------------------------------------- draw
      Called between the two halves of the body: back limbs, body, front limbs.
      `half` is 1 for the far side (drawn behind) and 0 for the near side. */
@@ -300,8 +292,7 @@
       const w3 = r.ang * 2.6 + i * 1.7 + 1;
       fx = hx + (i ? -11 : 11) + Math.sin(w3) * 9;
       fy = FOOT_Y - 6 + Math.cos(w3 * 0.9) * 9;
-      const kn2 = ik(hx, hy, fx, fy - ANK, TH, SHIN, i ? -1 : 1, 1.2);
-      leg(ctx, hx, hy, kn2.x, kn2.y, fx, fy, face, i === 1, B);
+      drawTent(ctx, r, hx, hy, fx, fy, face, i, -7, B);
       return;
     }
     if (!o.ground) {
@@ -352,10 +343,10 @@
         if (r.emote === 'wave') fx += face * (i ? -2 : 3) * ek;
       }
     }
-    const knee = ik(hx, hy, fx, fy - ANK, TH, SHIN, i ? -1 : 1, 1.3);
-    // knees pull inward: he has never once stood straight
-    const kin = face * (i ? 1 : -1);
-    leg(ctx, hx, hy, knee.x + kin, knee.y, fx, fy, face, i === 1, B);
+    /* Planted, the tip hooks forward and lies along the rock; off the ground
+       it curls back up under him. Everything else about the tentacle falls
+       out of where the foot wanted to be. */
+    drawTent(ctx, r, hx, hy, fx, fy, face, i, planted ? 6 : -5, B);
 
     /* ------------------------------------------------------------ the arms */
     const sh = SH[i];

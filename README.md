@@ -24,6 +24,33 @@ python3 -m http.server 8000   # then visit http://localhost:8000
 node tools/build.js           # -> dist/planet-destroyer.html
 ```
 
+## The menu is a galaxy
+
+The title screen is no longer a starfield with a logo on it. It is a whole
+**spiral galaxy**, built once and sat in front of.
+
+Two logarithmic arms are walked outwards and stars scattered along them with a
+falloff, so each arm is dense where it leaves the bulge and frays at the rim.
+Dark **dust lanes** are walked down the inside edge of each arm first, because
+the dust is what makes a spiral read as a spiral rather than a smear. Colour
+runs out with radius — gold in the bulge, coral and violet through the arms,
+cold blue at the rim — which is roughly what a real one does and, more to the
+point, is beautiful. The core breathes; a layer of live twinkles goes over the
+top so nothing looks airbrushed.
+
+**Everything on the menu floats.** Each panel — the logo, the button, the
+purse, the controls — hangs on its own bob at its own rate over a hard shadow
+cast well below it, so it reads as suspended in front of the galaxy rather than
+painted on it.
+
+**And it is full of somebody else's rubbish.** Thirteen bits of space trash
+tumble slowly across: a dead satellite, a traffic cone, a fridge with the door
+hanging open, one boot, an office chair, a bent antenna, a tyre, a stove-in
+crate and, inevitably, a rubber duck. Each keeps its own spin and drift and
+wraps round when it leaves, so the screen never repeats an arrangement. The
+near ones are bigger, faster and dimmer, which is the whole of the depth
+effect.
+
 ## Home is a small rock, seen up close
 
 **Home is zoomed in.** The scene is painted at the game's usual size and then a
@@ -375,32 +402,35 @@ The limbs are drawn in *sprite units* — two to the logical pixel, the density
 his body is drawn at — with every block landing on a whole unit, so an arm at
 any angle is still pixels rather than a smear.
 
-### The legs, rebuilt
+### He does not have legs
 
-The legs used to be two stamped-square tubes in a grey one shade off the grey
-of the shoe under them, which fused thigh, shin, foot and the leg *behind* into
-a single lump. They are built out of four things now, each fixing one part of
-that:
+He has two **tentacles**. Not a two-bone chain in a pair of slacks pretending
+to have a knee — that was always going to look wrong on something with one big
+eye and one small one.
 
-- **Hard-edged tapered quads** instead of stamped squares, so a leg has real
-  edges and can carry a one-pixel outline — and an outline is what separates
-  the near leg from the far one.
-- **A taper that narrows**, nine units at the hip down to six at the ankle,
-  then **flares back out into a cuff**, because a widening hem is what says
-  *trouser* at this size.
-- **Tan brogues against navy slacks.** Only about five logical pixels of leg is
-  ever visible — the jacket hangs over the rest — and at that size nothing but
-  a change of *hue* will separate a foot from the leg above it. The shoe is
-  built like a real one: stacked heel, an overhanging sole, an upper that is
-  tall at the ankle and low over the toes, a polished toecap and two pixels of
-  lace.
-- **The far leg gets its own darker set of all three**, so the two legs sit at
-  different depths instead of overlapping into one shape.
+A tentacle is not a chain of bones, so there is no IK in here at all. It is a
+**curve** swept from the hip to wherever the foot wants to be, sampled into
+hard-edged quads that taper to a point:
 
-The bones also solve to the **ankle** rather than to the sole. Aiming the chain
-at the ground while drawing the shin to the top of a ten-unit shoe left the
-shin far shorter than the bone the knee had been placed for — which is what
-turned standing still into a dark blob with no leg in it.
+- **The bow grows as the tip comes closer to the hip**, because a tentacle with
+  slack in it coils rather than bending. Reach further and the curve simply
+  straightens out, which is exactly what a real one does — no bone to run out
+  of, no stretch to fake.
+- **The tip hooks.** Planted, the last two points run forward along the rock
+  and flick up at the end, so it splays out flat instead of stopping in mid-air
+  the way a foot does. In the air they curl back up under him.
+- **Suckers** march down the leading side in pale coral, every other sample.
+  At four pixels across they are the only thing that says *tentacle* rather
+  than *tube*, so they matter more than the silhouette does.
+- **A slow wave** runs down both of them the whole time, scaled by how far
+  along the curve you are, so they are never quite still even when he is.
+- The tentacles are a deep teal-green rather than his own mint skin, and the
+  far one gets its own darker pair, so they read apart from his head, from the
+  olive jacket, and from each other.
+
+The walk cycle underneath is unchanged — stance still slides the tip backwards
+at exactly hip speed — but a tentacle following it looks nothing like a leg
+did.
 
 At home he runs, jumps absurdly high in the low gravity, tucks into a **roll**
 (`Shift`), and bangs his head on his own ceiling. On a phone home has its own

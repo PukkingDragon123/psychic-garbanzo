@@ -91,6 +91,119 @@
     return cv;
   }
 
+  /* ------------------------------------------------------------ the spiral
+     A whole galaxy, face on and tilted, for the menu to sit in front of. Two
+     logarithmic arms are walked outwards and stars scattered along them with a
+     falloff, so the arms are dense where they leave the bulge and fray at the
+     rim; dark lanes are walked down the inside edge of each arm because the
+     dust is what makes a spiral read as a spiral rather than a smear.
+
+     Colour runs out with radius -- gold in the bulge, coral and violet through
+     the arms, cold blue at the rim -- which is roughly what a real one does
+     and, more to the point, is beautiful. */
+  function buildSpiral(seed) {
+    const W = 520, H = 340;
+    const cv = canvas(W, H), c = cv.getContext('2d');
+    const rnd = U.mulberry32(seed + 501);
+    const cx = W / 2, cy = H / 2;
+    const SQ = 0.44;                            // how far it is tilted over
+    const R = 232;
+
+    const hue = f => {
+      if (f < 0.14) return '#fff3cf';
+      if (f < 0.3) return '#ffd98a';
+      if (f < 0.46) return '#ffab7a';
+      if (f < 0.64) return '#e88ac4';
+      if (f < 0.82) return '#a98ae8';
+      return '#8ac4ff';
+    };
+
+    // the faint halo the whole thing sits in
+    for (let k = 9; k >= 1; k--) {
+      c.save(); c.translate(cx, cy); c.scale(1, SQ); c.translate(-cx, -cy);
+      pxDisc(c, cx, cy, R * k / 9, 'rgba(120,90,200,0.035)');
+      c.restore();
+    }
+
+    const ARMS = 2, TURN = 2.5;
+    for (let a = 0; a < ARMS; a++) {
+      const off = a * Math.PI * 2 / ARMS;
+      // the dust lane first, so the stars of the arm sit on top of it
+      for (let i = 0; i < 420; i++) {
+        const f = 0.12 + (i / 420) * 0.88;
+        const ang = off + f * TURN * Math.PI + 0.13;
+        const r = f * R;
+        const spread = (rnd() - 0.5) * 26 * f;
+        const x = cx + Math.cos(ang) * (r + spread);
+        const y = cy + Math.sin(ang) * (r + spread) * SQ;
+        c.fillStyle = 'rgba(20,8,34,0.5)';
+        c.fillRect(x | 0, y | 0, 3, 2);
+      }
+      for (let i = 0; i < 5600; i++) {
+        const f = 0.07 + Math.pow(rnd(), 0.62) * 0.93;
+        const ang = off + f * TURN * Math.PI + (rnd() - 0.5) * (0.5 - f * 0.28);
+        const r = f * R;
+        // stars scatter further off the arm the further out you go
+        const spread = (rnd() + rnd() + rnd() - 1.5) * (10 + f * 34);
+        const x = cx + Math.cos(ang) * r + spread;
+        const y = cy + (Math.sin(ang) * r) * SQ + spread * SQ;
+        if (x < 0 || y < 0 || x >= W || y >= H) continue;
+        const big = rnd() > 0.988;
+        c.globalAlpha = (0.25 + rnd() * 0.6) * (1 - f * 0.35);
+        c.fillStyle = rnd() > 0.72 ? '#ffffff' : hue(f);
+        c.fillRect(x | 0, y | 0, big ? 2 : 1, big ? 2 : 1);
+      }
+    }
+    c.globalAlpha = 1;
+
+    // the bulge: a hard little octagon of light with a gold skirt
+    c.save(); c.translate(cx, cy); c.scale(1, 0.78); c.translate(-cx, -cy);
+    for (let k = 7; k >= 1; k--) {
+      const f = k / 7;
+      c.globalAlpha = 0.1 + (1 - f) * 0.16;
+      pxDisc(c, cx, cy, 46 * f, f > 0.6 ? '#d8913f' : (f > 0.3 ? '#ffd98a' : '#fff8e0'));
+    }
+    c.globalAlpha = 1;
+    pxDisc(c, cx, cy, 9, '#fffaea');
+    c.restore();
+
+    // a thousand field stars over the top, so nothing looks airbrushed
+    for (let i = 0; i < 900; i++) {
+      c.globalAlpha = 0.1 + rnd() * 0.4;
+      c.fillStyle = '#ffffff';
+      c.fillRect((rnd() * W) | 0, (rnd() * H) | 0, 1, 1);
+    }
+    c.globalAlpha = 1;
+    return cv;
+  }
+
+  let spiralCv = null;
+  /* Draw the menu sky: deep space, the spiral drifting, a live pulse on its
+     core and a scatter of twinkles that the baked canvas cannot do. */
+  function spiral(ctx, t, seed) {
+    if (!spiralCv) spiralCv = buildSpiral(seed || 7);
+    const g = ctx.createLinearGradient(0, 0, 0, VH);
+    g.addColorStop(0, '#0a0620'); g.addColorStop(0.55, '#120a2c'); g.addColorStop(1, '#05030f');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, VW, VH);
+    const L = ensure((seed || 7) + 3);
+    ctx.globalAlpha = 0.5;
+    ctx.drawImage(L.nebulae, -((t * 3) % VW), -8, VW, VH + 16);
+    ctx.drawImage(L.nebulae, -((t * 3) % VW) + VW, -8, VW, VH + 16);
+    ctx.globalAlpha = 1;
+    const dx = Math.round(296 - 260 + Math.sin(t * 0.09) * 5);
+    const dy = Math.round(104 - 170 + Math.cos(t * 0.07) * 4);
+    ctx.drawImage(spiralCv, dx, dy);
+    // the core breathes
+    PD.pxd.glowBands(ctx, dx + 260, dy + 170, 38 + Math.sin(t * 0.9) * 4, '#ffd98a', 5, 0.2);
+    for (const st of L.stars[2]) {
+      const x = (st.x * VW) % VW, y = (st.y * VH) % VH;
+      ctx.globalAlpha = 0.3 + 0.7 * Math.max(0, Math.sin(t * 1.6 + st.tw));
+      ctx.fillStyle = st.c;
+      ctx.fillRect(x | 0, y | 0, st.s, st.s);
+    }
+    ctx.globalAlpha = 1;
+  }
+
   /* A far planet: banded disc, optional rings, a moon, terminator shading. */
   /* Planets and suns are rasterised at a low resolution with an integer
      scanline disc -- every edge is a hard pixel step -- then blown up with
@@ -294,5 +407,5 @@
     }
   }
 
-  PD.galaxy = { draw, ensure, buildPlanet, buildSun };
+  PD.galaxy = { draw, ensure, spiral, buildPlanet, buildSun };
 })(window.PD);

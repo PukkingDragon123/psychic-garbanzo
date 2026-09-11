@@ -1644,14 +1644,13 @@ window.PD = window.PD || {};
   const BIZ = {
     jacket: '#4a5a3a', jacketL: '#647a4e', jacketD: '#2f3a24',
     shirt: '#e8e4d0',
-    /* Dark slacks and bright tan brogues. The old legs were grey trousers over
-       grey shoes over a grey shadow, which fused both legs and both feet into
-       one lump: the only fix that works at this size is to make the foot a
-       different HUE from the leg, so the eye finds the edge for free. */
-    trousers: '#332e4a', trousersL: '#4f4870', trousersD: '#15121f',
-    trousersF: '#26223a', trousersFL: '#3a3457',
-    shoe: '#bd7d3c', shoeL: '#e3ab63', shoeD: '#603514',
-    shoeF: '#8d5a28', shoeFL: '#b4763a', sole: '#15111e',
+    /* Tentacles, not legs. A deep teal-green rather than his own mint skin, so
+       they read apart from his head and from the olive jacket, with pale coral
+       suckers down the leading side -- at this size the suckers are the only
+       thing that says TENTACLE rather than tube. The far one gets its own
+       darker pair so the two sit at different depths. */
+    tent: '#2f8f6a', tentL: '#57c79a', tentD: '#10362a',
+    tentF: '#236b50', tentFL: '#3f9a78', suck: '#ffd3b8',
     brass: '#b08a3a', brassL: '#e6c26a'
   };
 
@@ -1693,8 +1692,11 @@ window.PD = window.PD || {};
       p.ellipse(32, 50, 23, 21, BIZ.jacket);
       p.shade(BIZ.jacket, BIZ.jacketD, 0, 1);
       p.ellipse(32, 40, 14, 6, BIZ.jacketL);
-      p.round(16, 62, 14, 8, 3, BIZ.shoeD); p.round(34, 64, 14, 8, 3, BIZ.shoeD);
-      p.round(17, 62, 12, 6, 3, BIZ.shoe); p.round(35, 64, 12, 6, 3, BIZ.shoe);
+      // two tentacles tucked in and trailing out of the ball
+      p.round(12, 62, 18, 7, 3, BIZ.tentD); p.round(34, 64, 18, 7, 3, BIZ.tentD);
+      p.round(13, 62, 16, 5, 2, BIZ.tent); p.round(35, 64, 16, 5, 2, BIZ.tent);
+      p.set(18, 65, BIZ.suck); p.set(23, 65, BIZ.suck);
+      p.set(40, 67, BIZ.suck); p.set(45, 67, BIZ.suck);
       p.ellipse(30, 44, 14, 13, skin);
       p.shade(skin, skinD, 1, 1);
       p.round(20, 38, 10, 11, 4, C.white); p.round(33, 41, 6, 6, 2, C.white);
@@ -1723,33 +1725,33 @@ window.PD = window.PD || {};
     const bx = 30 + lean;
     const hx = bx - (drill ? 1 : 0);
 
-    /* A baked brogue for the two or three poses the live rig does not drive,
-       built out of the same three bands the rigged one is: a dark sole, a tan
-       upper and a polished toecap. Without them the feet in those poses were
-       flat orange sticks next to properly built ones everywhere else. */
-    const brogue = (x, y, w) => {
-      p.round(x, y, w, 7, 2, BIZ.shoeD);
-      p.round(x + 1, y, w - 2, 5, 2, BIZ.shoe);
-      p.rect(x + w - 9, y + 1, 6, 2, BIZ.shoeL);
-      p.rect(x, y + 5, w, 2, BIZ.sole);
+    /* Baked tentacles, for the two or three poses the live rig does not
+       drive: a tapered stub out of the hip and a hook on the end, with the
+       same suckers the rigged ones have. */
+    const stub = (x, y, w, dir) => {
+      p.round(x, y, w, 8, 3, BIZ.tentD);
+      p.round(x + 1, y + 1, w - 2, 5, 2, BIZ.tent);
+      p.round(dir > 0 ? x + w - 5 : x, y - 2, 5, 5, 2, BIZ.tentD);
+      p.rect(dir > 0 ? x + w - 4 : x + 1, y - 1, 3, 3, BIZ.tent);
+      p.set(x + 3, y + 5, BIZ.suck); p.set(x + 7, y + 5, BIZ.suck);
+      p.set(x + 11, y + 5, BIZ.suck);
     };
 
-    /* ---- legs: long, knock-kneed, ending in enormous flat brogues ---- */
+    /* ---- no legs: two tentacles, hooked on the ends ---- */
     if (bare) {
-      // nothing: the hips are bare and the renderer hangs live legs off them
+      // bare hips; the renderer sweeps live tentacles off them
     } else if (fly) {
-      p.round(21, 70, 8, 12, 3, BIZ.trousers); p.round(35, 72, 8, 10, 3, BIZ.trousers);
-      brogue(13, 78, 18); brogue(33, 79, 18);
+      p.round(21, 70, 8, 12, 3, BIZ.tent); p.round(35, 72, 8, 10, 3, BIZ.tent);
+      stub(13, 78, 17, -1); stub(33, 79, 17, 1);
     } else {
       const sw = walk ? [[-4, 4], [0, 0], [4, -4], [0, 0]][f % 4] : [0, 0];
       const lift = walk ? [[3, 0], [0, 0], [0, 3], [0, 0]][f % 4] : [0, 0];
       for (let s = 0; s < 2; s++) {
         const dx = sw[s], up = lift[s];
-        const kx = (s ? 33 : 23) + dx * 0.5;            // knee, pulled inward
-        const ax = (s ? 35 : 21) + dx;                  // ankle, splayed outward
-        p.round(kx, 68, 8, 8, 3, BIZ.trousers);
-        p.round(ax, 74 - up, 8, 6 + up, 3, BIZ.trousers);
-        brogue(ax - 6, 78 - up, 19);
+        const ax = (s ? 35 : 21) + dx;
+        p.round(ax, 68, 9, 12 - up, 3, BIZ.tentD);
+        p.round(ax + 1, 69, 7, 10 - up, 3, BIZ.tent);
+        stub(ax - 5, 78 - up, 17, s ? 1 : -1);
       }
     }
 
@@ -2577,6 +2579,64 @@ window.PD = window.PD || {};
     return cat.options.find(o => o.id === id) || cat.options[0];
   }
 
+  /* --------------------------------------------------------------- the trash
+     Space is full of other people's rubbish and he is going to sell all of it.
+     Nine bits of junk, built once and tumbled across the menu: a dead
+     satellite, a traffic cone, a fridge, a boot, an office chair, a bent
+     antenna, a tyre, a crate and, inevitably, a rubber duck. */
+  let junkCache = null;
+  function buildJunk() {
+    if (junkCache) return junkCache;
+    const mk = (w, h, fn) => { const p = pix(w, h); fn(p); p.outline('#100a1c'); return p.toCanvas(); };
+    junkCache = [
+      mk(22, 16, p => {                                  // dead satellite
+        p.rect(8, 5, 7, 6, '#8fa0b8'); p.rect(9, 6, 5, 2, '#c8d6ea');
+        p.rect(1, 6, 6, 4, '#3f6ea8'); p.rect(16, 6, 6, 4, '#3f6ea8');
+        p.rect(2, 7, 4, 1, '#7fb0e8'); p.rect(17, 7, 4, 1, '#7fb0e8');
+        p.rect(11, 1, 1, 4, '#8fa0b8'); p.rect(9, 1, 5, 1, '#8fa0b8');
+      }),
+      mk(13, 15, p => {                                  // traffic cone
+        p.spike(6, 1, 11, 12, 1, '#e8792a'); p.rect(1, 12, 11, 3, '#e8792a');
+        p.rect(3, 5, 7, 2, '#f5e6d0'); p.rect(1, 13, 11, 1, '#a8501a');
+      }),
+      mk(14, 19, p => {                                  // a fridge, door open
+        p.rect(1, 1, 10, 17, '#dfe6ea'); p.rect(2, 2, 8, 6, '#b9c4cc');
+        p.rect(1, 8, 10, 1, '#8e9aa4'); p.rect(9, 3, 1, 3, '#6e7a84');
+        p.rect(9, 11, 1, 4, '#6e7a84'); p.rect(11, 4, 3, 10, '#c8d2d8');
+      }),
+      mk(16, 12, p => {                                  // one boot
+        p.round(2, 1, 7, 8, 2, '#5d3b1c'); p.rect(2, 7, 13, 4, '#4a2e13');
+        p.rect(2, 10, 13, 2, '#241a12'); p.rect(3, 3, 4, 1, '#8a5c2c');
+      }),
+      mk(15, 17, p => {                                  // office chair
+        p.round(2, 1, 9, 7, 2, '#3a3450'); p.rect(2, 8, 11, 3, '#4a4166');
+        p.rect(7, 11, 2, 3, '#8e9aa4'); p.rect(3, 14, 10, 2, '#2a2440');
+        p.set(3, 16, '#8e9aa4'); p.set(12, 16, '#8e9aa4');
+      }),
+      mk(19, 14, p => {                                  // bent antenna
+        p.rect(8, 10, 3, 4, '#7a8594'); p.line(9, 10, 3, 3, '#9aa6b8');
+        p.line(9, 10, 16, 5, '#9aa6b8'); p.line(3, 3, 6, 1, '#9aa6b8');
+        p.rect(15, 3, 3, 3, '#e8c44d');
+      }),
+      mk(15, 15, p => {                                  // tyre
+        p.round(0, 0, 15, 15, 5, '#241f2e'); p.round(4, 4, 7, 7, 2, '#6a6480');
+        p.round(5, 5, 5, 5, 2, '#3a3448');
+        for (let i = 0; i < 15; i += 3) { p.set(i, 0, '#4a4458'); p.set(i, 14, '#4a4458'); }
+      }),
+      mk(15, 13, p => {                                  // crate, stove in
+        p.rect(0, 1, 15, 11, '#8a6a3c'); p.rect(1, 2, 13, 2, '#b08a4d');
+        p.rect(0, 6, 15, 2, '#5c4423'); p.rect(4, 3, 5, 6, '#2a1e12');
+        p.rect(5, 4, 3, 4, '#100a1c');
+      }),
+      mk(14, 12, p => {                                  // rubber duck
+        p.round(1, 4, 10, 7, 3, '#ffd34d'); p.round(6, 1, 6, 5, 2, '#ffd34d');
+        p.rect(11, 3, 3, 2, '#e8792a'); p.set(9, 3, '#100a1c');
+        p.rect(2, 6, 4, 1, '#e0a92b');
+      })
+    ];
+    return junkCache;
+  }
+
   function skinFor(cos) {
     cos = cos || {};
     const key = [cos.suit, cos.skin, cos.glass, cos.drill, cos.trim].join('|');
@@ -2618,7 +2678,7 @@ window.PD = window.PD || {};
     return set;
   }
 
-  PD.art = { C, BIZ, FACES, sprites, gemFor, oreChip, buildOre, ICON, skinFor, optOf, reg, blit, buildSaucer, alienSet, coreSet, pixOf: pix };
+  PD.art = { C, BIZ, FACES, buildJunk, sprites, gemFor, oreChip, buildOre, ICON, skinFor, optOf, reg, blit, buildSaucer, alienSet, coreSet, pixOf: pix };
 })(window.PD);
 
 /* ===== src/rig.js ===== */
@@ -2648,12 +2708,6 @@ window.PD = window.PD || {};
      knee shot out sideways and the leg read as a dog-leg wedge rather than a
      leg. Just over half the drop each means he stands nearly straight and
      only bends when he actually needs to. */
-  const TH = 9, SHIN = 9;                 // leg bones
-  /* The bones solve to the ANKLE, not to the sole: the brogue is ten units
-     tall, and aiming the chain at the ground instead left the shin drawn far
-     shorter than the bone the knee had been placed for, which is what turned
-     the standing pose into a dark lump with no leg in it. */
-  const ANK = 7;
   /* THE WALK. AMP is how far the foot swings in front of and behind the hip,
      so one step covers 2*AMP and a whole cycle covers 4*AMP of ground. The
      phase rate below is derived from exactly that, which is what stops the
@@ -2692,100 +2746,83 @@ window.PD = window.PD || {};
     }
   }
 
-  /* --------------------------------------------------------------- the leg
-     Legs used to be two calls to X.limb -- a line of stamped squares, ten
-     units across, in a grey a shade off the grey of the shoe under it. At
-     this size that fuses thigh, shin, foot and the leg BEHIND it into one
-     blob. Rebuilt here out of three things that each fix one of those:
+  /* ---------------------------------------------------------- the tentacles
+     He does not have legs. He never really did -- he had a two-bone chain in a
+     pair of slacks, pretending to have a knee, and it was always going to look
+     wrong on something with one big eye and one small one.
 
-       * hard-edged tapered QUADS instead of stamped squares, so the leg has
-         real edges and can carry a 1px outline;
-       * a taper that actually narrows -- 11 units at the hip down to 6 at the
-         ankle -- so it reads as a leg and not as a pipe;
-       * a shoe in a completely different hue (tan brogues against navy
-         slacks), because at four pixels across only hue separates them.
+     A tentacle is not a chain of bones. It is a CURVE swept from the hip to
+     wherever the foot wants to be, sampled into hard-edged quads that taper to
+     a point, with a row of suckers down the leading side and a tip that hooks
+     forward when it is planted and curls back up when it is not. There is no
+     IK in here at all: a tentacle has no bones to run out of, so the target is
+     simply obeyed, and reaching further just straightens the curve -- which is
+     exactly what a real one does.
 
-     The far leg gets its own darker set of all three, so the two legs sit at
-     different depths instead of overlapping into one shape. */
+     A slow wave runs down both of them all the time, scaled by how far along
+     the curve you are, so they are never quite still even when he is. */
+  const TSEG = 7;                         // samples along the body of the curve
 
-  /* One tapered segment: fill, 1px outline, and a straight highlight strip
-     down the lit side. Everything is a polygon, so no diagonal is smeared. */
-  function seg(ctx, x0, y0, x1, y1, w0, w1, col, light, dark) {
-    const dx = x1 - x0, dy = y1 - y0;
-    const len = Math.max(0.001, Math.hypot(dx, dy));
-    let px = -dy / len, py = dx / len;
-    const ux = dx / len, uy = dy / len;
-    // the light is up and to the left on every other part of him, so the
-    // highlight goes on whichever side of the bone faces left, never on
-    // whichever side the maths happened to hand us
-    if (px > 0) { px = -px; py = -py; }
-    const quad = (a, b, e) => [
-      [x0 + px * a - ux * e, y0 + py * a - uy * e],
-      [x1 + px * b + ux * e, y1 + py * b + uy * e],
-      [x1 - px * b + ux * e, y1 - py * b + uy * e],
-      [x0 - px * a - ux * e, y0 - py * a - uy * e]
-    ];
-    if (dark) X.poly(ctx, quad(w0 / 2 + 1, w1 / 2 + 1, 1), dark);
-    X.poly(ctx, quad(w0 / 2, w1 / 2, 0), col);
-    // one unit of edge light, not a band: any wider and the trouser turns
-    // into a pale smudge with a dark rim
-    if (light) X.poly(ctx, [
-      [x0 + px * (w0 / 2 - 0.5), y0 + py * (w0 / 2 - 0.5)],
-      [x1 + px * (w1 / 2 - 0.5), y1 + py * (w1 / 2 - 0.5)],
-      [x1 + px * (w1 / 2 - 1.5), y1 + py * (w1 / 2 - 1.5)],
-      [x0 + px * (w0 / 2 - 1.5), y0 + py * (w0 / 2 - 1.5)]
-    ], light);
-  }
-
-  /* A brogue: stacked heel, a sole that overhangs, a wedge of an upper that
-     is tall at the ankle and low over the toes, a bright toecap and two
-     pixels of lace. Axis-aligned always -- a tilted shoe this small is a
-     smudge -- but the toe points the way he is facing. */
-  function shoe(ctx, x, y, face, far, B) {
-    const f = face > 0 ? 1 : -1;
-    x = Math.round(x); y = Math.round(y);
-    const b = y + 1;                                 // the sole rests here
-    const col = far ? B.shoeF : B.shoe;
-    const lit = far ? B.shoeFL : B.shoeL;
-    const toe = 11, heel = 5;
-    const L = x - (f > 0 ? heel : toe), W = toe + heel;
-    X.poly(ctx, [
-      [x - heel * f, b - 9], [x + 2 * f, b - 9], [x + (toe - 4) * f, b - 6],
-      [x + toe * f, b - 4], [x + toe * f, b - 2], [x - heel * f, b - 2]
-    ], B.shoeD);
-    X.poly(ctx, [
-      [x - (heel - 1) * f, b - 8], [x + 2 * f, b - 8], [x + (toe - 4) * f, b - 5],
-      [x + (toe - 1) * f, b - 4], [x + (toe - 1) * f, b - 3], [x - (heel - 1) * f, b - 3]
-    ], col);
-    X.poly(ctx, [                                    // the toecap, polished
-      [x + 4 * f, b - 6], [x + (toe - 4) * f, b - 5], [x + (toe - 1) * f, b - 4],
-      [x + (toe - 1) * f, b - 3], [x + 4 * f, b - 4]
-    ], lit);
-    if (!far) {                                      // laces
-      X.rect(ctx, x - (f > 0 ? 1 : 2), b - 8, 3, 1, '#efe7d2');
-      X.rect(ctx, x + (f > 0 ? 2 : -4), b - 7, 2, 1, '#efe7d2');
+  /* Hip to tip as a cubic, plus two points past the tip for the hook. `bow` is
+     how far it bellies out behind him: it grows as the tip comes CLOSER to the
+     hip, because a tentacle with slack in it coils rather than bending. */
+  function curvePts(hx, hy, tx, ty, face, bow, hook, wob, ph) {
+    const dy = Math.max(4, ty - hy);
+    const c1x = hx - face * bow * 0.35, c1y = hy + dy * 0.5;
+    const c2x = tx - face * bow, c2y = ty - dy * 0.28;
+    const pts = [];
+    for (let i = 0; i < TSEG; i++) {
+      const t = i / (TSEG - 1), u = 1 - t;
+      const x = u * u * u * hx + 3 * u * u * t * c1x + 3 * u * t * t * c2x + t * t * t * tx;
+      const y = u * u * u * hy + 3 * u * u * t * c1y + 3 * u * t * t * c2y + t * t * t * ty;
+      pts.push([x + Math.sin(ph + t * 4.2) * wob * t, y]);
     }
-    X.rect(ctx, L, b - 2, W, 2, B.sole);             // sole
-    X.rect(ctx, f > 0 ? x - heel : x + toe - 3, b - 4, 3, 2, B.shoeD);
+    // the hook. Planted, the last two points run FORWARD along the rock and
+    // flick up at the very end, so it splays out flat instead of stopping in
+    // mid-air the way a foot does; in the air they curl back up under him.
+    pts.push([tx + face * hook * 0.6, ty + 1]);
+    pts.push([tx + face * hook, ty + (hook > 0 ? 0 : -3)]);
+    return pts;
   }
 
-  /* Hip to knee to ankle to brogue. Only about five logical pixels of leg is
-     ever visible -- the jacket hangs over the rest -- so everything here is
-     spent on making that strip read: dark slacks between an olive coat and a
-     tan shoe, and a cuff that FLARES instead of tapering, because a widening
-     hem is what says trouser at this size. */
-  function leg(ctx, hx, hy, kx, ky, fx, fy, face, far, B) {
-    const c = far ? B.trousersF : B.trousers;
-    const l = far ? B.trousersFL : B.trousersL;
-    const d = B.trousersD;
-    X.oct(ctx, kx, ky, 4, d);                        // the knee, drawn under
-    seg(ctx, hx, hy, kx, ky, 9, 7, c, l, d);         // thigh
-    seg(ctx, kx, ky, fx, fy - ANK, 7, 9, c, l, d);   // shin, flaring to a cuff
-    X.oct(ctx, kx, ky, 3, c);                        // and capped, flush
-    const cy2 = Math.round(fy) - 9, cx2 = Math.round(fx);
-    X.rect(ctx, cx2 - 5, cy2, 10, 2, d);             // the hem, breaking over
-    X.rect(ctx, cx2 - 4, cy2 - 2, 3, 2, l);          // the shoe it never fits
-    shoe(ctx, fx, fy, face, far, B);
+  /* Sweep the curve: outline pass, fill pass, then the lit edge and the
+     suckers. Three separate passes over the whole chain rather than one pass
+     per segment, so a segment's outline never paints over its neighbour's
+     fill and the tentacle reads as one continuous thing. */
+  function tentacle(ctx, pts, w0, face, c, l, d, suck) {
+    const n = pts.length - 1;
+    const wAt = i => Math.max(1.8, w0 * (1 - (i / n) * 0.78));
+    const norm = i => {
+      const a = pts[i], b = pts[i + 1];
+      let ux = b[0] - a[0], uy = b[1] - a[1];
+      const m = Math.hypot(ux, uy) || 1;
+      return [ux / m, uy / m];
+    };
+    const quad = (i, grow, ext) => {
+      const a = pts[i], b = pts[i + 1], u = norm(i);
+      const px = -u[1], py = u[0];
+      const wa = wAt(i) / 2 + grow, wb = wAt(i + 1) / 2 + grow;
+      return [
+        [a[0] + px * wa - u[0] * ext, a[1] + py * wa - u[1] * ext],
+        [b[0] + px * wb + u[0] * ext, b[1] + py * wb + u[1] * ext],
+        [b[0] - px * wb + u[0] * ext, b[1] - py * wb + u[1] * ext],
+        [a[0] - px * wa - u[0] * ext, a[1] - py * wa - u[1] * ext]
+      ];
+    };
+    for (let i = 0; i < n; i++) X.poly(ctx, quad(i, 1, 1), d);
+    for (let i = 0; i < n; i++) X.poly(ctx, quad(i, 0, 0.7), c);
+    for (let i = 0; i < n; i++) {
+      const a = pts[i], u = norm(i);
+      let px = -u[1], py = u[0];
+      if (px > 0) { px = -px; py = -py; }             // the light is up-left
+      const w = wAt(i) / 2;
+      if (w > 1.6) X.rect(ctx, a[0] + px * (w - 0.9) - 0.5, a[1] + py * (w - 0.9) - 0.5, 2, 2, l);
+      // suckers march down whichever side he is facing, every other sample
+      if (suck && i % 2 === 1 && w > 1.4) {
+        const sx = (-u[1]) * face > 0 ? 1 : -1;
+        X.rect(ctx, a[0] - u[1] * sx * w * 0.5 - 1, a[1] + u[0] * sx * w * 0.5 - 1, 2, 2, suck);
+      }
+    }
   }
 
   /* ------------------------------------------------------------------ state
@@ -2793,7 +2830,7 @@ window.PD = window.PD || {};
      while the hips move over them. */
   function make() {
     return {
-      phase: 0, bob: 0, jolt: 0, grab: null, grabT: 0,
+      phase: 0, bob: 0, jolt: 0, grab: null, grabT: 0, walkAmt: 0,
       lean: 0, brace: 0, recoil: 0, breathe: U.rand(0, TAU),
       hand: [null, null], armS: [1, 1], legS: [1, 1],
       emote: null, emoteT: 0, emoteMax: 1, idleT: 0, nextEmote: U.rand(1.5, 4),
@@ -2899,6 +2936,21 @@ window.PD = window.PD || {};
     r.grabT = 1;
   }
 
+  /* Everything the two call sites below share: pick the bow from how much
+     slack there is between hip and tip, run the wave off the walk phase, and
+     shade the far tentacle darker so the two sit at different depths. */
+  function drawTent(ctx, r, hx, hy, fx, fy, face, i, hook, B) {
+    const far = i === 1;
+    const reach = Math.hypot(fx - hx, fy - hy);
+    const slack = U.clamp(1 - reach / 26, 0, 1);
+    const bow = 4 + slack * 15;
+    const pts = curvePts(hx, hy, fx, fy + 1, face, bow, hook,
+      1.6 + (r.walkAmt || 0) * 1.4, r.breathe * 1.3 + r.phase * 6.283 + i * 2.1);
+    tentacle(ctx, pts, 13, face,
+      far ? B.tentF : B.tent, far ? B.tentFL : B.tentL, B.tentD,
+      far ? null : B.suck);
+  }
+
   /* ------------------------------------------------------------------- draw
      Called between the two halves of the body: back limbs, body, front limbs.
      `half` is 1 for the far side (drawn behind) and 0 for the near side. */
@@ -2924,8 +2976,7 @@ window.PD = window.PD || {};
       const w3 = r.ang * 2.6 + i * 1.7 + 1;
       fx = hx + (i ? -11 : 11) + Math.sin(w3) * 9;
       fy = FOOT_Y - 6 + Math.cos(w3 * 0.9) * 9;
-      const kn2 = ik(hx, hy, fx, fy - ANK, TH, SHIN, i ? -1 : 1, 1.2);
-      leg(ctx, hx, hy, kn2.x, kn2.y, fx, fy, face, i === 1, B);
+      drawTent(ctx, r, hx, hy, fx, fy, face, i, -7, B);
       return;
     }
     if (!o.ground) {
@@ -2976,10 +3027,10 @@ window.PD = window.PD || {};
         if (r.emote === 'wave') fx += face * (i ? -2 : 3) * ek;
       }
     }
-    const knee = ik(hx, hy, fx, fy - ANK, TH, SHIN, i ? -1 : 1, 1.3);
-    // knees pull inward: he has never once stood straight
-    const kin = face * (i ? 1 : -1);
-    leg(ctx, hx, hy, knee.x + kin, knee.y, fx, fy, face, i === 1, B);
+    /* Planted, the tip hooks forward and lies along the rock; off the ground
+       it curls back up under him. Everything else about the tentacle falls
+       out of where the foot wanted to be. */
+    drawTent(ctx, r, hx, hy, fx, fy, face, i, planted ? 6 : -5, B);
 
     /* ------------------------------------------------------------ the arms */
     const sh = SH[i];
@@ -4265,6 +4316,119 @@ window.PD = window.PD || {};
     return cv;
   }
 
+  /* ------------------------------------------------------------ the spiral
+     A whole galaxy, face on and tilted, for the menu to sit in front of. Two
+     logarithmic arms are walked outwards and stars scattered along them with a
+     falloff, so the arms are dense where they leave the bulge and fray at the
+     rim; dark lanes are walked down the inside edge of each arm because the
+     dust is what makes a spiral read as a spiral rather than a smear.
+
+     Colour runs out with radius -- gold in the bulge, coral and violet through
+     the arms, cold blue at the rim -- which is roughly what a real one does
+     and, more to the point, is beautiful. */
+  function buildSpiral(seed) {
+    const W = 520, H = 340;
+    const cv = canvas(W, H), c = cv.getContext('2d');
+    const rnd = U.mulberry32(seed + 501);
+    const cx = W / 2, cy = H / 2;
+    const SQ = 0.44;                            // how far it is tilted over
+    const R = 232;
+
+    const hue = f => {
+      if (f < 0.14) return '#fff3cf';
+      if (f < 0.3) return '#ffd98a';
+      if (f < 0.46) return '#ffab7a';
+      if (f < 0.64) return '#e88ac4';
+      if (f < 0.82) return '#a98ae8';
+      return '#8ac4ff';
+    };
+
+    // the faint halo the whole thing sits in
+    for (let k = 9; k >= 1; k--) {
+      c.save(); c.translate(cx, cy); c.scale(1, SQ); c.translate(-cx, -cy);
+      pxDisc(c, cx, cy, R * k / 9, 'rgba(120,90,200,0.035)');
+      c.restore();
+    }
+
+    const ARMS = 2, TURN = 2.5;
+    for (let a = 0; a < ARMS; a++) {
+      const off = a * Math.PI * 2 / ARMS;
+      // the dust lane first, so the stars of the arm sit on top of it
+      for (let i = 0; i < 420; i++) {
+        const f = 0.12 + (i / 420) * 0.88;
+        const ang = off + f * TURN * Math.PI + 0.13;
+        const r = f * R;
+        const spread = (rnd() - 0.5) * 26 * f;
+        const x = cx + Math.cos(ang) * (r + spread);
+        const y = cy + Math.sin(ang) * (r + spread) * SQ;
+        c.fillStyle = 'rgba(20,8,34,0.5)';
+        c.fillRect(x | 0, y | 0, 3, 2);
+      }
+      for (let i = 0; i < 5600; i++) {
+        const f = 0.07 + Math.pow(rnd(), 0.62) * 0.93;
+        const ang = off + f * TURN * Math.PI + (rnd() - 0.5) * (0.5 - f * 0.28);
+        const r = f * R;
+        // stars scatter further off the arm the further out you go
+        const spread = (rnd() + rnd() + rnd() - 1.5) * (10 + f * 34);
+        const x = cx + Math.cos(ang) * r + spread;
+        const y = cy + (Math.sin(ang) * r) * SQ + spread * SQ;
+        if (x < 0 || y < 0 || x >= W || y >= H) continue;
+        const big = rnd() > 0.988;
+        c.globalAlpha = (0.25 + rnd() * 0.6) * (1 - f * 0.35);
+        c.fillStyle = rnd() > 0.72 ? '#ffffff' : hue(f);
+        c.fillRect(x | 0, y | 0, big ? 2 : 1, big ? 2 : 1);
+      }
+    }
+    c.globalAlpha = 1;
+
+    // the bulge: a hard little octagon of light with a gold skirt
+    c.save(); c.translate(cx, cy); c.scale(1, 0.78); c.translate(-cx, -cy);
+    for (let k = 7; k >= 1; k--) {
+      const f = k / 7;
+      c.globalAlpha = 0.1 + (1 - f) * 0.16;
+      pxDisc(c, cx, cy, 46 * f, f > 0.6 ? '#d8913f' : (f > 0.3 ? '#ffd98a' : '#fff8e0'));
+    }
+    c.globalAlpha = 1;
+    pxDisc(c, cx, cy, 9, '#fffaea');
+    c.restore();
+
+    // a thousand field stars over the top, so nothing looks airbrushed
+    for (let i = 0; i < 900; i++) {
+      c.globalAlpha = 0.1 + rnd() * 0.4;
+      c.fillStyle = '#ffffff';
+      c.fillRect((rnd() * W) | 0, (rnd() * H) | 0, 1, 1);
+    }
+    c.globalAlpha = 1;
+    return cv;
+  }
+
+  let spiralCv = null;
+  /* Draw the menu sky: deep space, the spiral drifting, a live pulse on its
+     core and a scatter of twinkles that the baked canvas cannot do. */
+  function spiral(ctx, t, seed) {
+    if (!spiralCv) spiralCv = buildSpiral(seed || 7);
+    const g = ctx.createLinearGradient(0, 0, 0, VH);
+    g.addColorStop(0, '#0a0620'); g.addColorStop(0.55, '#120a2c'); g.addColorStop(1, '#05030f');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, VW, VH);
+    const L = ensure((seed || 7) + 3);
+    ctx.globalAlpha = 0.5;
+    ctx.drawImage(L.nebulae, -((t * 3) % VW), -8, VW, VH + 16);
+    ctx.drawImage(L.nebulae, -((t * 3) % VW) + VW, -8, VW, VH + 16);
+    ctx.globalAlpha = 1;
+    const dx = Math.round(296 - 260 + Math.sin(t * 0.09) * 5);
+    const dy = Math.round(104 - 170 + Math.cos(t * 0.07) * 4);
+    ctx.drawImage(spiralCv, dx, dy);
+    // the core breathes
+    PD.pxd.glowBands(ctx, dx + 260, dy + 170, 38 + Math.sin(t * 0.9) * 4, '#ffd98a', 5, 0.2);
+    for (const st of L.stars[2]) {
+      const x = (st.x * VW) % VW, y = (st.y * VH) % VH;
+      ctx.globalAlpha = 0.3 + 0.7 * Math.max(0, Math.sin(t * 1.6 + st.tw));
+      ctx.fillStyle = st.c;
+      ctx.fillRect(x | 0, y | 0, st.s, st.s);
+    }
+    ctx.globalAlpha = 1;
+  }
+
   /* A far planet: banded disc, optional rings, a moon, terminator shading. */
   /* Planets and suns are rasterised at a low resolution with an integer
      scanline disc -- every edge is a hard pixel step -- then blown up with
@@ -4468,7 +4632,7 @@ window.PD = window.PD || {};
     }
   }
 
-  PD.galaxy = { draw, ensure, buildPlanet, buildSun };
+  PD.galaxy = { draw, ensure, spiral, buildPlanet, buildSun };
 })(window.PD);
 
 /* ===== src/font.js ===== */
@@ -8292,58 +8456,90 @@ window.PD = window.PD || {};
   }
 
   /* ------------------------------------------------------------------ title */
-  /* A little mascot diorama: our alien caught mid-crime on a cracking world. */
-  function titleArt(ctx, t) {
-    const px = 386, py = 246, r = 58;
+  /* THE TRASH. Somebody else's rubbish, tumbling slowly across the menu. Each
+     bit keeps its own spin and drift and wraps round when it leaves, so the
+     screen is never still and never repeats the same arrangement twice. */
+  let junk = null;
+  function junkInit() {
+    const cv = PD.art.buildJunk();
+    junk = [];
+    for (let i = 0; i < 13; i++) {
+      const near = U.chance(0.22);
+      junk.push({
+        cv: U.pick(cv), x: U.rand(-40, VW + 40), y: U.rand(-20, VH + 20),
+        vx: U.rand(-12, 12) * (near ? 1.6 : 1), vy: U.rand(-6, 6),
+        a: U.rand(0, U.TAU), va: U.rand(-0.45, 0.45),
+        k: near ? 2 : 1, dim: near ? U.rand(0.2, 0.34) : U.rand(0.45, 1)
+      });
+    }
+  }
+  function junkDraw(ctx, dt) {
+    if (!junk) junkInit();
+    for (const j of junk) {
+      j.x += j.vx * dt; j.y += j.vy * dt; j.a += j.va * dt;
+      const m = 40;
+      if (j.x < -m) j.x = VW + m; if (j.x > VW + m) j.x = -m;
+      if (j.y < -m) j.y = VH + m; if (j.y > VH + m) j.y = -m;
+      ctx.save();
+      ctx.globalAlpha = j.dim;
+      ctx.translate(j.x | 0, j.y | 0);
+      ctx.rotate(j.a);
+      ctx.drawImage(j.cv, -j.cv.width * j.k / 2 | 0, -j.cv.height * j.k / 2 | 0,
+        j.cv.width * j.k, j.cv.height * j.k);
+      ctx.restore();
+    }
+    ctx.globalAlpha = 1;
+  }
 
-    // the doomed planet
-    X.blob(ctx, px, py, r + 3, r + 3, '#2b1c4a');
-    X.blob(ctx, px, py, r, r, '#4f7d6a');
-    X.blob(ctx, px + 10, py + 12, r - 8, r - 8, '#3a5f55');
-    [[-26, -18, 9], [12, -30, 6], [-8, 6, 5], [26, -6, 7]].forEach(c => X.blob(ctx, px + c[0], py + c[1], c[2], c[2], '#6a9a80'));
+  /* A floating slab: the panel with a hard shadow cast well below it, so it
+     reads as hanging in front of the galaxy rather than painted on it. */
+  function floater(ctx, x, y, w, h, face, edge, lift) {
+    lift = lift === undefined ? 4 : lift;
+    X.plate(ctx, x + 2, y + lift, w, h, 'rgba(4,2,12,0.5)', null, null, 3);
+    X.plate(ctx, x, y, w, h, face, edge, '#0a0618', 3);
+  }
+
+  /* A little mascot diorama: our alien caught mid-crime on a cracking world.
+     The world itself is a properly built planet -- craters, clouds, a
+     terminator -- not the flat octagon it used to be. */
+  let doomed = null;
+  function titleArt(ctx, t) {
+    const px = 384, py = 178, r = 40;
+    // volcanic: a dark cracked world with lava already showing through, which
+    // is a better thing for him to be standing on than a green marble
+    if (!doomed) doomed = PD.arthome.buildPlanet(r * 2, '#4f7d6a', 21, 'volcanic');
+    ctx.drawImage(doomed, px - doomed.width / 2 | 0, py - doomed.height / 2 | 0);
 
     // glowing fissures, breathing in time with the drill
     const glow = 0.7 + 0.3 * Math.sin(t * 4);
-    ctx.lineWidth = 4;
-    ctx.strokeStyle = 'rgba(200,50,10,' + (glow * 0.8).toFixed(2) + ')';
     const cracks = [
-      [[-6, -56], [-2, -34], [-14, -18], [-4, 0]],
-      [[-4, -34], [14, -26], [22, -8]],
-      [[-14, -18], [-32, -12], [-44, -20]]
+      [[-4, -39], [-2, -24], [-10, -13], [-4, 2]],
+      [[-2, -24], [11, -19], [16, -6]]
     ];
-    for (const line of cracks) {
-      ctx.beginPath();
-      ctx.moveTo(px + line[0][0], py + line[0][1]);
-      for (let i = 1; i < line.length; i++) ctx.lineTo(px + line[i][0], py + line[i][1]);
-      ctx.stroke();
-    }
-    // hot inner line on top of the dark fissure
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = 'rgba(255,190,80,' + glow.toFixed(2) + ')';
-    for (const line of cracks) {
-      ctx.beginPath();
-      ctx.moveTo(px + line[0][0], py + line[0][1]);
-      for (let i = 1; i < line.length; i++) ctx.lineTo(px + line[i][0], py + line[i][1]);
-      ctx.stroke();
-    }
-    X.glowBands(ctx, px - 6, py - 56, 22, '#ffe0a0', 4, glow * 0.8);
+    const walk = (col, w) => {
+      for (const ln of cracks) for (let i = 1; i < ln.length; i++)
+        X.line(ctx, px + ln[i - 1][0], py + ln[i - 1][1], px + ln[i][0], py + ln[i][1], col, w);
+    };
+    walk('rgba(120,18,4,' + (glow * 0.9).toFixed(2) + ')', 3);
+    walk('rgba(255,190,80,' + glow.toFixed(2) + ')', 1);
+    X.glowBands(ctx, px - 4, py - 39, 17, '#ffe0a0', 4, glow * 0.8);
 
     // sparks off the bit
     for (let i = 0; i < 9; i++) {
       const a = -1.9 + (i * 0.21) + Math.sin(t * 3 + i) * 0.1;
-      const d = 8 + ((i * 7 + Math.floor(t * 30)) % 22);
+      const d = 7 + ((i * 7 + Math.floor(t * 30)) % 18);
       ctx.fillStyle = i % 3 ? '#ffd34d' : '#fff6c8';
-      ctx.fillRect(px - 6 + Math.cos(a) * d | 0, py - 58 + Math.sin(a) * d | 0, 2, 2);
+      ctx.fillRect(px - 4 + Math.cos(a) * d | 0, py - 41 + Math.sin(a) * d | 0, 2, 2);
     }
 
     // the culprit, stood on the limb of the thing he is ruining
     const bob = Math.sin(t * 2.2) * 3;
     const al = PD.art.sprites.alien, dr = PD.art.sprites.drill;
-    const K = 1.5;                                   // he is a big lad now
-    const feet = al.h - al.oy;                       // anchor-to-sole, in logical px
-    const ax = px - 34, ay = py - 54 - feet * K + bob;
+    const K = 1.3;
+    const feet = al.h - al.oy;
+    const ax = px - 24, ay = py - 35 - feet * K + bob;
     ctx.save();
-    ctx.translate(ax + 10, ay + 4);
+    ctx.translate(ax + 9, ay + 3);
     ctx.rotate(0.85);
     ctx.drawImage(dr.frames[Math.floor(t * 12) % dr.frames.length], 0, 0,
       dr.frames[0].width, dr.frames[0].height, -dr.ox * K, -dr.oy * K, dr.w * K, dr.h * K);
@@ -8352,35 +8548,51 @@ window.PD = window.PD || {};
       Math.round(ax - al.ox * K), Math.round(ay - al.oy * K), Math.round(al.w * K), Math.round(al.h * K));
   }
 
-  function title(ctx, g, t) {
-    const cx = 168;
-    const bob = Math.sin(t * 1.6) * 2;
+  /* The menu. Everything on it hangs in front of the galaxy on its own bob at
+     its own rate, so nothing is nailed to the screen. */
+  function title(ctx, g, t, dt) {
+    PD.galaxy.spiral(ctx, t, 7);
+    junkDraw(ctx, dt === undefined ? 1 / 60 : dt);
     titleArt(ctx, t);
-    F.draw(ctx, 'PLANET', cx, 30 + bob, '#ffd34d', { center: true, scale: 5, shadow: '#7a2a10' });
-    F.draw(ctx, 'DESTROYER', cx, 70 + bob, '#ff5fa8', { center: true, scale: 4, shadow: '#3a0c30' });
-    F.draw(ctx, 'A GREEDY LITTLE ALIEN MINING GAME', cx, 106, COL.dim, { center: true });
+
+    const cx = 160;
+    const bobA = Math.sin(t * 0.9) * 3;
+    const bobB = Math.sin(t * 1.24 + 1.1) * 2.5;
+    const bobC = Math.sin(t * 0.72 + 2.4) * 2;
+
+    // the logo, on its own slab
+    floater(ctx, cx - 132, 22 + bobA, 264, 86, 'rgba(14,8,34,0.78)', '#6b4fb0', 6);
+    F.draw(ctx, 'PLANET', cx, 30 + bobA, '#ffd34d', { center: true, scale: 5, shadow: '#7a2a10' });
+    F.draw(ctx, 'DESTROYER', cx, 68 + bobA, '#ff5fa8', { center: true, scale: 4, shadow: '#3a0c30' });
+    F.draw(ctx, 'A GREEDY LITTLE ALIEN MINING GAME', cx, 96 + bobA, COL.dim, { center: true });
 
     const m = PD.input.mouse;
-    const px = cx, py = 150;
-    const hot = m.inside && Math.abs(m.x - px) < 70 && Math.abs(m.y - py) < 14;
-    ctx.fillStyle = hot ? '#3f9a5a' : '#2f7a4a'; ctx.fillRect(px - 70, py - 14, 140, 28);
-    ctx.strokeStyle = '#8affa0'; ctx.lineWidth = 2; ctx.strokeRect(px - 69, py - 13, 138, 26);
-    ctx.save(); ctx.translate(px - 50, py); ctx.rotate(-Math.PI / 2); PD.glyph.draw(ctx, 'play', -7, -7, '#ffffff', '#8affa0'); ctx.restore();
-    F.draw(ctx, g.save.totalEarned > 0 ? 'CONTINUE' : 'START', px + 6, py - 7, '#ffffff', { center: true, scale: 2 });
+    const py = 142 + bobB;
+    const hot = m.inside && Math.abs(m.x - cx) < 74 && Math.abs(m.y - py) < 16;
+    floater(ctx, cx - 74, py - 16, 148, 32, hot ? '#3f9a5a' : '#2a6b42', hot ? '#b8ffc8' : '#8affa0', 5);
+    ctx.save(); ctx.translate(cx - 52, py); ctx.rotate(-Math.PI / 2);
+    PD.glyph.draw(ctx, 'play', -7, -7, '#ffffff', '#8affa0'); ctx.restore();
+    F.draw(ctx, g.save.totalEarned > 0 ? 'CONTINUE' : 'START', cx + 8, py - 7, '#ffffff', { center: true, scale: 2 });
     const start = hot && m.leftPressed;
     if (start) PD.audio.sfx.click();
 
     let wipe = false;
     if (g.save.totalEarned > 0) {
-      wipe = button(ctx, cx - 40, 174, 80, 14, 'NEW GAME', { accent: '#8a2f4a' });
-      F.draw(ctx, '$' + U.fmt(g.save.credits) + '   GALAXY ' + g.save.dominion.toFixed(1) + '%', cx, 194, COL.gold, { center: true });
+      const sy = 174 + bobC;
+      floater(ctx, cx - 92, sy - 5, 184, 32, 'rgba(14,8,34,0.78)', '#4a3a78', 4);
+      F.draw(ctx, '$' + U.fmt(g.save.credits) + '   GALAXY ' + g.save.dominion.toFixed(1) + '%', cx, sy, COL.gold, { center: true });
+      wipe = button(ctx, cx - 40, sy + 12, 80, 12, 'NEW GAME', { accent: '#8a2f4a' });
     }
+
+    // the controls, floating along the bottom on their own slab
+    const ly = 232 + Math.sin(t * 1.05 + 0.6) * 2;
+    floater(ctx, 8, ly - 6, VW - 16, 32, 'rgba(10,6,26,0.74)', '#3c2f66', 4);
     const legend = [['hand', 'FLY'], ['drill', 'DIG'], ['gun', 'SHOOT'], ['sell', 'ABAY']];
     for (let i = 0; i < legend.length; i++) {
-      PD.glyph.draw(ctx, legend[i][0], 14 + i * 80, 240, COL.gold, '#b8860b');
-      F.draw(ctx, legend[i][1], 30 + i * 80, 244, COL.text);
+      PD.glyph.draw(ctx, legend[i][0], 22 + i * 78, ly - 3, COL.gold, '#b8860b');
+      F.draw(ctx, legend[i][1], 38 + i * 78, ly + 1, COL.text);
     }
-    F.draw(ctx, 'HOLD MOUSE OR TOUCH TO FLY AND DRILL     E USE THINGS     Q SWAP GUN', VW / 2, 258, COL.dim, { center: true });
+    F.draw(ctx, 'HOLD TO FLY AND DIG    E USE    Q SWAP    R GO LIMP', VW / 2, ly + 15, COL.dim, { center: true });
     return { start, wipe };
   }
 
@@ -12106,10 +12318,9 @@ window.PD = window.PD || {};
     }
 
     if (g.state === 'title') {
-      // slow drifting starfield behind the logo
-      // the title has its own hero art, so the backdrop moon stays out of it
-      g.world.drawSky(ctx, { x: g.time * 6, y: 20 }, VW, VH, g.time, true);
-      const r = UI.title(ctx, g, g.time);
+      // the menu has its own sky: a whole spiral galaxy, with somebody else's
+      // rubbish tumbling across it and every panel hanging in front
+      const r = UI.title(ctx, g, g.time, g.dt);
       if (r.start) {
         A.resume(); A.music(true);
         startBody(g.save.bodyIndex || 0, false);
