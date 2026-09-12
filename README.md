@@ -665,21 +665,34 @@ own head hides what you came to look at.
 | **THE DANCER** | A pole, a spotlight, and somebody working a Tuesday. $200 a tip |
 | **THE BAR** | Optics lit from behind, three pumps, stools, a tip jar with one coin in it. $500 for something silly — there are five and one of them is water |
 
-## Who is in
+## Who is in — every one of them generated
 
-Nine regulars, built six ways — a bent antenna, a pair of them, three eyes, one
-big eye, a little hat, a moustache — so a room of them reads as a crowd rather
-than as one alien copied out nine times. They blink. A third of them are still
-holding whatever they came in with. Their bodies are sprites and their
-tentacles are drawn live, so they wave them about, and when two of them pair
-off they shuffle right up, shut their eyes, and the tentacles get involved with
-one enormous throbbing heart over the pair.
+Nobody in the club is a drawing. Each regular is **generated from a seed**, and
+the seed picks everything:
+
+| | |
+| --- | --- |
+| **Body plan** | blob, pear, tall, squat, flat-bottomed dome or a stack of segments |
+| **Size** | anywhere from about two-thirds to one-and-a-half of the next one along |
+| **Colour** | a hue off the wheel, turned into a four-tone ramp — skin, shade, highlight and a clashing accent — so no two of them are the same species of green |
+| **Eyes** | one to four of them, in a row, stacked up the front, in a triangle, or out on stalks |
+| **Mouth** | a grin, tusks, a beak, a proboscis, mandibles, or nothing at all |
+| **Head** | antennae (one, two or three, at different heights), horns, a dorsal crest, a tuft, a small top hat, or bare |
+| **Markings** | spots, stripes, a pale belly panel, or clean |
+| **Extras** | gills, glasses, a studded collar, a gold earring |
+| **Tentacles** | two to five, drawn live at the right thickness and colour for that alien, so they wave about and can wrap round each other |
+
+Fourteen are built at load and the same seed always makes the same alien, so
+the room is stable between frames and between saves. They blink. A third are
+still holding whatever they came in with. Two of them are on the bar stools and
+one is working behind the bar.
 
 And they talk. Every couple of seconds a line surfaces over whoever is standing
 still — `I ONLY CAME OUT FOR ONE`, `HE IS A SHARK. LITERALLY.`, `NINE HEARTS.
-ALL OF THEM HURT.`, `WHOSE TENTACLE IS THIS` — in a little bubble with the tail
-pointing at them. There are sixteen of those, five for the DJ and six for the
-dancer, and none of them are useful.
+ALL OF THEM HURT.`, `WHOSE TENTACLE IS THIS` — in a bubble whose tail points at
+them and whose height is worked out from how tall that particular alien is.
+Sixteen of those, five for the DJ and six for the dancer, and none of them are
+useful.
 
 ## The dancer
 
@@ -851,7 +864,7 @@ a line of history under its blurb.
 | `src/pix.js` | Tiny pixel-drawing surface, where every round primitive is really an octagon or a chamfer; `outline()` traces the dark cartoon border that gives everything its look |
 | `src/pxd.js` | Runtime pixel primitives: hard-edged scanline polygons (no anti-aliased diagonals anywhere), octagons, hexagons, stepped rings, tapering limb segments, and a cached dither pattern |
 | `src/art.js` | The alien at 2x in idle, walk, fly, drill and roll poses, the drill, the pod, guns, six enemies, ore chunks, UI icons — all procedural |
-| `src/arthome.js` | Home at 2x: the planet generator (cratered, iced, living, cracked, cut, plated), the small rock house seen from outside, wall and floor, the desk with the human computer, **the brain in the jar**, the moon rat, the cheese, the fridge, junk piles, litter, posters, ruins, and the cratered-moon generator |
+| `src/arthome.js` | Home at 2x: **the alien generator** (body plan, size, hue ramp, eyes, mouth, head, markings, extras — one seed each), the planet generator (cratered, iced, living, cracked, cut, plated), the small rock house seen from outside, wall and floor, the desk with the human computer, **the brain in the jar**, the moon rat, the cheese, the fridge, junk piles, litter, posters, ruins, and the cratered-moon generator |
 | `src/rig.js` | The limb rig: two-bone solves that stretch, a walk cycle driven by ground covered, the drilling brace, the recoil, the snatch, the seven idle flourishes, and hard-pixel limb segments |
 | `src/mind.js` | The brain in the jar: the acid tank, the faceted brain, the neuron lattice and what each neuron grows into you |
 | `src/font.js` | Hand-drawn 5×7 bitmap font, cached per colour |

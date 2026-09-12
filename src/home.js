@@ -159,13 +159,13 @@
   const BOOTHS = [];
   /* Four of them never made it to the floor. */
   const SEATS = [
-    { x: 252, k: 4 }, { x: 514, k: 1 }, { x: 538, k: 5 }
+    { x: 514, k: 10 }, { x: 538, k: 11 }
   ];
   /* Eight regulars. They wander, they stop, they dance, and now and then two
      of them find each other and the tentacles get involved. */
   const CLUBBERS = [];
   for (let i = 0; i < 9; i++) {
-    CLUBBERS.push({ x: 280 + i * 9, vx: 0, k: i % 6, t: U.rand(0, 6), face: i % 2 ? 1 : -1,
+    CLUBBERS.push({ x: 250 + i * 17, vx: 0, k: i, t: U.rand(0, 6), face: i % 2 ? 1 : -1,
       dance: U.rand(0, 3), kiss: 0, mate: -1, wait: U.rand(0, 2),
       blink: U.rand(0, 4), say: null, sayT: 0, drink: i % 3 === 0 ? i % 4 : -1 });
   }
@@ -318,8 +318,8 @@
         else { c.vx = U.rand(0.5) < 0.5 ? -18 : 18; c.face = Math.sign(c.vx); }
       }
       c.x += c.vx * dt;
-      if (c.x < 272) { c.x = 272; c.vx = Math.abs(c.vx); c.face = 1; }
-      if (c.x > 372) { c.x = 372; c.vx = -Math.abs(c.vx); c.face = -1; }
+      if (c.x < 246) { c.x = 246; c.vx = Math.abs(c.vx); c.face = 1; }
+      if (c.x > 400) { c.x = 400; c.vx = -Math.abs(c.vx); c.face = -1; }
     }
     // pair off whoever happens to be standing next to somebody
     S.kissT -= dt;
@@ -924,7 +924,10 @@
     }
 
     for (const c of CLUBBERS) drawClubber(ctx, c, t, cam);
-    for (const c of CLUBBERS) if (c.say) sayBubble(ctx, c.x - cam, FLOOR - 46, c.say, c.sayT);
+    for (const c of CLUBBERS) if (c.say) {
+      const K = AH.KIN[c.k % AH.KIN.length];
+      sayBubble(ctx, c.x - cam, FLOOR - K.legLen - K.h - 4, c.say, c.sayT);
+    }
 
     // haze, drifting
     for (let i = 0; i < 10; i++) {
@@ -977,7 +980,9 @@
     }
     for (const st of SEATS) {
       const bob = Math.sin(t * 2.2 + st.x) * 1;
-      AH.blit(ctx, AH.S['clubber' + st.k], (Math.floor(t * 1.7 + st.x) % 7) === 0 ? 2 : 0,
+      const K = AH.KIN[st.k % AH.KIN.length];
+      drawTents(ctx, st.x - cam, FLOOR - 14 + bob, K, t * 2 + st.x, 3);
+      AH.blit(ctx, AH.S[K.key], (Math.floor(t * 1.7 + st.x) % 7) === 0 ? 2 : 0,
         st.x - cam, FLOOR - 14 + bob, st.x > 400);
     }
   }
@@ -1059,7 +1064,8 @@
       ctx.globalAlpha = 1;
     }
     const bmb = Math.sin(t * 2.2) * 1.5;
-    AH.blit(ctx, AH.S.clubber3, Math.floor(t * 1.3) % 6 === 0 ? 2 : 0, bx + 10, FLOOR - 34 + bmb, true);
+    const BK = AH.KIN[7 % AH.KIN.length];
+    AH.blit(ctx, AH.S[BK.key], Math.floor(t * 1.3) % 6 === 0 ? 2 : 0, bx + 10, FLOOR - 34 + bmb, true);
     X.plate(ctx, bx - 44, FLOOR - 32, 88, 32, '#4a2e1e', '#6b4530', '#241408', 3);
     X.rect(ctx, bx - 44, FLOOR - 32, 88, 3, '#8a5a3a');
     X.rect(ctx, bx - 44, FLOOR - 22, 88, 1, '#3a2414');
@@ -1095,35 +1101,45 @@
 
   /* One regular. The body is a sprite; the tentacles are live, so they can
      wave about and, when two of them get together, wrap round each other. */
+  /* One regular. The body is generated art; the tentacles are drawn live, in
+     whatever number and colour that particular alien turned out to have, so
+     they wave about and can wrap round each other. */
+  function drawTents(ctx, x, y, K, ph, spread) {
+    const n = K.arms, L = K.legLen;
+    for (let i = 0; i < n; i++) {
+      const w = c2(ph + i * 1.25);
+      const root = x + (i - (n - 1) / 2) * Math.max(2, (K.w * 0.7) / n);
+      const out = (i - (n - 1) / 2) * spread + w * (spread * 0.8);
+      X.curve(ctx, root, y - 1, root + out * 0.6, y + L * 0.5 + c2(ph + i) * 2,
+        x + out, y + L, K.dark, Math.max(2, Math.round(2 * K.big)), 7);
+    }
+  }
+  function c2(v) { return Math.sin(v); }
+
   function drawClubber(ctx, c, t, cam) {
-    const C = AH.CLUB_COL[c.k % 6];
+    const K = AH.KIN[c.k % AH.KIN.length];
     const x = c.x - cam, y = FLOOR;
     const fast = c.dance > 0 ? 11 : (Math.abs(c.vx) > 1 ? 7 : 3);
     const bob = Math.sin(c.t * fast) * (c.dance > 0 ? 4 : 1.4);
     const lean = c.kiss > 0 ? c.face * 5 : 0;
-    X.blob(ctx, x, y + 1, 12, 3, '#0a0614');
-    for (let i = 0; i < 4; i++) {
-      const ph = c.t * fast + i * 1.25;
-      const root = x + (i - 1.5) * 4;
-      const out = (i - 1.5) * 6 + Math.sin(ph) * (c.kiss > 0 ? 9 : 5);
-      X.curve(ctx, root, y - 13 + bob, root + out * 0.7, y - 6 + Math.cos(ph) * 2,
-        x + out, y - (c.kiss > 0 ? 2 + Math.abs(Math.sin(ph)) * 5 : 0), C.d, 3, 7);
-    }
+    const top = y - K.legLen + bob;
+    X.blob(ctx, x, y + 1, Math.round(K.w * 0.55), 3, '#0a0614');
+    drawTents(ctx, x, top, K, c.t * fast, c.kiss > 0 ? 8 : 5);
     const face = c.kiss > 0 ? 1 : (c.blink < 0 ? 2 : (c.say ? 3 : 0));
-    AH.blit(ctx, AH.S['clubber' + (c.k % 6)], face, x + lean, y - 10 + bob, c.face < 0);
+    AH.blit(ctx, AH.S[K.key], face, x + lean, top, c.face < 0);
     // whatever they came in with, still in a tentacle
     if (c.drink >= 0 && c.kiss <= 0) {
       const dcol = ['#8affa0', '#ff8ad8', '#ffb03d', '#7ec8ff'][c.drink];
-      const hx = x + c.face * 14, hy = y - 18 + bob + Math.sin(c.t * fast + 1) * 2;
+      const hx = x + c.face * (K.w * 0.6 + 4), hy = top - K.h * 0.4 + Math.sin(c.t * fast + 1) * 2;
       X.rect(ctx, hx - 2, hy, 5, 7, 'rgba(220,235,255,0.35)');
       X.rect(ctx, hx - 2, hy + 2, 5, 5, dcol);
       X.rect(ctx, hx - 2, hy, 5, 1, '#d8fbff');
     }
-    if (c.dance > 0 && U.chance(0.06)) FX.stars(c.x, y - 30, 1, C.s);
+    if (c.dance > 0 && U.chance(0.06)) FX.stars(c.x, y - 30, 1, K.acc);
     // one big throbbing heart over whoever is getting on with it
     if (c.kiss > 0 && c.mate > CLUBBERS.indexOf(c)) {
       const m = CLUBBERS[c.mate];
-      const hx = (c.x + m.x) / 2 - cam, hy = y - 40 - Math.sin(t * 3) * 2;
+      const hx = (c.x + m.x) / 2 - cam, hy = y - K.h - 16 - Math.sin(t * 3) * 2;
       const r = 4 + Math.abs(Math.sin(t * 6)) * 1.6;
       X.blob(ctx, hx - r * 0.6, hy, r, r, '#ff5fa8');
       X.blob(ctx, hx + r * 0.6, hy, r, r, '#ff5fa8');

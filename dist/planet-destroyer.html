@@ -4344,55 +4344,201 @@ window.PD = window.PD || {};
   /* The regulars. Body and face only -- their tentacles are drawn live so
      they can wave them about and wrap them round each other. Frame 1 is the
      face they make when somebody is kissing them. */
-  const CLUB_COL = [
-    { s: '#8affa0', d: '#2f7a52', l: '#d8ffe4' },
-    { s: '#ff8ad8', d: '#a33a78', l: '#ffd6f0' },
-    { s: '#ffb03d', d: '#a35f12', l: '#ffe1a8' },
-    { s: '#7ec8ff', d: '#2f6aa3', l: '#d8f0ff' },
-    { s: '#c9a0ff', d: '#6b3fa8', l: '#ecdcff' },
-    { s: '#5fe8d8', d: '#1d8a7e', l: '#c4fff6' }
-  ];
-  /* Six regulars, each put together differently -- antennae, spare eyes, a
-     hat, a moustache -- so a room of them reads as a crowd and not as one
-     alien copied out six times. Four faces each: talking, kissing, blinking,
-     and the one they keep for the dancefloor. */
-  function clubber(k, face) {
-    const C = CLUB_COL[k % 6];
-    const p = pix(32, 32);
+  /* ------------------------------------------------------------- a species
+     The regulars in the club are not six drawings with the colours swapped.
+     Each one is GENERATED: a seed picks a body plan, a size, a hue, how many
+     eyes it has and where they sit, what its mouth is, what is growing out of
+     its head, how many tentacles hang off the bottom and what it is wearing.
+     Nothing in here is a variant of anything else, and the same seed always
+     produces the same alien, so the room is stable between frames and saves. */
+  function hsl(h, s, l) {
+    h = ((h % 360) + 360) % 360; s /= 100; l /= 100;
+    const c = (1 - Math.abs(2 * l - 1)) * s;
+    const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+    const m = l - c / 2;
+    let r = 0, g = 0, b = 0;
+    if (h < 60) { r = c; g = x; } else if (h < 120) { r = x; g = c; }
+    else if (h < 180) { g = c; b = x; } else if (h < 240) { g = x; b = c; }
+    else if (h < 300) { r = x; b = c; } else { r = c; b = x; }
+    const q = v => ('0' + Math.round((v + m) * 255).toString(16)).slice(-2);
+    return '#' + q(r) + q(g) + q(b);
+  }
+
+  const BODYK = ['blob', 'blob', 'pear', 'tall', 'squat', 'dome', 'segment'];
+  const EYEK = ['row', 'row', 'row', 'stack', 'tri', 'stalk'];
+  const MOUTHK = ['grin', 'grin', 'tusk', 'beak', 'straw', 'mandible', 'none'];
+  const CROWNK = ['none', 'antenna', 'antenna', 'horns', 'fin', 'hat', 'tuft'];
+  const MARKK = ['none', 'none', 'spots', 'stripes', 'belly'];
+  const EXTRAK = ['none', 'none', 'gills', 'specs', 'collar', 'ring'];
+
+  function alienKin(seed) {
+    const R = PD.util.mulberry32(seed * 2654435761 + 12345);
+    const pick = a => a[(R() * a.length) | 0];
+    const ri = (a, b) => a + Math.floor(R() * (b - a + 1));
+    const hue = R() * 360;
+    const t = {
+      seed: seed, hue: hue,
+      skin: hsl(hue, 42 + R() * 34, 55 + R() * 14),
+      dark: hsl(hue, 48 + R() * 22, 27 + R() * 9),
+      lite: hsl(hue, 38 + R() * 26, 79 + R() * 9),
+      acc: hsl(hue + 80 + R() * 200, 68, 62),
+      body: pick(BODYK), eyes: ri(1, 4), eyeK: pick(EYEK),
+      mouth: pick(MOUTHK), crown: pick(CROWNK), mark: pick(MARKK), extra: pick(EXTRAK),
+      arms: ri(2, 5), big: 0.94 + R() * 0.5, lean: R() < 0.5 ? -1 : 1,
+      ant: ri(1, 3)
+    };
+    if (t.eyeK === 'tri') t.eyes = 3;
+    if (t.eyeK === 'stalk') t.eyes = Math.min(2, t.eyes);
+    t.bw = Math.round(12 * t.big) + (t.body === 'squat' ? 4 : 0);
+    t.bh = Math.round((t.body === 'tall' ? 16 : t.body === 'squat' ? 8 : 12) * t.big);
+    t.legLen = Math.round(9 * t.big);
+    return t;
+  }
+
+  function buildAlien(t, face) {
+    const W = (t.bw * 2 + 24) & ~1, H = (t.bh * 2 + 30) & ~1;
+    const p = pix(W, H);
+    const cx = W >> 1, cy = H - t.bh - 3, top = cy - t.bh;
     const kiss = face === 1, blink = face === 2, talk = face === 3;
+    const INK = '#140f26';
 
-    // headgear, of a sort
-    if (k === 0) { p.rect(15, 0, 2, 9, C.d); p.ellipse(16, 1, 4, 3, C.l); }
-    if (k === 1) { p.rect(10, 2, 2, 8, C.d); p.disc(11, 2, 3, C.l); p.rect(21, 4, 2, 6, C.d); p.disc(22, 4, 2, C.l); }
-    if (k === 2) { for (let i = 0; i < 3; i++) p.rect(11 + i * 5, 4 - (i === 1 ? 2 : 0), 2, 6, C.d); }
-    if (k === 3) { p.ellipse(16, 4, 7, 3, C.d); }
-    if (k === 4) { p.round(8, 0, 16, 6, 2, '#2a2438'); p.rect(6, 5, 20, 2, '#2a2438'); p.rect(10, 2, 12, 1, P.gold); }
-    if (k === 5) { p.rect(12, 3, 2, 6, C.d); p.rect(19, 3, 2, 6, C.d); p.disc(13, 3, 2, C.l); p.disc(20, 3, 2, C.l); }
-
-    p.ellipse(16, 17, 13, 12, C.s);                     // one soft body
-    p.ellipse(16, 11, 9, 5, C.l);
-    p.ellipse(16, 25, 10, 4, C.d);
-
-    if (kiss) {
-      for (const ex of [11, 21]) { p.rect(ex - 3, 16, 7, 2, '#140f26'); p.rect(ex - 2, 15, 5, 1, '#140f26'); }
-      p.ellipse(16, 24, 5, 4, '#ff5fa8');
-      p.ellipse(16, 23, 3, 2, '#ffd6f0');
-      p.rect(8, 12, 3, 1, '#ffd6f0'); p.rect(21, 12, 3, 1, '#ffd6f0');
-    } else {
-      const eyes = k === 3 ? [[16, 6, 5]] : (k === 2 ? [[10, 4, 5], [16, 3.5, 4], [22, 4, 5]] : [[11, 4, 5], [21, 4, 5]]);
-      for (const [ex, rx, ry] of eyes) {
-        if (blink) { p.rect(ex - rx, 16, rx * 2, 2, '#140f26'); p.rect(ex - rx + 1, 15, rx * 2 - 2, 1, C.d); continue; }
-        p.ellipse(ex, 16, rx, ry, '#ffffff');
-        p.ellipse(ex + (k % 2 ? 1 : -1), 17, Math.max(1, rx - 2), ry - 2, '#140f26');
-        p.set(ex - 1, 14, '#ffffff');
-        if (k === 1) for (let i = 0; i < 3; i++) p.set(ex - 3 + i * 3, 11 - (i === 1 ? 1 : 0), '#140f26');
+    // ---- whatever is growing out of the head, laid down behind the body
+    if (t.crown === 'fin') {
+      for (let i = 0; i < 4; i++) p.spike(cx - 6 + i * 4, top - 11 + i * 2, 7, 13 - i * 2, -1, t.dark);
+    } else if (t.crown === 'horns') {
+      p.spike(cx - t.bw + 3, top - 9, 7, 11, -1, t.lite);
+      p.spike(cx + t.bw - 3, top - 9, 7, 11, -1, t.lite);
+    } else if (t.crown === 'antenna') {
+      for (let i = 0; i < t.ant; i++) {
+        const ax = cx + (i - (t.ant - 1) / 2) * 7;
+        const hgt = 6 + ((t.seed >> (i + 2)) & 5);
+        p.rect(ax, top - hgt, 2, hgt + 4, t.dark);
+        p.disc(ax + 1, top - hgt, 2 + (i & 1), t.acc);
       }
-      if (talk) { p.ellipse(16, 24, 4, 3, '#3a1226'); p.rect(13, 23, 6, 1, '#ffffff'); }
-      else p.rect(13, 23, 7, 1, C.d);
-      if (k === 5) { p.rect(11, 21, 10, 2, '#2a2438'); p.rect(9, 20, 3, 2, '#2a2438'); p.rect(20, 20, 3, 2, '#2a2438'); }
+    } else if (t.crown === 'tuft') {
+      for (let i = 0; i < 3; i++) p.line(cx - 3 + i * 3, top + 3, cx - 7 + i * 7, top - 10, t.dark);
+    }
+
+    // ---- the body plan
+    if (t.body === 'pear') {
+      p.ellipse(cx, cy + 1, t.bw, t.bh - 1, t.skin);
+      p.ellipse(cx, top + 4, Math.max(4, t.bw - 4), Math.round(t.bh * 0.62), t.skin);
+    } else if (t.body === 'segment') {
+      p.ellipse(cx, cy + 2, t.bw, Math.round(t.bh * 0.62), t.skin);
+      p.ellipse(cx, cy - Math.round(t.bh * 0.5), Math.max(4, t.bw - 3), Math.round(t.bh * 0.55), t.skin);
+      p.ellipse(cx, top + 3, Math.max(3, t.bw - 6), Math.round(t.bh * 0.44), t.skin);
+    } else if (t.body === 'dome') {
+      p.ellipse(cx, cy, t.bw, t.bh, t.skin);
+      p.rect(cx - t.bw, cy, t.bw * 2, t.bh, t.skin);
+      for (let i = 0; i < 5; i++) p.rect(cx - t.bw + 2 + i * ((t.bw * 2 - 4) / 4), cy + t.bh - 4, 2, 5, t.dark);
+    } else {
+      p.ellipse(cx, cy, t.bw, t.bh, t.skin);
+    }
+    // the lit side of whatever shape that turned out to be
+    p.ellipse(cx, top + Math.round(t.bh * 0.42), Math.round(t.bw * 0.68), Math.max(2, Math.round(t.bh * 0.28)), t.lite);
+
+    // ---- markings
+    if (t.mark === 'spots') {
+      for (let i = 0; i < 5; i++) {
+        const a = i * 1.94 + t.hue;
+        p.disc(cx + Math.cos(a) * t.bw * 0.58, cy + Math.sin(a) * t.bh * 0.52, 2, t.dark);
+      }
+    } else if (t.mark === 'stripes') {
+      for (let i = 0; i < 3; i++) p.rect(cx - t.bw + 2, cy - Math.round(t.bh * 0.3) + i * 5, t.bw * 2 - 4, 2, t.dark);
+    } else if (t.mark === 'belly') {
+      p.ellipse(cx, cy + Math.round(t.bh * 0.34), Math.round(t.bw * 0.72), Math.round(t.bh * 0.44), t.lite);
+    }
+
+    // ---- eyes, however many and wherever they go
+    const ey = cy - Math.round(t.bh * 0.14);
+    const er = t.big > 1.14 ? 4 : 3;
+    const pos = [];
+    if (t.eyeK === 'stack') {
+      for (let i = 0; i < t.eyes; i++) pos.push([cx, ey - 5 + i * (er * 2 + 1)]);
+    } else if (t.eyeK === 'tri') {
+      pos.push([cx - 5, ey - 3], [cx + 5, ey - 3], [cx, ey + 4]);
+    } else if (t.eyeK === 'stalk') {
+      for (let i = 0; i < t.eyes; i++) {
+        const sxp = cx + (t.eyes === 1 ? 0 : (i ? 6 : -6));
+        p.rect(sxp - 1, top - 8, 2, 12, t.dark);
+        pos.push([sxp, top - 9]);
+      }
+    } else {
+      for (let i = 0; i < t.eyes; i++) pos.push([cx + (i - (t.eyes - 1) / 2) * (er * 2 + 2), ey]);
+    }
+    for (const q of pos) {
+      const ex = Math.round(q[0]), eyy = Math.round(q[1]);
+      if (kiss || blink) {
+        p.rect(ex - er, eyy, er * 2, 2, INK);
+        p.rect(ex - er + 1, eyy - 1, er * 2 - 2, 1, t.dark);
+        continue;
+      }
+      p.ellipse(ex, eyy, er, er + 1, '#ffffff');
+      p.ellipse(ex + t.lean, eyy + 1, Math.max(1, er - 2), Math.max(1, er - 1), INK);
+      p.set(ex - 1, eyy - 2, '#ffffff');
+    }
+
+    // ---- and a mouth, of a sort
+    const my = cy + Math.round(t.bh * 0.54);
+    if (kiss) {
+      p.ellipse(cx, my, 4, 3, '#ff5fa8'); p.ellipse(cx, my - 1, 2, 2, '#ffd6f0');
+    } else if (talk) {
+      p.ellipse(cx, my, 4, 3, '#3a1226'); p.rect(cx - 3, my - 2, 7, 1, '#ffffff');
+    } else if (t.mouth === 'grin') {
+      p.rect(cx - 4, my, 9, 1, t.dark); p.set(cx - 5, my - 1, t.dark); p.set(cx + 5, my - 1, t.dark);
+    } else if (t.mouth === 'tusk') {
+      p.rect(cx - 5, my, 11, 1, t.dark);
+      p.spike(cx - 4, my - 5, 4, 6, -1, '#ffffff'); p.spike(cx + 4, my - 5, 4, 6, -1, '#ffffff');
+    } else if (t.mouth === 'beak') {
+      p.spike(cx, my - 3, 8, 7, 1, t.acc); p.rect(cx - 4, my - 3, 9, 1, t.dark);
+    } else if (t.mouth === 'straw') {
+      p.rect(cx - 1, my, 2, 9, t.dark); p.disc(cx, my + 9, 2, t.acc);
+    } else if (t.mouth === 'mandible') {
+      p.spike(cx - 5, my - 2, 5, 7, 1, t.dark); p.spike(cx + 5, my - 2, 5, 7, 1, t.dark);
+      p.rect(cx - 2, my, 5, 1, t.dark);
+    }
+
+    // ---- and whatever it turned up in
+    if (t.extra === 'gills') {
+      for (let i = 0; i < 3; i++) p.rect(cx + t.bw - 6 + i * 2, cy - 2, 1, 5, t.dark);
+    } else if (t.extra === 'specs') {
+      for (const q of pos) {
+        const ex = Math.round(q[0]), eyy = Math.round(q[1]);
+        p.rect(ex - er - 1, eyy - er - 1, er * 2 + 3, 1, '#2a2438');
+        p.rect(ex - er - 1, eyy + er + 1, er * 2 + 3, 1, '#2a2438');
+        p.rect(ex - er - 1, eyy - er, 1, er * 2 + 2, '#2a2438');
+        p.rect(ex + er + 1, eyy - er, 1, er * 2 + 2, '#2a2438');
+      }
+    } else if (t.extra === 'collar') {
+      p.rect(cx - t.bw + 1, cy + t.bh - 6, t.bw * 2 - 2, 3, t.acc);
+      p.disc(cx, cy + t.bh - 5, 2, P.gold);
+    } else if (t.extra === 'ring') {
+      const rx = cx + t.bw - 1;
+      p.rect(rx, cy - 1, 1, 1, P.gold); p.rect(rx - 1, cy, 1, 3, P.gold);
+      p.rect(rx + 1, cy, 1, 3, P.gold); p.rect(rx, cy + 3, 1, 1, P.gold);
+    }
+    if (t.crown === 'hat') {
+      p.round(cx - 8, top - 9, 16, 8, 2, '#2a2438');
+      p.rect(cx - 12, top - 2, 24, 2, '#2a2438');
+      p.rect(cx - 8, top - 4, 16, 1, t.acc);
     }
     p.outline(P.ink);
     return p;
+  }
+
+  /* Fourteen of them, built once at load. Each keeps its traits so the club
+     can hang the right number of tentacles off the right colour of alien. */
+  const KIN = [];
+  function makeKin(n) {
+    for (let i = 0; i < n; i++) {
+      const t = alienKin(i * 7717 + 13);
+      const frames = [0, 1, 2, 3].map(f => buildAlien(t, f));
+      const W = frames[0].w, H = frames[0].h;
+      t.key = 'kin' + i;
+      regRaw(t.key, frames, W / 2 / HD, H / HD);
+      t.w = W / HD; t.h = H / HD;
+      KIN.push(t);
+    }
   }
 
   /* The man on the decks. Big pale cans with a bright band so they read
@@ -4547,7 +4693,7 @@ window.PD = window.PD || {};
   for (let i = 0; i < 4; i++) reg('litter' + i, [litter(i)]);
   for (let i = 0; i < 4; i++) reg('moonjunk' + i, [moonJunk(i)]);
   reg('clubsign', [clubSign(false), clubSign(true)]);
-  for (let i = 0; i < 6; i++) reg('clubber' + i, [0, 1, 2, 3].map(f => clubber(i, f)));
+  makeKin(14);
   reg('dj', [djAlien(0), djAlien(1)]);
   reg('bouncer', [bouncer()]);
   regRaw('dancer', [0, 1, 2, 3].map(dancer), DPX / HD, DH / HD);
@@ -4556,7 +4702,7 @@ window.PD = window.PD || {};
   reg('skull', [celestialHead()]);
   reg('tape', [tapeDeck(0), tapeDeck(1)]);
 
-  PD.arthome = { S, P, CLUB_COL, buildMoon, buildPlanet, blit, HD, mitten, reg, regRaw };
+  PD.arthome = { S, P, KIN, alienKin, buildAlien, hsl, buildMoon, buildPlanet, blit, HD, mitten, reg, regRaw };
 })(window.PD);
 
 /* ===== src/galaxy.js ===== */
@@ -12893,13 +13039,13 @@ window.PD = window.PD || {};
   const BOOTHS = [];
   /* Four of them never made it to the floor. */
   const SEATS = [
-    { x: 252, k: 4 }, { x: 514, k: 1 }, { x: 538, k: 5 }
+    { x: 514, k: 10 }, { x: 538, k: 11 }
   ];
   /* Eight regulars. They wander, they stop, they dance, and now and then two
      of them find each other and the tentacles get involved. */
   const CLUBBERS = [];
   for (let i = 0; i < 9; i++) {
-    CLUBBERS.push({ x: 280 + i * 9, vx: 0, k: i % 6, t: U.rand(0, 6), face: i % 2 ? 1 : -1,
+    CLUBBERS.push({ x: 250 + i * 17, vx: 0, k: i, t: U.rand(0, 6), face: i % 2 ? 1 : -1,
       dance: U.rand(0, 3), kiss: 0, mate: -1, wait: U.rand(0, 2),
       blink: U.rand(0, 4), say: null, sayT: 0, drink: i % 3 === 0 ? i % 4 : -1 });
   }
@@ -13052,8 +13198,8 @@ window.PD = window.PD || {};
         else { c.vx = U.rand(0.5) < 0.5 ? -18 : 18; c.face = Math.sign(c.vx); }
       }
       c.x += c.vx * dt;
-      if (c.x < 272) { c.x = 272; c.vx = Math.abs(c.vx); c.face = 1; }
-      if (c.x > 372) { c.x = 372; c.vx = -Math.abs(c.vx); c.face = -1; }
+      if (c.x < 246) { c.x = 246; c.vx = Math.abs(c.vx); c.face = 1; }
+      if (c.x > 400) { c.x = 400; c.vx = -Math.abs(c.vx); c.face = -1; }
     }
     // pair off whoever happens to be standing next to somebody
     S.kissT -= dt;
@@ -13658,7 +13804,10 @@ window.PD = window.PD || {};
     }
 
     for (const c of CLUBBERS) drawClubber(ctx, c, t, cam);
-    for (const c of CLUBBERS) if (c.say) sayBubble(ctx, c.x - cam, FLOOR - 46, c.say, c.sayT);
+    for (const c of CLUBBERS) if (c.say) {
+      const K = AH.KIN[c.k % AH.KIN.length];
+      sayBubble(ctx, c.x - cam, FLOOR - K.legLen - K.h - 4, c.say, c.sayT);
+    }
 
     // haze, drifting
     for (let i = 0; i < 10; i++) {
@@ -13711,7 +13860,9 @@ window.PD = window.PD || {};
     }
     for (const st of SEATS) {
       const bob = Math.sin(t * 2.2 + st.x) * 1;
-      AH.blit(ctx, AH.S['clubber' + st.k], (Math.floor(t * 1.7 + st.x) % 7) === 0 ? 2 : 0,
+      const K = AH.KIN[st.k % AH.KIN.length];
+      drawTents(ctx, st.x - cam, FLOOR - 14 + bob, K, t * 2 + st.x, 3);
+      AH.blit(ctx, AH.S[K.key], (Math.floor(t * 1.7 + st.x) % 7) === 0 ? 2 : 0,
         st.x - cam, FLOOR - 14 + bob, st.x > 400);
     }
   }
@@ -13793,7 +13944,8 @@ window.PD = window.PD || {};
       ctx.globalAlpha = 1;
     }
     const bmb = Math.sin(t * 2.2) * 1.5;
-    AH.blit(ctx, AH.S.clubber3, Math.floor(t * 1.3) % 6 === 0 ? 2 : 0, bx + 10, FLOOR - 34 + bmb, true);
+    const BK = AH.KIN[7 % AH.KIN.length];
+    AH.blit(ctx, AH.S[BK.key], Math.floor(t * 1.3) % 6 === 0 ? 2 : 0, bx + 10, FLOOR - 34 + bmb, true);
     X.plate(ctx, bx - 44, FLOOR - 32, 88, 32, '#4a2e1e', '#6b4530', '#241408', 3);
     X.rect(ctx, bx - 44, FLOOR - 32, 88, 3, '#8a5a3a');
     X.rect(ctx, bx - 44, FLOOR - 22, 88, 1, '#3a2414');
@@ -13829,35 +13981,45 @@ window.PD = window.PD || {};
 
   /* One regular. The body is a sprite; the tentacles are live, so they can
      wave about and, when two of them get together, wrap round each other. */
+  /* One regular. The body is generated art; the tentacles are drawn live, in
+     whatever number and colour that particular alien turned out to have, so
+     they wave about and can wrap round each other. */
+  function drawTents(ctx, x, y, K, ph, spread) {
+    const n = K.arms, L = K.legLen;
+    for (let i = 0; i < n; i++) {
+      const w = c2(ph + i * 1.25);
+      const root = x + (i - (n - 1) / 2) * Math.max(2, (K.w * 0.7) / n);
+      const out = (i - (n - 1) / 2) * spread + w * (spread * 0.8);
+      X.curve(ctx, root, y - 1, root + out * 0.6, y + L * 0.5 + c2(ph + i) * 2,
+        x + out, y + L, K.dark, Math.max(2, Math.round(2 * K.big)), 7);
+    }
+  }
+  function c2(v) { return Math.sin(v); }
+
   function drawClubber(ctx, c, t, cam) {
-    const C = AH.CLUB_COL[c.k % 6];
+    const K = AH.KIN[c.k % AH.KIN.length];
     const x = c.x - cam, y = FLOOR;
     const fast = c.dance > 0 ? 11 : (Math.abs(c.vx) > 1 ? 7 : 3);
     const bob = Math.sin(c.t * fast) * (c.dance > 0 ? 4 : 1.4);
     const lean = c.kiss > 0 ? c.face * 5 : 0;
-    X.blob(ctx, x, y + 1, 12, 3, '#0a0614');
-    for (let i = 0; i < 4; i++) {
-      const ph = c.t * fast + i * 1.25;
-      const root = x + (i - 1.5) * 4;
-      const out = (i - 1.5) * 6 + Math.sin(ph) * (c.kiss > 0 ? 9 : 5);
-      X.curve(ctx, root, y - 13 + bob, root + out * 0.7, y - 6 + Math.cos(ph) * 2,
-        x + out, y - (c.kiss > 0 ? 2 + Math.abs(Math.sin(ph)) * 5 : 0), C.d, 3, 7);
-    }
+    const top = y - K.legLen + bob;
+    X.blob(ctx, x, y + 1, Math.round(K.w * 0.55), 3, '#0a0614');
+    drawTents(ctx, x, top, K, c.t * fast, c.kiss > 0 ? 8 : 5);
     const face = c.kiss > 0 ? 1 : (c.blink < 0 ? 2 : (c.say ? 3 : 0));
-    AH.blit(ctx, AH.S['clubber' + (c.k % 6)], face, x + lean, y - 10 + bob, c.face < 0);
+    AH.blit(ctx, AH.S[K.key], face, x + lean, top, c.face < 0);
     // whatever they came in with, still in a tentacle
     if (c.drink >= 0 && c.kiss <= 0) {
       const dcol = ['#8affa0', '#ff8ad8', '#ffb03d', '#7ec8ff'][c.drink];
-      const hx = x + c.face * 14, hy = y - 18 + bob + Math.sin(c.t * fast + 1) * 2;
+      const hx = x + c.face * (K.w * 0.6 + 4), hy = top - K.h * 0.4 + Math.sin(c.t * fast + 1) * 2;
       X.rect(ctx, hx - 2, hy, 5, 7, 'rgba(220,235,255,0.35)');
       X.rect(ctx, hx - 2, hy + 2, 5, 5, dcol);
       X.rect(ctx, hx - 2, hy, 5, 1, '#d8fbff');
     }
-    if (c.dance > 0 && U.chance(0.06)) FX.stars(c.x, y - 30, 1, C.s);
+    if (c.dance > 0 && U.chance(0.06)) FX.stars(c.x, y - 30, 1, K.acc);
     // one big throbbing heart over whoever is getting on with it
     if (c.kiss > 0 && c.mate > CLUBBERS.indexOf(c)) {
       const m = CLUBBERS[c.mate];
-      const hx = (c.x + m.x) / 2 - cam, hy = y - 40 - Math.sin(t * 3) * 2;
+      const hx = (c.x + m.x) / 2 - cam, hy = y - K.h - 16 - Math.sin(t * 3) * 2;
       const r = 4 + Math.abs(Math.sin(t * 6)) * 1.6;
       X.blob(ctx, hx - r * 0.6, hy, r, r, '#ff5fa8');
       X.blob(ctx, hx + r * 0.6, hy, r, r, '#ff5fa8');
