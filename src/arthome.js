@@ -39,6 +39,14 @@
     const w = frames[0].width / HD, h = frames[0].height / HD;
     S[name] = { frames, w, h, hd: HD, ox: ox === undefined ? w / 2 : ox, oy: oy === undefined ? h : oy };
   }
+  /* Same, but WITHOUT the crop. A sprite whose poses move about inside the
+     canvas cannot be cropped per frame -- the trim would re-centre each one
+     and the pole would end up somewhere different every quarter second. */
+  function regRaw(name, builders, ox, oy) {
+    const frames = builders.map(b => b.toCanvas());
+    const w = frames[0].width / HD, h = frames[0].height / HD;
+    S[name] = { frames, w, h, hd: HD, ox: ox === undefined ? w / 2 : ox, oy: oy === undefined ? h : oy };
+  }
   function blit(ctx, s, frame, x, y, flip) {
     const cv = s.frames[frame % s.frames.length];
     ctx.save();
@@ -1085,30 +1093,164 @@
     { s: '#8affa0', d: '#2f7a52', l: '#d8ffe4' },
     { s: '#ff8ad8', d: '#a33a78', l: '#ffd6f0' },
     { s: '#ffb03d', d: '#a35f12', l: '#ffe1a8' },
-    { s: '#7ec8ff', d: '#2f6aa3', l: '#d8f0ff' }
+    { s: '#7ec8ff', d: '#2f6aa3', l: '#d8f0ff' },
+    { s: '#c9a0ff', d: '#6b3fa8', l: '#ecdcff' },
+    { s: '#5fe8d8', d: '#1d8a7e', l: '#c4fff6' }
   ];
-  function clubber(k, kiss) {
-    const C = CLUB_COL[k % 4];
-    const p = pix(30, 30);
-    // an antenna or two, according to taste
-    if (k % 2) { p.rect(9, 2, 2, 7, C.d); p.disc(10, 2, 3, C.l); p.rect(19, 4, 2, 5, C.d); p.disc(20, 4, 2, C.l); }
-    else { p.rect(14, 0, 2, 8, C.d); p.ellipse(15, 1, 4, 3, C.l); }
-    p.ellipse(15, 15, 13, 12, C.s);                     // one soft body
-    p.ellipse(15, 9, 9, 5, C.l);
-    p.ellipse(15, 23, 10, 4, C.d);
+  /* Six regulars, each put together differently -- antennae, spare eyes, a
+     hat, a moustache -- so a room of them reads as a crowd and not as one
+     alien copied out six times. Four faces each: talking, kissing, blinking,
+     and the one they keep for the dancefloor. */
+  function clubber(k, face) {
+    const C = CLUB_COL[k % 6];
+    const p = pix(32, 32);
+    const kiss = face === 1, blink = face === 2, talk = face === 3;
+
+    // headgear, of a sort
+    if (k === 0) { p.rect(15, 0, 2, 9, C.d); p.ellipse(16, 1, 4, 3, C.l); }
+    if (k === 1) { p.rect(10, 2, 2, 8, C.d); p.disc(11, 2, 3, C.l); p.rect(21, 4, 2, 6, C.d); p.disc(22, 4, 2, C.l); }
+    if (k === 2) { for (let i = 0; i < 3; i++) p.rect(11 + i * 5, 4 - (i === 1 ? 2 : 0), 2, 6, C.d); }
+    if (k === 3) { p.ellipse(16, 4, 7, 3, C.d); }
+    if (k === 4) { p.round(8, 0, 16, 6, 2, '#2a2438'); p.rect(6, 5, 20, 2, '#2a2438'); p.rect(10, 2, 12, 1, P.gold); }
+    if (k === 5) { p.rect(12, 3, 2, 6, C.d); p.rect(19, 3, 2, 6, C.d); p.disc(13, 3, 2, C.l); p.disc(20, 3, 2, C.l); }
+
+    p.ellipse(16, 17, 13, 12, C.s);                     // one soft body
+    p.ellipse(16, 11, 9, 5, C.l);
+    p.ellipse(16, 25, 10, 4, C.d);
+
     if (kiss) {
-      for (const ex of [10, 20]) { p.rect(ex - 3, 14, 7, 2, '#140f26'); p.rect(ex - 2, 13, 5, 1, '#140f26'); }
-      p.ellipse(15, 22, 5, 4, '#ff5fa8');               // and a pucker you can see
-      p.ellipse(15, 21, 3, 2, '#ffd6f0');
-      p.rect(7, 10, 3, 1, '#ffd6f0'); p.rect(20, 10, 3, 1, '#ffd6f0');
+      for (const ex of [11, 21]) { p.rect(ex - 3, 16, 7, 2, '#140f26'); p.rect(ex - 2, 15, 5, 1, '#140f26'); }
+      p.ellipse(16, 24, 5, 4, '#ff5fa8');
+      p.ellipse(16, 23, 3, 2, '#ffd6f0');
+      p.rect(8, 12, 3, 1, '#ffd6f0'); p.rect(21, 12, 3, 1, '#ffd6f0');
     } else {
-      for (const ex of [10, 20]) {
-        p.ellipse(ex, 14, 4, 5, '#ffffff');
-        p.ellipse(ex + (k % 2 ? 1 : -1), 15, 2, 3, '#140f26');
-        p.set(ex - 1, 12, '#ffffff');
+      const eyes = k === 3 ? [[16, 6, 5]] : (k === 2 ? [[10, 4, 5], [16, 3.5, 4], [22, 4, 5]] : [[11, 4, 5], [21, 4, 5]]);
+      for (const [ex, rx, ry] of eyes) {
+        if (blink) { p.rect(ex - rx, 16, rx * 2, 2, '#140f26'); p.rect(ex - rx + 1, 15, rx * 2 - 2, 1, C.d); continue; }
+        p.ellipse(ex, 16, rx, ry, '#ffffff');
+        p.ellipse(ex + (k % 2 ? 1 : -1), 17, Math.max(1, rx - 2), ry - 2, '#140f26');
+        p.set(ex - 1, 14, '#ffffff');
+        if (k === 1) for (let i = 0; i < 3; i++) p.set(ex - 3 + i * 3, 11 - (i === 1 ? 1 : 0), '#140f26');
       }
-      p.rect(12, 21, 7, 1, C.d);
+      if (talk) { p.ellipse(16, 24, 4, 3, '#3a1226'); p.rect(13, 23, 6, 1, '#ffffff'); }
+      else p.rect(13, 23, 7, 1, C.d);
+      if (k === 5) { p.rect(11, 21, 10, 2, '#2a2438'); p.rect(9, 20, 3, 2, '#2a2438'); p.rect(20, 20, 3, 2, '#2a2438'); }
     }
+    p.outline(P.ink);
+    return p;
+  }
+
+  /* The man on the decks. Big pale cans with a bright band so they read
+     against a dark wall, and one arm permanently on the record. */
+  function djAlien(frame) {
+    const p = pix(42, 36);
+    p.rect(19, 0, 3, 7, '#1d8a7e');                     // an antenna, bent
+    p.disc(21, 1, 3, '#c4fff6');
+    p.ellipse(21, 20, 14, 13, '#5fe8d8');
+    p.ellipse(21, 13, 10, 6, '#c4fff6');
+    for (const ex of [16, 26]) {
+      p.ellipse(ex, 19, 4, 5, '#ffffff');
+      p.ellipse(ex, 20, 2, 3, '#140f26');
+      p.set(ex - 1, 17, '#ffffff');
+    }
+    p.rect(17, 27, 9, 2, '#1d8a7e');
+    p.rect(19, 29, 5, 1, '#0f5a52');
+    // the cans
+    p.round(1, 10, 10, 14, 4, '#8e86a8');
+    p.round(31, 10, 10, 14, 4, '#8e86a8');
+    p.round(3, 12, 6, 10, 3, '#3a3348');
+    p.round(33, 12, 6, 10, 3, '#3a3348');
+    p.rect(2, 15, 8, 2, '#ff5fa8');
+    p.rect(32, 15, 8, 2, '#ff5fa8');
+    p.rect(8, 4, 26, 3, '#8e86a8');
+    p.rect(4, 5, 4, 7, '#8e86a8'); p.rect(34, 5, 4, 7, '#8e86a8');
+    // and the arm, down on whichever deck he is working
+    p.round(frame ? 30 : 4, 26, 9, 5, 2, '#5fe8d8');
+    p.round(frame ? 34 : 3, 29, 6, 4, 2, '#c4fff6');
+    p.outline(P.ink);
+    return p;
+  }
+
+  /* The door. Square, bored, wearing sunglasses indoors at night. */
+  function bouncer() {
+    const p = pix(34, 44);
+    p.round(4, 14, 26, 28, 5, '#4a4260');               // the suit
+    p.round(4, 14, 9, 16, 3, '#5e5478');
+    p.round(21, 14, 9, 16, 3, '#5e5478');
+    p.round(13, 14, 8, 12, 3, '#c9c4b4');
+    p.rect(16, 16, 2, 9, '#8a2f4a');
+    p.ellipse(17, 9, 11, 9, '#8a7ab0');                 // the head
+    p.ellipse(17, 4, 8, 4, '#a89bd0');
+    p.round(7, 6, 20, 5, 2, '#140f26');                 // the shades
+    p.rect(9, 7, 6, 2, '#3a3348'); p.rect(19, 7, 6, 2, '#3a3348');
+    p.rect(12, 13, 10, 1, '#5a5474');
+    p.round(2, 22, 30, 6, 2, '#4a4260');                // arms folded
+    p.round(2, 22, 30, 2, 2, '#5e5478');
+    p.outline(P.ink);
+    return p;
+  }
+
+  /* THE DANCER. Four poses on a pole, all drawn in one canvas with the pole
+     always at the same column, so the act lines up with the pole the room
+     draws. A hold, a lean, a leg out, and the upside-down one. Sequins, a
+     feather boa, and the professional detachment of somebody working a
+     Tuesday. */
+  const DPX = 40, DW = 60, DH = 78;
+  function dancer(f) {
+    const p = pix(DW, DH);
+    const S1 = '#ff5fa8', S2 = '#c22a6a', SD = '#a33a78', L = '#ffd6f0';
+    const G = '#ffd34d', B = '#c9a0ff';
+    const POSE = [
+      { bx: 24, by: 46, up: 1, legs: 'stand' },
+      { bx: 17, by: 50, up: 1, legs: 'lean' },
+      { bx: 26, by: 44, up: 1, legs: 'kick' },
+      { bx: 24, by: 54, up: 0, legs: 'invert' }
+    ][f];
+    const bx = POSE.bx, by = POSE.by;
+
+    // a tapering tentacle from one point to another, with a bit of curve in it
+    const leg = (x0, y0, x1, y1, w) => {
+      for (let i = 0; i <= 16; i++) {
+        const q = i / 16;
+        const x = x0 + (x1 - x0) * q + Math.sin(q * 3.1) * 3;
+        const y = y0 + (y1 - y0) * q;
+        const ww = Math.max(2, Math.round(w - q * (w - 2)));
+        p.rect(x - ww / 2, y, ww, 2, q > 0.55 ? SD : S2);
+      }
+    };
+    if (POSE.legs === 'stand') { leg(bx - 6, by + 8, bx - 11, 74, 7); leg(bx + 2, by + 9, bx + 5, 74, 7); leg(bx + 9, by + 6, bx + 22, 70, 5); }
+    if (POSE.legs === 'lean') { leg(bx - 3, by + 8, bx + 8, 74, 7); leg(bx + 5, by + 5, bx + 20, 66, 6); leg(bx - 8, by + 4, bx - 13, 58, 5); }
+    if (POSE.legs === 'kick') { leg(bx - 6, by + 8, bx - 9, 74, 7); leg(bx + 8, by + 2, bx + 33, 30, 6); leg(bx + 1, by + 9, bx + 9, 72, 6); }
+    // upside down: head low over the boards, legs wrapped up the pole
+    if (POSE.legs === 'invert') { leg(bx - 4, by - 10, DPX - 6, 12, 7); leg(bx + 6, by - 10, DPX + 4, 8, 7); leg(bx, by - 11, DPX + 12, 22, 5); }
+
+    // the grip: a tentacle from the body to the pole, and a hand on it
+    if (POSE.up) {
+      const gy = 14;
+      for (let i = 0; i <= 14; i++) {
+        const q = i / 14;
+        p.rect(bx + 7 + (DPX - bx - 7) * q - 2, by - 6 + (gy - by + 6) * q - 1, 4, 3, S1);
+      }
+      p.ellipse(DPX, gy, 5, 4, L);
+      p.rect(DPX - 5, gy - 1, 10, 2, S2);
+    }
+
+    // the body, and what little there is of the outfit
+    p.ellipse(bx, by, 12, 12, S1);
+    p.ellipse(bx, by - 6, 9, 6, L);
+    p.round(bx - 11, by + 2, 22, 10, 3, G);
+    p.rect(bx - 11, by + 4, 22, 1, '#fff3b0');
+    for (let i = 0; i < 6; i++) p.set(bx - 9 + i * 4, by + 6 + (i % 2) * 3, '#ffffff');
+    // the boa, which cost more than the outfit
+    for (let i = 0; i < 8; i++) p.disc(bx - 14 + i * 4, by - 10 + Math.sin(i * 1.2) * 3, 3, i % 2 ? B : '#d8bcff');
+    // the face: one eye on the pole, one on the clock
+    for (const ex of [bx - 5, bx + 4]) {
+      if (f === 1) { p.rect(ex - 3, by - 3, 7, 2, '#140f26'); continue; }
+      p.ellipse(ex, by - 3, 3, 4, '#ffffff');
+      p.ellipse(ex + (f === 2 ? 1 : 0), by - 2, 2, 2, '#140f26');
+      p.set(ex - 1, by - 5, '#ffffff');
+    }
+    p.round(bx - 3, by + 1, 7, 2, 1, S2);
     p.outline(P.ink);
     return p;
   }
@@ -1150,11 +1292,14 @@
   for (let i = 0; i < 4; i++) reg('litter' + i, [litter(i)]);
   for (let i = 0; i < 4; i++) reg('moonjunk' + i, [moonJunk(i)]);
   reg('clubsign', [clubSign(false), clubSign(true)]);
-  for (let i = 0; i < 4; i++) reg('clubber' + i, [clubber(i, false), clubber(i, true)]);
+  for (let i = 0; i < 6; i++) reg('clubber' + i, [0, 1, 2, 3].map(f => clubber(i, f)));
+  reg('dj', [djAlien(0), djAlien(1)]);
+  reg('bouncer', [bouncer()]);
+  regRaw('dancer', [0, 1, 2, 3].map(dancer), DPX / HD, DH / HD);
   reg('hippie', [hippieSuit()], 15, 0);
   reg('flag', [flag(0), flag(1)], 3);
   reg('skull', [celestialHead()]);
   reg('tape', [tapeDeck(0), tapeDeck(1)]);
 
-  PD.arthome = { S, P, CLUB_COL, buildMoon, buildPlanet, blit, HD, mitten, reg };
+  PD.arthome = { S, P, CLUB_COL, buildMoon, buildPlanet, blit, HD, mitten, reg, regRaw };
 })(window.PD);

@@ -645,25 +645,50 @@ sign still works.
 ## The club
 
 Whatever this moon was before it was a tip, somebody ran a club on it, and it
-is still down there with the lights on. Go down the hatch and you are in it:
-panelled walls with neon run along them, a mirror ball throwing spots across
-the room, speakers that get visibly bigger on the beat, a bar with the bottles
-lit from behind and a gentleman working it, and **a floor that changes colour
-under your feet**, four ways, in time.
+is still down there with the lights on. Go down the hatch and you are in a room
+the length of the moon: panelled walls with neon run along them and pipes and an
+extractor bolted across them, a mirror ball throwing spots, two spotlights
+sweeping, a fan of lasers on every fourth beat, drifting haze, spilled drinks
+and dropped glasses on the floor, and **a dancefloor that changes colour under
+your feet**, four ways, in time.
 
-Eight regulars are already in. They wander, they stop, they dance, and every so
-often two of them find each other, shuffle right up, shut their eyes and get on
-with it — tentacles everywhere, one enormous throbbing heart over the pair of
-them. They are not scenery: they react when you dance.
-
-Four things to do down there:
+Every interactive thing stands a little to the right of the spot that names it,
+because if you put the spot on the prop you walk into the middle of it and your
+own head hides what you came to look at.
 
 | | |
 | --- | --- |
-| **THE DANCEFLOOR** | Have a go. The whole room joins in, and the first time is worth 40 thots |
-| **THE BAR** | $500 for something silly. There are five and one of them is water |
+| **THE WAY OUT** | A rope, and a bouncer who has not moved in an hour and is not going to |
 | **THE COAT CHECK** | Where the suit lives |
-| **THE WAY OUT** | Back up to the moon |
+| **DJ GORB** | Up on a riser with two platters, a crossfader and a live equaliser. He has two records. Ask him for something and half the room starts dancing |
+| **THE DANCEFLOOR** | Have a go. The whole room joins in, and the first time is worth 40 thots |
+| **THE DANCER** | A pole, a spotlight, and somebody working a Tuesday. $200 a tip |
+| **THE BAR** | Optics lit from behind, three pumps, stools, a tip jar with one coin in it. $500 for something silly — there are five and one of them is water |
+
+## Who is in
+
+Nine regulars, built six ways — a bent antenna, a pair of them, three eyes, one
+big eye, a little hat, a moustache — so a room of them reads as a crowd rather
+than as one alien copied out nine times. They blink. A third of them are still
+holding whatever they came in with. Their bodies are sprites and their
+tentacles are drawn live, so they wave them about, and when two of them pair
+off they shuffle right up, shut their eyes, and the tentacles get involved with
+one enormous throbbing heart over the pair.
+
+And they talk. Every couple of seconds a line surfaces over whoever is standing
+still — `I ONLY CAME OUT FOR ONE`, `HE IS A SHARK. LITERALLY.`, `NINE HEARTS.
+ALL OF THEM HURT.`, `WHOSE TENTACLE IS THIS` — in a little bubble with the tail
+pointing at them. There are sixteen of those, five for the DJ and six for the
+dancer, and none of them are useful.
+
+## The dancer
+
+Four poses on a pole, drawn in one canvas with the pole always in the same
+column so the act lines up with the pole the room draws: a hold, a lean, a leg
+out, and the one where they are upside down with their legs wrapped round it and
+are clearly thinking about something else. Sequins, a feather boa that cost more
+than the outfit, and one eye on the pole and one on the clock. Tip them and they
+take the money without breaking eye contact.
 
 ## The suit
 
@@ -837,7 +862,7 @@ a line of history under its blurb.
 | `src/player.js` | Movement, the drill, weapons, dash, the ragdoll, air, cargo, damage, and the tether to the pod |
 | `src/fx.js` | Particles, floating numbers, shockwave rings, terrain chunks, bouncing debris, screen shake, hit-stop, and the block iris |
 | `src/ui.js` | The cardboard-and-masking-tape HUD (air tank, hull chips, sack tube), the action strip, the plank over the door, pause, victory and title screens |
-| `src/home.js` | All three parts of home: the lumpy moon surface outside with the house and the saucer standing on the curve of it, the very small room inside with the computer and the jar, Brenda, the tip you have to clear off the regolith, and the club under the hatch with its dancefloor, its mirror ball and its eight regulars |
+| `src/home.js` | All three parts of home: the lumpy moon surface outside with the house and the saucer standing on the curve of it, the very small room inside with the computer and the jar, Brenda, the tip you have to clear off the regolith, and and the club under the hatch with its dancefloor, its mirror ball, DJ Gorb, the act on the pole and its nine chattering regulars |
 | `src/desk.js` | First person at the computer: hands, keyboard, CRT, the loose-spring pointer, ZORB OS and ABAY |
 | `src/glyph.js` | The icon language that rides alongside the text, and the hex primitives |
 | `src/galaxy.js` | Spiral-arm star band, nebulae, sun, ringed planets, shooting stars |
