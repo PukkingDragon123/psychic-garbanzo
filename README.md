@@ -636,8 +636,14 @@ passes for them out here, circling.
 
 Walk up to a heap and press `E`. He does not bend down and pick it up; he sets
 about it with the drill, which is the only tool he owns and far too big for the
-job. Each one pays a few hundred credits, throws up a cloud you disappear into,
-and lifts a twelfth of the grime off the ground. The moon visibly gets better.
+job. Each one throws up a cloud you disappear into and lifts a twelfth of the
+grime off the ground. The moon visibly gets better.
+
+**Clearing a tip is not a living.** A heap pays about thirty credits — the
+whole moon is worth less than one drill bit — and about half of them turn up a
+few lumps of iron or copper underneath, which go in the vault like anything
+else and are worth something only once you have sold them. The money in this
+game comes out of the ground, not out of the bins.
 
 Under the last heap is a hatch, and the hatch has a **neon sign on it**, and the
 sign still works.
@@ -702,6 +708,24 @@ out, and the one where they are upside down with their legs wrapped round it and
 are clearly thinking about something else. Sequins, a feather boa that cost more
 than the outfit, and one eye on the pole and one on the clock. Tip them and they
 take the money without breaking eye contact.
+
+## The Lucky Void
+
+Through an arch at the back of the club, past the bar, there is a red carpet
+nobody has ever cleaned and **three slot machines**, and you can walk between
+them and play any of them. It is the same machine that took everything you had
+on the night the game opens; it has a franchise now.
+
+`$200` a pull. Three reels stop one at a time. Two the same pays double, three
+the same pays **twelve times**, and about three quarters of what goes in comes
+back out over a long enough evening — which is precisely how you came to owe a
+shark a million dollars in the first place. The cabinets stand on plinths so
+the reels are above your own head and you can see what you have just lost.
+
+Mr Chum notices. He notices the first time, and he has something to say if the
+three ever land.
+
+Two regulars have been standing at the end machines since before you arrived.
 
 ## The suit
 

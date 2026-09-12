@@ -54,7 +54,7 @@
       thots: 0, thotFrac: 0, neur: {},            // what the brain in the jar has grown
       artifacts: 0,                               // relics hauled home
       debt: PD.chum.DEBT0,                        // what you owe Mr Chum
-      seenIntro: 0, trash: 0, suit: 0
+      seenIntro: 0, trash: 0, suit: 0, spun: 0
     };
   }
 
@@ -79,6 +79,7 @@
       base.debt = s.debt === undefined ? 0 : Math.max(0, +s.debt || 0);
       base.trash = Math.max(0, +s.trash || 0);
       base.suit = s.suit ? 1 : 0;
+      base.spun = Math.max(0, +s.spun || 0);
       if (s.vault) for (const k in s.vault) { const n = +s.vault[k]; if (n > 0 && D.MAT[k]) base.vault[k] = n; }
       if (s.owned) base.owned = s.owned;
       if (s.cos) for (const k in base.cos) if (s.cos[k]) base.cos[k] = s.cos[k];

@@ -145,7 +145,7 @@
      it is still down there with the lights on. It is another `scene`, like the
      inside of the house, so it inherits the walking, the camera, the prompt
      and the touch controls for nothing. */
-  const CLUB_W = 620, CLUB_CEIL = 84;
+  const CLUB_W = 820, CLUB_CEIL = 84;
   const CLUB_SPOTS = [
     { id: 'clubout', x: 26, r: 24, name: 'THE WAY OUT', sub: 'BACK UP TO THE MOON' },
     /* Every spot stands a little to the LEFT of the thing it names. Put it on
@@ -154,7 +154,10 @@
     { id: 'dj', x: 132, r: 22, name: 'DJ GORB', sub: 'ASK HIM FOR SOMETHING' },
     { id: 'dance', x: 320, r: 52, name: 'THE DANCEFLOOR', sub: 'HAVE A GO' },
     { id: 'stage', x: 412, r: 28, name: 'THE DANCER', sub: 'TIP THEM. IT IS A TUESDAY' },
-    { id: 'bar', x: 500, r: 30, name: 'THE BAR', sub: 'BUY SOMETHING SILLY' }
+    { id: 'bar', x: 500, r: 30, name: 'THE BAR', sub: 'BUY SOMETHING SILLY' },
+    { id: 'slot0', x: 620, r: 26, name: 'THE LUCKY VOID', sub: 'ONE MORE GO. $200' },
+    { id: 'slot1', x: 680, r: 26, name: 'THE LUCKY VOID', sub: 'THIS ONE IS DUE. $200' },
+    { id: 'slot2', x: 740, r: 26, name: 'THE LUCKY VOID', sub: 'LAST ONE. $200' }
   ];
   const BOOTHS = [];
   /* Four of them never made it to the floor. */
@@ -278,6 +281,7 @@
   function updateClub(dt, g) {
     S.beat += dt;
     S.tip = Math.max(0, S.tip - dt);
+    updateSlots(dt, g);
     S.pole += dt * (S.tip > 0 ? 6.5 : 3.2);
     // somebody says something, roughly every couple of seconds
     S.chatT -= dt;
@@ -448,6 +452,7 @@
       return;
     }
     if (s.id === 'stage') { tipTheDancer(g); return; }
+    if (s.id.indexOf('slot') === 0) { playSlot(g, +s.id.slice(4)); return; }
     if (s.id === 'coat') {
       g.save.suit = g.save.suit ? 0 : 1; g.saveGame();
       say(g.save.suit ? 'THE SUIT IS BACK ON. THE SUIT IS ALWAYS RIGHT.' : 'YOU HAVE HUNG THE SUIT UP. COWARD.');
@@ -463,9 +468,19 @@
     const th = TRASH[i];
     const gy = groundY(th.x);
     P.lock = 0.45; P.sweep = 0.5;
-    const pay = 400 + Math.round(U.rand(0, 260));
+    /* Clearing a tip is not a living. It pays pocket change and, now and then,
+       whatever was underneath -- which you still have to sell. The money in
+       this game comes out of the ground, not out of the bins. */
+    const pay = 18 + Math.round(U.rand(0, 26));
     g.save.credits += pay;
-    FX.text(th.x, gy - 40, '+$' + pay, '#8affa0', 1);
+    FX.text(th.x, gy - 40, '+$' + pay, '#8affa0', 0);
+    if (U.chance(0.55)) {
+      const mid = U.pick([1, 2, 2, 4, 4, 5]);
+      const n = U.randInt(1, 3);
+      g.save.vault[mid] = (g.save.vault[mid] || 0) + n;
+      const mat = PD.data.MAT[mid];
+      FX.text(th.x, gy - 54, '+' + n + ' ' + mat.name.toUpperCase(), mat.c[0], 1);
+    }
     A.sfx.tone(320, { type: 'square', to: 900, dur: 0.16, vol: 0.07 });
     FX.puff(th.x, gy - 10, 16, '#8e86a8', 1.3);
     FX.dust(th.x, gy, 10, '#6b6480', 24);
@@ -892,6 +907,7 @@
     drawDJ(ctx, g, t, cam, punch);
     drawStage(ctx, g, t, cam, punch);
     drawBar(ctx, g, t, cam);
+    drawSlots(ctx, g, t, cam);
 
     // a mirror ball, throwing spots about
     const mbx = 320 - cam, mby = CLUB_CEIL + 24;
@@ -960,10 +976,166 @@
     F.draw(ctx, 'COATS', 107 - cam, FLOOR - 84, '#8e86a8', { center: true, shadow: '#0a0614' });
 
     // and the doors nobody wants to draw
-    for (const [dx, lab] of [[598, 'LOO']]) {
+    for (const [dx, lab] of [[566, 'LOO']]) {
       X.plate(ctx, dx - cam, FLOOR - 40, 18, 40, '#241f36', '#3a3348', '#120a1c', 3);
       F.draw(ctx, lab, dx + 9 - cam, FLOOR - 50, '#6b6480', { center: true, shadow: false });
     }
+  }
+
+  /* ------------------------------------------------------------- THE LUCKY VOID
+     The machine that started all of this has a franchise, and there are three
+     of them through the arch at the back of the club. You can walk between
+     them and lose money at any of them. The odds are the odds: about three
+     quarters of what goes in comes back out, which is exactly how you ended up
+     owing a shark a million dollars in the first place. */
+  const SLOT_X = [656, 716, 776];
+  const SLOT_SYM = ['coin', 'ore', 'planet', 'skull', 'star'];
+  const STAKE = 200;
+  const SLOT = { at: -1, t: 0, reel: [0, 0, 0], land: [0, 0, 0], lever: 0, win: 0, msg: 0 };
+
+  const SLOT_LOSE = [
+    'NOTHING. THE MACHINE IS VERY SORRY.',
+    'SO CLOSE. IT WAS NOT CLOSE.',
+    'THE MACHINE DID NOT WANT IT. AGAIN.',
+    'THREE SKULLS WOULD HAVE BEEN SOMETHING.',
+    'IT MAKES THE WINNING NOISE ANYWAY. THAT IS THE TRICK.'
+  ];
+
+  function playSlot(g, i) {
+    if (SLOT.at >= 0) return;                       // one at a time
+    if (g.save.credits < STAKE) { say('TWO HUNDRED A GO. YOU HAVE NOT GOT IT.'); A.sfx.deny(); return; }
+    g.save.credits -= STAKE;
+    SLOT.at = i; SLOT.t = 0; SLOT.lever = 1; SLOT.win = 0; SLOT.msg = 0;
+    // decide first, then make the reels land on the decision
+    const r = U.rand();
+    if (r < 0.03) { const k = U.randInt(0, 4); SLOT.land = [k, k, k]; SLOT.win = STAKE * 12; }
+    else if (r < 0.23) {
+      const k = U.randInt(0, 4);
+      let o = U.randInt(0, 4); if (o === k) o = (k + 1) % 5;
+      SLOT.land = U.shuffle([k, k, o]); SLOT.win = STAKE * 2;
+    } else {
+      const a = U.randInt(0, 4);
+      let b = (a + 1 + U.randInt(0, 3)) % 5, c = (b + 1 + U.randInt(0, 2)) % 5;
+      if (c === a) c = (c + 1) % 5;
+      SLOT.land = [a, b, c]; SLOT.win = 0;
+    }
+    A.sfx.tone(200, { type: 'square', to: 520, dur: 0.2, vol: 0.08 });
+    PD.chum.call(g, 'gamble');
+    g.save.spun = (g.save.spun || 0) + 1;
+    g.saveGame();
+  }
+
+  function updateSlots(dt, g) {
+    SLOT.lever = Math.max(0, SLOT.lever - dt * 2.4);
+    SLOT.msg = Math.max(0, SLOT.msg - dt);
+    if (SLOT.at < 0) return;
+    SLOT.t += dt;
+    const STOP = [0.85, 1.25, 1.7];
+    for (let i = 0; i < 3; i++) {
+      if (SLOT.t < STOP[i]) SLOT.reel[i] = (SLOT.reel[i] + dt * (26 - i * 4)) % 5;
+      else if (Math.floor(SLOT.reel[i]) !== SLOT.land[i]) {
+        SLOT.reel[i] = SLOT.land[i];
+        A.sfx.tone(340 + i * 90, { type: 'square', dur: 0.05, vol: 0.06 });
+      }
+    }
+    if (SLOT.t < 2.0) return;
+    // and the result
+    const mx = SLOT_X[SLOT.at];
+    if (SLOT.win > 0) {
+      g.save.credits += SLOT.win;
+      const three = SLOT.win >= STAKE * 12;
+      say(three ? 'THREE THE SAME. THE ROOM STOPS. YOU WIN ' + U.fmt(SLOT.win) + '.'
+        : 'TWO THE SAME. YOU GET ' + U.fmt(SLOT.win) + ' BACK. WELL DONE.');
+      FX.text(mx, FLOOR - 108, '+$' + U.fmt(SLOT.win), '#ffd34d', three ? 2 : 1);
+      A.sfx.fanfare && A.sfx.fanfare();
+      for (let k = 0; k < (three ? 50 : 16); k++) {
+        FX.spawn({ x: mx + U.rand(-16, 16), y: FLOOR - 34, vx: U.rand(-140, 140), vy: U.rand(-230, -60),
+          life: 1.5, size: 2, glow: 1, color: k % 3 ? '#ffd34d' : '#ff5fa8', grav: 220, drag: 1 });
+      }
+      if (three) { FX.ring(mx, FLOOR - 44, 4, 80, 1, '#ffd34d', 3); PD.chum.call(g, 'jackpot', true); }
+    } else {
+      say(U.pick(SLOT_LOSE));
+      A.sfx.deny();
+      FX.text(mx, FLOOR - 108, '-$' + STAKE, '#ff5a4d', 0);
+    }
+    SLOT.msg = 2.4;
+    SLOT.at = -1;
+    g.saveGame();
+  }
+
+  /* The alcove: an arch, a carpet nobody has ever cleaned, three machines and
+     whoever has been standing at one of them since before you arrived. */
+  function drawSlots(ctx, g, t, cam) {
+    const a0 = 612 - cam;
+    // the arch through from the club
+    X.rect(ctx, a0, CLUB_CEIL, 10, FLOOR - CLUB_CEIL, '#241f36');
+    X.rect(ctx, a0 + 2, CLUB_CEIL + 6, 6, FLOOR - CLUB_CEIL - 6, '#3a3348');
+    X.rect(ctx, a0 + 10, CLUB_CEIL + 6, 202, 3, '#3a3348');
+    // carpet
+    X.rect(ctx, a0 + 10, FLOOR, 202, VH - FLOOR, '#4a1230');
+    for (let x = 0; x < 202; x += 16) {
+      X.rect(ctx, a0 + 10 + x, FLOOR, 8, VH - FLOOR, '#5c1a3c');
+      X.rect(ctx, a0 + 14 + x, FLOOR + 4, 6, 5, '#7a2450');
+    }
+    X.rect(ctx, a0 + 10, FLOOR - 1, 202, 1, '#2a0a1c');
+    // the sign over the arch
+    const lit = Math.sin(t * 7) > -0.25;
+    X.plate(ctx, a0 + 52, CLUB_CEIL + 12, 112, 18, '#120a1c', '#3a2a52', '#000000', 3);
+    F.draw(ctx, 'THE LUCKY VOID', a0 + 108, CLUB_CEIL + 18, lit ? '#ffd34d' : '#6a5a1a',
+      { center: true, shadow: '#3a0c30' });
+    for (let i = 0; i < 9; i++) {
+      const on = (Math.floor(t * 6) + i) % 3 !== 0;
+      X.rect(ctx, a0 + 54 + i * 13, CLUB_CEIL + 32, 9, 2, on ? '#ff5fa8' : '#4a1c3a');
+    }
+
+    for (let i = 0; i < 3; i++) drawMachine(ctx, g, t, cam, i);
+    // the two who have been here since before you arrived
+    for (const q of [{ x: 636, k: 12 }, { x: 798, k: 13 }]) {
+      const K = AH.KIN[q.k % AH.KIN.length];
+      const bob = Math.sin(t * 1.4 + q.x) * 1;
+      const top = FLOOR - K.legLen + bob;
+      drawTents(ctx, q.x - cam, top, K, t * 2 + q.x, 3);
+      AH.blit(ctx, AH.S[K.key], (Math.floor(t * 1.1 + q.x) % 8) === 0 ? 2 : 0, q.x - cam, top, true);
+    }
+  }
+
+  function drawMachine(ctx, g, t, cam, i) {
+    const mx = SLOT_X[i] - cam;
+    /* The cabinet stands on a plinth. At floor level the reels sat at exactly
+       your own head height and you could not see what you had just lost. */
+    const B = FLOOR - 16;
+    const live = SLOT.at === i;
+    const lv = live ? SLOT.lever * 14 : 0;
+    X.plate(ctx, mx - 26, B, 52, 16, '#1c0e18', '#3a1c30', '#0a0614', 3);
+    X.plate(ctx, mx - 24, B - 84, 48, 84, '#2a1a3a', '#4a3660', '#120a1c', 5);
+    X.plate(ctx, mx - 20, B - 80, 40, 16, '#120a1c', '#3a2a52', '#000000', 3);
+    const on = (Math.floor(t * 5) + i) % 2 === 0;
+    F.draw(ctx, 'VOID', mx, B - 75, on ? '#ffd34d' : '#6a5a1a', { center: true, shadow: false });
+    // the window, and the reels in it
+    X.plate(ctx, mx - 20, B - 60, 40, 26, '#0d0718', '#3a2a52', '#000000', 3);
+    for (let r = 0; r < 3; r++) {
+      const rx = mx - 17 + r * 12;
+      X.rect(ctx, rx, B - 58, 11, 22, '#e8e4d0');
+      X.rect(ctx, rx, B - 58, 11, 1, '#8e8874');
+      const spinning = live && SLOT.t < [0.85, 1.25, 1.7][r];
+      const idx = Math.floor(live ? SLOT.reel[r] : (i * 2 + r) % 5) % 5;
+      if (spinning) {
+        for (let k = -1; k <= 1; k++) {
+          ctx.globalAlpha = k ? 0.3 : 0.85;
+          PD.glyph.draw(ctx, SLOT_SYM[(idx + k + 5) % 5], rx - 1, B - 55 + k * 9, '#3a2a52', '#8a7ab0');
+        }
+        ctx.globalAlpha = 1;
+      } else {
+        PD.glyph.draw(ctx, SLOT_SYM[idx], rx - 1, B - 55, idx === 3 ? '#c22a4a' : '#3a2a52', '#8a7ab0');
+      }
+    }
+    X.rect(ctx, mx - 20, B - 47, 40, 1, live && SLOT.t > 1.7 ? '#ff5a4d' : '#8a2f4a');
+    F.draw(ctx, '$' + STAKE, mx, B - 31, '#8a7ab0', { center: true, shadow: false });
+    // the tray, and the lever he should never pull
+    X.plate(ctx, mx - 16, B - 22, 32, 14, '#120a1c', '#3a2a52', '#000000', 3);
+    X.line(ctx, mx + 26, B - 30 + lv, mx + 26, B - 52 + lv, '#8a7ab0', 3);
+    X.blob(ctx, mx + 26, B - 54 + lv, 5, 5, '#c22a4a');
+    X.blob(ctx, mx + 25, B - 55 + lv, 2, 2, '#ff8a9a');
   }
 
   /* Booths along the back, with the ones who came to sit down in them. */
@@ -1433,7 +1605,8 @@
     // twice its old size now, so the clearance is measured after the zoom
     // rather than scaled up with it.
     const LIFTS = { ufo: 78, door: 114, brain: 93, pc: 78, exit: 69, rat: 44,
-      trash: 66, club: 118, clubout: 84, coat: 104, dance: 102, bar: 112, dj: 104, stage: 112 };
+      trash: 66, club: 118, clubout: 84, coat: 104, dance: 102, bar: 112, dj: 104, stage: 112,
+      slot0: 132, slot1: 132, slot2: 132 };
     const lift = LIFTS[s.id] || 100;
     const sp = toScreen(s.x - cam, groundY(s.x));
     const x = U.clamp(Math.round(sp.x), 60, VW - 60);
@@ -1628,6 +1801,6 @@
     }
   }
 
-  PD.home = { enter, update, draw, drawScene, drawOverlay, view, toScreen, fromScreenX, closeScene, touchMode, leaveDesk, say, P, UI, S, groundY, ZW, ZH, ZK, ROOM_W: OUT_W, SPOTS,
+  PD.home = { enter, update, draw, drawScene, playSlot, SLOT, drawOverlay, view, toScreen, fromScreenX, closeScene, touchMode, leaveDesk, say, P, UI, S, groundY, ZW, ZH, ZK, ROOM_W: OUT_W, SPOTS,
     TRASH, CLUB_X, CLUB_SPOTS, CLUBBERS, moonClean, trashLeft, sweep, goClub, leaveClub, spots };
 })(window.PD);
