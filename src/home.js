@@ -1679,6 +1679,12 @@
 
     if (S.scene !== 'club') drawRat(ctx, g, cam, t);
     drawPlayer(ctx, g, cam, t);
+    /* And the small one, who has been following you since the casino. He does
+       not appear while the big version of him is already on the screen. */
+    if (g.save.seenIntro && !PD.chum.active() && !UI.mode) {
+      const m = PD.chum.stepMini(g.dt, P.x, P.y, P.face);
+      PD.chum.drawMini(ctx, Math.round(m.x - cam), Math.round(groundY(m.x)), t);
+    }
   }
 
   /* Signs, speech and the sleep fade, drawn on the screen at screen size so

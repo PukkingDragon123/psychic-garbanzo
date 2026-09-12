@@ -265,38 +265,52 @@ START button that does nothing, a clock stuck at 88:88, and a folder called
 | **MESSAGES** | Six unread. Six bad. His mum is one of them |
 | **SETUP** | Sound, full screen, and a button that throws everything away |
 
+## Getting out of a scene
+
+Every screen that used to only say `ESC` now has **a button** in the top left
+as well — the chart, the solar system, the brain — because there is no escape
+key on a phone and no amount of printing the word makes there be one. The
+computer already had `GET UP`, and the club has a door.
+
 ## ABAY
 
-You are not clever with machines. You stole a computer off a human world and
-found a shopping site on it, and everything you will ever own comes from there.
+The stolen human computer runs one website and you buy everything off it.
 
-**BUY NOW** is the shop, and it is shelved: `ALL`, `DIG`, `BODY`, `SHIP`,
-`BANG`, `BIZ`, `JUNK`. Blue underlined links, star ratings, seller handles with
-feedback counts, an advert strip that comes back seven seconds after you close
-it.
+**Every listing has a photograph of the actual item**, taken by the seller, on
+the floor, at night, with the flash on. They are generated per item: a carpet
+or a duvet or a worktop, the thing dumped slightly off-centre with a hard
+shadow under it, the flash coming straight back off it, a thumb over the corner
+of about half of them, and the date burned into the bottom right in orange, in
+the wrong year.
 
-**AUCTIONS** is the other half, and it is live. Four lots at a time, each one
-thing with a clock on it and a rival who wants it as much as you do. The
-opening bid is a third of the shop price, so winning is a real saving — but
-`grunk_92`, `bidbot_prime`, `MOTHER` or `a_very_normal_guy` is watching, and
-the moment you go in front they start thinking about coming back over the top.
+Click a row and you get **the listing itself**: the photo at double size,
+the title, the seller's feedback percentage, the blurb, the price, what level
+you are on, and the postage (free — he throws it). From there you can BUY IT
+NOW, or **ADD TO BASKET**.
 
-- The rival has a **hidden ceiling** at roughly five-sixths of the buy-it-now,
-  so a lot is always worth a go and never a sure thing.
-- A bid in the last seconds **extends the clock**, from either side.
-- The clocks run whether or not you are looking at the tab, and the tab grows a
-  blinking green dot while you are the high bidder on anything.
-- Win, and it is yours at your bid and it arrives instantly, because the
-  warehouse does not exist. Lose, and ABAY tells you exactly who took it.
+The basket lives in the banner with a count on it. Open it, look at what you
+have done, remove things, and press **CHECKOUT**.
 
-**MY ROCKS** lists what you dug and what the house will give you for it.
-**FEEDBACK** is people describing things you sold them.
+## Checking out
 
-### Getting out of the chair
+Buying a thing off a human website is not one button. It is four steps and Mr
+Chum talks you through all of them.
 
-Escape has always closed the computer, but nothing on screen said so and a
-phone has no Escape at all. There is a **GET UP** button on the desk now,
-outside the monitor, in the corner where your hand already is.
+1. **SIGN IN.** Your email is already in the box and so is your codeword. What
+   you have to do is prove you are not a robot: **TICK THE ROCKS** — nine
+   squares, four of them rocks, and the other five are a coin, a star, a skull,
+   a hand and an air can.
+2. **THE CARD.** A ZORB EXPRESS card is lying on the desk. Type **the last
+   four** off it. They are ringed in gold, because without the ring he types
+   the first four every single time and then blames the card.
+3. **THE CODE.** Eight digits are sent to your satellite, and you watch them
+   **arrive from orbit one at a time** over about four seconds before you can
+   type any of them in.
+4. **DONE.** A progress bar, and then the whole basket lands on the moon. It
+   was always on the moon.
+
+There is a keypad for all of it, because this is a game you can play on a
+phone, and the number keys work too for anyone who has them.
 
 ## Round where it should be round
 
@@ -611,6 +625,15 @@ last one hangs up on him.
 On the galaxy chart and at the computer he paces a stripe higher up the
 screen, because both of those keep a panel along the bottom edge and he is
 rude but not illegible.
+
+## And a very small one
+
+The pane on your wrist is one thing. The other thing the watch does, once it
+is on, is put **a tiny copy of him on the ground next to you** — about half
+your height, entirely round, in a suit the size of a stamp — who walks along
+behind you wherever you go, on the moon, in the house and down the club. He
+never quite catches up, which is roughly how the arrangement works, and every
+so often he says `$` to himself.
 
 ## Nobody reads a caption bar
 

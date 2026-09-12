@@ -114,6 +114,7 @@
     status: 'READY. PROBABLY.',
     coins: [], flash: 0,
     ad: 0, adT: 0, adOn: true,
+    view: null, cart: [], cartOpen: 0, co: null, bump: 0,
     icon: -1
   };
 
@@ -628,14 +629,40 @@
     sunk(ctx, x0 + 96, y0 + 4, 128, 11);
     F.draw(ctx, 'ROCK BUYER NEAR ME', x0 + 99, y0 + 6, '#8e8874', { shadow: false });
     if (btn(ctx, x0 + 226, y0 + 4, 30, 11, 'FIND')) { A.sfx.deny(); say('NO. YOU FIND.'); }
+    // the basket, which is the only thing on this page that has ever worked
+    const cn = cartCount();
+    S.bump = Math.max(0, S.bump - g.dt * 2);
+    const bkx = x0 + w - 178, bky = y0 + 2 - Math.round(S.bump * 3);
+    X.plate(ctx, bkx, bky, 60, 14, S.cartOpen ? '#f2c23a' : C.chrome, C.chromeL, C.chromeD, 3);
+    Gy().draw(ctx, 'cargo', bkx + 2, bky, C.ink, C.dim);
+    F.draw(ctx, 'BASKET', bkx + 18, bky + 4, C.ink, { shadow: false });
+    if (cn > 0) {
+      X.rect(ctx, bkx + 50, bky - 2, 12, 10, C.red);
+      F.draw(ctx, String(cn), bkx + 56, bky - 1, '#ffffff', { center: true, shadow: false });
+    }
+    if (press(bkx, bky, 60, 14)) { S.cartOpen = S.cartOpen ? 0 : 1; S.view = null; A.sfx.click(); }
     Gy().draw(ctx, 'coin', x0 + w - 96, y0 + 3, C.ylw, '#a8781a');
     F.draw(ctx, '$' + U.fmt(g.save.credits), x0 + w - 6, y0 + 2, '#1e6b2e', { right: true, shadow: false });
     if (g.save.debt > 0) {
       F.draw(ctx, 'OWED $' + U.fmt(g.save.debt), x0 + w - 6, y0 + 11, C.red, { right: true, shadow: false });
     }
 
-    /* tabs */
     const ty = y0 + 18;
+    /* The listing page, the basket and the checkout each take over the whole
+       window: the tab strip's content area is seventy pixels tall and a real
+       photograph of a thing does not fit in seventy pixels. */
+    if (S.co || S.view || S.cartOpen) {
+      const ay = ty + 2, ah = WY + WH - 16 - ay;
+      if (S.co) drawCheckout(ctx, g, t, x0 + 2, w - 4, ay, ah);
+      else if (S.view) drawDetail(ctx, g, t, x0 + 2, w - 4, ay, ah);
+      else drawCart(ctx, g, t, x0 + 2, w - 4, ay, ah);
+      const fy2 = WY + WH - 14;
+      X.rect(ctx, x0 + 2, fy2, w - 4, 11, C.pageD);
+      F.draw(ctx, S.status, x0 + 6, fy2 + 2, C.dim, { shadow: false });
+      return;
+    }
+
+    /* tabs */
     for (let i = 0; i < TABS.length; i++) {
       const tw = 63, tx = x0 + 4 + i * (tw + 3);
       const on = S.tab === i;
@@ -712,6 +739,378 @@
     if (press(x, y, 7, h)) { S.scrollTo = U.clamp((S.fireY - y - kh / 2) / (h - kh) * (total - view), 0, total - view); A.sfx.click(); }
   }
 
+  /* ---------------------------------------------------------- the photograph
+     Every listing on ABAY has a real photo of the actual item, taken by the
+     seller, on the floor, at night, with the flash on. There is a thumb over
+     the corner of about half of them and they all have the date burned into
+     them in orange. Built once per item and kept. */
+  const PHOTO = {};
+  const SURFACES = [
+    ['#7a6a52', '#6b5c46', '#8a7a62'],      // a carpet
+    ['#3a4a6a', '#32405c', '#46577a'],      // a duvet
+    ['#8a5a5a', '#7a4e4e', '#9a6a6a'],      // a sofa
+    ['#5a6a4a', '#4e5c40', '#6a7a58'],      // a lawn, somehow
+    ['#9a9488', '#8a8478', '#aaa498']       // a worktop
+  ];
+  const PW = 58, PH = 44;
+
+  function photoOf(it) {
+    if (PHOTO[it.id]) return PHOTO[it.id];
+    let seed = 7;
+    for (let i = 0; i < it.id.length; i++) seed = (Math.imul(seed, 31) + it.id.charCodeAt(i)) | 0;
+    seed >>>= 0;
+    const R = U.mulberry32(seed);
+    const cv = document.createElement('canvas');
+    cv.width = PW; cv.height = PH;
+    const c = cv.getContext('2d');
+    const su = SURFACES[(R() * SURFACES.length) | 0];
+
+    // the surface it has been dumped on
+    c.fillStyle = su[0]; c.fillRect(0, 0, PW, PH);
+    for (let y = 0; y < PH; y++) {
+      for (let x = 0; x < PW; x++) {
+        const n = U.hash2(x + seed, y * 3);
+        if (n > 0.88) { c.fillStyle = su[2]; c.fillRect(x, y, 1, 1); }
+        else if (n < 0.14) { c.fillStyle = su[1]; c.fillRect(x, y, 1, 1); }
+      }
+    }
+    // the item: off-centre, because nobody lines a photo up
+    const ox = Math.round((R() - 0.5) * 10), oy = Math.round((R() - 0.5) * 6);
+    const gx = PW / 2 + ox - 21, gy = PH / 2 + oy - 21;
+    X.blob(c, PW / 2 + ox + 2, PH / 2 + oy + 15, 17, 4, 'rgba(0,0,0,0.4)');
+    c.globalAlpha = 0.3;                                  // the shake
+    Gy().draw(c, GLYPH_OF[it.id] || 'quest', gx + 1, gy + 1, '#c9c4b4', '#7a7460', 3);
+    c.globalAlpha = 1;
+    Gy().draw(c, GLYPH_OF[it.id] || 'quest', gx, gy, '#fbf7ea', '#b0a892', 3);
+
+    // the flash, straight back off it
+    const fx = PW / 2 + ox - 5, fy = PH / 2 + oy - 8;
+    for (let i = 4; i >= 1; i--) {
+      c.globalAlpha = 0.13 * (5 - i) / 4;
+      X.blob(c, fx, fy, 4 + i * 4, 3 + i * 3, '#ffffff');
+    }
+    c.globalAlpha = 0.55; X.blob(c, fx, fy, 4, 3, '#ffffff'); c.globalAlpha = 1;
+
+    // a thumb, about half the time
+    if (R() < 0.45) {
+      const left = R() < 0.5;
+      const tx = left ? -4 : PW - 12;
+      c.globalAlpha = 0.95;
+      X.blob(c, tx + 8, PH - 2, 13, 12, '#c98a6a');
+      X.blob(c, tx + 8, PH - 6, 8, 6, '#e0a78a');
+      c.globalAlpha = 1;
+    }
+    // it is too dark at the edges, as these things are
+    for (let i = 0; i < 5; i++) {
+      c.fillStyle = 'rgba(0,0,0,' + (0.05 * (5 - i)).toFixed(2) + ')';
+      c.fillRect(i, 0, 1, PH); c.fillRect(PW - 1 - i, 0, 1, PH);
+      c.fillRect(0, i, PW, 1); c.fillRect(0, PH - 1 - i, PW, 1);
+    }
+    // and the date, burned in, in the wrong year
+    F.draw(c, '12 05 ' + (70 + ((seed >> 3) % 30)), PW - 2, PH - 8, '#ff8a3d', { right: true, shadow: false });
+    PHOTO[it.id] = cv;
+    return cv;
+  }
+
+  function drawPhoto(ctx, it, x, y, k) {
+    const cv = photoOf(it);
+    X.rect(ctx, x - 1, y - 1, PW * k + 2, PH * k + 2, '#ffffff');
+    X.rect(ctx, x - 1, y - 1, PW * k + 2, 1, C.pageDD);
+    ctx.drawImage(cv, 0, 0, PW, PH, x | 0, y | 0, PW * k, PH * k);
+  }
+
+  /* ------------------------------------------------------------- the basket */
+  function cartCount() { let n = 0; for (const l of S.cart) n += l.n; return n; }
+  function cartTotal(g) {
+    let n = 0;
+    for (const l of S.cart) {
+      const lvl = (g.save.upg[l.id] || 0);
+      for (let i = 0; i < l.n; i++) n += Math.round(D.abayCost(D.ABAYX[l.id], lvl + i) * (1 - g.brain('know') * 0.05));
+    }
+    return n;
+  }
+  function addToCart(g, it) {
+    const cap = g.abayMax(it.id), lvl = g.save.upg[it.id] || 0;
+    const line = S.cart.find(l => l.id === it.id);
+    if (lvl + (line ? line.n : 0) >= cap) { A.sfx.deny(); say('YOU ALREADY HAVE ALL OF THOSE.'); return; }
+    if (line) line.n++; else S.cart.push({ id: it.id, n: 1 });
+    A.sfx.click();
+    say('ADDED TO BASKET. THE BASKET IS AT THE TOP.');
+    S.bump = 1;
+  }
+
+  /* ================================================================ CHECKOUT
+     Buying a thing off a human website involves signing in, proving you are
+     not a robot, reading numbers off a piece of plastic, and then waiting for
+     a code to arrive from orbit. He does all four, badly, and Mr Chum talks
+     him through it. */
+  const CARD = { no: '4029 8817 3355 9142', last: '9142', name: 'MR ALIEN', exp: '99/99', cvv: '007' };
+  const CAPTCHA = [
+    ['rock', '#8a7a62', '#5e5040'], ['coin', '#e0b02a', '#8a6a12'], ['rock', '#8a7a62', '#5e5040'],
+    ['star', '#58a8e0', '#2a5f8a'], ['skull', '#d8d4c4', '#7a7460'], ['rock', '#8a7a62', '#5e5040'],
+    ['hand', '#6aba72', '#2f7a42'], ['rock', '#8a7a62', '#5e5040'], ['o2', '#c06aa8', '#7a2f62']
+  ];
+
+  function startCheckout(g) {
+    if (!S.cart.length) { A.sfx.deny(); say('THE BASKET IS EMPTY. THAT IS WHY IT IS LIGHT.'); return; }
+    if (g.save.credits < cartTotal(g)) { A.sfx.deny(); say('NOT ENOUGH MONEY FOR THE WHOLE BASKET.'); return; }
+    let code = '';
+    for (let i = 0; i < 8; i++) code += U.randInt(0, 9);
+    S.co = { step: 0, typed: '', code: code, got: 0, t: 0, ticked: [], err: 0, ok: 0 };
+    S.view = null;
+    A.sfx.click();
+    PD.chum.call(g, 'checkout');
+  }
+
+  function keypad(ctx, g, x, y, max) {
+    const KW = 22, KH = 13;
+    for (let i = 0; i < 12; i++) {
+      const kx = x + (i % 3) * (KW + 3), ky = y + ((i / 3) | 0) * (KH + 3);
+      const lab = i < 9 ? String(i + 1) : (i === 9 ? 'DEL' : (i === 10 ? '0' : 'OK'));
+      const face = i === 10 || i < 9 ? '#e8e4d0' : (i === 9 ? '#d8b0a0' : '#9fdc9f');
+      if (btn(ctx, kx, ky, KW, KH, lab, { face: face })) {
+        if (i === 9) { S.co.typed = S.co.typed.slice(0, -1); A.sfx.click(); }
+        else if (i === 11) { S.co.ok = 1; A.sfx.click(); }
+        else if (S.co.typed.length < max) { S.co.typed += (i === 10 ? '0' : String(i + 1)); A.sfx.tone(700 + i * 30, { type: 'square', dur: 0.04, vol: 0.04 }); }
+      }
+    }
+    // the real keyboard works too, for anyone who has one
+    const IN = PD.input;
+    for (let d = 0; d <= 9; d++) {
+      if ((IN.hit('Digit' + d) || IN.hit('Numpad' + d)) && S.co.typed.length < max) {
+        S.co.typed += String(d); A.sfx.tone(700 + d * 30, { type: 'square', dur: 0.04, vol: 0.04 });
+      }
+    }
+    if (IN.hit('Backspace')) S.co.typed = S.co.typed.slice(0, -1);
+    if (IN.hit('enter')) S.co.ok = 1;
+  }
+
+  function typedBox(ctx, x, y, w, n, t) {
+    const CWD = Math.floor(w / n);
+    for (let i = 0; i < n; i++) {
+      const bx = x + i * CWD;
+      sunk(ctx, bx, y, CWD - 2, 15, '#ffffff');
+      const ch = S.co.typed[i];
+      if (ch) F.draw(ctx, ch, bx + (CWD - 2) / 2, y + 4, C.ink, { center: true, shadow: false, scale: 2 });
+      else if (i === S.co.typed.length && Math.sin(t * 8) > 0) X.rect(ctx, bx + (CWD - 2) / 2, y + 3, 1, 9, C.ink);
+    }
+  }
+
+  function drawCheckout(ctx, g, t, x0, w, ay, ah) {
+    const co = S.co;
+    co.t += g.dt;
+    X.rect(ctx, x0, ay, w, ah, C.page);
+    // the progress strip
+    const STEPS = ['SIGN IN', 'CARD', 'CODE', 'DONE'];
+    for (let i = 0; i < 4; i++) {
+      const sw = 62, sx = x0 + 8 + i * (sw + 6);
+      const on = co.step === i, done = co.step > i;
+      X.rect(ctx, sx, ay + 4, sw, 11, done ? '#9fdc9f' : (on ? C.blu : C.pageD));
+      F.draw(ctx, STEPS[i], sx + sw / 2, ay + 6, on ? '#ffffff' : (done ? '#1e6b2e' : C.dim), { center: true, shadow: false });
+      if (i < 3) X.rect(ctx, sx + sw, ay + 9, 6, 1, C.pageDD);
+    }
+    const py = ay + 20, ph2 = ah - 22;
+
+    if (co.step === 0) {
+      F.draw(ctx, 'SIGN IN TO ABAY', x0 + 8, py, C.ink, { shadow: false, scale: 2 });
+      F.draw(ctx, 'EMAIL', x0 + 8, py + 20, C.dim, { shadow: false });
+      sunk(ctx, x0 + 44, py + 18, 150, 11, '#ffffff');
+      F.draw(ctx, 'BIG_ALIEN_1997@ZORB.MOON', x0 + 47, py + 20, C.ink, { shadow: false });
+      F.draw(ctx, 'PASS', x0 + 8, py + 34, C.dim, { shadow: false });
+      sunk(ctx, x0 + 44, py + 32, 150, 11, '#ffffff');
+      F.draw(ctx, '**************', x0 + 47, py + 34, C.ink, { shadow: false });
+      // the captcha, which is the only bit of this he has to do
+      F.draw(ctx, 'TICK THE ROCKS', x0 + 238, py + 2, C.ink, { shadow: false });
+      for (let i = 0; i < 9; i++) {
+        const cx2 = x0 + 238 + (i % 3) * 22, cy2 = py + 12 + ((i / 3) | 0) * 22;
+        const tick = co.ticked.indexOf(i) >= 0;
+        sunk(ctx, cx2, cy2, 20, 20, tick ? '#cfe6ff' : '#ffffff');
+        Gy().draw(ctx, CAPTCHA[i][0], cx2 + 3, cy2 + 3, CAPTCHA[i][1], CAPTCHA[i][2]);
+        if (tick) { X.rect(ctx, cx2 + 14, cy2 + 1, 6, 6, C.grn); F.draw(ctx, 'V', cx2 + 15, cy2 + 2, '#ffffff', { shadow: false }); }
+        if (press(cx2, cy2, 20, 20)) {
+          const k = co.ticked.indexOf(i);
+          if (k >= 0) co.ticked.splice(k, 1); else co.ticked.push(i);
+          A.sfx.click();
+        }
+      }
+      if (btn(ctx, x0 + 8, py + 50, 90, 14, 'SIGN IN', { face: '#f2c23a', light: '#ffe08a' })) {
+        const want = [];
+        for (let i = 0; i < 9; i++) if (CAPTCHA[i][0] === 'rock') want.push(i);
+        const got = co.ticked.slice().sort().join(',') === want.join(',');
+        if (got) { co.step = 1; co.typed = ''; A.sfx.buy(); say('SIGNED IN. THAT TOOK LONGER THAN THE MINING.'); }
+        else { co.err = 1.4; co.ticked.length = 0; A.sfx.deny(); say('THAT IS NOT A ROCK. TRY AGAIN.'); }
+      }
+      if (co.err > 0) {
+        co.err -= g.dt;
+        F.draw(ctx, 'WRONG. IT THINKS YOU ARE A ROBOT.', x0 + 8, py + 68, C.red, { shadow: false });
+      }
+    } else if (co.step === 1) {
+      F.draw(ctx, 'THE LAST FOUR', x0 + 8, py, C.ink, { shadow: false, scale: 2 });
+      F.draw(ctx, 'READ IT OFF THE CARD.', x0 + 172, py + 1, C.dim, { shadow: false });
+      F.draw(ctx, 'IT IS IN THE BOX.', x0 + 172, py + 10, C.dim, { shadow: false });
+      // the card itself, on the desk
+      const cx2 = x0 + 8, cy2 = py + 16;
+      X.plate(ctx, cx2, cy2, 134, 54, '#3f6ba8', '#5a8cc9', '#22436b', 4);
+      X.rect(ctx, cx2, cy2 + 8, 134, 9, '#2a3f60');
+      X.rect(ctx, cx2 + 8, cy2 + 20, 18, 12, '#e0c060');
+      for (let i = 0; i < 3; i++) X.rect(ctx, cx2 + 10, cy2 + 22 + i * 4, 14, 1, '#a8842a');
+      F.draw(ctx, 'ZORB EXPRESS', cx2 + 128, cy2 + 2, '#cfe0ff', { right: true, shadow: false });
+      F.draw(ctx, CARD.no, cx2 + 6, cy2 + 35, '#ffffff', { shadow: false });
+      F.draw(ctx, CARD.name, cx2 + 6, cy2 + 45, '#cfe0ff', { shadow: false });
+      F.draw(ctx, 'EXP ' + CARD.exp, cx2 + 128, cy2 + 45, '#cfe0ff', { right: true, shadow: false });
+      /* The last four are ringed. Without the ring he types the first four,
+         every single time, and then blames the card. */
+      const lx = cx2 + 6 + F.width('4029 8817 3355 ', 1) - 2;
+      X.rect(ctx, lx, cy2 + 32, 27, 1, '#ffd34d');
+      X.rect(ctx, lx, cy2 + 42, 27, 1, '#ffd34d');
+      X.rect(ctx, lx, cy2 + 32, 1, 11, '#ffd34d');
+      X.rect(ctx, lx + 26, cy2 + 32, 1, 11, '#ffd34d');
+      typedBox(ctx, x0 + 150, py + 26, 84, 4, t);
+      keypad(ctx, g, x0 + w - 82, py + 14, 4);
+      if (co.ok) {
+        co.ok = 0;
+        if (co.typed === CARD.last) { co.step = 2; co.typed = ''; co.got = 0; co.t = 0; A.sfx.buy(); PD.chum.call(g, 'twofa'); }
+        else { co.err = 1.4; co.typed = ''; A.sfx.deny(); say('THAT IS NOT THE NUMBER. IT IS ON THE CARD.'); }
+      }
+      if (co.err > 0) { co.err -= g.dt; F.draw(ctx, 'NO.', x0 + 150, py + 46, C.red, { shadow: false, scale: 2 }); }
+    } else if (co.step === 2) {
+      F.draw(ctx, 'THE 8 DIGITS', x0 + 8, py, C.ink, { shadow: false, scale: 2 });
+      F.draw(ctx, 'COMING IN FROM ORBIT.', x0 + 166, py + 4, C.dim, { shadow: false });
+      // the code is coming in from orbit, one digit at a time
+      const want = Math.min(8, Math.floor(co.t / 0.55));
+      if (want > co.got) { co.got = want; A.sfx.tone(1200, { type: 'sine', to: 1700, dur: 0.07, vol: 0.04 }); }
+      const sx2 = x0 + 8, sy2 = py + 16, sw2 = 132, sh2 = 46;
+      X.rect(ctx, sx2, sy2, sw2, sh2, '#0b0720');
+      for (let i = 0; i < 40; i++) {
+        const px2 = sx2 + ((U.hash2(i, 5) * sw2) | 0), py2 = sy2 + ((U.hash2(i, 9) * sh2) | 0);
+        X.rect(ctx, px2, py2, 1, 1, U.hash2(i, 11) > 0.6 ? '#ffffff' : '#8a7ab0');
+      }
+      // a satellite, turning
+      const stx = sx2 + 22, sty = sy2 + 26;
+      X.rect(ctx, stx - 8, sty - 2, 16, 5, '#8e86a8');
+      X.rect(ctx, stx - 14, sty - 6, 5, 13, '#3f6ba8');
+      X.rect(ctx, stx + 9, sty - 6, 5, 13, '#3f6ba8');
+      X.blob(ctx, stx + 2, sty - 8, 5, 4, '#c9c4b4');
+      ctx.globalAlpha = 0.3 + Math.abs(Math.sin(t * 4)) * 0.3;
+      X.poly(ctx, [[stx + 4, sty - 9], [stx + 8, sty - 9], [sx2 + sw2, sy2 + 6], [sx2 + sw2, sy2 + 22]], '#7ef9ff');
+      ctx.globalAlpha = 1;
+      // the digits fly in one at a time and line up along the bottom
+      for (let i = 0; i < co.got; i++) {
+        const a = Math.min(1, (co.t - i * 0.55) * 3);
+        const dx = sx2 + 22 + i * 12 + (1 - a) * 60, dy = sy2 + sh2 - 13 - (1 - a) * 14;
+        ctx.globalAlpha = a;
+        F.draw(ctx, co.code[i], dx, dy, a >= 1 ? '#4cff9a' : '#7ef9ff', { shadow: false, scale: 2 });
+        ctx.globalAlpha = 1;
+      }
+      F.draw(ctx, co.got >= 8 ? 'ALL EIGHT' : 'RECEIVING...', sx2 + 4, sy2 + 3, '#8a7ab0', { shadow: false });
+      typedBox(ctx, x0 + 150, py + 26, 92, 8, t);
+      keypad(ctx, g, x0 + w - 82, py + 14, 8);
+      if (co.ok) {
+        co.ok = 0;
+        if (co.typed === co.code) { co.step = 3; co.t = 0; A.sfx.buy(); }
+        else { co.err = 1.4; co.typed = ''; A.sfx.deny(); say('WRONG CODE. IT IS THE ONE FROM SPACE.'); }
+      }
+      if (co.err > 0) { co.err -= g.dt; F.draw(ctx, 'NO.', x0 + 150, py + 46, C.red, { shadow: false, scale: 2 }); }
+    } else {
+      if (co.t < 1.4) {
+        F.draw(ctx, 'PLACING ORDER', x0 + w / 2, py + 20, C.ink, { center: true, shadow: false, scale: 2 });
+        const n = Math.floor(co.t * 6) % 4;
+        F.draw(ctx, '.'.repeat(n + 1), x0 + w / 2, py + 38, C.dim, { center: true, shadow: false, scale: 2 });
+        X.rect(ctx, x0 + w / 2 - 60, py + 54, 120, 8, C.pageD);
+        X.rect(ctx, x0 + w / 2 - 60, py + 54, Math.round(120 * co.t / 1.4), 8, C.grn);
+      } else {
+        if (!co.done) {
+          co.done = 1;
+          let bought = 0;
+          for (const l of S.cart) for (let i = 0; i < l.n; i++) if (g.abayBuy(l.id)) bought++;
+          co.bought = bought;
+          S.cart.length = 0;
+          S.flash = 1;
+          for (let i = 0; i < 20; i++) S.coins.push({ x: SX + SW / 2 + U.rand(-30, 30), y: SY + 50, vx: U.rand(-80, 80), vy: U.rand(-110, -20), t: 0, life: 1 });
+          say('ORDER PLACED. IT IS ALREADY ON THE MOON. DO NOT ASK.');
+          PD.chum.call(g, 'ordered');
+        }
+        F.draw(ctx, 'ORDER PLACED', x0 + w / 2, py + 14, '#1e6b2e', { center: true, shadow: false, scale: 3 });
+        F.draw(ctx, co.bought + ' ITEM' + (co.bought === 1 ? '' : 'S') + ' DELIVERED TO THE MOON', x0 + w / 2, py + 38, C.ink, { center: true, shadow: false });
+        F.draw(ctx, 'ESTIMATED ARRIVAL: IT IS ALREADY THERE', x0 + w / 2, py + 48, C.dim, { center: true, shadow: false });
+        if (btn(ctx, x0 + w / 2 - 45, py + 60, 90, 14, 'LOVELY', { face: '#9fdc9f' })) { S.co = null; A.sfx.click(); }
+      }
+    }
+    if (co.step < 3 && btn(ctx, x0 + w - 66, ay + 3, 62, 12, 'GIVE UP', { face: C.chrome })) {
+      S.co = null; A.sfx.click(); say('THE BASKET IS STILL THERE. IT IS ALWAYS STILL THERE.');
+    }
+  }
+
+  /* ------------------------------------------------------------ the listing */
+  function drawDetail(ctx, g, t, x0, w, ay, ah) {
+    const it = D.ABAYX[S.view];
+    if (!it) { S.view = null; return; }
+    X.rect(ctx, x0, ay, w, ah, C.page);
+    const lvl = g.save.upg[it.id] || 0, cap = g.abayMax(it.id);
+    const cost = g.abayPrice(it.id), maxed = lvl >= cap;
+    const afford = g.save.credits >= cost;
+
+    drawPhoto(ctx, it, x0 + 6, ay + 6, 2);
+    F.draw(ctx, 'SELLER PHOTO. NOT A STOCK PHOTO.', x0 + 6, ay + 6 + PH * 2 + 3, C.dim, { shadow: false });
+
+    const tx = x0 + PW * 2 + 16;
+    const tw = w - (PW * 2 + 22);
+    F.draw(ctx, clip(it.name, tw), tx, ay + 6, C.ink, { shadow: false, scale: 2 });
+    stars(ctx, tx, ay + 24, it.stars);
+    F.draw(ctx, it.seller + '  (' + (100 + it.id.length * 37) + ')  99.' + (1 + it.id.length % 8) + '%', tx + 34, ay + 23, '#7a7460', { shadow: false });
+    // the blurb, wrapped
+    let row = '', ry = ay + 34;
+    for (const wd of it.blurb.split(' ')) {
+      const test = row ? row + ' ' + wd : wd;
+      if (F.width(test, 1) > tw && row) { F.draw(ctx, row, tx, ry, C.dim, { shadow: false }); row = wd; ry += 10; }
+      else row = test;
+    }
+    if (row) F.draw(ctx, row, tx, ry, C.dim, { shadow: false });
+
+    F.draw(ctx, maxed ? 'YOU OWN THE WHOLE LOT' : '$' + U.fmt(cost), tx, ay + 56,
+      maxed ? C.dim : (afford ? '#1e6b2e' : C.red), { shadow: false, scale: 3 });
+    F.draw(ctx, 'LVL ' + lvl + ' / ' + cap, tx, ay + 76, C.dim, { shadow: false });
+    F.draw(ctx, 'POSTAGE: FREE (HE THROWS IT)', tx, ay + 86, C.dim, { shadow: false });
+
+    if (!maxed) {
+      if (btn(ctx, tx + 110, ay + 56, 78, 14, 'ADD TO BASKET', { face: '#cfe0ff', light: '#ffffff' })) addToCart(g, it);
+      if (btn(ctx, tx + 110, ay + 74, 78, 14, 'BUY IT NOW',
+        { face: afford ? '#f2c23a' : '#c9c3ae', enabled: afford, light: '#ffe08a' })) buy(g, it, cost);
+    }
+    if (btn(ctx, x0 + 4, ay + ah - 14, 96, 12, '< BACK TO THE LIST', { face: C.chrome })) { S.view = null; A.sfx.click(); }
+  }
+
+  function drawCart(ctx, g, t, x0, w, ay, ah) {
+    X.rect(ctx, x0, ay, w, ah, C.page);
+    F.draw(ctx, 'YOUR BASKET', x0 + 8, ay + 5, C.ink, { shadow: false, scale: 2 });
+    if (!S.cart.length) {
+      F.draw(ctx, 'IT IS EMPTY. THAT IS WHY IT IS LIGHT.', x0 + w / 2, ay + 36, C.dim, { center: true, shadow: false, scale: 2 });
+    }
+    for (let i = 0; i < S.cart.length; i++) {
+      const l = S.cart[i], it = D.ABAYX[l.id];
+      const y = ay + 22 + i * 18;
+      if (y > ay + ah - 30) break;
+      X.rect(ctx, x0 + 6, y, w - 12, 16, i % 2 ? '#e2ded0' : '#ffffff');
+      drawPhoto(ctx, it, x0 + 8, y + 1, 0.25);
+      F.draw(ctx, clip(it.name, 150), x0 + 28, y + 2, C.link, { shadow: false });
+      F.draw(ctx, 'X' + l.n, x0 + 186, y + 2, C.dim, { shadow: false });
+      const lvl = g.save.upg[l.id] || 0;
+      let sum = 0;
+      for (let k = 0; k < l.n; k++) sum += Math.round(D.abayCost(D.ABAYX[l.id], lvl + k) * (1 - g.brain('know') * 0.05));
+      F.draw(ctx, '$' + U.fmt(sum), x0 + 264, y + 2, '#1e6b2e', { right: true, shadow: false });
+      if (btn(ctx, x0 + w - 34, y + 2, 24, 12, 'X', { face: '#d8b0a0' })) {
+        if (--l.n <= 0) S.cart.splice(i, 1);
+        A.sfx.click();
+      }
+    }
+    const tot = cartTotal(g);
+    X.rect(ctx, x0 + 6, ay + ah - 26, w - 12, 1, C.pageDD);
+    F.draw(ctx, 'TOTAL', x0 + 8, ay + ah - 22, C.ink, { shadow: false, scale: 2 });
+    F.draw(ctx, '$' + U.fmt(tot), x0 + 140, ay + ah - 22, g.save.credits >= tot ? '#1e6b2e' : C.red, { shadow: false, scale: 2 });
+    if (btn(ctx, x0 + 190, ay + ah - 22, 80, 14, 'KEEP LOOKING', { face: C.chrome })) { S.cartOpen = 0; A.sfx.click(); }
+    if (btn(ctx, x0 + 276, ay + ah - 22, 92, 14, 'CHECKOUT >', { face: '#f2c23a', light: '#ffe08a' })) startCheckout(g);
+  }
+
   /* -------------------------------------------------------------- BUY tab */
   function abayBuy(ctx, g, t, bx, by, bw, bh) {
     const ROW = 30;
@@ -739,9 +1138,8 @@
       X.rect(ctx, bx, y, lw, ROW - 2, over ? '#fdfaef' : (i % 2 ? '#e2ded0' : C.page));
       X.rect(ctx, bx, y + ROW - 2, lw, 1, C.pageDD);
       if (over) { X.rect(ctx, bx, y, 2, ROW - 2, C.ylw); }
-      // thumbnail in a sunk box
-      sunk(ctx, bx + 3, y + 5, 22, 22, '#ffffff');
-      Gy().draw(ctx, GLYPH_OF[it.id] || 'quest', bx + 7, y + 9, C.ink, C.dim);
+      // the seller's own photograph, badly taken, as a thumbnail
+      drawPhoto(ctx, it, bx + 3, y + 4, 0.4);
       if (lvl > 0) {
         X.rect(ctx, bx + 3, y + 20, 22, 7, '#3a9c48');
         F.draw(ctx, 'X' + lvl, bx + 14, y + 21, '#ffffff', { center: true, shadow: false });
@@ -766,13 +1164,14 @@
         if (btn(ctx, px + 2, y + 14, RCOL - 6, 11, 'BUY IT NOW',
           { face: afford ? '#f2c23a' : '#c9c3ae', enabled: afford, light: '#ffe08a' })) buy(g, it, cost);
       }
-      if (!afford && !maxed && press(bx, y, lw - RCOL, ROW - 2)) { A.sfx.deny(); say('NOT ENOUGH MONEY. GO AND HIT A PLANET.'); }
+      // anywhere that is not the buy button opens the listing itself
+      if (press(bx, y, lw - RCOL, ROW - 2)) { S.view = it.id; S.cartOpen = 0; A.sfx.click(); }
     }
     scrollbar(ctx, bx + bw - 7, by, bh, total, bh);
   }
 
   function buy(g, it, cost) {
-    if (!g.abayBuy(it.id)) { say('THE BUTTON DID NOT WORK. THE BUTTON IS FINE.'); return; }
+    if (!g.abayBuy(it.id)) { say('NOT ENOUGH MONEY. GO AND HIT A PLANET.'); return; }
     say('BOUGHT: ' + it.name + '. IT IS ALREADY HERE. DO NOT ASK.');
     S.flash = 1;
     for (let i = 0; i < 14; i++) {
@@ -1097,5 +1496,5 @@
 
   function touchMode() { return 'ui'; }
 
-  PD.desk = { enter, update, draw, close, touchMode, S, SX, SY, SW, SH };
+  PD.desk = { enter, update, draw, close, touchMode, startCheckout, photoOf, S, SX, SY, SW, SH };
 })(window.PD);

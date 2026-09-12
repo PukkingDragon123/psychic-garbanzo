@@ -143,11 +143,98 @@
     return p.toCanvas();
   }
 
+  /* ------------------------------------------------------------ the small one
+     The pane on your wrist is one thing. The other thing he does, once the
+     watch is on, is project a very small copy of himself onto the ground next
+     to you and follow you about. He is about half your height, entirely round,
+     and he has strong opinions about the state of the moon. */
+  const MW = 24, MH = 26, MCX = 12, MBASE = 25;
+  function buildMini(P, step) {
+    const p = pix(MW, MH);
+    const b = (step === 1 || step === 3) ? -1 : 0;
+    const ft = [[-4, 3], [-2, 1], [3, -4], [1, -2]][step & 3];
+    for (const dx of ft) {
+      p.round(MCX + dx - 4, 21, 9, 5, 2, P.ink);
+      p.round(MCX + dx - 3, 21, 7, 3, 1, P.skin);
+    }
+    p.spike(MCX + 5, 0 + b, 8, 10, -1, P.skinD);         // the fin, still too big
+    p.spike(MCX + 5, 2 + b, 5, 7, -1, P.skin);
+    p.ellipse(MCX, 9 + b, 10, 8, P.skin);                // almost entirely head
+    p.ellipse(MCX, 6 + b, 7, 3, P.skinL);
+    p.ellipse(MCX - 1, 13 + b, 8, 4, P.belly);           // the muzzle
+    p.ellipse(MCX + 1, 11 + b, 3, 2, P.skinD);
+    p.disc(MCX - 5, 9 + b, 2, P.eye);
+    p.disc(MCX + 5, 9 + b, 2, P.eye);
+    p.set(MCX - 6, 8 + b, '#ffffff');
+    p.set(MCX + 4, 8 + b, '#ffffff');
+    p.rect(MCX - 5, 15 + b, 9, 1, P.gum);
+    p.spike(MCX + 3, 13 + b, 4, 4, -1, P.gum);
+    p.spike(MCX + 3, 14 + b, 2, 2, -1, P.teeth);
+    p.ellipse(MCX, 19 + b, 7, 5, P.belly);               // and a very small suit
+    p.round(MCX - 8, 16 + b, 6, 8, 2, P.suit);
+    p.round(MCX + 2, 16 + b, 6, 8, 2, P.suit);
+    p.rect(MCX - 1, 17 + b, 2, 6, P.tie);
+    p.outline(P.ink);
+    return p.toCanvas();
+  }
+
+  /* Where the small one is. He trails a little behind you and never quite
+     catches up, which is roughly how the arrangement works. */
+  const MS = { x: 0, y: 0, dir: 1, ph: 0, on: 0, pop: 0, blip: 0 };
+  function stepMini(dt, tx, ty, tface) {
+    if (!MS.on) { MS.x = tx - tface * 26; MS.y = ty; MS.on = 1; MS.pop = 0; }
+    MS.pop = Math.min(1, MS.pop + dt * 2);
+    const want = tx - tface * 26;
+    const d = want - MS.x;
+    const sp = U.clamp(Math.abs(d) * 3.4, 0, 120);
+    if (Math.abs(d) > 3) { MS.x += Math.sign(d) * sp * dt; MS.dir = Math.sign(d); MS.ph += dt * 8; }
+    MS.y = U.damp(MS.y, ty, 0.25, dt);
+    MS.blip = Math.max(0, MS.blip - dt);
+    if (U.chance(dt * 0.08)) MS.blip = 1.6;
+    return MS;
+  }
+  function drawMini(ctx, x, y, t) {
+    const a = ensureArt();
+    const flick = 0.82 + Math.abs(Math.sin(t * 27)) * 0.12 + (U.chance(0.02) ? -0.25 : 0);
+    const e = MS.pop >= 1 ? 1 : MS.pop * MS.pop * (3 - 2 * MS.pop);
+    ctx.globalAlpha = flick * 0.35;
+    X.blob(ctx, x, y + 1, Math.round(11 * e), 3, 'rgba(63,184,216,0.6)');
+    ctx.globalAlpha = 1;
+    if (e < 1) {
+      const h = Math.max(1, Math.round(MH * e));
+      ctx.globalAlpha = flick * (0.4 + 0.6 * e);
+      ctx.drawImage(a.mini[0], 0, MH - h, MW, h,
+        Math.round(x - MCX), Math.round(y - MBASE + (MH - h)), MW, h);
+      ctx.globalAlpha = 1;
+      return;
+    }
+    const cv = a.mini[Math.floor(MS.ph) % 4];
+    ctx.save();
+    ctx.globalAlpha = flick;
+    if (MS.dir < 0) { ctx.translate(Math.round(x - MCX) + MW, Math.round(y - MBASE)); ctx.scale(-1, 1); }
+    else ctx.translate(Math.round(x - MCX), Math.round(y - MBASE));
+    ctx.drawImage(cv, 0, 0);
+    ctx.beginPath(); ctx.rect(0, MH - ((t * 22) % (MH + 8)), MW, 2); ctx.clip();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = 0.35;
+    ctx.drawImage(cv, 0, 0);
+    ctx.restore();
+    ctx.globalAlpha = 1;
+    // the little thing he says to himself
+    if (MS.blip > 0.9) {
+      const k = (MS.blip - 0.9) * 10;
+      ctx.globalAlpha = Math.min(1, k) * flick;
+      X.plate(ctx, x + 6, y - MBASE - 10, 13, 10, '#0a3446', '#3fb8d8', '#04202c', 3);
+      F.draw(ctx, U.pick(['$', '?', '!', '..']), x + 12, y - MBASE - 7, '#cdf6ff', { center: true, shadow: false });
+      ctx.globalAlpha = 1;
+    }
+  }
+
   let art = null;
   function ensureArt() {
     if (art) return art;
     const set = (P) => [0, 1].map(m => [0, 1, 2, 3].map(st => buildChum(P, m, st)));
-    art = { real: set(REAL), holo: set(HOLO) };
+    art = { real: set(REAL), holo: set(HOLO), mini: [0, 1, 2, 3].map(st => buildMini(HOLO, st)) };
     return art;
   }
 
@@ -188,6 +275,13 @@
       'GO IN. SPEND MONEY. TWENTY PER CENT OF IT WAS MINE ANYWAY.'],
     suit: ['THAT SUIT IS THE FIRST GOOD DECISION YOU HAVE MADE.',
       'IT WILL NOT PAY ME BACK. BUT IT LOOKS WELL.'],
+    checkout: ['HUMANS DO NOT LET YOU BUY A THING. THEY LET YOU APPLY.',
+      'SIGN IN. PROVE YOU ARE NOT A ROBOT. THEN THE CARD. THEN THE CODE.',
+      'I HAVE DONE THIS. IT TAKES LONGER THAN THE MINING.'],
+    twofa: ['NOW THEY SEND EIGHT NUMBERS TO A SATELLITE.',
+      'READ THEM OFF THE SCREEN. TYPE THEM IN THE OTHER SCREEN.',
+      'THIS IS WHAT THEY CALL SECURITY.'],
+    ordered: ['IT IS BOUGHT. IT IS ON THE MOON. IT WAS ALWAYS ON THE MOON.'],
     gamble: ['I CAN SEE THE WATCH. I CAN SEE WHERE THE WATCH IS.',
       'YOU ARE STANDING AT A MACHINE. THAT IS HOW WE MET.',
       'GO ON THEN. IT IS YOUR MONEY. IT IS MY MONEY.'],
@@ -824,6 +918,7 @@
   PD.chum = {
     enterIntro, updateIntro, drawIntro,
     call, update, draw, active, takeCut, drawDebt, DEBT0, S, IN_S, HS, LESSONS,
+    stepMini, drawMini, MS,
     artFor: ensureArt, CW, CH, CCX, CBASE
   };
 })(window.PD);

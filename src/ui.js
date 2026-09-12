@@ -962,8 +962,26 @@
     return button(ctx, VW / 2 - 60, 204, 120, 16, 'KEEP DRILLING', { accent: '#2f7a4a' });
   }
 
+  /* ------------------------------------------------------------ the way back
+     Every scene that used to say "ESC" now has a button as well, because on a
+     phone there is no escape key and no amount of telling people about one
+     makes there be one. Returns true on the frame it is pressed. */
+  function backBtn(ctx, label, t) {
+    const w = F.width(label, 1) + 30, h = 18, x = 8, y = 6;
+    const m = PD.input.mouse;
+    const over = m.inside && m.x >= x && m.x < x + w && m.y >= y && m.y < y + h;
+    X.plate(ctx, x, y, w, h, over ? '#3a3060' : '#241f36', '#5b3f96', '#0a0614', 4);
+    // a little arrow, so it reads as "out" without reading the word
+    const ax = x + 9;
+    for (let i = 0; i < 4; i++) X.rect(ctx, ax + i, y + 9 - i, 1, 1 + i * 2, over ? '#ffe9a8' : '#c9bce8');
+    X.rect(ctx, ax + 4, y + 8, 5, 3, over ? '#ffe9a8' : '#c9bce8');
+    F.draw(ctx, label, x + 20, y + 6, over ? '#ffffff' : '#c9bce8', { shadow: '#0a0614' });
+    if (over && Math.abs(Math.sin(t * 4)) > 0.4) X.rect(ctx, x, y + h - 1, w, 1, '#ffd34d');
+    return over && m.leftPressed;
+  }
+
   PD.ui = {
-    VW, VH, COL, panel, bar, button, icon, hud, homeBar, shop, title, pause, victory,
+    VW, VH, COL, panel, bar, button, icon, hud, homeBar, shop, title, pause, victory, backBtn,
     showState: () => show, showBlow,
     sellSplash, ending, endFrame
   };

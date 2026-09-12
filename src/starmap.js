@@ -12,6 +12,7 @@
   const VW = 480, VH = 270;
 
   const S = {
+    backHit: 0,
     view: 'galaxy',       // 'galaxy' | 'system'
     zone: 0,              // zone being looked at in system view
     selZone: 0,
@@ -66,10 +67,12 @@
     S.t += dt;
     S.msgT = Math.max(0, S.msgT - dt);
     S.zoom = Math.min(1, S.zoom + dt * 3.4);
-    const click = IN.mouse.leftPressed;
+    const inBack = IN.mouse.inside && IN.mouse.x < 96 && IN.mouse.y < 26;
+    const click = IN.mouse.leftPressed && !inBack;
     const mx = IN.mouse.x, my = IN.mouse.y;
 
-    if (IN.hit('esc')) {
+    if (IN.hit('esc') || S.backHit) {
+      S.backHit = 0;
       if (S.view === 'system') { S.view = 'galaxy'; S.zoom = 0; A.sfx.click(); }
       else { g.state = 'home'; PD.home.P.lock = 0.25; A.sfx.click(); }
       return;
@@ -152,7 +155,6 @@
     ctx.fillStyle = '#7ef9ff'; ctx.fillRect(0, 16, VW, 1);
     PD.glyph.draw(ctx, 'planet', 3, 2, '#ffffff', '#7ef9ff');
     F.draw(ctx, S.view === 'galaxy' ? 'GALAXY CHART' : D.ZONES[S.zone].name, 20, 5, '#7ef9ff', { shadow: false });
-    F.draw(ctx, S.view === 'galaxy' ? 'ESC  BACK TO THE MOON' : 'ESC  BACK TO THE CHART', 150, 5, '#5a4d80', { shadow: false });
     F.draw(ctx, '$' + U.fmt(g.save.credits), VW - 6, 4, '#ffd34d', { right: true, shadow: false });
 
     if (S.msgT > 0) {
@@ -162,6 +164,9 @@
       F.draw(ctx, S.msg, VW / 2, 27, '#ffd34d', { center: true, shadow: false });
       ctx.globalAlpha = 1;
     }
+    /* The way out, as a button as well as a key: there is no escape key on a
+       phone and no amount of printing the word ESC makes there be one. */
+    if (PD.ui.backBtn(ctx, S.view === 'galaxy' ? 'THE MOON' : 'THE CHART', t)) S.backHit = 1;
     PD.touch.draw(ctx, 'ui');
   }
 

@@ -28,6 +28,7 @@
   };
 
   const S = {
+    backHit: 0,
     t: 0, sel: 'dig', hover: null, flash: 0, pulses: [], bub: [],
     line: '', lineT: 0, shake: 0, grew: null, growT: 0
   };
@@ -89,9 +90,10 @@
     for (let i = S.pulses.length - 1; i >= 0; i--) { S.pulses[i].t += dt * 2.1; if (S.pulses[i].t > 1.4) S.pulses.splice(i, 1); }
 
     const IN = PD.input;
-    if (IN.hit('esc') || IN.hit('KeyQ')) { close(g); return; }
+    if (IN.hit('esc') || IN.hit('KeyQ') || S.backHit) { S.backHit = 0; close(g); return; }
 
     const m = IN.mouse;
+    const inBack = m.inside && m.x < 96 && m.y < 26;      // the button eats its own click
     S.hover = null;
     for (const n of D.NEURONS) {
       const p = pos(n);
@@ -100,7 +102,7 @@
     // the keyboard he cannot use: arrows walk the lattice, E plugs it in
     if (IN.hit('right') || IN.hit('Tab')) { const l = D.NEURONS; S.sel = l[(l.findIndex(n => n.id === S.sel) + 1) % l.length].id; A.sfx.click(); }
     if (IN.hit('left')) { const l = D.NEURONS; S.sel = l[(l.findIndex(n => n.id === S.sel) + l.length - 1) % l.length].id; A.sfx.click(); }
-    if (S.hover && m.leftPressed) {
+    if (S.hover && m.leftPressed && !inBack) {
       if (S.sel === S.hover) buy(g, D.NEUR[S.hover]);
       else { S.sel = S.hover; A.sfx.click(); }
     }
@@ -314,6 +316,8 @@
       X.rect(ctx, bx + 10, by + 18, 6, 4, '#3a1f36');
       ctx.globalAlpha = 1;
     }
+    // the way out, for anyone without an escape key
+    if (PD.ui.backBtn(ctx, 'THE ROOM', t)) S.backHit = 1;
   }
 
   PD.mind = { open, close, update, draw, S };
