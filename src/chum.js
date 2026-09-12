@@ -144,75 +144,235 @@
   }
 
   /* ------------------------------------------------------------ the small one
-     The pane on your wrist is one thing. The other thing he does, once the
-     watch is on, is project a very small copy of himself onto the ground next
-     to you and follow you about. He is about half your height, entirely round,
-     and he has strong opinions about the state of the moon. */
-  const MW = 24, MH = 26, MCX = 12, MBASE = 25;
-  function buildMini(P, step) {
+     The pane on your wrist is one thing. The other thing the watch does is put
+     a very small copy of him on the ground -- about half your height, entirely
+     round, in a suit the size of a stamp.
+
+     He does not follow you. He goes on ahead to whatever he thinks you should
+     be doing, stands there, waits, beckons, and then tells you exactly what he
+     thinks of how long you took. A full set of poses rather than a walk cycle
+     and a shrug: walking, idling, waving you over, both fins up in disgust,
+     pointing at the thing, and squashed and stretched for the bounce. */
+  const MW = 28, MH = 26, MCX = 14, MBASE = 25;   // wide enough for a pointing fin
+
+  function buildMini(P, o) {
+    o = o || {};
     const p = pix(MW, MH);
-    const b = (step === 1 || step === 3) ? -1 : 0;
-    const ft = [[-4, 3], [-2, 1], [3, -4], [1, -2]][step & 3];
+    const b = o.b || 0;                       // body bob
+    const sq = o.sq || 0;                     // -1 squashed, +1 stretched
+    const hy = 9 + b + (sq > 0 ? -2 : (sq < 0 ? 1 : 0));
+    const hw = 10 + (sq < 0 ? 2 : (sq > 0 ? -1 : 0));
+    const hh = 8 + (sq > 0 ? 1 : (sq < 0 ? -2 : 0));
+    const ft = o.feet || [-2, 1];
+    const look = o.look ? -1 : 1;
+
     for (const dx of ft) {
-      p.round(MCX + dx - 4, 21, 9, 5, 2, P.ink);
-      p.round(MCX + dx - 3, 21, 7, 3, 1, P.skin);
+      p.round(MCX + dx - 4, 21 + (sq < 0 ? 1 : 0), 9, 5, 2, P.ink);
+      p.round(MCX + dx - 3, 21 + (sq < 0 ? 1 : 0), 7, 3, 1, P.skin);
     }
-    p.spike(MCX + 5, 0 + b, 8, 10, -1, P.skinD);         // the fin, still too big
-    p.spike(MCX + 5, 2 + b, 5, 7, -1, P.skin);
-    p.ellipse(MCX, 9 + b, 10, 8, P.skin);                // almost entirely head
-    p.ellipse(MCX, 6 + b, 7, 3, P.skinL);
-    p.ellipse(MCX - 1, 13 + b, 8, 4, P.belly);           // the muzzle
-    p.ellipse(MCX + 1, 11 + b, 3, 2, P.skinD);
-    p.disc(MCX - 5, 9 + b, 2, P.eye);
-    p.disc(MCX + 5, 9 + b, 2, P.eye);
-    p.set(MCX - 6, 8 + b, '#ffffff');
-    p.set(MCX + 4, 8 + b, '#ffffff');
-    p.rect(MCX - 5, 15 + b, 9, 1, P.gum);
-    p.spike(MCX + 3, 13 + b, 4, 4, -1, P.gum);
-    p.spike(MCX + 3, 14 + b, 2, 2, -1, P.teeth);
-    p.ellipse(MCX, 19 + b, 7, 5, P.belly);               // and a very small suit
+    // the fin, still too big for him
+    p.spike(MCX + 5 * look, hy - 9, 8, 10, -1, P.skinD);
+    p.spike(MCX + 5 * look, hy - 7, 5, 7, -1, P.skin);
+    // almost entirely head
+    p.ellipse(MCX, hy, hw, hh, P.skin);
+    p.ellipse(MCX, hy - 3, hw - 3, 3, P.skinL);
+    p.ellipse(MCX - 1 * look, hy + 4, hw - 2, 4, P.belly);
+    p.ellipse(MCX + 1 * look, hy + 2, 3, 2, P.skinD);
+    // eyes: both forward, or both swivelled back over the shoulder
+    const e1 = MCX - 5 * look, e2 = MCX + 5 * look;
+    if (o.shut) {
+      p.rect(e1 - 2, hy, 4, 1, P.eye); p.rect(e2 - 2, hy, 4, 1, P.eye);
+    } else {
+      p.disc(e1, hy, 2, P.eye); p.disc(e2, hy, 2, P.eye);
+      p.set(e1 - 1 * look, hy - 1, '#ffffff'); p.set(e2 - 1 * look, hy - 1, '#ffffff');
+    }
+    if (o.brow) { p.rect(e1 - 3, hy - 4, 5, 1, P.skinD); p.rect(e2 - 2, hy - 4, 5, 1, P.skinD); }
+    // the mouth, shut or mid-sentence
+    if (o.mouth) {
+      p.ellipse(MCX, hy + 6, 4, 2, P.gum);
+      p.rect(MCX - 3, hy + 5, 7, 1, P.teeth);
+    } else {
+      p.rect(MCX - 5 * look, hy + 6, 9, 1, P.gum);
+      p.spike(MCX + 3 * look, hy + 4, 4, 4, -1, P.gum);
+      p.spike(MCX + 3 * look, hy + 5, 2, 2, -1, P.teeth);
+    }
+    // and a very small suit
+    p.ellipse(MCX, 19 + b, 7, 5, P.belly);
     p.round(MCX - 8, 16 + b, 6, 8, 2, P.suit);
     p.round(MCX + 2, 16 + b, 6, 8, 2, P.suit);
     p.rect(MCX - 1, 17 + b, 2, 6, P.tie);
+    // the fins, doing whatever they are doing
+    const arms = o.arms || 'down';
+    if (arms === 'up') {
+      p.round(MCX - 11, 9 + b, 4, 7, 1, P.skinL);
+      p.round(MCX + 7, 9 + b, 4, 7, 1, P.skinL);
+    } else if (arms === 'wave') {
+      p.round(MCX + 7 * look, 6 + b, 4, 8, 1, P.skinL);
+      p.round(MCX - 10, 18 + b, 4, 4, 1, P.skinL);
+    } else if (arms === 'point') {
+      p.rect(MCX + 6 * look, 17 + b, 7 * look, 3, P.skinL);
+      p.rect(MCX + 11 * look, 16 + b, 2 * look, 5, P.skinL);
+      p.round(MCX - 11, 18 + b, 4, 4, 1, P.skinL);
+    } else {
+      p.round(MCX - 10, 18 + b, 4, 4, 1, P.skinL);
+      p.round(MCX + 6, 18 + b, 4, 4, 1, P.skinL);
+    }
     p.outline(P.ink);
     return p.toCanvas();
   }
 
-  /* Where the small one is. He trails a little behind you and never quite
-     catches up, which is roughly how the arrangement works. */
-  const MS = { x: 0, y: 0, dir: 1, ph: 0, on: 0, pop: 0, blip: 0 };
-  function stepMini(dt, tx, ty, tface) {
-    if (!MS.on) { MS.x = tx - tface * 26; MS.y = ty; MS.on = 1; MS.pop = 0; }
-    MS.pop = Math.min(1, MS.pop + dt * 2);
-    const want = tx - tface * 26;
-    const d = want - MS.x;
-    const sp = U.clamp(Math.abs(d) * 3.4, 0, 120);
-    if (Math.abs(d) > 3) { MS.x += Math.sign(d) * sp * dt; MS.dir = Math.sign(d); MS.ph += dt * 8; }
-    MS.y = U.damp(MS.y, ty, 0.25, dt);
-    MS.blip = Math.max(0, MS.blip - dt);
-    if (U.chance(dt * 0.08)) MS.blip = 1.6;
-    return MS;
+  function miniSet(P) {
+    const F4 = [[-4, 3], [-2, 1], [3, -4], [1, -2]];
+    return {
+      walk: [0, 1].map(m => F4.map((f, i) =>
+        buildMini(P, { feet: f, b: (i === 1 || i === 3) ? -1 : 0, mouth: m }))),
+      idle: [buildMini(P, {}), buildMini(P, { b: -1 })],
+      wave: [buildMini(P, { arms: 'wave', mouth: 1 }), buildMini(P, { arms: 'wave', b: -1, mouth: 1 })],
+      scold: [buildMini(P, { arms: 'up', mouth: 1, brow: 1 }),
+        buildMini(P, { arms: 'up', mouth: 0, brow: 1, b: -1 })],
+      point: buildMini(P, { arms: 'point', mouth: 1 }),
+      look: buildMini(P, { look: 1 }),
+      squash: buildMini(P, { sq: -1, feet: [-3, 2] }),
+      stretch: buildMini(P, { sq: 1, feet: [-2, 1] })
+    };
   }
-  function drawMini(ctx, x, y, t) {
+
+  /* --------------------------------------------------------------- the guide
+     He picks something you should be doing, walks to it, and waits. Standing
+     about is what he does instead of nagging; nagging is what he does instead
+     of waiting. */
+  const SCOLDS = [
+    'COME ON. I AM NOT A TOUR.',
+    'THIS WAY. I SAID THIS WAY.',
+    'YOU OWE ME A MILLION AND YOU ARE LOOKING AT A ROCK.',
+    'I HAVE SEEN GLACIERS MOVE FASTER.',
+    'WALK. IT IS ONE OF THE TWO THINGS YOU DO.',
+    'I AM STANDING RIGHT HERE. I AM VERY BLUE.',
+    'EVERY SECOND OF THIS IS COSTING ME MONEY.',
+    'DO NOT MAKE ME COME BACK THERE. I CANNOT. BUT DO NOT.',
+    'IS IT THE LEGS? IS THAT WHAT IT IS?'
+  ];
+  const NAGS = [
+    'THE DEBT IS NOT GOING ANYWHERE.',
+    'YOU ARE BREATHING MY AIR.',
+    'STOP LOOKING AT THE SKY.',
+    'I CAN SEE THE WATCH. I CAN ALWAYS SEE THE WATCH.',
+    'ARE WE DOING THIS OR NOT.',
+    'A MILLION. WITH AN M.',
+    'I HAVE OTHER CLIENTS. THEY ARE ALL FASTER.'
+  ];
+  const BECKONS = ['COME ON.', 'HERE. NOW.', 'OVER HERE.', 'WITH ME.'];
+
+  const MS = {
+    x: 0, y: 0, dir: 1, ph: 0, on: 0, pop: 0,
+    mode: 'lead', goal: null, key: '', gi: 0, t: 0,
+    say: null, sayT: 0, hop: 0, z: 0, dz: 0, nag: 6
+  };
+  function mtalk(line, dur) { MS.say = line; MS.sayT = dur || 3; }
+  function mset(mode) { MS.mode = mode; MS.t = 0; }
+
+  function leadStep(dt, g, o) {
+    const M = MS;
+    if (!M.on) { M.x = o.px + 30; M.on = 1; M.pop = 0; M.gi = 0; }
+    M.pop = Math.min(1, M.pop + dt * 2);
+    M.t += dt;
+    M.sayT = Math.max(0, M.sayT - dt);
+    if (M.sayT <= 0) M.say = null;
+
+    // a new list of things to be doing means starting the tour again
+    if (!M.goal || M.key !== o.key) {
+      M.key = o.key;
+      M.goal = o.goals.length ? o.goals[M.gi % o.goals.length] : null;
+      mset('lead');
+    }
+    let tx = M.goal ? M.goal.x : o.px;
+    // never get stranded a screen away from the person you are leading
+    if (Math.abs(o.px - tx) > 170) tx = o.px + Math.sign(tx - o.px) * 90;
+    if (o.lo !== undefined) tx = U.clamp(tx, o.lo, o.hi);
+
+    const dx = tx - M.x;
+    const near = Math.abs(o.px - M.x) < 54;
+    const walking = M.mode === 'lead' && Math.abs(dx) > 5;
+
+    if (M.mode === 'lead') {
+      if (walking) {
+        M.x += Math.sign(dx) * Math.min(Math.abs(dx), 82 * dt);
+        M.dir = Math.sign(dx);
+        M.ph += dt * 7;
+        M.hop += dt * 7.6;
+      } else { mset('wait'); }
+    } else {
+      if (M.mode !== 'point') M.dir = Math.sign(o.px - M.x) || M.dir;
+      if (M.mode === 'wait') {
+        if (near) { mset('point'); if (M.goal) mtalk(M.goal.line, 3.2); }
+        else if (M.t > 1.8) { mset('beckon'); mtalk(U.pick(BECKONS), 2); }
+      } else if (M.mode === 'beckon') {
+        if (near) { mset('point'); if (M.goal) mtalk(M.goal.line, 3.2); }
+        else if (M.t > 2.8) { mset('scold'); mtalk(U.pick(SCOLDS), 3); }
+      } else if (M.mode === 'scold') {
+        if (near) { mset('point'); if (M.goal) mtalk(M.goal.line, 3.2); }
+        else if (M.t > 3.2) mset('wait');
+      } else if (M.mode === 'point') {
+        M.dir = Math.sign((M.goal ? M.goal.x : o.px) - M.x) || M.dir;
+        if (M.t > 3.2) { M.gi++; M.goal = null; mset('lead'); }
+      }
+      // he does not stand still. He shifts his weight.
+      M.hop += dt * 2.4;
+    }
+    // the bounce, and what it does to his shape
+    const z = walking ? Math.abs(Math.sin(M.hop)) * 5 : Math.abs(Math.sin(M.hop)) * 1.2;
+    M.dz = (z - M.z) / Math.max(dt, 0.001);
+    M.z = z;
+
+    // and the occasional unprompted remark
+    M.nag -= dt;
+    if (M.nag <= 0) {
+      M.nag = U.rand(10, 20);
+      if (!M.say && M.mode !== 'point') mtalk(U.pick(NAGS), 2.8);
+    }
+    if (o.lo !== undefined) M.x = U.clamp(M.x, o.lo, o.hi);
+    return M;
+  }
+
+  function miniFrame(t) {
+    const M = MS;
     const a = ensureArt();
-    const flick = 0.82 + Math.abs(Math.sin(t * 27)) * 0.12 + (U.chance(0.02) ? -0.25 : 0);
-    const e = MS.pop >= 1 ? 1 : MS.pop * MS.pop * (3 - 2 * MS.pop);
-    ctx.globalAlpha = flick * 0.35;
-    X.blob(ctx, x, y + 1, Math.round(11 * e), 3, 'rgba(63,184,216,0.6)');
+    /* A bounce reads as squash at the bottom, stretch while moving fast, and
+       normal at the top -- keyed off height and speed rather than one of them,
+       or he spends the whole cycle stretched. */
+    if (M.mode === 'lead') {
+      if (M.z < 0.7 && M.dz < 0) return a.mini.squash;
+      if (Math.abs(M.dz) > 26) return a.mini.stretch;
+    }
+    if (M.mode === 'lead') return a.mini.walk[M.say ? 1 : 0][Math.floor(M.ph) % 4];
+    if (M.mode === 'beckon') return a.mini.wave[Math.floor(t * 6) % 2];
+    if (M.mode === 'scold') return a.mini.scold[Math.floor(t * 8) % 2];
+    if (M.mode === 'point') return a.mini.point;
+    return a.mini.idle[Math.floor(t * 2) % 2];
+  }
+
+  function drawMini(ctx, x, y, t, lo, hi) {
+    const M = MS;
+    const a = ensureArt();
+    const flick = 0.84 + Math.abs(Math.sin(t * 27)) * 0.1 + (U.chance(0.02) ? -0.22 : 0);
+    const e = M.pop >= 1 ? 1 : M.pop * M.pop * (3 - 2 * M.pop);
+    const by = Math.round(y - M.z);
+    ctx.globalAlpha = flick * 0.34;
+    X.blob(ctx, x, y + 1, Math.round((11 - M.z) * e), 3, 'rgba(63,184,216,0.6)');
     ctx.globalAlpha = 1;
     if (e < 1) {
       const h = Math.max(1, Math.round(MH * e));
       ctx.globalAlpha = flick * (0.4 + 0.6 * e);
-      ctx.drawImage(a.mini[0], 0, MH - h, MW, h,
+      ctx.drawImage(a.mini.idle[0], 0, MH - h, MW, h,
         Math.round(x - MCX), Math.round(y - MBASE + (MH - h)), MW, h);
       ctx.globalAlpha = 1;
       return;
     }
-    const cv = a.mini[Math.floor(MS.ph) % 4];
+    const cv = miniFrame(t);
     ctx.save();
     ctx.globalAlpha = flick;
-    if (MS.dir < 0) { ctx.translate(Math.round(x - MCX) + MW, Math.round(y - MBASE)); ctx.scale(-1, 1); }
-    else ctx.translate(Math.round(x - MCX), Math.round(y - MBASE));
+    if (M.dir < 0) { ctx.translate(Math.round(x - MCX) + MW, by - MBASE); ctx.scale(-1, 1); }
+    else ctx.translate(Math.round(x - MCX), by - MBASE);
     ctx.drawImage(cv, 0, 0);
     ctx.beginPath(); ctx.rect(0, MH - ((t * 22) % (MH + 8)), MW, 2); ctx.clip();
     ctx.globalCompositeOperation = 'lighter';
@@ -220,21 +380,33 @@
     ctx.drawImage(cv, 0, 0);
     ctx.restore();
     ctx.globalAlpha = 1;
-    // the little thing he says to himself
-    if (MS.blip > 0.9) {
-      const k = (MS.blip - 0.9) * 10;
-      ctx.globalAlpha = Math.min(1, k) * flick;
-      X.plate(ctx, x + 6, y - MBASE - 10, 13, 10, '#0a3446', '#3fb8d8', '#04202c', 3);
-      F.draw(ctx, U.pick(['$', '?', '!', '..']), x + 12, y - MBASE - 7, '#cdf6ff', { center: true, shadow: false });
-      ctx.globalAlpha = 1;
-    }
+    if (M.say) miniBubble(ctx, x, by - MBASE - 4, M.say, M.sayT, lo, hi);
+  }
+
+  /* A small shark gets a small bubble. Unwrapped, one of his longer opinions
+     was two hundred and forty pixels of a three hundred and twenty pixel view. */
+  function miniBubble(ctx, x, y, text, life, lo, hi) {
+    const rows = wrap(text, 116, 1);
+    let tw = 0;
+    for (const r of rows) tw = Math.max(tw, F.width(r, 1));
+    const w = tw + 10, h = 4 + rows.length * 10;
+    const L = lo === undefined ? 3 : lo, H = (hi === undefined ? VW - 3 : hi) - w;
+    const bx = Math.round(U.clamp(x - w / 2, Math.min(L, H), Math.max(L, H)));
+    const by = Math.round(y - h - 2);
+    ctx.globalAlpha = U.clamp(life * 2.5, 0, 1);
+    X.plate(ctx, bx - 1, by - 1, w + 2, h + 2, '#0a3446', null, null, 4);
+    X.plate(ctx, bx, by, w, h, '#cdf6ff', '#ffffff', '#6fc8e0', 3);
+    const tip = U.clamp(x, bx + 6, bx + w - 6);
+    X.poly(ctx, [[tip - 3, by + h - 2], [tip + 3, by + h - 2], [tip, by + h + 5]], '#cdf6ff');
+    rows.forEach((r, i) => F.draw(ctx, r, bx + w / 2, by + 2 + i * 10, '#0a3446', { center: true }));
+    ctx.globalAlpha = 1;
   }
 
   let art = null;
   function ensureArt() {
     if (art) return art;
     const set = (P) => [0, 1].map(m => [0, 1, 2, 3].map(st => buildChum(P, m, st)));
-    art = { real: set(REAL), holo: set(HOLO), mini: [0, 1, 2, 3].map(st => buildMini(HOLO, st)) };
+    art = { real: set(REAL), holo: set(HOLO), mini: miniSet(HOLO) };
     return art;
   }
 
@@ -453,7 +625,8 @@
      up, squeezed thin and jittering, with a hot line riding the growing edge.
      Leaving runs the same thing backwards, which is why one function does
      both and only the sign of `bm` changing tells them apart. */
-  function beamDraw(ctx, cv, sx, sy, flip, bm, gy, flick, t) {
+  function beamDraw(ctx, cv, sx, sy, flip, bm, gy, flick, t, K) {
+    const CW = MW * K, CH = MH * K;
     const e = bm * bm * (3 - 2 * bm);
     const h = Math.max(1, Math.round(CH * e));
     const kx = 0.22 + 0.78 * e;
@@ -462,26 +635,26 @@
 
     // the column of light he is coming up, at full height from the first frame
     ctx.globalAlpha = (1 - e) * 0.5 * flick;
-    X.rect(ctx, sx + CCX - 2, sy, 4, CH, '#7ef9ff');
+    X.rect(ctx, sx + CW / 2 - 2, sy, 4, CH, '#7ef9ff');
     ctx.globalAlpha = 1;
 
     ctx.save();
-    ctx.translate(Math.round(sx + CCX + U.rand(-jit, jit)), Math.round(sy + CH));
+    ctx.translate(Math.round(sx + CW / 2 + U.rand(-jit, jit)), Math.round(sy + CH));
     ctx.scale(flip ? -kx : kx, 1);
     ctx.globalAlpha = (0.5 + 0.5 * e) * flick;
-    ctx.drawImage(cv, 0, CH - h, CW, h, -CCX, -h, CW, h);
+    ctx.drawImage(cv, 0, (MH * e >= MH ? 0 : MH - h / K), MW, h / K, -CW / 2, -h, CW, h);
     ctx.restore();
     ctx.globalAlpha = 1;
 
     // the hot edge riding the top of however much of him there is so far
     const hw = Math.round(CW * kx * 0.5);
-    X.rect(ctx, sx + CCX - hw, top, hw * 2, 1, '#eafcff');
-    X.rect(ctx, sx + CCX - hw - 2, top, hw * 2 + 4, 1, 'rgba(126,249,255,0.5)');
+    X.rect(ctx, sx + CW / 2 - hw, top, hw * 2, 1, '#eafcff');
+    X.rect(ctx, sx + CW / 2 - hw - 2, top, hw * 2 + 4, 1, 'rgba(126,249,255,0.5)');
     // and a few sparks coming off it
     for (let i = 0; i < 4; i++) {
       const q = U.hash2(i, Math.floor(t * 20));
       ctx.globalAlpha = 0.7 * (1 - e);
-      X.rect(ctx, sx + CCX - hw + q * hw * 2, top - 1 - q * 6, 1, 2, '#eafcff');
+      X.rect(ctx, sx + CW / 2 - hw + q * hw * 2, top - 1 - q * 6, 1, 2, '#eafcff');
       ctx.globalAlpha = 1;
     }
   }
@@ -513,24 +686,28 @@
     ctx.globalAlpha = flick * 0.55;
     // the cone of light out of it, widening to wherever he has wandered
     X.poly(ctx, [[wx + 4, wy + 2], [wx + 18, wy + 2],
-      [HS.x + 32 * bk, gy - 64 * bk], [HS.x - 32 * bk, gy - 64 * bk]], 'rgba(63,184,216,0.10)');
+      [HS.x + 26 * bk, gy - 50 * bk], [HS.x - 26 * bk, gy - 50 * bk]], 'rgba(63,184,216,0.10)');
     // and the pool he stands in
-    X.blob(ctx, HS.x, gy + 1, Math.max(4, 30 * bk), 5, 'rgba(63,184,216,0.40)');
+    X.blob(ctx, HS.x, gy + 1, Math.max(4, 22 * bk), 4, 'rgba(63,184,216,0.40)');
     ctx.globalAlpha = 1;
 
-    // him, pacing, mirrored when he turns
-    const cv = a.holo[talking ? 1 : 0][Math.floor(HS.ph) % 4];
-    const sx = Math.round(HS.x - CCX), sy = Math.round(gy - CBASE);
+    /* The one on the call is the SAME small shark, drawn at exactly twice
+       size. He used to be eighty pixels tall and took up a third of the
+       screen; this is a hologram of a shark, not a shark. */
+    const K = 2;
+    const cv = a.mini.walk[talking ? 1 : 0][Math.floor(HS.ph) % 4];
+    const sx = Math.round(HS.x - MCX * K), sy = Math.round(gy - MBASE * K);
     const bm = S.phase === 'on' ? 1 : S.beam;
     if (bm >= 1) {
       ctx.save();
       ctx.globalAlpha = flick;
-      if (HS.dir < 0) { ctx.translate(sx + CW, sy); ctx.scale(-1, 1); }
+      if (HS.dir < 0) { ctx.translate(sx + MW * K, sy); ctx.scale(-1, 1); }
       else ctx.translate(sx, sy);
+      ctx.scale(K, K);
       ctx.drawImage(cv, 0, 0);
       // one bright band rolling up him, clipped to his own silhouette
       ctx.beginPath();
-      ctx.rect(0, CH - ((t * 34) % (CH + 12)), CW, 3);
+      ctx.rect(0, MH - ((t * 16) % (MH + 6)), MW, 2);
       ctx.clip();
       ctx.globalCompositeOperation = 'lighter';
       ctx.globalAlpha = 0.3;
@@ -538,7 +715,7 @@
       ctx.restore();
       ctx.globalAlpha = 1;
     } else {
-      beamDraw(ctx, cv, sx, sy, HS.dir < 0, bm, gy, flick, t);
+      beamDraw(ctx, cv, sx, sy, HS.dir < 0, bm, gy, flick, t, K);
     }
 
     if (bm > 0.55) {
@@ -555,7 +732,7 @@
     const done = S.chars >= line.length;
     const more = S.line < S.lines.length - 1;
     speech(ctx, {
-      cx: VW / 2, tipX: HS.x, ty: gy - 80, rows, scale: 1, pop: S.pop, t,
+      cx: VW / 2, tipX: HS.x, ty: gy - MH * 2 - 2, rows, scale: 1, pop: S.pop, t,
       fill: '#cdf6ff', light: '#ffffff', dark: '#6fc8e0', ink: '#0a3446',
       foot: done ? (more ? 'E / TAP  MORE' : 'E / TAP  BYE') : null,
       foot2: Math.abs(Math.sin(t * 4)) > 0.4 ? '#0a3446' : '#6fc8e0'
@@ -918,7 +1095,7 @@
   PD.chum = {
     enterIntro, updateIntro, drawIntro,
     call, update, draw, active, takeCut, drawDebt, DEBT0, S, IN_S, HS, LESSONS,
-    stepMini, drawMini, MS,
+    leadStep, drawMini, miniFrame, MS, MW, MH, MCX, MBASE,
     artFor: ensureArt, CW, CH, CCX, CBASE
   };
 })(window.PD);

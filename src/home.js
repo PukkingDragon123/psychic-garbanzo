@@ -532,6 +532,32 @@
     g.intCam = camWant();
   }
 
+  /* What he has decided you ought to be doing, in the order he has decided it.
+     The list is rebuilt whenever the scene or the state of the tip changes,
+     which starts the tour over from the top. */
+  function leadGoals(g) {
+    if (S.scene === 'club') return [
+      { x: 320, line: 'DANCE. IT IS FREE. NOTHING ELSE IN HERE IS.' },
+      { x: 412, line: 'TIP THEM. THEY ARE WORKING. UNLIKE YOU.' },
+      { x: 500, line: 'BUY A DRINK. PUT IT ON MY TAB. THERE IS NO TAB.' },
+      { x: 680, line: 'NO. NOT THE MACHINES. LOOK AT ME. NOT THE MACHINES.' },
+      { x: 132, line: 'ASK HIM FOR A SONG. HE HAS TWO. IT IS A COIN FLIP.' }
+    ];
+    if (S.scene === 'in') return [
+      { x: IN_SPOTS[0].x, line: 'THE COMPUTER. SELL THE ROCKS. THAT IS THE BUSINESS.' },
+      { x: IN_SPOTS[1].x, line: 'THE BRAIN. FEED IT. IT MAKES YOU LESS OF A LIABILITY.' },
+      { x: IN_SPOTS[2].x, line: 'AND OUT. THERE IS A PLANET WITH YOUR NAME ON IT.' }
+    ];
+    const out = [];
+    for (let i = 0; i < TRASH.length && out.length < 3; i++) {
+      if (!cleaned(g, i)) out.push({ x: TRASH[i].x, line: 'THAT ONE. PRESS E. I HAVE WAITED BEFORE.' });
+    }
+    out.push({ x: OUT_SPOTS[1].x, line: 'THE SAUCER. GO AND EAT A PLANET.' });
+    out.push({ x: OUT_SPOTS[0].x, line: 'THE HOUSE. THE MONEY IS IN THE COMPUTER.' });
+    if (moonClean(g)) out.push({ x: CLUB_X, line: 'OR THE CLUB. I OWN IT NOW. YOU ARE WELCOME.' });
+    return out;
+  }
+
   /* ---------------------------------------------------------------- update */
   function update(dt, g) {
     const IN = PD.input;
@@ -1679,11 +1705,16 @@
 
     if (S.scene !== 'club') drawRat(ctx, g, cam, t);
     drawPlayer(ctx, g, cam, t);
-    /* And the small one, who has been following you since the casino. He does
-       not appear while the big version of him is already on the screen. */
+    /* And the small one, who does not follow you anywhere. He goes on ahead to
+       whatever he has decided you should be doing and waits there. */
     if (g.save.seenIntro && !PD.chum.active() && !UI.mode) {
-      const m = PD.chum.stepMini(g.dt, P.x, P.y, P.face);
-      PD.chum.drawMini(ctx, Math.round(m.x - cam), Math.round(groundY(m.x)), t);
+      const bd = bounds();
+      const m = PD.chum.leadStep(g.dt, g, {
+        px: P.x, goals: leadGoals(g), key: S.scene + ':' + (g.save.trash || 0),
+        lo: bd[0] + 6, hi: bd[1] - 6
+      });
+      PD.chum.drawMini(ctx, Math.round(m.x - cam), Math.round(groundY(m.x)), t,
+        Math.round(VIEW.x) + 4, Math.round(VIEW.x) + ZW - 4);
     }
   }
 

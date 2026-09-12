@@ -626,14 +626,41 @@ On the galaxy chart and at the computer he paces a stripe higher up the
 screen, because both of those keep a panel along the bottom edge and he is
 rude but not illegible.
 
-## And a very small one
+## He does not follow you. You follow him.
 
-The pane on your wrist is one thing. The other thing the watch does, once it
-is on, is put **a tiny copy of him on the ground next to you** — about half
-your height, entirely round, in a suit the size of a stamp — who walks along
-behind you wherever you go, on the moon, in the house and down the club. He
-never quite catches up, which is roughly how the arrangement works, and every
-so often he says `$` to himself.
+The watch puts **a very small copy of him on the ground next to you** — about
+half your height, entirely round, in a suit the size of a stamp — and he is not
+a pet. He decides what you ought to be doing, walks off to it, and waits there.
+
+The loop is: **lead** (he bounces off to the next thing on his list),
+**wait** (he turns round and looks at you), **beckon** (a fin in the air and a
+`COME ON.`), **scold** (both fins up and something sharper), and **point** —
+which only happens once you have actually got there, and comes with the reason
+you were brought. Then he picks the next thing and goes.
+
+What is on his list depends on where you are and what state it is in: the
+heaps that are still on the moon, then the saucer, then the house; the computer
+and the brain when you are indoors; the dancefloor, the dancer, the bar, the DJ
+and — pointedly — the slot machines when you are down the club. The list is
+rebuilt whenever the scene or the state of the tip changes, which starts the
+tour again from the top.
+
+He has nine things to say when you keep him waiting and seven more he says
+unprompted, and he is not kind in any of them:
+
+> WALK. IT IS ONE OF THE TWO THINGS YOU DO.
+> I AM STANDING RIGHT HERE. I AM VERY BLUE.
+> YOU OWE ME A MILLION AND YOU ARE LOOKING AT A ROCK.
+> IS IT THE LEGS? IS THAT WHAT IT IS?
+
+He has a proper set of poses rather than a walk cycle and a shrug — walking,
+idling, waving you over, both fins up, pointing, and squashed and stretched for
+the bounce, which reads off his height and his speed rather than either on its
+own, or he would spend the whole cycle stretched.
+
+The one who turns up on a call is **the same small shark**, drawn at exactly
+twice size. He used to be eighty pixels tall and take up a third of the screen;
+this is a hologram of a shark, not a shark.
 
 ## Nobody reads a caption bar
 
