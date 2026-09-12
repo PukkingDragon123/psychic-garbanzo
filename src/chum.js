@@ -181,6 +181,13 @@
       'SOMEBODY ELSE ALWAYS WANTS IT.'],
     brain: ['THE BRAIN IS THE ONLY THING ON THIS MOON CLEVERER THAN THE RAT.',
       'FEED IT THOTS. IT GROWS YOU NEW HABITS.'],
+    tip: ['YES. IT IS A TIP. THAT IS WHY IT WAS CHEAP.',
+      'PRESS E AT EVERY HEAP. I AM NOT DOING IT.',
+      'THERE IS SOMETHING UNDER THE LAST ONE. I CHECKED.'],
+    club: ['A CLUB. ON MY MOON. UNDER MY BINS.',
+      'GO IN. SPEND MONEY. TWENTY PER CENT OF IT WAS MINE ANYWAY.'],
+    suit: ['THAT SUIT IS THE FIRST GOOD DECISION YOU HAVE MADE.',
+      'IT WILL NOT PAY ME BACK. BUT IT LOOKS WELL.'],
     core: ['THAT IS THE CORE. BREAK IT AND THE WHOLE WORLD GOES.',
       'THE BOUNTY IS ENORMOUS. DO IT AGAIN.'],
     debt75: ['A QUARTER DOWN. I HAVE STOPPED CIRCLING YOUR HOUSE.'],
@@ -191,8 +198,13 @@
       'I FIND I HAVE BECOME FOND OF YOU. DO NOT TELL ANYONE.']
   };
 
+  /* `phase` is how the projection is doing: 'in' while it builds itself up
+     out of the watch, 'on' while he is actually talking to you, 'out' while it
+     folds itself away. A call is active through all three -- you cannot dismiss
+     him halfway through arriving. */
   const S = {
-    call: null, t: 0, lines: null, line: 0, chars: 0, buzz: 0, pop: 0, queue: []
+    call: null, t: 0, lines: null, line: 0, chars: 0, buzz: 0, pop: 0,
+    phase: 'on', beam: 1, queue: []
   };
   /* Where he is pacing. He does not stand still and talk at you; he walks the
      bottom of the screen the whole time the call is up, turning at the ends. */
@@ -207,17 +219,24 @@
     if (S.call === id) return;
     if (S.call) { S.queue.push(id); return; }
     S.call = id; S.t = 0; S.lines = LESSONS[id]; S.line = 0; S.chars = 0; S.buzz = 1.2;
-    S.pop = 0; HS.x = VW * 0.42; HS.dir = 1; HS.ph = 0;
+    S.pop = 0; S.phase = 'in'; S.beam = 0; HS.x = VW * 0.42; HS.dir = 1; HS.ph = 0;
     A.sfx.tone(760, { type: 'square', to: 1180, dur: 0.07, vol: 0.07 });
     A.sfx.tone(760, { type: 'square', to: 1180, dur: 0.07, vol: 0.07, delay: 0.14 });
     PD.touch.buzz(18);
   }
 
+  /* Hanging up starts the fold-away; the call really ends when it finishes. */
   function hangUp() {
-    S.call = null; S.lines = null; S.t = 0;
+    if (S.phase === 'out' || !S.call) return;
+    S.phase = 'out';
+    A.sfx.tone(880, { type: 'square', to: 180, dur: 0.16, vol: 0.06 });
+  }
+  function endCall() {
+    S.call = null; S.lines = null; S.t = 0; S.phase = 'on'; S.beam = 1;
     if (S.queue.length) {
       const id = S.queue.shift();
-      S.call = id; S.lines = LESSONS[id]; S.line = 0; S.chars = 0; S.t = 0; S.buzz = 0.6; S.pop = 0;
+      S.call = id; S.lines = LESSONS[id]; S.line = 0; S.chars = 0; S.t = 0;
+      S.buzz = 0.6; S.pop = 0; S.phase = 'in'; S.beam = 0;
     }
   }
 
@@ -233,6 +252,18 @@
     HS.x += HS.dir * 24 * dt;
     if (HS.x > VW - 74) { HS.x = VW - 74; HS.dir = -1; }
     if (HS.x < 74) { HS.x = 74; HS.dir = 1; }
+
+    // arriving, or leaving. Neither takes input.
+    if (S.phase === 'in') {
+      S.beam = Math.min(1, S.beam + dt * 2.6);
+      if (S.beam >= 1) S.phase = 'on';
+      return;
+    }
+    if (S.phase === 'out') {
+      S.beam = Math.max(0, S.beam - dt * 3.4);
+      if (S.beam <= 0) endCall();
+      return;
+    }
     const line = S.lines[S.line] || '';
     if (S.chars < line.length) S.chars = Math.min(line.length, S.chars + dt * 52);
     const IN = PD.input;
@@ -317,6 +348,45 @@
     return { bx, by, dw, dh };
   }
 
+  /* ------------------------------------------------------------ arriving
+     He does not simply appear and he does not simply stop existing. A bar of
+     light goes up out of the watch, and he unrolls out of it from the soles
+     up, squeezed thin and jittering, with a hot line riding the growing edge.
+     Leaving runs the same thing backwards, which is why one function does
+     both and only the sign of `bm` changing tells them apart. */
+  function beamDraw(ctx, cv, sx, sy, flip, bm, gy, flick, t) {
+    const e = bm * bm * (3 - 2 * bm);
+    const h = Math.max(1, Math.round(CH * e));
+    const kx = 0.22 + 0.78 * e;
+    const jit = (1 - e) * 3;
+    const top = sy + CH - h;
+
+    // the column of light he is coming up, at full height from the first frame
+    ctx.globalAlpha = (1 - e) * 0.5 * flick;
+    X.rect(ctx, sx + CCX - 2, sy, 4, CH, '#7ef9ff');
+    ctx.globalAlpha = 1;
+
+    ctx.save();
+    ctx.translate(Math.round(sx + CCX + U.rand(-jit, jit)), Math.round(sy + CH));
+    ctx.scale(flip ? -kx : kx, 1);
+    ctx.globalAlpha = (0.5 + 0.5 * e) * flick;
+    ctx.drawImage(cv, 0, CH - h, CW, h, -CCX, -h, CW, h);
+    ctx.restore();
+    ctx.globalAlpha = 1;
+
+    // the hot edge riding the top of however much of him there is so far
+    const hw = Math.round(CW * kx * 0.5);
+    X.rect(ctx, sx + CCX - hw, top, hw * 2, 1, '#eafcff');
+    X.rect(ctx, sx + CCX - hw - 2, top, hw * 2 + 4, 1, 'rgba(126,249,255,0.5)');
+    // and a few sparks coming off it
+    for (let i = 0; i < 4; i++) {
+      const q = U.hash2(i, Math.floor(t * 20));
+      ctx.globalAlpha = 0.7 * (1 - e);
+      X.rect(ctx, sx + CCX - hw + q * hw * 2, top - 1 - q * 6, 1, 2, '#eafcff');
+      ctx.globalAlpha = 1;
+    }
+  }
+
   /* Where his feet go. The chart and the ABAY screen both keep a panel along
      the bottom edge, so on those he walks a stripe higher up. */
   function groundY(g) {
@@ -340,33 +410,44 @@
     X.rect(ctx, wx + 4, wy + 3, 14, 8, '#0d5a78');
     X.rect(ctx, wx + 6, wy + 5, 10, 4, '#7ef9ff');
 
+    const bk = S.phase === 'on' ? 1 : S.beam;
     ctx.globalAlpha = flick * 0.55;
     // the cone of light out of it, widening to wherever he has wandered
     X.poly(ctx, [[wx + 4, wy + 2], [wx + 18, wy + 2],
-      [HS.x + 32, gy - 64], [HS.x - 32, gy - 64]], 'rgba(63,184,216,0.10)');
+      [HS.x + 32 * bk, gy - 64 * bk], [HS.x - 32 * bk, gy - 64 * bk]], 'rgba(63,184,216,0.10)');
     // and the pool he stands in
-    X.blob(ctx, HS.x, gy + 1, 30, 5, 'rgba(63,184,216,0.40)');
+    X.blob(ctx, HS.x, gy + 1, Math.max(4, 30 * bk), 5, 'rgba(63,184,216,0.40)');
     ctx.globalAlpha = 1;
 
     // him, pacing, mirrored when he turns
     const cv = a.holo[talking ? 1 : 0][Math.floor(HS.ph) % 4];
     const sx = Math.round(HS.x - CCX), sy = Math.round(gy - CBASE);
-    ctx.save();
-    ctx.globalAlpha = flick;
-    if (HS.dir < 0) { ctx.translate(sx + CW, sy); ctx.scale(-1, 1); }
-    else ctx.translate(sx, sy);
-    ctx.drawImage(cv, 0, 0);
-    // one bright band rolling up him, clipped to his own silhouette
-    ctx.beginPath();
-    ctx.rect(0, CH - ((t * 34) % (CH + 12)), CW, 3);
-    ctx.clip();
-    ctx.globalCompositeOperation = 'lighter';
-    ctx.globalAlpha = 0.3;
-    ctx.drawImage(cv, 0, 0);
-    ctx.restore();
-    ctx.globalAlpha = 1;
+    const bm = S.phase === 'on' ? 1 : S.beam;
+    if (bm >= 1) {
+      ctx.save();
+      ctx.globalAlpha = flick;
+      if (HS.dir < 0) { ctx.translate(sx + CW, sy); ctx.scale(-1, 1); }
+      else ctx.translate(sx, sy);
+      ctx.drawImage(cv, 0, 0);
+      // one bright band rolling up him, clipped to his own silhouette
+      ctx.beginPath();
+      ctx.rect(0, CH - ((t * 34) % (CH + 12)), CW, 3);
+      ctx.clip();
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.globalAlpha = 0.3;
+      ctx.drawImage(cv, 0, 0);
+      ctx.restore();
+      ctx.globalAlpha = 1;
+    } else {
+      beamDraw(ctx, cv, sx, sy, HS.dir < 0, bm, gy, flick, t);
+    }
 
-    F.draw(ctx, 'MR CHUM', HS.x, gy + 9, 'rgba(126,249,255,0.8)', { center: true, shadow: '#04202c' });
+    if (bm > 0.55) {
+      ctx.globalAlpha = (bm - 0.55) / 0.45;
+      F.draw(ctx, 'MR CHUM', HS.x, gy + 9, 'rgba(126,249,255,0.8)', { center: true, shadow: '#04202c' });
+      ctx.globalAlpha = 1;
+    }
+    if (bm < 1) return;                     // no bubble while he is materialising
 
     /* The bubble stays put in the middle while he walks about under it --
        a caption that slides around with him is unreadable -- and only the
@@ -474,6 +555,7 @@
       g.state = 'home';
       PD.home.enter(g);
       call(g, 'welcome');
+      call(g, 'tip');           // queues behind it: the state of the place
     });
   }
 

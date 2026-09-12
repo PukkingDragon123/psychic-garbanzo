@@ -30,15 +30,15 @@
      scrolls -- the moon is an object you look at, not a corridor. */
   const MOON = { cx: 240, cy: 960, r: 820 };
   const OUT_W = 480, IN_W = 232;
-  const WALK = 150;                  // how far round the curve he can get
+  const WALK = 172;                  // how far round the curve he can get
   const FLOOR = 216;                 // the room floor, inside
   const CEIL = 124;                  // the underside of the rock roof, inside
   const GRAV = 300;                  // low: everything here is bouncy
 
-  const S = { scene: 'out', t: 0, ratSeen: 0, sleep: 0, swing: 0 };
+  const S = { scene: 'out', t: 0, ratSeen: 0, sleep: 0, swing: 0, beat: 0, dance: 0, kissT: 2 };
   let g0 = null;                     // the running game, for view() between frames
 
-  function roomW() { return S.scene === 'out' ? OUT_W : IN_W; }
+  function roomW() { return S.scene === 'out' ? OUT_W : (S.scene === 'club' ? CLUB_W : IN_W); }
   /* A room narrower than the screen sits in the middle of it. */
   function camWant() {
     const w = roomW();
@@ -46,7 +46,8 @@
     return U.clamp(P.x - VW / 2, 0, w - VW);
   }
   function bounds() {
-    return S.scene === 'out' ? [MOON.cx - WALK, MOON.cx + WALK] : [20, IN_W - 20];
+    if (S.scene === 'out') return [MOON.cx - WALK, MOON.cx + WALK];
+    return S.scene === 'club' ? [16, CLUB_W - 16] : [20, IN_W - 20];
   }
 
   /* Flat indoors. Outside it is the top of a big circle plus a stack of
@@ -59,7 +60,7 @@
       + Math.sin(x * 0.0713 + 2.9) * 2;
   }
   function groundY(x) {
-    if (S.scene === 'in') return FLOOR;
+    if (S.scene !== 'out') return FLOOR;
     const dx = x - MOON.cx;
     if (Math.abs(dx) >= MOON.r) return 1e4;
     return Math.round(MOON.cy - Math.sqrt(MOON.r * MOON.r - dx * dx) - lumpAt(x));
@@ -72,7 +73,7 @@
   const P = {
     x: 240, y: FLOOR, vx: 0, vy: 0, face: 1, walk: 0,
     near: null, target: null, autoUse: null, lock: 0,
-    roll: 0, rollA: 0, land: 0, air: 0, hop: 0
+    roll: 0, rollA: 0, land: 0, air: 0, hop: 0, sweep: 0
   };
   const UI = { mode: null, msg: '', msgT: 0 };
 
@@ -88,6 +89,29 @@
   ];
   const RAT_SPOT = { id: 'rat', x: 76, r: 26, name: 'A VERY FAT RAT', sub: 'GIVE HIM THE CHEESE' };
   const SPOTS = OUT_SPOTS;                    // game.js docks you next to the UFO
+
+  /* ------------------------------------------------------------------ the tip
+     Mr Chum bought you a moon. He did not mention that it had been used as a
+     tip for a hundred years. Twelve heaps, a bitmask in the save of which ones
+     you have shifted, and under the last of them the thing that makes the
+     whole job worth doing. */
+  const TRASH = [
+    { x: 100, k: 1 }, { x: 124, k: 3 }, { x: 148, k: 0 }, { x: 200, k: 2 },
+    { x: 224, k: 1 }, { x: 248, k: 3 }, { x: 272, k: 0 }, { x: 292, k: 2 },
+    { x: 350, k: 1 }, { x: 368, k: 3 }, { x: 388, k: 2 }, { x: 404, k: 0 }
+  ];
+  const ALL_CLEAN = (1 << TRASH.length) - 1;
+  const CLUB_X = 396;                          // what the last heap was sitting on
+
+  function cleaned(g, i) { return ((g.save.trash || 0) >> i) & 1; }
+  function trashLeft(g) {
+    let n = 0;
+    for (let i = 0; i < TRASH.length; i++) if (!cleaned(g, i)) n++;
+    return n;
+  }
+  function moonClean(g) { return (g.save.trash || 0) === ALL_CLEAN; }
+  const TRASH_NAMES = ['A BAG OF SOMEBODY ELSE\'S PROBLEM', 'A DEAD SATELLITE',
+    'A DRUM OF SOMETHING GREEN', 'A CRATE AND SOME BONES'];
 
   /* --------------------------------------------------------------- scenery */
   const OUT_ROCKS = [];
@@ -114,6 +138,145 @@
   ];
   const POSTERS = [{ k: 0, x: 22, y: 148 }, { k: 1, x: 64, y: 144 }, { k: 2, x: 196, y: 152 }];
   const DRIPS = [{ x: 130, t: 0 }, { x: 34, t: 1.7 }];
+
+  /* ----------------------------------------------------------------- the club
+     Whatever this moon was before it was a tip, somebody ran a club on it, and
+     it is still down there with the lights on. It is another `scene`, like the
+     inside of the house, so it inherits the walking, the camera, the prompt
+     and the touch controls for nothing. */
+  const CLUB_W = 330, CLUB_CEIL = 88;
+  const CLUB_SPOTS = [
+    { id: 'clubout', x: 26, r: 26, name: 'THE WAY OUT', sub: 'BACK UP TO THE MOON' },
+    { id: 'coat', x: 84, r: 24, name: 'THE COAT CHECK', sub: 'THAT IS YOUR SUIT NOW' },
+    { id: 'dance', x: 176, r: 48, name: 'THE DANCEFLOOR', sub: 'HAVE A GO' },
+    { id: 'bar', x: 292, r: 30, name: 'THE BAR', sub: 'BUY SOMETHING SILLY' }
+  ];
+  /* Eight regulars. They wander, they stop, they dance, and now and then two
+     of them find each other and the tentacles get involved. */
+  const CLUBBERS = [];
+  for (let i = 0; i < 8; i++) {
+    CLUBBERS.push({ x: 108 + i * 21, vx: 0, k: i % 4, t: U.rand(0, 6), face: i % 2 ? 1 : -1,
+      dance: U.rand(0, 3), kiss: 0, mate: -1, wait: U.rand(0, 2) });
+  }
+  const BOTTLES = [];
+  for (let i = 0; i < 9; i++) BOTTLES.push({ x: 274 + (i % 5) * 7, y: (i / 5) | 0, k: i % 4 });
+
+  function beatOf(t) { return ((t * 2.2) % 1); }
+
+  function goClub(g) {
+    S.scene = 'club';
+    place(g, CLUB_SPOTS[0].x + 30);
+    A.sfx.tone(90, { type: 'square', to: 60, dur: 0.3, vol: 0.1 });
+    if (!g.save.suit) {
+      g.save.suit = 1; g.saveGame();
+      say('THEY WILL NOT LET YOU IN LIKE THAT. HERE. WEAR THIS.');
+      FX.text(P.x, P.y - 54, 'NICE SUIT', '#d67aff', 2);
+      for (let i = 0; i < 30; i++) {
+        FX.spawn({ x: P.x + U.rand(-14, 14), y: P.y - 24, vx: U.rand(-90, 90), vy: U.rand(-160, -30),
+          life: 1.2, size: 2, glow: 1, color: i % 2 ? '#d67aff' : '#ffd34d', grav: 160, drag: 1 });
+      }
+      A.sfx.fanfare && A.sfx.fanfare();
+      PD.chum.call(g, 'suit');
+    }
+  }
+  function leaveClub(g) {
+    S.scene = 'out';
+    place(g, CLUB_X - 24);
+    A.sfx.tone(220, { type: 'square', to: 420, dur: 0.2, vol: 0.08 });
+  }
+
+  function haveADance(g) {
+    S.dance = 4.2;
+    P.lock = 0.2;
+    say('YOU ARE DANCING. NOBODY IS STOPPING YOU.');
+    A.sfx.tone(440, { type: 'square', to: 880, dur: 0.12, vol: 0.07 });
+    for (const c of CLUBBERS) { c.dance = U.rand(3, 5); c.wait = 0; }
+    if (!g.save.seen.danced) {
+      g.save.seen.danced = 1;
+      g.save.thots = (g.save.thots || 0) + 40;
+      FX.text(P.x, P.y - 50, '+40 THOTS', '#4cff9a', 1);
+      g.saveGame();
+    }
+  }
+
+  const DRINKS = [
+    ['A GLASS OF MOON', 'IT IS JUST DUST AND WATER. YOU FEEL WORSE.'],
+    ['SOMETHING PURPLE', 'IT WINKS AT YOU ON THE WAY DOWN.'],
+    ['THE HOUSE SPECIAL', 'IT IS CALLED THE LOAN SHARK. THAT IS NOT FUNNY.'],
+    ['A PINT OF BATTERY', 'YOUR TEETH ARE HUMMING. WORTH IT.'],
+    ['WATER', 'THE BARMAN IS VISIBLY DISAPPOINTED IN YOU.']
+  ];
+  function buyADrink(g) {
+    if (g.save.credits < 500) { say('FIVE HUNDRED. YOU HAVE NOT GOT IT.'); A.sfx.deny(); return; }
+    g.save.credits -= 500;
+    const d = U.pick(DRINKS);
+    say(d[0] + '. ' + d[1]);
+    FX.text(P.x, P.y - 46, d[0], '#ffd34d', 1);
+    FX.stars(P.x, P.y - 30, 10, '#ffd34d');
+    A.sfx.tone(660, { type: 'triangle', to: 1200, dur: 0.18, vol: 0.07 });
+    g.saveGame();
+  }
+
+  /* They mill about, and every so often two of them stop milling. */
+  function updateClub(dt, g) {
+    S.beat += dt;
+    for (let i = 0; i < CLUBBERS.length; i++) {
+      const c = CLUBBERS[i];
+      c.t += dt;
+      if (c.kiss > 0) {
+        c.kiss -= dt; c.vx = 0;
+        // shuffle right up to whoever it is. Standing a foot apart pulling a
+        // face at each other did not read as a kiss at all.
+        const m = CLUBBERS[c.mate];
+        if (m) {
+          const mid = (c.x + m.x) / 2;
+          c.x = U.damp(c.x, mid - c.face * 7, 0.2, dt);
+          if (U.chance(dt * 3.5) && c.mate > i) {
+            FX.spawn({ x: mid + U.rand(-5, 5), y: FLOOR - 36, vx: U.rand(-12, 12), vy: U.rand(-34, -14),
+              life: 1.4, size: 2, glow: 1, color: '#ff5fa8', grav: -14, drag: 1 });
+          }
+        }
+        if (c.kiss <= 0) c.mate = -1;
+        continue;
+      }
+      if (c.dance > 0) { c.dance -= dt; c.vx = 0; continue; }
+      c.wait -= dt;
+      if (c.wait <= 0) {
+        c.wait = U.rand(1.4, 4);
+        const r = U.rand();
+        if (r < 0.34) { c.dance = U.rand(2, 5); c.vx = 0; }
+        else { c.vx = U.rand(0.5) < 0.5 ? -18 : 18; c.face = Math.sign(c.vx); }
+      }
+      c.x += c.vx * dt;
+      if (c.x < 104) { c.x = 104; c.vx = Math.abs(c.vx); c.face = 1; }
+      if (c.x > 258) { c.x = 258; c.vx = -Math.abs(c.vx); c.face = -1; }
+    }
+    // pair off whoever happens to be standing next to somebody
+    S.kissT -= dt;
+    if (S.kissT <= 0) {
+      S.kissT = U.rand(2.2, 5);
+      const free = CLUBBERS.filter(c => c.kiss <= 0);
+      for (const a of free) {
+        const b = free.find(o => o !== a && o.kiss <= 0 && Math.abs(o.x - a.x) < 46);
+        if (!b || a.kiss > 0) continue;
+        const d = Math.sign(b.x - a.x) || 1;
+        a.face = d; b.face = -d;
+        a.kiss = b.kiss = U.rand(1.8, 3.2);
+        a.mate = CLUBBERS.indexOf(b); b.mate = CLUBBERS.indexOf(a);
+        const mx = (a.x + b.x) / 2;
+        for (let h = 0; h < 5; h++) {
+          FX.spawn({ x: mx + U.rand(-6, 6), y: FLOOR - 34, vx: U.rand(-16, 16), vy: U.rand(-42, -18),
+            life: 1.3, size: 2, glow: 1, color: '#ff5fa8', grav: -20, drag: 1 });
+        }
+        A.sfx.tone(900, { type: 'sine', to: 1300, dur: 0.09, vol: 0.03 });
+        break;
+      }
+    }
+    if (S.dance > 0) {
+      S.dance -= dt;
+      if (U.chance(0.3)) FX.stars(P.x + U.rand(-14, 14), P.y - U.rand(10, 40), 1, U.pick(['#ff5fa8', '#7ef9ff', '#ffd34d']));
+    }
+  }
 
   /* ---------------------------------------------------------------- the rat */
   const rat = { x: RAT_SPOT.x, y: FLOOR, vx: 0, t: 0, face: -1, hop: 0, chew: 0 };
@@ -161,8 +324,17 @@
   function say(m) { UI.msg = m; UI.msgT = 3.2; }
 
   function spots(g) {
-    if (S.scene === 'out') return OUT_SPOTS;
-    return g.save.pet ? IN_SPOTS : IN_SPOTS.concat([RAT_SPOT]);
+    if (S.scene === 'club') return CLUB_SPOTS;
+    if (S.scene === 'in') return g.save.pet ? IN_SPOTS : IN_SPOTS.concat([RAT_SPOT]);
+    const out = OUT_SPOTS.slice();
+    for (let i = 0; i < TRASH.length; i++) {
+      if (cleaned(g, i)) continue;
+      out.push({ id: 'trash', i, x: TRASH[i].x, r: 17,
+        name: TRASH_NAMES[TRASH[i].k], sub: 'CLEAN IT UP' });
+    }
+    if (moonClean(g)) out.push({ id: 'club', x: CLUB_X, r: 26,
+      name: 'THE CLUB', sub: 'IT WAS UNDER THE BINS' });
+    return out;
   }
 
   function nearest(g) {
@@ -194,6 +366,55 @@
       return;
     }
     if (s.id === 'rat') { feedRat(g); return; }
+    if (s.id === 'trash') { sweep(g, s.i); return; }
+    if (s.id === 'club') { goClub(g); return; }
+    if (s.id === 'clubout') { leaveClub(g); return; }
+    if (s.id === 'dance') { haveADance(g); return; }
+    if (s.id === 'bar') { buyADrink(g); return; }
+    if (s.id === 'coat') {
+      g.save.suit = g.save.suit ? 0 : 1; g.saveGame();
+      say(g.save.suit ? 'THE SUIT IS BACK ON. THE SUIT IS ALWAYS RIGHT.' : 'YOU HAVE HUNG THE SUIT UP. COWARD.');
+      A.sfx.click(); return;
+    }
+  }
+
+  /* One heap, gone. He does not bend down; he sets about it with the drill,
+     which is the only tool he owns and much too big for the job. */
+  function sweep(g, i) {
+    if (cleaned(g, i)) return;
+    g.save.trash = (g.save.trash || 0) | (1 << i);
+    const th = TRASH[i];
+    const gy = groundY(th.x);
+    P.lock = 0.45; P.sweep = 0.5;
+    const pay = 400 + Math.round(U.rand(0, 260));
+    g.save.credits += pay;
+    FX.text(th.x, gy - 40, '+$' + pay, '#8affa0', 1);
+    A.sfx.tone(320, { type: 'square', to: 900, dur: 0.16, vol: 0.07 });
+    FX.puff(th.x, gy - 10, 16, '#8e86a8', 1.3);
+    FX.dust(th.x, gy, 10, '#6b6480', 24);
+    FX.ring(th.x, gy - 8, 3, 30, 0.5, '#c9bce8', 2);
+    for (let k = 0; k < 14; k++) {
+      FX.spawn({ x: th.x + U.rand(-14, 14), y: gy - 12, vx: U.rand(-70, 70), vy: U.rand(-150, -40),
+        life: 1.0, size: 2, color: k % 3 ? '#6b6480' : '#8a5a3a', grav: 220, drag: 1 });
+    }
+    const left = trashLeft(g);
+    if (left > 0) {
+      say(left === 1 ? 'ONE HEAP LEFT. THE MOON IS ALMOST YOURS.'
+        : left + ' HEAPS LEFT ON YOUR OWN MOON.');
+      PD.chum.call(g, 'tip');
+    } else {
+      say('THE MOON IS CLEAN. THERE WAS A CLUB UNDER THE BINS.');
+      A.sfx.fanfare && A.sfx.fanfare();
+      FX.text(CLUB_X, groundY(CLUB_X) - 56, 'A CLUB?', '#ff5fa8', 2);
+      FX.ring(CLUB_X, groundY(CLUB_X) - 20, 4, 70, 1.1, '#ff5fa8', 3);
+      for (let k = 0; k < 40; k++) {
+        FX.spawn({ x: CLUB_X + U.rand(-20, 20), y: groundY(CLUB_X) - 16, vx: U.rand(-120, 120),
+          vy: U.rand(-220, -60), life: 1.5, size: 2, glow: 1,
+          color: k % 3 === 0 ? '#ff5fa8' : (k % 3 === 1 ? '#7ef9ff' : '#ffd34d'), grav: 180, drag: 1 });
+      }
+      PD.chum.call(g, 'club');
+    }
+    g.saveGame();
   }
 
   /* Hand the cheese over. He is yours now; there is no undoing this. */
@@ -237,6 +458,8 @@
 
     for (const d of DRIPS) { d.t += dt; if (d.t > 3.4) { d.t = 0; A.sfx.tone(1400, { type: 'sine', to: 800, dur: 0.1, vol: 0.02 }); } }
     updateRat(dt, g);
+    if (S.scene === 'club') updateClub(dt, g);
+    P.sweep = Math.max(0, P.sweep - dt);
 
     const use_ = P.lock <= 0 && (IN.hit('KeyE') || IN.hit('space'));
     const m = IN.mouse;
@@ -293,7 +516,7 @@
     P.y += P.vy * dt;
 
     // the ceiling is out of reach, but the junk hanging off the beam is not
-    const roof = S.scene === 'in' ? CEIL + 14 : -600;
+    const roof = S.scene === 'in' ? CEIL + 14 : (S.scene === 'club' ? CLUB_CEIL + 18 : -600);
     if (P.y < roof) {
       P.y = roof;
       if (P.vy < 0) {
@@ -484,7 +707,184 @@
     AH.blit(ctx, AH.S.flag, Math.floor(t * 4) % 2, fx - cam, groundY(fx) + 2);
     const svx = OUT_SPOTS[0].x - 66;
     AH.blit(ctx, AH.S.survey, 0, svx - cam, groundY(svx) + 2);
+
+    /* Whatever is left of the tip, plus a wash of grime over the regolith
+       that lifts as the heaps go. A clean moon is a visibly different moon. */
+    const dirt = trashLeft(g) / TRASH.length;
+    if (dirt > 0) {
+      ctx.globalAlpha = dirt * 0.5;
+      for (let x = -cam; x < VW; x += 6) {
+        const wx = x + cam;
+        X.dither(ctx, x, groundY(wx), 6, 7, '#5a4a2a', ((wx / 6) | 0) % 2 === 0);
+      }
+      ctx.globalAlpha = 1;
+      // flies, or whatever passes for them out here
+      for (let i = 0; i < 14; i++) {
+        if (i / 14 > dirt) break;
+        const h = TRASH[i % TRASH.length];
+        if (cleaned(g, i % TRASH.length)) continue;
+        const fx2 = h.x - cam + Math.sin(t * 3 + i) * 9;
+        const fy2 = groundY(h.x) - 20 + Math.cos(t * 4.3 + i * 2) * 7;
+        X.rect(ctx, fx2, fy2, 1, 1, '#3a3348');
+      }
+    }
+    for (let i = 0; i < TRASH.length; i++) {
+      if (cleaned(g, i)) continue;
+      const h = TRASH[i];
+      const hy = groundY(h.x);
+      X.blob(ctx, h.x - cam, hy + 1, 22, 3, '#241f36');
+      AH.blit(ctx, AH.S['moonjunk' + h.k], 0, h.x - cam, hy + 2);
+    }
+    // the hatch. Buried until the last heap goes, then lit and humming.
+    if (moonClean(g)) {
+      const cy2 = groundY(CLUB_X);
+      const lit = Math.sin(t * 3) > -0.5;
+      AH.blit(ctx, AH.S.clubsign, lit ? 1 : 0, CLUB_X - cam, cy2 + 2);
+      if (lit) {
+        ctx.globalAlpha = 0.16 + Math.sin(t * 3) * 0.06;
+        X.blob(ctx, CLUB_X - cam, cy2 - 22, 26, 16, '#ff5fa8');
+        ctx.globalAlpha = 1;
+      }
+      F.draw(ctx, 'CLUB', CLUB_X - cam, cy2 - 40, lit ? '#7ef9ff' : '#2a4a56', { center: true, scale: 2, shadow: '#0a0614' });
+      // and the thump of it coming up through the rock
+      const bt = beatOf(t);
+      if (bt < 0.16) {
+        ctx.globalAlpha = (0.16 - bt) * 2;
+        X.ring(ctx, CLUB_X - cam, cy2 - 4, 10 + bt * 90, '#ff5fa8', 2);
+        ctx.globalAlpha = 1;
+      }
+    }
   }
+
+  /* ------------------------------------------------------------ the club room
+     A hole in the moon with a floor that changes colour under you. */
+  function drawClub(ctx, g, t, cam) {
+    const bt = beatOf(t);
+    const punch = Math.max(0, 1 - bt * 5);
+    /* The rock goes right across the frame, not just across the room: the room
+       is narrower than the screen and without this there was black either side
+       of it where the moon should be. */
+    X.rect(ctx, 0, 0, VW, VH, '#1a1230');
+    X.rect(ctx, 0, CLUB_CEIL - 44, VW, 44, '#241f36');
+    rockEdge(ctx, 0, VW, CLUB_CEIL, 1, '#3a3348', '#241f36', 7);
+    X.rect(ctx, 0, FLOOR, VW, VH - FLOOR, '#140e28');
+    // a back wall of dark panels with neon run along the top of them
+    for (let x = 0; x < CLUB_W; x += 22) {
+      X.rect(ctx, x - cam, CLUB_CEIL + 10, 20, FLOOR - CLUB_CEIL - 10, ((x / 22) | 0) % 2 ? '#221842' : '#1d1438');
+    }
+    // and the rock walls the room is cut out of, at either end
+    X.rect(ctx, -cam - 60, CLUB_CEIL, 62, FLOOR - CLUB_CEIL + 20, '#241f36');
+    X.rect(ctx, CLUB_W - cam - 2, CLUB_CEIL, 62, FLOOR - CLUB_CEIL + 20, '#241f36');
+    rockEdge(ctx, -cam - 4, -cam + 4, CLUB_CEIL, 1, '#3a3348', '#241f36', 5);
+    for (let i = 0; i < 8; i++) {
+      const on = (Math.floor(t * 4) + i) % 3 !== 0;
+      X.rect(ctx, 12 + i * 40 - cam, CLUB_CEIL + 12, 30, 2, on ? '#ff5fa8' : '#4a1c3a');
+      X.rect(ctx, 12 + i * 40 - cam, CLUB_CEIL + 18, 30, 2, on ? '#7ef9ff' : '#12384a');
+    }
+    // the lit tiles, which are underfoot and not a step up onto
+    X.rect(ctx, -cam, FLOOR - 1, CLUB_W, 1, '#2e2450');
+    const TILE = 18, T0 = 108;
+    for (let i = 0; i < 8; i++) {
+      const k = (Math.floor(t * 4.4) + i) % 4;
+      const col = ['#ff5fa8', '#7ef9ff', '#ffd34d', '#8affa0'][k];
+      X.rect(ctx, T0 + i * TILE - cam, FLOOR, TILE - 2, 13, col);
+      ctx.globalAlpha = 0.4;
+      X.rect(ctx, T0 + i * TILE - cam, FLOOR, TILE - 2, 3, '#ffffff');
+      ctx.globalAlpha = 0.10 + punch * 0.16;
+      X.blob(ctx, T0 + i * TILE + TILE / 2 - cam, FLOOR - 24, 11, 24, col);
+      ctx.globalAlpha = 1;
+    }
+    // a mirror ball, throwing spots about
+    const mbx = 176 - cam, mby = CLUB_CEIL + 22;
+    X.rect(ctx, mbx, CLUB_CEIL + 6, 1, 16, '#5a5474');
+    X.blob(ctx, mbx, mby, 9, 9, '#8e86a8');
+    for (let i = 0; i < 9; i++) {
+      const a = t * 1.6 + i * 0.7;
+      X.rect(ctx, mbx + Math.cos(a) * 6, mby + Math.sin(a * 1.3) * 6, 2, 2, i % 2 ? '#ffffff' : '#c9bce8');
+    }
+    for (let i = 0; i < 10; i++) {
+      const a = t * 0.9 + i * (U.TAU / 10);
+      ctx.globalAlpha = 0.10 + 0.06 * Math.sin(t * 3 + i);
+      X.blob(ctx, mbx + Math.cos(a) * 110, CLUB_CEIL + 40 + Math.sin(a * 2) * 44, 7, 7, '#d8fbff');
+      ctx.globalAlpha = 1;
+    }
+    // speakers, which get bigger on the beat because of course they do
+    for (const sx of [50, 300]) {
+      const gy2 = FLOOR, hgt = 52 + Math.round(punch * 2);
+      X.plate(ctx, sx - 18 - cam, gy2 - hgt, 36, hgt, '#1a1424', '#2e2640', '#0a0614', 4);
+      for (const [cy2, r2] of [[gy2 - hgt + 16, 10], [gy2 - 14, 7]]) {
+        X.blob(ctx, sx - cam, cy2, r2 + punch * 2, r2 + punch * 2, '#0d0918');
+        X.blob(ctx, sx - cam, cy2, (r2 - 3) + punch * 2, (r2 - 3) + punch * 2, '#3a3348');
+        X.blob(ctx, sx - cam, cy2, 2, 2, '#6b6480');
+      }
+    }
+    // the bar, some bottles and the gentleman behind it
+    X.plate(ctx, 262 - cam, FLOOR - 30, 62, 30, '#4a2e1e', '#6b4530', '#241408', 3);
+    X.rect(ctx, 262 - cam, FLOOR - 30, 62, 3, '#8a5a3a');
+    X.rect(ctx, 266 - cam, FLOOR - 52, 54, 20, '#1a1424');
+    for (const b of BOTTLES) {
+      const col = ['#8affa0', '#ff8ad8', '#ffb03d', '#7ec8ff'][b.k];
+      X.rect(ctx, b.x - cam, FLOOR - 44 + b.y * 9, 3, 8, col);
+      X.rect(ctx, b.x - cam, FLOOR - 46 + b.y * 9, 1, 3, '#c9bce8');
+    }
+    const bmb = Math.sin(t * 2.2) * 1.5;
+    AH.blit(ctx, AH.S.clubber3, 0, 300 - cam, FLOOR - 30 + bmb, true);
+    F.draw(ctx, 'BAR', 292 - cam, FLOOR - 62, '#ffd34d', { center: true, shadow: '#0a0614' });
+
+    // the coat check, with the suit on the rail if you are not wearing it
+    X.rect(ctx, 70 - cam, FLOOR - 76, 2, 76, '#5a5474');
+    X.rect(ctx, 98 - cam, FLOOR - 76, 2, 76, '#5a5474');
+    X.rect(ctx, 70 - cam, FLOOR - 76, 30, 2, '#8e86a8');
+    if (!g.save.suit) AH.blit(ctx, AH.S.hippie, 0, 85 - cam, FLOOR - 36);
+    else for (let i = 0; i < 3; i++) { X.rect(ctx, 75 - cam + i * 8, FLOOR - 74, 3, 5, '#3a3348'); }
+    F.draw(ctx, 'COATS', 85 - cam, FLOOR - 86, '#8e86a8', { center: true, shadow: '#0a0614' });
+
+    // the way out
+    X.plate(ctx, 12 - cam, FLOOR - 46, 30, 46, '#120a1c', '#3a3348', '#000000', 4);
+    X.rect(ctx, 16 - cam, FLOOR - 42, 22, 38, '#241f36');
+    F.draw(ctx, 'OUT', 27 - cam, FLOOR - 56, '#8affa0', { center: true, shadow: '#0a0614' });
+
+    for (const c of CLUBBERS) drawClubber(ctx, c, t, cam);
+
+    // the strobe, rarely, over everything
+    if (bt < 0.06 && Math.floor(t * 2.2) % 4 === 0) {
+      ctx.globalAlpha = (0.06 - bt) * 5;
+      X.rect(ctx, 0, 0, VW, VH, '#ffffff');
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  /* One regular. The body is a sprite; the tentacles are live, so they can
+     wave about and, when two of them get together, wrap round each other. */
+  function drawClubber(ctx, c, t, cam) {
+    const C = AH.CLUB_COL[c.k % 4];
+    const x = c.x - cam, y = FLOOR;
+    const fast = c.dance > 0 ? 11 : (Math.abs(c.vx) > 1 ? 7 : 3);
+    const bob = Math.sin(c.t * fast) * (c.dance > 0 ? 4 : 1.4);
+    const lean = c.kiss > 0 ? c.face * 5 : 0;
+    X.blob(ctx, x, y + 1, 12, 3, '#0a0614');
+    for (let i = 0; i < 4; i++) {
+      const ph = c.t * fast + i * 1.25;
+      const root = x + (i - 1.5) * 4;
+      const out = (i - 1.5) * 6 + Math.sin(ph) * (c.kiss > 0 ? 9 : 5);
+      X.curve(ctx, root, y - 13 + bob, root + out * 0.7, y - 6 + Math.cos(ph) * 2,
+        x + out, y - (c.kiss > 0 ? 2 + Math.abs(Math.sin(ph)) * 5 : 0), C.d, 3, 7);
+    }
+    AH.blit(ctx, AH.S['clubber' + (c.k % 4)], c.kiss > 0 ? 1 : 0, x + lean, y - 10 + bob, c.face < 0);
+    if (c.dance > 0 && U.chance(0.06)) FX.stars(c.x, y - 30, 1, C.s);
+    // one big throbbing heart over whoever is getting on with it
+    if (c.kiss > 0 && c.mate > CLUBBERS.indexOf(c)) {
+      const m = CLUBBERS[c.mate];
+      const hx = (c.x + m.x) / 2 - cam, hy = y - 40 - Math.sin(t * 3) * 2;
+      const r = 4 + Math.abs(Math.sin(t * 6)) * 1.6;
+      X.blob(ctx, hx - r * 0.6, hy, r, r, '#ff5fa8');
+      X.blob(ctx, hx + r * 0.6, hy, r, r, '#ff5fa8');
+      X.poly(ctx, [[hx - r * 1.5, hy + 1], [hx + r * 1.5, hy + 1], [hx, hy + r * 2.2]], '#ff5fa8');
+      X.blob(ctx, hx - r * 0.8, hy - 1, 1, 1, '#ffd6f0');
+    }
+  }
+
+
 
   function rockEdge(ctx, x0, x1, y, dir, col, colD, amp) {
     for (let x = x0; x < x1; x += 4) {
@@ -770,7 +1170,8 @@
     // How high the sign floats, in SCREEN pixels -- the thing it names is
     // twice its old size now, so the clearance is measured after the zoom
     // rather than scaled up with it.
-    const LIFTS = { ufo: 78, door: 114, brain: 93, pc: 78, exit: 69, rat: 44 };
+    const LIFTS = { ufo: 78, door: 114, brain: 93, pc: 78, exit: 69, rat: 44,
+      trash: 66, club: 118, clubout: 84, coat: 104, dance: 102, bar: 96 };
     const lift = LIFTS[s.id] || 100;
     const sp = toScreen(s.x - cam, groundY(s.x));
     const x = U.clamp(Math.round(sp.x), 60, VW - 60);
@@ -831,6 +1232,7 @@
   function drawScene(ctx, g, t) {
     const cam = Math.round(g.intCam);
     if (S.scene === 'out') drawOutside(ctx, g, t, cam);
+    else if (S.scene === 'club') drawClub(ctx, g, t, cam);
     else drawInside(ctx, g, t, cam);
 
     for (const m of MOTES) {
@@ -840,7 +1242,7 @@
     }
     ctx.globalAlpha = 1;
 
-    drawRat(ctx, g, cam, t);
+    if (S.scene !== 'club') drawRat(ctx, g, cam, t);
     drawPlayer(ctx, g, cam, t);
   }
 
@@ -917,8 +1319,53 @@
       drilling: false, twoHand: false, grip: null, aim: P.face < 0 ? Math.PI : 0,
       ground: !air, vx: P.vx, vy: P.vy, squash: sq
     }, skin.P, PD.art.BIZ);
+    if (g.save.suit) drawSuit(ctx, x, y, t, walking, P.face < 0);
     if (walking && !air && U.chance(0.2)) FX.dust(P.x - P.face * 5, P.y, 1, '#8e86a8', 10);
+    // shifting a heap: a cloud of it, and him disappearing into the cloud
+    if (P.sweep > 0) {
+      const k = P.sweep / 0.5;
+      ctx.globalAlpha = k * 0.8;
+      for (let i = 0; i < 7; i++) {
+        const a = i / 7 * U.TAU + t * 4;
+        X.blob(ctx, x + Math.cos(a) * (10 + (1 - k) * 18), P.y - 14 + Math.sin(a) * (7 + (1 - k) * 10),
+          5 + (1 - k) * 5, 4 + (1 - k) * 4, '#8e86a8');
+      }
+      ctx.globalAlpha = 1;
+    }
   }
 
-  PD.home = { enter, update, draw, drawScene, drawOverlay, view, toScreen, fromScreenX, closeScene, touchMode, leaveDesk, say, P, UI, S, groundY, ZW, ZH, ZK, ROOM_W: OUT_W, SPOTS };
+  /* THE SUIT. Purple, a collar you could hang-glide with, a gold medallion,
+     and sequins that catch whatever light there is. It goes on over the rig
+     rather than into it, because the rig is a skeleton and this is an opinion. */
+  function drawSuit(ctx, x, y, t, walking, flip) {
+    const f = flip ? -1 : 1;
+    const sw = walking ? Math.sin(P.walk * 2.2) * 1.2 : Math.sin(t * 2.6) * 0.6;
+    /* The rig's anchor is his BELT -- shoulders sit thirteen above it and hips
+       ten below -- so everything here is hung off the neck rather than off the
+       top-left of anything. */
+    const sy = Math.round(y + sw * 0.3);
+    const nk = sy - 15;
+    // the waistcoat, then a hip band over the top of the tentacles
+    X.rect(ctx, x - 5, nk + 4, 10, 14, '#8a3fb0');
+    X.rect(ctx, x - 5, nk + 4, 10, 1, '#b04fd6');
+    X.rect(ctx, x - 7, nk + 16, 14, 4, '#5e2a7a');
+    X.rect(ctx, x - 7, nk + 16, 14, 1, '#b04fd6');
+    // two enormous points off the shoulders
+    X.poly(ctx, [[x, nk + 1], [x - 9 * f, nk + 6], [x - 3 * f, nk + 12]], '#d67aff');
+    X.poly(ctx, [[x, nk + 1], [x + 9 * f, nk + 6], [x + 3 * f, nk + 12]], '#b04fd6');
+    X.polyEdge(ctx, [[x, nk + 1], [x - 9 * f, nk + 6], [x - 3 * f, nk + 12]], '#5e2a7a', 1);
+    X.polyEdge(ctx, [[x, nk + 1], [x + 9 * f, nk + 6], [x + 3 * f, nk + 12]], '#5e2a7a', 1);
+    // the chain, and the medallion on the end of it
+    X.rect(ctx, x - 1, nk + 8, 2, 5, '#c99a1e');
+    X.blob(ctx, x, nk + 14, 3, 3, '#ffd34d');
+    X.blob(ctx, x - 1, nk + 13, 1, 1, '#fff3b0');
+    // and the sequins, one at a time, whenever they feel like it
+    for (let i = 0; i < 4; i++) {
+      if ((Math.floor(t * 6) + i) % 4) continue;
+      X.rect(ctx, x - 5 + i * 3, nk + 5 + (i % 3) * 4, 1, 1, '#ffffff');
+    }
+  }
+
+  PD.home = { enter, update, draw, drawScene, drawOverlay, view, toScreen, fromScreenX, closeScene, touchMode, leaveDesk, say, P, UI, S, groundY, ZW, ZH, ZK, ROOM_W: OUT_W, SPOTS,
+    TRASH, CLUB_X, CLUB_SPOTS, CLUBBERS, moonClean, trashLeft, sweep, goClub, leaveClub, spots };
 })(window.PD);

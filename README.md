@@ -571,6 +571,8 @@ beats of cutscene:
    not a gift.
 4. **The drop.** He puts you out over a moon he has already paid for.
 
+He does not mention what state it is in.
+
 `E` or a tap advances a line; `ESC` skips the whole thing. It plays once —
 the save remembers, and `WIPE SAVE` in setup gives it back to you.
 
@@ -578,6 +580,15 @@ The debt is real and it sits bottom-left of the moon on a little plate, with
 a bar that fills as you pay it down. **Every sale hands Mr Chum 20% off the
 top** before a credit reaches you — the toast says exactly how much he took.
 Clear it and the plate turns green.
+
+## He arrives and he leaves
+
+Neither happens instantly. A bar of light goes up out of the watch and he
+**unrolls out of it from the soles up**, squeezed thin, jittering, with a hot
+white line riding the growing edge and sparks coming off it. Hanging up runs
+the same thing backwards — he folds down into the floor and the column blinks
+out. You cannot dismiss him halfway through arriving, which he would consider
+only fair.
 
 ## The watch buzzes
 
@@ -613,6 +624,55 @@ carry on lives inside the bubble rather than floating over the scene.
 
 The narrator gets the same treatment without the tail: a card that pops in the
 same way, because nothing on screen is saying it.
+
+## The moon is a tip
+
+Mr Chum bought you a moon. He bought it cheap. There is a reason it was cheap:
+somebody used it as a **tip** for about a century and nobody ever came back for
+any of it. You arrive to twelve heaps of other people's rubbish — dead
+satellites, split sacks, a drum of something green, a crate and some bones —
+strewn across the regolith under a wash of grime, with flies, or whatever
+passes for them out here, circling.
+
+Walk up to a heap and press `E`. He does not bend down and pick it up; he sets
+about it with the drill, which is the only tool he owns and far too big for the
+job. Each one pays a few hundred credits, throws up a cloud you disappear into,
+and lifts a twelfth of the grime off the ground. The moon visibly gets better.
+
+Under the last heap is a hatch, and the hatch has a **neon sign on it**, and the
+sign still works.
+
+## The club
+
+Whatever this moon was before it was a tip, somebody ran a club on it, and it
+is still down there with the lights on. Go down the hatch and you are in it:
+panelled walls with neon run along them, a mirror ball throwing spots across
+the room, speakers that get visibly bigger on the beat, a bar with the bottles
+lit from behind and a gentleman working it, and **a floor that changes colour
+under your feet**, four ways, in time.
+
+Eight regulars are already in. They wander, they stop, they dance, and every so
+often two of them find each other, shuffle right up, shut their eyes and get on
+with it — tentacles everywhere, one enormous throbbing heart over the pair of
+them. They are not scenery: they react when you dance.
+
+Four things to do down there:
+
+| | |
+| --- | --- |
+| **THE DANCEFLOOR** | Have a go. The whole room joins in, and the first time is worth 40 thots |
+| **THE BAR** | $500 for something silly. There are five and one of them is water |
+| **THE COAT CHECK** | Where the suit lives |
+| **THE WAY OUT** | Back up to the moon |
+
+## The suit
+
+They will not let you in like that. On the way through the door somebody hands
+you a **hippie suit** and it is magnificent: purple, a collar you could
+hang-glide with, a gold medallion on a chain, and sequins that catch whatever
+light is going one at a time. You wear it everywhere from then on — on the
+moon, in the house, down the club — and you can hang it back up at the coat
+check any time you like, which the game will call you a coward for.
 
 ## The chart
 
@@ -777,7 +837,7 @@ a line of history under its blurb.
 | `src/player.js` | Movement, the drill, weapons, dash, the ragdoll, air, cargo, damage, and the tether to the pod |
 | `src/fx.js` | Particles, floating numbers, shockwave rings, terrain chunks, bouncing debris, screen shake, hit-stop, and the block iris |
 | `src/ui.js` | The cardboard-and-masking-tape HUD (air tank, hull chips, sack tube), the action strip, the plank over the door, pause, victory and title screens |
-| `src/home.js` | Both halves of home: the lumpy moon surface outside with the house and the saucer standing on the curve of it, the very small room inside with the computer and the jar, and Brenda |
+| `src/home.js` | All three parts of home: the lumpy moon surface outside with the house and the saucer standing on the curve of it, the very small room inside with the computer and the jar, Brenda, the tip you have to clear off the regolith, and the club under the hatch with its dancefloor, its mirror ball and its eight regulars |
 | `src/desk.js` | First person at the computer: hands, keyboard, CRT, the loose-spring pointer, ZORB OS and ABAY |
 | `src/glyph.js` | The icon language that rides alongside the text, and the hex primitives |
 | `src/galaxy.js` | Spiral-arm star band, nebulae, sun, ringed planets, shooting stars |

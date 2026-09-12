@@ -1011,6 +1011,125 @@
   function buildMoon(size, tint, seed) { return buildPlanet(size, tint, seed, 'moon'); }
 
   /* -------------------------------------------------------------- register */
+  /* Somebody used this moon as a tip before you were handed the deed to it.
+     Four grades of other people's rubbish, at the scale of the moon surface
+     rather than the scale of the room, so they read from across the crater. */
+  function moonJunk(k) {
+    const p = pix(64, 46);
+    if (k === 0) {                                        // a crashed satellite
+      p.round(14, 24, 30, 18, 4, P.steelD);
+      p.rect(16, 28, 26, 2, P.steel);
+      p.rect(10, 20, 4, 18, P.steelDD);
+      for (let i = 0; i < 4; i++) p.rect(44 + i * 4, 22 + i * 3, 3, 14 - i * 2, P.navyL);
+      p.rect(28, 6, 3, 20, P.steelD);                     // a bent mast
+      p.ellipse(30, 6, 11, 5, P.steel);
+      p.ellipse(30, 7, 8, 3, P.navy);
+      p.rect(2, 40, 20, 4, P.rockD);
+    } else if (k === 1) {                                 // sacks, splitting
+      for (let i = 0; i < 4; i++) {
+        const x = 2 + i * 15, y = 18 + (i % 2) * 7;
+        p.ellipse(x + 9, y + 12, 10, 11, i % 2 ? '#3a3348' : '#2e2a3e');
+        p.rect(x + 6, y - 1, 6, 4, '#1c1a28');
+        p.set(x + 13, y + 8, P.lime);
+      }
+      p.ellipse(30, 42, 22, 4, '#2a3320');                // the seepage
+    } else if (k === 2) {                                 // a leaking drum
+      p.round(16, 14, 26, 28, 5, '#7a5a2a');
+      p.rect(16, 20, 26, 2, '#a87c3a');
+      p.rect(16, 32, 26, 2, '#a87c3a');
+      p.round(20, 10, 16, 6, 2, '#5a4020');
+      p.rect(36, 26, 8, 3, '#4cff9a');                    // the leak
+      p.ellipse(48, 42, 16, 4, '#2f7a52');
+      p.ellipse(48, 41, 10, 2, P.acid);
+    } else {                                              // bones and a crate
+      p.round(2, 26, 26, 16, 3, '#6b4530');
+      p.rect(4, 30, 22, 2, '#8a5a3a');
+      p.line(4, 28, 26, 40, '#4a2e1e'); p.line(26, 28, 4, 40, '#4a2e1e');
+      for (let i = 0; i < 3; i++) {
+        const x = 32 + i * 9, y = 30 + (i % 2) * 5;
+        p.round(x, y, 14, 4, 2, P.bone);
+        p.disc(x + 1, y + 2, 3, P.bone); p.disc(x + 13, y + 2, 3, P.bone);
+      }
+      p.ellipse(44, 20, 8, 7, P.bone);                    // and a small skull
+      p.rect(41, 19, 3, 3, P.ink); p.rect(46, 19, 3, 3, P.ink);
+    }
+    p.outline(P.ink);
+    return p;
+  }
+
+  /* What was under the biggest heap all along. */
+  function clubSign(lit) {
+    const p = pix(58, 44);
+    const neon = lit ? '#ff5fa8' : '#4a2340', tube = lit ? '#7ef9ff' : '#1d3a48';
+    p.round(4, 22, 50, 20, 4, P.rockD);                   // a hatch in the regolith
+    p.rect(6, 24, 46, 2, P.rockL);
+    p.round(16, 28, 26, 14, 3, '#120a1c');
+    for (let i = 0; i < 5; i++) p.rect(18 + i * 5, 30, 2, 10, lit ? '#2a1c33' : '#1a1024');
+    p.rect(2, 18, 54, 3, P.steelDD);
+    // the sign itself, on a little gantry
+    p.rect(8, 4, 3, 16, P.steelD); p.rect(48, 4, 3, 16, P.steelD);
+    p.round(6, 2, 46, 14, 3, '#1a1024');
+    p.rect(6, 2, 46, 1, neon);
+    for (const [x, w] of [[10, 4], [16, 4], [22, 4], [28, 4], [36, 4], [42, 4]]) p.rect(x, 5, w, 8, neon);
+    p.rect(10, 5, 34, 2, tube);
+    p.rect(10, 11, 34, 2, tube);
+    if (lit) { p.rect(4, 0, 50, 1, '#ffd34d'); p.set(3, 8, tube); p.set(54, 8, tube); }
+    p.outline(P.ink);
+    return p;
+  }
+
+  /* The regulars. Body and face only -- their tentacles are drawn live so
+     they can wave them about and wrap them round each other. Frame 1 is the
+     face they make when somebody is kissing them. */
+  const CLUB_COL = [
+    { s: '#8affa0', d: '#2f7a52', l: '#d8ffe4' },
+    { s: '#ff8ad8', d: '#a33a78', l: '#ffd6f0' },
+    { s: '#ffb03d', d: '#a35f12', l: '#ffe1a8' },
+    { s: '#7ec8ff', d: '#2f6aa3', l: '#d8f0ff' }
+  ];
+  function clubber(k, kiss) {
+    const C = CLUB_COL[k % 4];
+    const p = pix(30, 30);
+    // an antenna or two, according to taste
+    if (k % 2) { p.rect(9, 2, 2, 7, C.d); p.disc(10, 2, 3, C.l); p.rect(19, 4, 2, 5, C.d); p.disc(20, 4, 2, C.l); }
+    else { p.rect(14, 0, 2, 8, C.d); p.ellipse(15, 1, 4, 3, C.l); }
+    p.ellipse(15, 15, 13, 12, C.s);                     // one soft body
+    p.ellipse(15, 9, 9, 5, C.l);
+    p.ellipse(15, 23, 10, 4, C.d);
+    if (kiss) {
+      for (const ex of [10, 20]) { p.rect(ex - 3, 14, 7, 2, '#140f26'); p.rect(ex - 2, 13, 5, 1, '#140f26'); }
+      p.ellipse(15, 22, 5, 4, '#ff5fa8');               // and a pucker you can see
+      p.ellipse(15, 21, 3, 2, '#ffd6f0');
+      p.rect(7, 10, 3, 1, '#ffd6f0'); p.rect(20, 10, 3, 1, '#ffd6f0');
+    } else {
+      for (const ex of [10, 20]) {
+        p.ellipse(ex, 14, 4, 5, '#ffffff');
+        p.ellipse(ex + (k % 2 ? 1 : -1), 15, 2, 3, '#140f26');
+        p.set(ex - 1, 12, '#ffffff');
+      }
+      p.rect(12, 21, 7, 1, C.d);
+    }
+    p.outline(P.ink);
+    return p;
+  }
+
+  /* A coat-check rail with one thing left on it, and it is magnificent. */
+  function hippieSuit() {
+    const p = pix(30, 38);
+    p.rect(2, 2, 26, 2, P.steelD);
+    p.rect(14, 4, 2, 5, P.steelDD);
+    p.round(4, 8, 22, 22, 4, '#b04fd6');                // the jacket
+    p.round(4, 8, 8, 12, 3, '#d67aff');                 // one enormous lapel
+    p.round(18, 8, 8, 12, 3, '#d67aff');
+    p.round(11, 9, 8, 9, 3, '#ffe9a8');
+    p.round(2, 26, 26, 10, 3, '#8a3fb0');               // the flares
+    p.rect(14, 26, 2, 10, '#5e2a7a');
+    p.disc(15, 15, 2, P.gold);
+    for (let i = 0; i < 5; i++) p.set(5 + i * 5, 12 + (i % 3), '#ffffff');
+    p.outline(P.ink);
+    return p;
+  }
+
   reg('wall', [houseWall(240, 160)], 0, 0);
   reg('floor', [floorSlab(240)], 0, 0);
   reg('desk', [deskProp(false), deskProp(true)]);
@@ -1029,9 +1148,13 @@
   reg('ratFed', [moonRat(0, true), moonRat(1, true)]);
   reg('cheese', [cheese(false), cheese(true)]);
   for (let i = 0; i < 4; i++) reg('litter' + i, [litter(i)]);
+  for (let i = 0; i < 4; i++) reg('moonjunk' + i, [moonJunk(i)]);
+  reg('clubsign', [clubSign(false), clubSign(true)]);
+  for (let i = 0; i < 4; i++) reg('clubber' + i, [clubber(i, false), clubber(i, true)]);
+  reg('hippie', [hippieSuit()], 15, 0);
   reg('flag', [flag(0), flag(1)], 3);
   reg('skull', [celestialHead()]);
   reg('tape', [tapeDeck(0), tapeDeck(1)]);
 
-  PD.arthome = { S, P, buildMoon, buildPlanet, blit, HD, mitten, reg };
+  PD.arthome = { S, P, CLUB_COL, buildMoon, buildPlanet, blit, HD, mitten, reg };
 })(window.PD);
