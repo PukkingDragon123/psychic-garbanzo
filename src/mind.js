@@ -47,6 +47,7 @@
 
   function open(g) {
     g.state = 'mind';
+    PD.chum.call(g, 'brain');
     S.t = 0; S.sel = 'dig'; S.pulses.length = 0; S.flash = 0;
     S.line = ''; S.lineT = 0;
     A.sfx.tone(120, { type: 'sine', to: 380, dur: 0.55, vol: 0.1 });

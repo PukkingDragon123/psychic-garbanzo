@@ -242,6 +242,9 @@
     }
 
     const load = this.loadFactor();
+    // the shark notices things before you do
+    if (load > 0.5) PD.chum.call(g, 'sack');
+    if (this.o2 < this.stat('oxygen') * 0.3) PD.chum.call(g, 'air');
     const thrust = this.stat('thruster') * (1 - load * 0.42);
     const grav = w.gravityAt(this.y);
 

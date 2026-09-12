@@ -3,6 +3,8 @@
 A 2D pixel-art mining sandbox / incremental game. You are a small, greedy,
 extremely evil alien. You have a drill. The galaxy has planets. You do the math.
 
+You also owe a shark a million dollars.
+
 You have a rock house on a dead moon, a drill, and a flying saucer up on two
 bricks. Fly out, pick a world, drop on it. Sink into the rock on a wire from
 your pod, chew through it for ore and gems, shoot the things that live down
@@ -552,6 +554,51 @@ the first:
 
 Escape aborts the trip and puts you back on the chart. It does not skip it.
 
+## You owe Mr Chum a million dollars
+
+The first time you play, before the moon and before the drill, you get four
+beats of cutscene:
+
+1. **THE LUCKY VOID.** One machine, one lever, everything you had. The reels
+   land on nothing.
+2. **The receipt.** A number counts up on a red-ruled card to `$1,000,000`,
+   and a very wide shadow arrives behind you.
+3. **The deal.** **MR CHUM** — loan shark, evil alien shark man, pinstripe
+   suit he cannot get over the dorsal fin, gold chain, cigar he never lights
+   twice — explains the arrangement at three times your size. Go and eat a
+   planet. Bring him his money. Near the end of it he straps a watch to your
+   wrist, and it is not a gift.
+4. **The drop.** He puts you out over a moon he has already paid for.
+
+`E` or a tap advances a line; `ESC` skips the whole thing. It plays once —
+the save remembers, and `WIPE SAVE` in setup gives it back to you.
+
+The debt is real and it sits bottom-left of the moon on a little plate, with
+a bar that fills as you pay it down. **Every sale hands Mr Chum 20% off the
+top** before a credit reaches you — the toast says exactly how much he took.
+Clear it and the plate turns green.
+
+## The watch buzzes
+
+Mr Chum does not visit. He calls, on the watch, and projects himself into the
+bottom-right corner in hologram blue: same shark, same suit, same chain, all
+of it built from the same code as the real one with the palette swapped, so
+he is recognisably him at a quarter the size. There is a cone of light up out
+of the watch, scanlines drifting across the plate, corner ticks so it reads as
+a projection rather than a window, and his jaw flaps while the line types
+itself out.
+
+Sixteen lessons fire once each, the first time you reach the thing they are
+about — the moon, the saucer, the chart, the drop, the drill, the sack, your
+air, the pod, the core, the computer, ABAY, an auction, the jar, the rat, the
+crossing, coming home. They are not a tutorial screen and they never block
+you: keep walking and he keeps talking. `E` takes the next line, `E` on the
+last one hangs up on him.
+
+On the galaxy chart and at the computer he projects fifty pixels higher than
+usual, because both of those keep a panel along the bottom edge and he is
+rude but not illegible.
+
 ## The chart
 
 The saucer — or the STAR MAP app — opens the **galaxy chart**: four sectors,
@@ -720,6 +767,8 @@ a line of history under its blurb.
 | `src/glyph.js` | The icon language that rides alongside the text, and the hex primitives |
 | `src/galaxy.js` | Spiral-arm star band, nebulae, sun, ringed planets, shooting stars |
 | `src/starmap.js` | The galaxy chart and the solar-system view: sectors, drives, world dossiers |
+| `src/travel.js` | The crossing, both ways: launch, cruise, approach and landing, the rock field, ten kinds of traffic, and the ship damage that sheds parts and stays shed |
+| `src/chum.js` | Mr Chum: the shark bust in two palettes, the four-beat opening cutscene, the hologram calls, the sixteen lessons, and the debt he takes his cut of |
 | `src/touch.js` | Hex pad, hold-the-right-half-to-drill, tap-to-walk, three worded action keys, haptics |
 | `src/game.js` | Loop, the 2x frame, camera, pod, lighting, the ore market, ABAY purchases, save/load, and the world-destruction sequence |
 | `tools/build.js` | Inlines everything into one distributable HTML file |

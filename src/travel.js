@@ -78,6 +78,7 @@
   function enter(g, index) {
     const warp = common(g, index);
     S.dir = 'out'; S.phase = 'launch'; S.ore = 0;
+    PD.chum.call(g, 'travel');
     S.dur = Math.max(7, (11 + index * 2.6) * (1 - warp * 0.06));
     S.fieldK = 1 - (g.save.upg.navcom || 0) * 0.05;
     say('DEPARTING. NOBODY WAVED.');

@@ -53,7 +53,8 @@
       pet: 0,                                     // whether the rat is yours yet
       thots: 0, thotFrac: 0, neur: {},            // what the brain in the jar has grown
       artifacts: 0,                               // relics hauled home
-      seenIntro: 1
+      debt: PD.chum.DEBT0,                        // what you owe Mr Chum
+      seenIntro: 0
     };
   }
 
@@ -75,6 +76,7 @@
       base.bodyIndex = U.clamp(+s.bodyIndex || 0, 0, D.BODIES.length - 1);
       base.seen = s.seen || {};
       base.seenIntro = s.seenIntro ? 1 : 0;
+      base.debt = s.debt === undefined ? 0 : Math.max(0, +s.debt || 0);
       if (s.vault) for (const k in s.vault) { const n = +s.vault[k]; if (n > 0 && D.MAT[k]) base.vault[k] = n; }
       if (s.owned) base.owned = s.owned;
       if (s.cos) for (const k in base.cos) if (s.cos[k]) base.cos[k] = s.cos[k];
@@ -109,7 +111,8 @@
     g.save = blankSave();
     recompute();
     startBody(0, true);
-    dock(true);
+    g.player.docked = true;
+    PD.chum.enterIntro(g);
   }
   g.saveGame = saveGame;
   g.wipeSave = wipeSave;
@@ -357,8 +360,14 @@
     let lots = 0;   // counted for the sound of it
     for (const k in g.save.vault) lots += g.save.vault[k];
     g.save.vault = {};
-    g.save.credits += total;
-    g.save.totalEarned += total;
+    /* He takes a fifth off the top until the book is closed. It is his money,
+       he was very clear about that, and he has a hologram. */
+    const cut = PD.chum.takeCut(g, total);
+    const keep = total - cut;
+    g.save.credits += keep;
+    g.save.totalEarned += keep;
+    PD.chum.call(g, 'sell');
+    if (cut > 0) FX.text(240, 120, '-$' + U.fmt(cut) + ' MR CHUM', '#ff5fa8', 1);
     A.sfx.sell();
     for (let i = 0; i < 8; i++) setTimeout(() => A.sfx.coin(i), i * 55);
     saveGame();
@@ -575,6 +584,7 @@
 
   function arriveHome(n) {
     g.state = 'home';
+    if (n > 0) PD.chum.call(g, 'back');
     const pad = PD.home.SPOTS[1].x;
     PD.home.enter(g, pad - 70);
     A.sfx.dock();
@@ -600,6 +610,7 @@
 
   g.openChart = function () {
     g.state = 'starmap';
+    PD.chum.call(g, 'chart');
     g.hintT = 0; g.hintKey = '';
     PD.starmap.enter(g);
     A.sfx.tone(520, { type: 'triangle', dur: 0.2, vol: 0.12 });
@@ -616,6 +627,7 @@
     else { g.player.reset(g.ship.x, g.ship.y + 34); g.player.clearCargo(); }
     g.state = 'play';
     g.player.docked = false;
+    PD.chum.call(g, 'dig');
     A.sfx.warp();
     FX.flash(0.8, '#a9d8ff');
     saveGame();
@@ -625,6 +637,7 @@
      Core at zero: fissures spread, then the whole body comes apart. */
   function beginDestruction() {
     if (g.destruction) return;
+    PD.chum.call(g, 'core');
     g.destruction = { phase: 'crack', t: 0, r: 0, crackSfx: 0, blastR: 0, chunkAcc: 0 };
     g.cinematic = true;
     g.player.invuln = 99;
@@ -795,6 +808,7 @@
     }
 
     g.uiBlocking = g.state !== 'play';
+    if (g.state !== 'intro' && g.state !== 'travel') PD.chum.update(dt, g);
     handleStateKeys();
 
     // Zaz keeps working in every state where time passes
@@ -807,7 +821,14 @@
       return;
     }
 
+    if (g.state === 'intro') {
+      PD.chum.updateIntro(dt, g);
+      FX.update(dt, null);
+      return;
+    }
+
     if (g.state === 'travel') {
+      PD.chum.update(dt, g);
       PD.travel.update(dt, g);
       FX.update(dt, null);
       return;
@@ -933,6 +954,10 @@
      single keypress cannot both dock and undock you. */
   function handleStateKeys() {
     const IN = PD.input;
+    /* These read their own keys, and IN.hit CONSUMES the edge -- reading it
+       here first is why the cutscene would not advance and why dismissing the
+       shark next to the pod used to dock you at the same time. */
+    if (g.state === 'intro' || g.state === 'travel' || PD.chum.active()) return;
     const e = IN.hit('KeyE'), esc = IN.hit('esc');
     if (!e && !esc) return;
     switch (g.state) {
@@ -1148,6 +1173,14 @@
       return;
     }
 
+    if (g.state === 'intro') {
+      PD.chum.drawIntro(ctx, g, g.time);
+      FX.drawOverlay(ctx, VW, VH);
+      UI.endFrame();
+      blit();
+      return;
+    }
+
     if (g.state === 'travel') {
       PD.travel.draw(ctx, g, g.time);
       FX.drawOverlay(ctx, VW, VH);
@@ -1206,7 +1239,9 @@
       if (r.start) {
         A.resume(); A.music(true);
         startBody(g.save.bodyIndex || 0, false);
-        dock(true);
+        // a first-timer gets the night they lost it; everyone else goes home
+        if (!g.save.seenIntro) { g.player.docked = true; PD.chum.enterIntro(g); }
+        else dock(true);
       }
       if (r.wipe) wipeSave();
       PD.touch.draw(ctx, 'ui');
@@ -1269,6 +1304,13 @@
   }
 
   function blit() {
+    /* The shark goes over everything. He is drawn here rather than in each
+       state's own pass because he interrupts all of them equally. */
+    if (g.state !== 'intro' && PD.chum.active()) {
+      ctx.setTransform(HD, 0, 0, HD, 0, 0);
+      ctx.imageSmoothingEnabled = false;
+      PD.chum.draw(ctx, g, g.time);
+    }
     // the iris goes on last, over whatever screen is underneath it
     if (FX.wipeActive()) {
       ctx.setTransform(HD, 0, 0, HD, 0, 0);

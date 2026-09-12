@@ -181,6 +181,7 @@
     S.status = 'READY. PROBABLY.';
     S.cat = 0;
     seedAuctions(g);
+    PD.chum.call(g, 'desk');
     A.sfx.tone(90, { type: 'square', to: 190, dur: 0.18, vol: 0.07 });
     A.sfx.tone(1200, { type: 'square', dur: 0.04, vol: 0.03, delay: 0.2 });
   }
@@ -628,7 +629,10 @@
     F.draw(ctx, 'ROCK BUYER NEAR ME', x0 + 99, y0 + 6, '#8e8874', { shadow: false });
     if (btn(ctx, x0 + 226, y0 + 4, 30, 11, 'FIND')) { A.sfx.deny(); say('NO. YOU FIND.'); }
     Gy().draw(ctx, 'coin', x0 + w - 96, y0 + 3, C.ylw, '#a8781a');
-    F.draw(ctx, '$' + U.fmt(g.save.credits), x0 + w - 6, y0 + 7, '#1e6b2e', { right: true, shadow: false });
+    F.draw(ctx, '$' + U.fmt(g.save.credits), x0 + w - 6, y0 + 2, '#1e6b2e', { right: true, shadow: false });
+    if (g.save.debt > 0) {
+      F.draw(ctx, 'OWED $' + U.fmt(g.save.debt), x0 + w - 6, y0 + 11, C.red, { right: true, shadow: false });
+    }
 
     /* tabs */
     const ty = y0 + 18;
@@ -638,7 +642,11 @@
       X.rect(ctx, tx, ty + (on ? 0 : 2), tw, on ? 12 : 10, on ? C.page : C.pageD);
       X.rect(ctx, tx, ty + (on ? 0 : 2), tw, 1, on ? '#ffffff' : C.pageDD);
       F.draw(ctx, TABS[i], tx + tw / 2, ty + (on ? 3 : 4), on ? C.ink : C.dim, { center: true, shadow: false });
-      if (press(tx, ty, tw, 12)) { S.tab = i; S.scroll = S.scrollTo = 0; A.sfx.click(); }
+      if (press(tx, ty, tw, 12)) {
+        S.tab = i; S.scroll = S.scrollTo = 0; A.sfx.click();
+        if (i === 0) PD.chum.call(g, 'abay');
+        if (i === 1) PD.chum.call(g, 'auction');
+      }
       if (i === 1 && S.auc.some(a => a.mine)) {   // you are winning something
         X.rect(ctx, tx + tw - 5, ty - 2, 5, 5, Math.sin(t * 7) > 0 ? C.grn : '#1e6b2e');
       }

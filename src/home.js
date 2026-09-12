@@ -867,6 +867,8 @@
       F.draw(ctx, UI.msg, VW / 2, VH - 38, '#ffe9a8', { center: true });
       ctx.globalAlpha = 1;
     }
+    // what you still owe the shark, where the top bar used to be
+    PD.chum.drawDebt(ctx, g, 8, VH - 30);
   }
 
   /* Kept for anything that still wants the whole thing in one call. */
