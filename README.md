@@ -563,11 +563,12 @@ beats of cutscene:
    land on nothing.
 2. **The receipt.** A number counts up on a red-ruled card to `$1,000,000`,
    and a very wide shadow arrives behind you.
-3. **The deal.** **MR CHUM** — loan shark, evil alien shark man, pinstripe
-   suit he cannot get over the dorsal fin, gold chain, cigar he never lights
-   twice — explains the arrangement at three times your size. Go and eat a
-   planet. Bring him his money. Near the end of it he straps a watch to your
-   wrist, and it is not a gift.
+3. **The deal.** **MR CHUM** — loan shark, evil alien shark man, small and
+   round and extremely pleased with himself, blue suit, red tie, a dorsal fin
+   no tailor has ever solved, and a briefcase with your future in it —
+   explains the arrangement at twice your size. Go and eat a planet. Bring him
+   his money. Near the end of it he straps a watch to your wrist, and it is
+   not a gift.
 4. **The drop.** He puts you out over a moon he has already paid for.
 
 `E` or a tap advances a line; `ESC` skips the whole thing. It plays once —
@@ -580,13 +581,14 @@ Clear it and the plate turns green.
 
 ## The watch buzzes
 
-Mr Chum does not visit. He calls, on the watch, and projects himself into the
-bottom-right corner in hologram blue: same shark, same suit, same chain, all
-of it built from the same code as the real one with the palette swapped, so
-he is recognisably him at a quarter the size. There is a cone of light up out
-of the watch, scanlines drifting across the plate, corner ticks so it reads as
-a projection rather than a window, and his jaw flaps while the line types
-itself out.
+Mr Chum does not visit. He calls, on the watch, and then **walks about on your
+screen** — a little blue hologram of the whole shark, pacing the bottom of
+whatever you are looking at, turning round at the edges, four walk frames and
+two mouths so he can talk while he does it. It is the same sprite as the one
+who leaned over you in the casino with the palette swapped, so he is
+recognisably him at a third the size. There is a cone of light out of the
+watch that follows him wherever he has wandered, a pool of it under his feet,
+and one bright band rolling up him, clipped to his own silhouette.
 
 Sixteen lessons fire once each, the first time you reach the thing they are
 about — the moon, the saucer, the chart, the drop, the drill, the sack, your
@@ -595,9 +597,22 @@ crossing, coming home. They are not a tutorial screen and they never block
 you: keep walking and he keeps talking. `E` takes the next line, `E` on the
 last one hangs up on him.
 
-On the galaxy chart and at the computer he projects fifty pixels higher than
-usual, because both of those keep a panel along the bottom edge and he is
+On the galaxy chart and at the computer he paces a stripe higher up the
+screen, because both of those keep a panel along the bottom edge and he is
 rude but not illegible.
+
+## Nobody reads a caption bar
+
+So there are none left. Everything anyone says comes out of a **speech
+bubble** with a fat ink line round it, and the bubble bangs in: an overshoot
+on the way open, a ring of little impact strokes thrown off as it lands, and a
+slow wobble while it sits there. The body of it stays put — a caption that
+slides about with the speaker is unreadable — and only the **tail follows
+him**, so you always know who is talking without a name plate. The prompt to
+carry on lives inside the bubble rather than floating over the scene.
+
+The narrator gets the same treatment without the tail: a card that pops in the
+same way, because nothing on screen is saying it.
 
 ## The chart
 
@@ -768,7 +783,7 @@ a line of history under its blurb.
 | `src/galaxy.js` | Spiral-arm star band, nebulae, sun, ringed planets, shooting stars |
 | `src/starmap.js` | The galaxy chart and the solar-system view: sectors, drives, world dossiers |
 | `src/travel.js` | The crossing, both ways: launch, cruise, approach and landing, the rock field, ten kinds of traffic, and the ship damage that sheds parts and stays shed |
-| `src/chum.js` | Mr Chum: the shark bust in two palettes, the four-beat opening cutscene, the hologram calls, the sixteen lessons, and the debt he takes his cut of |
+| `src/chum.js` | Mr Chum: the whole round shark in two palettes and four walk steps, the speech bubbles, the four-beat opening cutscene, the hologram that paces your screen, the sixteen lessons, and the debt he takes his cut of |
 | `src/touch.js` | Hex pad, hold-the-right-half-to-drill, tap-to-walk, three worded action keys, haptics |
 | `src/game.js` | Loop, the 2x frame, camera, pod, lighting, the ore market, ABAY purchases, save/load, and the world-destruction sequence |
 | `tools/build.js` | Inlines everything into one distributable HTML file |

@@ -9051,11 +9051,11 @@ window.PD = window.PD || {};
    night you lost it -- one slot machine, one lever, everything you had -- and
    on the gentleman who was standing behind you when the reels stopped.
 
-   MR CHUM is a shark. Not metaphorically: a shark, in a suit, with a cigar and
-   a payment plan. He fits a watch to your wrist on the way out of the casino
-   and from then on he is in it, as a small blue hologram, explaining every
-   part of his business to you in the tone of a man explaining it for the last
-   time.
+   MR CHUM is a shark. Not metaphorically: a small, round, extremely pleased
+   shark in a blue suit and a red tie, with a briefcase and a payment plan. He
+   fits a watch to your wrist on the way out of the casino and from then on he
+   is in it -- a little blue hologram that walks up and down the bottom of your
+   screen talking at you out of a speech bubble.
 
    That gives the game the tutorial it never had. There is no manual and no
    pop-up with a tip in it: there is a shark on your wrist who calls when you
@@ -9077,71 +9077,124 @@ window.PD = window.PD || {};
      standing in front of you, and once in hologram blue for the watch. Same
      shapes, two palettes, so the little blue one is recognisably him. */
   const REAL = {
-    skin: '#7a8fa8', skinD: '#4a5c74', skinL: '#a8bcd0', belly: '#dfe6ea',
-    teeth: '#ffffff', gum: '#8a3f5a', eye: '#0d0a16',
-    suit: '#2a2438', suitL: '#453c5c', shirt: '#e8e4d0', tie: '#b02a3a',
-    gold: '#ffd34d', cig: '#c9a06a', ember: '#ff7a2a'
+    skin: '#9aa8b8', skinD: '#6d7d90', skinL: '#c4cfda', belly: '#f0f4f6',
+    teeth: '#ffffff', gum: '#3a2230', eye: '#141020', ink: '#0f0a18',
+    suit: '#2d6182', suitL: '#4a86ad', suitD: '#1b4058', shirt: '#ffffff',
+    tie: '#e0625f', tieD: '#b0403f', gold: '#ffd34d'
   };
   const HOLO = {
     skin: '#3fb8d8', skinD: '#1d6f8c', skinL: '#9fe8ff', belly: '#d8fbff',
-    teeth: '#f2ffff', gum: '#2a8aa8', eye: '#04202c',
-    suit: '#1b6f8c', suitL: '#2e9ab8', shirt: '#bff2ff', tie: '#7ef9ff',
-    gold: '#bff2ff', cig: '#59c8e0', ember: '#eafcff'
+    teeth: '#f2ffff', gum: '#0b3a4a', eye: '#04202c', ink: '#04202c',
+    suit: '#1b6f8c', suitL: '#2e9ab8', suitD: '#10495e', shirt: '#eaffff',
+    tie: '#7ef9ff', tieD: '#3fb8d8', gold: '#bff2ff'
   };
 
-  /* A shark bust: long snout, a grin full of triangles, one flat eye, gills,
-     a dorsal fin he cannot get a jacket over, and a cigar he never lights
-     twice. `mouth` opens it for talking. */
-  function buildChum(P, mouth) {
-    const p = pix(64, 72);
-    // the fin first, so the head overlaps it
-    p.spike(40, 0, 18, 14, -1, P.skinD);
-    p.spike(40, 2, 13, 11, -1, P.skin);
-    // cranium and snout
-    p.round(20, 10, 34, 30, 10, P.skin);
-    p.round(4, 24, 34, 18, 6, P.skin);
-    p.round(6, 26, 26, 11, 5, P.skinL);
-    // the underside is pale, the way a shark is
-    p.round(6, 36, 40, 10, 4, P.belly);
-    // the grin: a dark line with teeth hanging off it
-    const my = 36 + (mouth ? 3 : 0);
-    p.rect(4, my, 44, mouth ? 7 : 3, P.gum);
-    for (let i = 0; i < 11; i++) {
-      const tx = 5 + i * 4;
-      p.spike(tx, my, 4, 4, 1, P.teeth);
-      if (mouth) p.spike(tx + 2, my + 6, 4, 4, -1, P.teeth);
+  /* He is a whole little person now, not a bust: one enormous round head, a
+     body like a pear, a jacket hung open either side of a white belly, stubby
+     fin sleeves, and two flipper feet that take turns. Four walk steps so the
+     hologram can pace about, times two mouths so he can talk while he does it.
+
+     CCX is his middle and CBASE is where his soles land, so callers can place
+     him by the ground rather than by the corner of a canvas. */
+  const CW = 68, CH = 80, CCX = 34, CBASE = 77;
+  const FEET = [[-9, 6], [-4, 2], [6, -9], [2, -4]];
+
+  function buildChum(P, mouth, step) {
+    const p = pix(CW, CH);
+    const cx = CCX;
+    const b = (step === 1 || step === 3) ? -1 : 0;   // the bob on the passing poses
+    const ft = FEET[step & 3];
+    // Anything wearing a jacket needs a line around it or it welds itself into
+    // one blue lump, and p.outline() only traces the outside of the whole
+    // sprite -- so every piece of clothing is laid down twice, ink first.
+    const ink = (fn) => { fn(P.ink, 1); fn(null, 0); };
+
+    // two pale flippers, taking turns, well clear of the belly
+    for (const dx of ft) {
+      const fx = cx + dx - 8;
+      p.round(fx + 1, 70, 15, 9, 4, P.ink);
+      p.round(fx + 2, 70, 13, 7, 3, P.skin);
+      p.spike(fx + 3, 74, 5, 5, 1, P.skinD);
+      p.spike(fx + 12, 74, 5, 5, 1, P.skinD);
     }
-    // the eye: flat, black, entirely without opinion
-    p.round(30, 18, 10, 8, 3, P.teeth);
-    p.round(32, 19, 6, 6, 2, P.eye);
-    p.rect(33, 20, 2, 2, '#ffffff');
-    p.rect(28, 15, 14, 2, P.skinD);                  // brow
+    // a tail fin behind his hip, mostly forgotten about
+    p.spike(cx + 20, 54 + b, 11, 14, 1, P.skinD);
+
+    // the dorsal fin: a good deal taller than the head it sits behind, so it
+    // reads as a fin and not as an ear
+    p.spike(cx + 10, 0 + b, 16, 28, -1, P.skinD);
+    p.spike(cx + 11, 4 + b, 11, 21, -1, P.skin);
+
+    // one enormous round head. Round, now -- an octagon this big just reads
+    // as a cut gem with eyes on it.
+    p.ellipse(cx, 33 + b, 24, 20, P.skin);
+    p.ellipse(cx, 21 + b, 13, 5, P.skinL);
+    // the pale muzzle across the bottom of it, riding higher on one side
+    p.ellipse(cx - 2, 44 + b, 19, 9, P.belly);
+    p.ellipse(cx - 7, 40 + b, 12, 7, P.belly);
+    // and one soft grey snout bump where the muzzle meets the face. It used
+    // to be a wedge and the wedge read as a beak.
+    p.ellipse(cx + 1, 38 + b, 7, 5, P.skinD);
+    p.ellipse(cx + 1, 37 + b, 5, 3, P.skin);
     // gills
-    for (let i = 0; i < 3; i++) p.rect(46 + i * 3, 24, 2, 9, P.skinD);
-    // the cigar, wedged in the corner of the grin
-    p.rect(0, my - 2, 10, 4, P.cig);
-    p.rect(0, my - 2, 3, 4, P.ember);
-    // a thick neck to hang the head on, then shoulders, lapels, shirt, tie,
-    // and a chain he is very pleased with
-    p.rect(24, 42, 22, 12, P.skinD);
-    p.round(2, 52, 60, 20, 7, P.suit);
-    p.round(24, 50, 16, 12, 4, P.shirt);
-    p.line(24, 50, 16, 68, P.suitL);
-    p.line(40, 50, 50, 68, P.suitL);
-    p.rect(29, 54, 6, 4, P.tie);
-    p.rect(30, 58, 4, 12, P.tie);
-    for (let i = 0; i < 7; i++) p.set(18 + i * 3, 58 + Math.abs(3 - i), P.gold);
-    p.outline('#0a0614');
+    for (let i = 0; i < 3; i++) p.rect(cx + 15 + i * 3, 30 + b, 1, 7, P.skinD);
+
+    // two small black dots, and nothing whatever behind them
+    p.disc(cx - 11, 32 + b, 3.4, P.eye);
+    p.disc(cx + 11, 32 + b, 3.4, P.eye);
+    p.rect(cx - 13, 30 + b, 2, 2, '#ffffff');
+    p.rect(cx + 9, 30 + b, 2, 2, '#ffffff');
+
+    // the smile. Open, it has its own teeth; shut, one fang stays out.
+    if (mouth) {
+      p.ellipse(cx - 1, 48 + b, 11, 6, P.gum);
+      for (let i = 0; i < 5; i++) p.spike(cx - 9 + i * 4.5, 43 + b, 4, 4, 1, P.teeth);
+      p.ellipse(cx - 1, 51 + b, 6, 2, '#c4566f');
+    } else {
+      for (let i = 0; i < 2; i++) {
+        p.line(cx - 15, 46 + i + b, cx - 2, 49 + i + b, P.gum);
+        p.line(cx - 2, 49 + i + b, cx + 13, 46 + i + b, P.gum);
+      }
+      // the fang's dark shoulder sits ON the smile, so it reads as a tooth
+      // coming out of the mouth rather than a smudge next to it
+      p.spike(cx + 6, 43 + b, 6, 6, -1, P.gum);
+      p.spike(cx + 6, 44 + b, 4, 4, -1, P.teeth);
+    }
+
+    // the body: a fat pale pear with the jacket hung either side of it, so the
+    // shirt and the tie and a good deal of belly stay on show
+    p.ellipse(cx, 59 + b, 18, 10, P.belly);
+    p.ellipse(cx, 58 + b, 15, 7, P.shirt);
+    ink((c, o) => {
+      p.round(cx - 19 - o, 50 + b, 12 + o * 2, 20 + o, 5, c || P.suit);
+      p.round(cx + 7 - o, 50 + b, 12 + o * 2, 20 + o, 5, c || P.suit);
+    });
+    p.line(cx - 7, 50 + b, cx - 13, 67 + b, P.suitL);
+    p.line(cx + 7, 50 + b, cx + 13, 67 + b, P.suitL);
+    p.spike(cx - 5, 49 + b, 8, 9, 1, P.suitL);
+    p.spike(cx + 5, 49 + b, 8, 9, 1, P.suitL);
+    // the tie
+    p.rect(cx - 2, 51 + b, 5, 4, P.tie);
+    p.round(cx - 2, 55 + b, 5, 9, 1, P.tie);
+    p.spike(cx, 63 + b, 6, 4, 1, P.tieD);
+    p.rect(cx + 8, 62 + b, 2, 2, P.suitL);
+    // two stubby sleeves, each with a fin peeking out of the cuff
+    ink((c, o) => {
+      p.round(cx - 29 - o, 50 + b - o, 12 + o * 2, 17 + o * 2, 5, c || P.suit);
+      p.round(cx + 17 - o, 50 + b - o, 12 + o * 2, 17 + o * 2, 5, c || P.suit);
+    });
+    for (const sx of [cx - 28, cx + 19]) {
+      ink((c, o) => p.round(sx - o, 64 + b - o, 9 + o * 2, 6 + o * 2, 2, c || P.skinL));
+    }
+    p.outline(P.ink);
     return p.toCanvas();
   }
 
   let art = null;
   function ensureArt() {
     if (art) return art;
-    art = {
-      real: [buildChum(REAL, 0), buildChum(REAL, 1)],
-      holo: [buildChum(HOLO, 0), buildChum(HOLO, 1)]
-    };
+    const set = (P) => [0, 1].map(m => [0, 1, 2, 3].map(st => buildChum(P, m, st)));
+    art = { real: set(REAL), holo: set(HOLO) };
     return art;
   }
 
@@ -9186,8 +9239,11 @@ window.PD = window.PD || {};
   };
 
   const S = {
-    call: null, t: 0, lines: null, line: 0, chars: 0, buzz: 0, queue: []
+    call: null, t: 0, lines: null, line: 0, chars: 0, buzz: 0, pop: 0, queue: []
   };
+  /* Where he is pacing. He does not stand still and talk at you; he walks the
+     bottom of the screen the whole time the call is up, turning at the ends. */
+  const HS = { x: 150, dir: 1, ph: 0 };
 
   /* Ring him through. Lessons only ever play once; `force` is for the debt
      milestones, which want to interrupt. */
@@ -9198,6 +9254,7 @@ window.PD = window.PD || {};
     if (S.call === id) return;
     if (S.call) { S.queue.push(id); return; }
     S.call = id; S.t = 0; S.lines = LESSONS[id]; S.line = 0; S.chars = 0; S.buzz = 1.2;
+    S.pop = 0; HS.x = VW * 0.42; HS.dir = 1; HS.ph = 0;
     A.sfx.tone(760, { type: 'square', to: 1180, dur: 0.07, vol: 0.07 });
     A.sfx.tone(760, { type: 'square', to: 1180, dur: 0.07, vol: 0.07, delay: 0.14 });
     PD.touch.buzz(18);
@@ -9207,7 +9264,7 @@ window.PD = window.PD || {};
     S.call = null; S.lines = null; S.t = 0;
     if (S.queue.length) {
       const id = S.queue.shift();
-      S.call = id; S.lines = LESSONS[id]; S.line = 0; S.chars = 0; S.t = 0; S.buzz = 0.6;
+      S.call = id; S.lines = LESSONS[id]; S.line = 0; S.chars = 0; S.t = 0; S.buzz = 0.6; S.pop = 0;
     }
   }
 
@@ -9216,7 +9273,13 @@ window.PD = window.PD || {};
   function update(dt, g) {
     if (!S.call) return;
     S.t += dt;
+    S.pop = Math.min(1, S.pop + dt * 4.5);
     S.buzz = Math.max(0, S.buzz - dt);
+    // pacing: forward until the wall, then about-face
+    HS.ph += dt * 6.5;
+    HS.x += HS.dir * 24 * dt;
+    if (HS.x > VW - 74) { HS.x = VW - 74; HS.dir = -1; }
+    if (HS.x < 74) { HS.x = 74; HS.dir = 1; }
     const line = S.lines[S.line] || '';
     if (S.chars < line.length) S.chars = Math.min(line.length, S.chars + dt * 52);
     const IN = PD.input;
@@ -9224,72 +9287,146 @@ window.PD = window.PD || {};
     const poke = IN.hit('KeyE') || IN.hit('Space') || IN.hit('Enter') || (m.inside && m.leftPressed);
     if (!poke) return;
     if (S.chars < line.length) { S.chars = line.length; return; }   // finish the line first
-    S.line++; S.chars = 0;
+    S.line++; S.chars = 0; S.pop = 0;
     A.sfx.click();
     if (S.line >= S.lines.length) hangUp();
   }
 
-  /* The hologram itself: a pane of blue light thrown up out of the watch, with
-     scanlines across it, a flicker, and him in the middle of it. */
-  function drawHolo(ctx, t, x, y, w, h, mouthOpen) {
-    const flick = 0.82 + Math.abs(Math.sin(t * 31)) * 0.1 + (U.chance(0.02) ? -0.3 : 0);
-    ctx.globalAlpha = flick;
-    // the cone of light out of the watch at the bottom-left corner
-    X.poly(ctx, [[x + 8, y + h + 16], [x + 22, y + h + 16], [x + w, y], [x, y]],
-      'rgba(63,184,216,0.13)');
-    X.plate(ctx, x, y, w, h, 'rgba(10,32,44,0.82)', '#3fb8d8', '#04202c', 4);
-    ctx.globalAlpha = 1;
+  /* ------------------------------------------------------------- the bubble
+     Nobody in this game reads a caption bar. A speech bubble says who is
+     talking without a name plate, and it can bang in with a bit of cartoon on
+     it: an overshoot on the way open, a ring of little impact strokes, a slow
+     wobble while it sits there, and a tail that follows the speaker around.
 
-    const a = ensureArt();
-    const cv = a.holo[mouthOpen ? 1 : 0];
-    ctx.globalAlpha = flick;
-    ctx.drawImage(cv, Math.round(x + 5), Math.round(y + h - 66 + Math.sin(t * 2) * 1.5));
-    ctx.globalAlpha = 1;
+     `ty` is where the tail's point goes -- the top of the speaker's head --
+     and `cx` is where the body of the bubble wants to sit, which is not the
+     same thing once he has walked off to one side. */
+  function outBack(k) {
+    return 1 + 2.70158 * Math.pow(k - 1, 3) + 1.70158 * Math.pow(k - 1, 2);
+  }
 
-    X.scanlines(ctx, x + 1, y + 1, w - 2, h - 2, 'rgba(126,249,255,0.10)', t * 14, 3);
-    // the frame's corner ticks, so it reads as a projection and not a window
-    for (const [cx, cy] of [[x, y], [x + w - 6, y], [x, y + h - 6], [x + w - 6, y + h - 6]]) {
-      X.rect(ctx, cx, cy, 6, 1, '#7ef9ff'); X.rect(ctx, cx, cy, 1, 6, '#7ef9ff');
+  function speech(ctx, o) {
+    const sc = o.scale || 1;
+    const lh = sc === 2 ? 17 : 10;
+    const pad = 8;
+    let tw = 0;
+    for (const r of o.rows) tw = Math.max(tw, F.width(r, sc));
+    if (o.foot) tw = Math.max(tw, F.width(o.foot, 1) + 20);
+    const w = Math.max(54, tw + pad * 2);
+    const h = pad * 2 + (o.rows.length - 1) * lh + 7 * sc + (o.foot ? 11 : 0);
+    const e = o.pop >= 1 ? 1 : outBack(Math.max(0.001, o.pop));
+    const dw = Math.max(12, Math.round(w * e)), dh = Math.max(10, Math.round(h * e));
+    const wob = Math.round(Math.sin(o.t * 4.5));
+    const bx = Math.round(U.clamp(o.cx - dw / 2, 6, VW - dw - 6));
+    const by = Math.round(o.ty - 11 - dh) + wob;
+    const tip = Math.round(U.clamp(o.tipX === undefined ? o.cx : o.tipX, bx + 11, bx + dw - 11));
+
+    // ink first, face second, so the whole thing carries one fat cartoon line
+    X.plate(ctx, bx - 2, by - 2, dw + 4, dh + 4, o.ink, null, null, 8);
+    X.poly(ctx, [[tip - 10, by + dh - 6], [tip + 10, by + dh - 6], [tip + 2, o.ty + 3]], o.ink);
+    X.plate(ctx, bx, by, dw, dh, o.fill, o.light, o.dark, 7);
+    X.poly(ctx, [[tip - 7, by + dh - 8], [tip + 7, by + dh - 8], [tip + 2, o.ty - 2]], o.fill);
+
+    // the bang: a ring of strokes thrown off while it opens
+    if (o.pop < 0.8) {
+      const k = 1 - o.pop / 0.8;
+      const mx = bx + dw / 2, my = by + dh / 2;
+      const r0 = Math.max(dw, dh) * 0.55 + 5;
+      for (let i = 0; i < 8; i++) {
+        const ang = i / 8 * U.TAU + 0.35;
+        X.line(ctx, mx + Math.cos(ang) * r0, my + Math.sin(ang) * r0 * 0.66,
+          mx + Math.cos(ang) * (r0 + 10 * k), my + Math.sin(ang) * (r0 + 10 * k) * 0.66, o.ink, 2);
+      }
     }
+    if (o.pop < 1) return { bx, by, dw, dh };
+    o.rows.forEach((r, i) => F.draw(ctx, r, bx + dw / 2, by + pad + i * lh, o.ink,
+      { center: true, scale: sc }));
+    if (o.foot) F.draw(ctx, o.foot, bx + dw - 6, by + dh - 11, o.foot2 || o.dark, { right: true });
+    return { bx, by, dw, dh };
+  }
+
+  /* The narrator's card: same overshoot, same fat ink line, no tail on it
+     because nothing on screen is saying it. */
+  function captionCard(ctx, rows, sc, pop, t, foot) {
+    const lh = sc === 2 ? 17 : 10;
+    const h = 16 + (rows.length - 1) * lh + 7 * sc;
+    const e = pop >= 1 ? 1 : outBack(Math.max(0.001, pop));
+    const dw = Math.max(24, Math.round((VW - 44) * e));
+    const dh = Math.max(8, Math.round(h * e));
+    const bx = Math.round((VW - dw) / 2), by = Math.round(VH - 12 - dh);
+    X.plate(ctx, bx - 2, by - 2, dw + 4, dh + 4, '#1a1020', null, null, 7);
+    X.plate(ctx, bx, by, dw, dh, 'rgba(10,6,22,0.94)', '#5b3f96', '#000000', 6);
+    if (pop >= 1) {
+      rows.forEach((r, i) => F.draw(ctx, r, VW / 2, by + 8 + i * lh, '#e8dcff',
+        { center: true, scale: sc, shadow: '#000000' }));
+      if (foot) F.draw(ctx, foot, bx + dw - 6, by + dh - 11, '#8a7ab0', { right: true, shadow: '#000000' });
+    }
+    return { bx, by, dw, dh };
+  }
+
+  /* Where his feet go. The chart and the ABAY screen both keep a panel along
+     the bottom edge, so on those he walks a stripe higher up. */
+  function groundY(g) {
+    return (g.state === 'starmap' || g.state === 'desk') ? VH - 70 : VH - 24;
   }
 
   function draw(ctx, g, t) {
     if (!S.call) return;
-    /* The chart and the ABAY screen both keep a panel along the bottom edge,
-       so on those he projects a little higher and the watch rides up with him. */
-    const lift = (g.state === 'starmap' || g.state === 'desk') ? 50 : 0;
-    const w = 306, h = 76, x = VW - w - 10, y = VH - h - 12 - lift;
+    const gy = groundY(g);
+    const a = ensureArt();
     const line = S.lines[S.line] || '';
     const shown = line.slice(0, Math.floor(S.chars));
     const talking = S.chars < line.length && Math.floor(t * 11) % 2 === 0;
-    drawHolo(ctx, t, x, y, w, h, talking);
+    const flick = 0.84 + Math.abs(Math.sin(t * 31)) * 0.1 + (U.chance(0.02) ? -0.28 : 0);
 
-    F.draw(ctx, 'MR CHUM', x + 74, y + 7, '#7ef9ff', { shadow: '#04202c' });
-    X.rect(ctx, x + 74, y + 16, w - 84, 1, '#1d6f8c');
-    F.draw(ctx, 'YOUR FRIEND IN FINANCE', x + 74, y + 19, '#2e9ab8', { shadow: false });
-
-    // the line, wrapped by hand at the pane's width
-    const words = shown.split(' ');
-    let row = '', ry = y + 32;
-    for (const wd of words) {
-      const test = row ? row + ' ' + wd : wd;
-      if (F.width(test, 1) > w - 84 && row) { F.draw(ctx, row, x + 74, ry, '#d8fbff', { shadow: '#04202c' }); row = wd; ry += 10; }
-      else row = test;
-    }
-    if (row) F.draw(ctx, row, x + 74, ry, '#d8fbff', { shadow: '#04202c' });
-
-    // the prompt, once he has finished saying it
-    if (S.chars >= line.length) {
-      const k = Math.abs(Math.sin(t * 4));
-      const more = S.line < S.lines.length - 1;
-      F.draw(ctx, more ? 'E / TAP  MORE' : 'E / TAP  HANG UP', x + w - 8, y + h - 12,
-        k > 0.4 ? '#7ef9ff' : '#2e9ab8', { right: true, shadow: '#04202c' });
-    }
-    // and the watch on his wrist, buzzing
+    /* The watch on your own wrist. It sits bottom RIGHT, because bottom left
+       is where the book of what you owe him lives. */
     const bz = S.buzz > 0 ? Math.round(U.rand(-2, 2)) : 0;
-    X.plate(ctx, x + 2 + bz, y + h + 14, 22, 14, '#2a2438', '#453c5c', '#0a0614', 3);
-    X.rect(ctx, x + 6 + bz, y + h + 17, 14, 8, '#0d5a78');
-    X.rect(ctx, x + 8 + bz, y + h + 19, 10, 4, '#7ef9ff');
+    const wx = VW - 40 + bz, wy = gy - 10;
+    X.plate(ctx, wx, wy, 22, 14, '#2a2438', '#453c5c', '#0a0614', 3);
+    X.rect(ctx, wx + 4, wy + 3, 14, 8, '#0d5a78');
+    X.rect(ctx, wx + 6, wy + 5, 10, 4, '#7ef9ff');
+
+    ctx.globalAlpha = flick * 0.55;
+    // the cone of light out of it, widening to wherever he has wandered
+    X.poly(ctx, [[wx + 4, wy + 2], [wx + 18, wy + 2],
+      [HS.x + 32, gy - 64], [HS.x - 32, gy - 64]], 'rgba(63,184,216,0.10)');
+    // and the pool he stands in
+    X.blob(ctx, HS.x, gy + 1, 30, 5, 'rgba(63,184,216,0.40)');
+    ctx.globalAlpha = 1;
+
+    // him, pacing, mirrored when he turns
+    const cv = a.holo[talking ? 1 : 0][Math.floor(HS.ph) % 4];
+    const sx = Math.round(HS.x - CCX), sy = Math.round(gy - CBASE);
+    ctx.save();
+    ctx.globalAlpha = flick;
+    if (HS.dir < 0) { ctx.translate(sx + CW, sy); ctx.scale(-1, 1); }
+    else ctx.translate(sx, sy);
+    ctx.drawImage(cv, 0, 0);
+    // one bright band rolling up him, clipped to his own silhouette
+    ctx.beginPath();
+    ctx.rect(0, CH - ((t * 34) % (CH + 12)), CW, 3);
+    ctx.clip();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = 0.3;
+    ctx.drawImage(cv, 0, 0);
+    ctx.restore();
+    ctx.globalAlpha = 1;
+
+    F.draw(ctx, 'MR CHUM', HS.x, gy + 9, 'rgba(126,249,255,0.8)', { center: true, shadow: '#04202c' });
+
+    /* The bubble stays put in the middle while he walks about under it --
+       a caption that slides around with him is unreadable -- and only the
+       tail follows him. */
+    const rows = wrap(shown, 250, 1);
+    const done = S.chars >= line.length;
+    const more = S.line < S.lines.length - 1;
+    speech(ctx, {
+      cx: VW / 2, tipX: HS.x, ty: gy - 80, rows, scale: 1, pop: S.pop, t,
+      fill: '#cdf6ff', light: '#ffffff', dark: '#6fc8e0', ink: '#0a3446',
+      foot: done ? (more ? 'E / TAP  MORE' : 'E / TAP  BYE') : null,
+      foot2: Math.abs(Math.sin(t * 4)) > 0.4 ? '#0a3446' : '#6fc8e0'
+    });
   }
 
   /* ------------------------------------------------------------------ debt
@@ -9331,7 +9468,7 @@ window.PD = window.PD || {};
      Four beats, each with its own picture and its own lines. Any key moves
      it on; escape walks out of the whole thing. */
   const IN_S = {
-    beat: 0, t: 0, line: 0, chars: 0, reel: [0, 0, 0], spin: 3, chips: [], flash: 0, done: 0
+    beat: 0, t: 0, line: 0, chars: 0, pop: 0, reel: [0, 0, 0], spin: 3, chips: [], flash: 0, done: 0
   };
   const SYMS = ['coin', 'ore', 'planet', 'skull', 'star'];
 
@@ -9351,7 +9488,7 @@ window.PD = window.PD || {};
 
   function enterIntro(g) {
     ensureArt();
-    IN_S.beat = 0; IN_S.t = 0; IN_S.line = 0; IN_S.chars = 0;
+    IN_S.beat = 0; IN_S.t = 0; IN_S.line = 0; IN_S.chars = 0; IN_S.pop = 0;
     IN_S.reel = [0, 0, 0]; IN_S.spin = 3.2; IN_S.chips.length = 0; IN_S.flash = 0;
     IN_S.done = 0;
     g.state = 'intro';
@@ -9359,7 +9496,7 @@ window.PD = window.PD || {};
   }
 
   function nextBeat(g) {
-    IN_S.beat++; IN_S.t = 0; IN_S.line = 0; IN_S.chars = 0;
+    IN_S.beat++; IN_S.t = 0; IN_S.line = 0; IN_S.chars = 0; IN_S.pop = 0;
     if (IN_S.beat === 1) {
       IN_S.flash = 1;
       A.sfx.deny();
@@ -9392,6 +9529,7 @@ window.PD = window.PD || {};
     const IN = PD.input;
     if (IN.hit('Escape')) { finishIntro(g); return; }
     IN_S.t += dt;
+    IN_S.pop = Math.min(1, IN_S.pop + dt * 4.5);
     IN_S.flash = Math.max(0, IN_S.flash - dt * 2.2);
     if (IN_S.spin > 0) {
       IN_S.spin -= dt;
@@ -9416,7 +9554,7 @@ window.PD = window.PD || {};
     const poke = IN.hit('KeyE') || IN.hit('Space') || IN.hit('Enter') || (m.inside && m.leftPressed);
     if (poke) {
       if (IN_S.chars < line.length) { IN_S.chars = line.length; return; }
-      IN_S.line++; IN_S.chars = 0; A.sfx.click();
+      IN_S.line++; IN_S.chars = 0; IN_S.pop = 0; A.sfx.click();
       if (IN_S.line >= b.lines.length) nextBeat(g);
       return;
     }
@@ -9508,11 +9646,14 @@ window.PD = window.PD || {};
       X.poly(ctx, [[VW / 2 - 150 * s, VH], [VW / 2 + 150 * s, VH],
         [VW / 2 + 90 * s, VH - 150 * s], [VW / 2 - 90 * s, VH - 150 * s]], '#05020c');
       if (s > 0.5) {
+        // and then the shark himself, rising into the bottom of the frame
         const a = ensureArt();
-        ctx.globalAlpha = (s - 0.5) * 2;
-        ctx.save(); ctx.translate(VW / 2 - 32, VH - 60 - (s - 0.5) * 40);
-        ctx.filter = 'none';
-        ctx.drawImage(a.real[0], 0, 0);
+        const k = (s - 0.5) * 2;
+        ctx.globalAlpha = 1;
+        ctx.save();
+        ctx.translate(Math.round(VW / 2 - CCX * 1.6), Math.round(VH - 18 - CBASE * 1.6 * k));
+        ctx.scale(1.6, 1.6);
+        ctx.drawImage(a.real[0][0], 0, 0);
         ctx.restore();
       }
       ctx.globalAlpha = 1;
@@ -9542,22 +9683,21 @@ window.PD = window.PD || {};
       X.rect(ctx, ax - 19, ay - 24, 8, 6, Math.sin(t * 6) > 0 ? '#7ef9ff' : '#0d5a78');
     }
 
-    // MR CHUM, in the flesh, at three times the size of you
+    // MR CHUM, in the flesh, at twice the size of you, with the case he
+    // carries your future around in
     const a = ensureArt();
-    const talk = IN_S.chars < (BEATS[2].lines[IN_S.line] || '').length && Math.floor(t * 10) % 2 === 0;
     const lean = Math.sin(t * 1.3) * 3;
+    X.plate(ctx, 14, 176, 26, 38, '#1d1828', '#3a3150', '#0a0614', 4);
+    X.rect(ctx, 14, 190, 26, 2, '#3a3150');
+    X.rect(ctx, 24, 158, 6, 20, '#3a3150');
+    X.rect(ctx, 19, 155, 16, 5, '#3a3150');
+    X.rect(ctx, 32, 196, 5, 5, '#ffd34d');
+    const talk = IN_S.chars < (BEATS[2].lines[IN_S.line] || '').length && Math.floor(t * 9) % 2 === 0;
     ctx.save();
-    ctx.translate(Math.round(58 + lean), Math.round(VH - 198 + Math.sin(t * 1.7) * 2));
+    ctx.translate(Math.round(104 - CCX * 2 + lean), Math.round(214 - CBASE * 2));
     ctx.scale(2, 2);
-    ctx.drawImage(a.real[talk ? 1 : 0], 0, 0);
+    ctx.drawImage(a.real[talk ? 1 : 0][0], 0, 0);
     ctx.restore();
-    // the cigar smoke, because of course
-    for (let i = 0; i < 3; i++) {
-      const f = ((t * 0.5 + i * 0.33) % 1);
-      ctx.globalAlpha = (1 - f) * 0.4;
-      X.blob(ctx, 56 + lean + Math.sin(f * 6 + i) * 8, VH - 126 - f * 70, 4 + f * 10, 4 + f * 10, '#c9bce8');
-      ctx.globalAlpha = 1;
-    }
   }
 
   /* ---- and out, over the moon he now owns ---- */
@@ -9613,27 +9753,28 @@ window.PD = window.PD || {};
       ctx.fillRect(0, 0, VW, VH);
     }
 
-    // the caption plate. Wrapped, and dropped to one scale if the line is
-    // long enough that two rows at double size would not fit either.
+    /* What he says comes out of a bubble pointed at his head; what the film
+       says comes up on a card. Both bang in with the same overshoot, so the
+       whole cutscene has one bit of cartoon running through it. */
     const b = BEATS[IN_S.beat];
     if (b) {
       const full = b.lines[IN_S.line] || '';
       const chum = full.indexOf('MR CHUM:') === 0;
-      const shown = (chum ? full.slice(9) : full).slice(0, Math.max(0, Math.floor(IN_S.chars) - (chum ? 9 : 0)));
-      const CW2 = VW - 76;
-      let sc = 2, rows = wrap(shown, CW2, 2);
-      if (rows.length > 2) { sc = 1; rows = wrap(shown, CW2, 1); }
-      /* A glyph is 7 tall, so a double-size row needs more than 14 to itself
-         or the second line climbs into the first. */
-      const LH = sc === 2 ? 17 : 9;
-      const ph = 14 + rows.length * LH;
-      const py = VH - ph - 10;
-      X.plate(ctx, 20, py, VW - 40, ph, 'rgba(6,3,14,0.88)', chum ? '#3fb8d8' : '#453c5c', '#000000', 4);
-      if (chum) F.draw(ctx, 'MR CHUM', 28, py - 10, '#3fb8d8', { shadow: '#000000' });
-      rows.forEach((r, i) => F.draw(ctx, r, VW / 2, py + 7 + i * LH,
-        chum ? '#d8fbff' : '#c9bce8', { center: true, scale: sc, shadow: '#000000' }));
-      if (Math.floor(IN_S.chars) >= full.length && Math.abs(Math.sin(t * 4)) > 0.4) {
-        F.draw(ctx, 'E / TAP', VW - 28, py + ph - 9, '#8a7ab0', { right: true, shadow: '#000000' });
+      const body = chum ? full.slice(9) : full;
+      const shown = body.slice(0, Math.max(0, Math.floor(IN_S.chars) - (chum ? 9 : 0)));
+      const CWID = chum ? 320 : VW - 76;
+      let sc = 2, rows = wrap(shown, CWID, 2);
+      if (rows.length > 2) { sc = 1; rows = wrap(shown, CWID, 1); }
+      const done = Math.floor(IN_S.chars) >= full.length;
+      const blink = Math.abs(Math.sin(t * 4)) > 0.4;
+      if (chum) {
+        speech(ctx, {
+          cx: 276, tipX: 104, ty: 92, rows, scale: sc, pop: IN_S.pop, t,
+          fill: '#f2ece0', light: '#ffffff', dark: '#ad9f88', ink: '#1a1020',
+          foot: done ? 'E / TAP' : null, foot2: blink ? '#1a1020' : '#ad9f88'
+        });
+      } else {
+        captionCard(ctx, rows, sc, IN_S.pop, t, done && blink ? 'E / TAP' : null);
       }
     }
     X.plate(ctx, VW - 62, 4, 56, 13, 'rgba(6,3,14,0.7)', null, null, 3);
@@ -9642,7 +9783,8 @@ window.PD = window.PD || {};
 
   PD.chum = {
     enterIntro, updateIntro, drawIntro,
-    call, update, draw, active, takeCut, drawDebt, DEBT0, S, IN_S, LESSONS
+    call, update, draw, active, takeCut, drawDebt, DEBT0, S, IN_S, HS, LESSONS,
+    artFor: ensureArt, CW, CH, CCX, CBASE
   };
 })(window.PD);
 
