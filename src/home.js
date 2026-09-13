@@ -154,9 +154,9 @@
     { id: 'dance', x: 320, r: 52, name: 'THE DANCEFLOOR', sub: 'HAVE A GO' },
     { id: 'stage', x: 412, r: 28, name: 'THE DANCER', sub: 'TIP THEM. IT IS A TUESDAY' },
     { id: 'bar', x: 500, r: 30, name: 'THE BAR', sub: 'BUY SOMETHING SILLY' },
-    { id: 'slot0', x: 620, r: 26, name: 'THE LUCKY VOID', sub: 'ONE MORE GO. $200' },
-    { id: 'slot1', x: 680, r: 26, name: 'THE LUCKY VOID', sub: 'THIS ONE IS DUE. $200' },
-    { id: 'slot2', x: 740, r: 26, name: 'THE LUCKY VOID', sub: 'LAST ONE. $200' }
+    { id: 'slot0', x: 646, r: 24, name: 'LUX', sub: 'ONE MORE GO. $200' },
+    { id: 'slot1', x: 694, r: 24, name: 'NOVA', sub: 'THIS ONE IS DUE. $200' },
+    { id: 'slot2', x: 742, r: 24, name: 'HOT', sub: 'LAST ONE. $200' }
   ];
   const BOOTHS = [];
   /* Four of them never made it to the floor. */
@@ -1003,14 +1003,14 @@
     }
   }
 
-  /* ------------------------------------------------------------- THE LUCKY VOID
-     The machine that started all of this has a franchise, and there are three
-     of them through the arch at the back of the club. You can walk between
-     them and lose money at any of them. The odds are the odds: about three
-     quarters of what goes in comes back out, which is exactly how you ended up
-     owing a shark a million dollars in the first place. */
-  const SLOT_X = [656, 716, 776];
-  const SLOT_SYM = ['coin', 'ore', 'planet', 'skull', 'star'];
+  /* ------------------------------------------------------------ THE GALAXY ROOM
+     Through the arch at the back of the club is the same room the whole night
+     ends in -- the same purple and gold, the same red carpet, the same velvet
+     rope, and THE UNIVERSAL standing at the end of it. Three ordinary machines
+     stand in front of it and you can lose money at any of them. The odds are
+     the odds: about three quarters of what goes in comes back out, which is
+     exactly how you ended up owing a shark a million dollars. */
+  const SLOT_X = [646, 694, 742];
   const STAKE = 200;
   const SLOT = { at: -1, t: 0, reel: [0, 0, 0], land: [0, 0, 0], lever: 0, win: 0, msg: 0 };
 
@@ -1088,31 +1088,103 @@
      whoever has been standing at one of them since before you arrived. */
   function drawSlots(ctx, g, t, cam) {
     const a0 = 612 - cam;
-    // the arch through from the club
-    X.rect(ctx, a0, CLUB_CEIL, 10, FLOOR - CLUB_CEIL, '#241f36');
-    X.rect(ctx, a0 + 2, CLUB_CEIL + 6, 6, FLOOR - CLUB_CEIL - 6, '#3a3348');
-    X.rect(ctx, a0 + 10, CLUB_CEIL + 6, 202, 3, '#3a3348');
-    // carpet
-    X.rect(ctx, a0 + 10, FLOOR, 202, VH - FLOOR, '#4a1230');
-    for (let x = 0; x < 202; x += 16) {
-      X.rect(ctx, a0 + 10 + x, FLOOR, 8, VH - FLOOR, '#5c1a3c');
-      X.rect(ctx, a0 + 14 + x, FLOOR + 4, 6, 5, '#7a2450');
+    const W = 202, CH2 = CLUB_CEIL;
+    const HUES = PD.chum.HUES;
+
+    /* ------------------------------------------------ the room through there
+       The same room you end up in later, at a tenth of the size: purple walls,
+       an arcade of lit rooms along the back, gold lamps, red carpet with the
+       house diamond stamped into it, and a velvet rope holding nobody back. */
+    X.rect(ctx, a0 + 10, CH2, W, FLOOR - CH2, '#25103c');
+    const grd = ctx.createLinearGradient(0, CH2, 0, FLOOR);
+    grd.addColorStop(0, '#1a0a2e'); grd.addColorStop(1, '#3a1550');
+    ctx.fillStyle = grd; ctx.fillRect(a0 + 10, CH2, W, FLOOR - CH2);
+    // the arcade: six lit openings with a rank of little machines in each
+    for (let i = 0; i < 6; i++) {
+      const x = a0 + 24 + i * 33, hue = HUES[i % HUES.length];
+      X.rect(ctx, x - 14, CH2 + 8, 28, 40, '#1c0c30');
+      for (let k = 0; k <= 8; k++) {
+        const a = Math.PI + k * (Math.PI / 8);
+        X.blob(ctx, x + Math.cos(a) * 14, CH2 + 8 + Math.sin(a) * 9, 2, 2, '#4a2270');
+      }
+      ctx.globalAlpha = 0.2; X.rect(ctx, x - 13, CH2 + 10, 26, 38, hue); ctx.globalAlpha = 1;
+      ctx.globalAlpha = 0.45; X.rect(ctx, x - 13, CH2 + 10, 26, 2, hue); ctx.globalAlpha = 1;
+      for (let m = -1; m <= 1; m++) {
+        X.rect(ctx, x + m * 8 - 3, CH2 + 34, 7, 14, '#150920');
+        X.rect(ctx, x + m * 8 - 3, CH2 + 32, 7, 2, '#22102f');
+        const on = (Math.floor(t * 3.5) + i + m) % 4 !== 0;
+        X.rect(ctx, x + m * 8 - 2, CH2 + 37, 5, 3, on ? hue : '#1d0c2c');
+      }
+      X.rect(ctx, x - 18, CH2 + 6, 8, 44, '#2e1446');                  // the pier
+      X.rect(ctx, x - 18, CH2 + 6, 2, 44, '#4a2270');
     }
-    X.rect(ctx, a0 + 10, FLOOR - 1, 202, 1, '#2a0a1c');
-    // the sign over the arch
-    const lit = Math.sin(t * 7) > -0.25;
-    X.plate(ctx, a0 + 52, CLUB_CEIL + 12, 112, 18, '#120a1c', '#3a2a52', '#000000', 3);
-    F.draw(ctx, 'THE LUCKY VOID', a0 + 108, CLUB_CEIL + 18, lit ? '#ffd34d' : '#6a5a1a',
-      { center: true, shadow: '#3a0c30' });
+    // a rail along the front of it, and two chandeliers
+    X.rect(ctx, a0 + 10, CH2 + 50, W, 3, '#4a2270');
+    X.rect(ctx, a0 + 10, CH2 + 50, W, 1, '#8a5ac0');
+    for (let i = 0; i < 22; i++) X.rect(ctx, a0 + 14 + i * 9, CH2 + 53, 2, 6, '#3c1a58');
+    for (const gx of [a0 + 58, a0 + 158]) {
+      const cy = CH2 + 14 + Math.sin(t * 0.6 + gx) * 1;
+      X.rect(ctx, gx, CH2, 1, 14, '#5a4a78');
+      for (let k = 0; k < 7; k++) {
+        const a = k / 7 * U.TAU + t * 0.22;
+        X.blob(ctx, gx + Math.cos(a) * 7, cy + Math.sin(a) * 3, 2, 2, '#ffe9a8');
+      }
+      X.blob(ctx, gx, cy + 1, 4, 3, '#fff3b0');
+      ctx.globalAlpha = 0.14; X.blob(ctx, gx, cy + 5, 20, 12, '#ffd34d'); ctx.globalAlpha = 1;
+    }
+
+    // the carpet, with the house diamond stamped into it
+    X.rect(ctx, a0 + 10, FLOOR, W, VH - FLOOR, '#3a0e26');
+    for (let y = 0; y < VH - FLOOR; y += 6) {
+      X.rect(ctx, a0 + 10, FLOOR + y, W, 6, y > 12 ? '#4a1230' : '#3d0f28');
+      for (let x = (y * 7) % 22; x < W; x += 22) {
+        X.rect(ctx, a0 + 10 + x, FLOOR + y + 2, 8, 2, y > 12 ? '#5c1a3c' : '#47122e');
+      }
+    }
+    for (let x = 6; x < W; x += 34) {
+      ctx.globalAlpha = 0.5;
+      X.poly(ctx, [[a0 + 10 + x, FLOOR + 10], [a0 + 16 + x, FLOOR + 15],
+        [a0 + 10 + x, FLOOR + 20], [a0 + 4 + x, FLOOR + 15]], '#5c1a3c');
+      ctx.globalAlpha = 1;
+    }
+    X.rect(ctx, a0 + 10, FLOOR - 1, W, 2, '#2a0a1c');
+    X.rect(ctx, a0 + 10, FLOOR + 1, W, 1, '#57163a');
+    // the velvet rope, the same as the one in the big room
+    for (let i = 0; i < 5; i++) {
+      const px = a0 + 24 + i * 44;
+      if (i < 4) {
+        X.curve(ctx, px, FLOOR + 12, px + 22, FLOOR + 19, px + 44, FLOOR + 12, '#5e0f2c', 3, 8);
+        X.curve(ctx, px, FLOOR + 11, px + 22, FLOOR + 18, px + 44, FLOOR + 11, '#a8265a', 1, 8);
+      }
+      X.rect(ctx, px - 1, FLOOR + 11, 3, 10, '#8a6a2a');
+      X.rect(ctx, px - 1, FLOOR + 11, 1, 10, '#ffd34d');
+      X.blob(ctx, px, FLOOR + 10, 2.5, 2.5, '#ffd34d');
+    }
+
+    // the way through: a gold jamb, so it reads as a threshold and not a seam
+    X.plate(ctx, a0 - 5, CLUB_CEIL + 2, 20, FLOOR - CLUB_CEIL - 2, '#2e1446', '#5e2a86', '#120722', 3);
+    X.rect(ctx, a0 + 3, CLUB_CEIL + 10, 5, FLOOR - CLUB_CEIL - 16, '#7a3aae');
+    X.plate(ctx, a0 - 8, CLUB_CEIL, 26, 9, '#351550', '#7a3aae', '#170a2a', 3);
+    X.plate(ctx, a0 - 8, FLOOR - 10, 26, 10, '#351550', '#7a3aae', '#170a2a', 3);
     for (let i = 0; i < 9; i++) {
-      const on = (Math.floor(t * 6) + i) % 3 !== 0;
-      X.rect(ctx, a0 + 54 + i * 13, CLUB_CEIL + 32, 9, 2, on ? '#ff5fa8' : '#4a1c3a');
+      const on = (Math.floor(t * 5) + i) % 4 !== 0;
+      X.blob(ctx, a0 + 5, CLUB_CEIL + 18 + i * 12, 2.5, 2.5, on ? '#ffd34d' : '#4a3a10');
     }
+    X.rect(ctx, a0 + 10, CLUB_CEIL, W, 6, '#2e1446');
+    for (let i = 0; i <= 14; i++) {
+      const on = (Math.floor(t * 6) + i) % 4 !== 0;
+      X.blob(ctx, a0 + 18 + i * 13, CLUB_CEIL + 3, 2.5, 2.5, on ? '#ffd34d' : '#4a3a10');
+    }
+    const lit = Math.sin(t * 5) > -0.3;
+    X.plate(ctx, a0 + 40, CLUB_CEIL - 20, 142, 20, '#3a0e26', '#ff5fa8', '#180510', 4);
+    F.draw(ctx, 'THE GALAXY ROOM', a0 + 111, CLUB_CEIL - 15, lit ? '#ffd6f0' : '#7a4a68',
+      { center: true, shadow: '#180510' });
+    F.draw(ctx, 'NO CREDIT  NO PITY', a0 + 111, CLUB_CEIL - 7, '#ff8ad8', { center: true, shadow: '#180510' });
 
     for (let i = 0; i < 3; i++) drawMachine(ctx, g, t, cam, i);
     drawUniversalCab(ctx, g, t, cam);
     // the two who have been here since before you arrived
-    for (const q of [{ x: 636, k: 12 }, { x: 798, k: 13 }]) {
+    for (const q of [{ x: 636, k: 12 }, { x: 700, k: 13 }]) {
       const K = AH.KIN[q.k % AH.KIN.length];
       const bob = Math.sin(t * 1.4 + q.x) * 1;
       kinShadow(ctx, q.x - cam, FLOOR, K);
@@ -1120,72 +1192,142 @@
     }
   }
 
-  /* The machine the whole game is downstream of. It is twice the size of the
-     others and it is always lit. */
+  /* THE UNIVERSAL, the same machine you end up in front of at the end of the
+     night, standing here where you first saw it: takings meter, glass dome
+     with a world turning in it, marquee, and a pillar of gold up each cheek. */
   function drawUniversalCab(ctx, g, t, cam) {
-    const mx = 812 - cam, B = FLOOR - 20;
-    X.plate(ctx, mx - 38, B, 76, 20, '#1c0e18', '#3a1c30', '#0a0614', 4);
-    X.plate(ctx, mx - 34, B - 132, 68, 132, '#3a1a44', '#6a3a80', '#1a0a22', 6);
-    X.plate(ctx, mx - 28, B - 126, 56, 24, '#120a1c', '#5a2a70', '#000000', 4);
-    const lit = Math.sin(t * 6) > -0.3;
-    F.draw(ctx, 'THE', mx, B - 122, lit ? '#ffd34d' : '#6a5a1a', { center: true, shadow: false });
-    F.draw(ctx, 'UNIVERSAL', mx, B - 113, lit ? '#ff5fa8' : '#4a1c3a', { center: true, shadow: false });
+    const mx = 782 - cam, B = FLOOR - 4;
+    const RW = PD.chum.reelWorld;
+    const hot = Math.sin(t * 5) > -0.3;
+    // shadow and dais
+    ctx.globalAlpha = 0.4; X.blob(ctx, mx, B + 2, 44, 4, '#0a0614'); ctx.globalAlpha = 1;
+    X.plate(ctx, mx - 40, B - 10, 80, 12, '#2a1040', '#5e2a86', '#120722', 3);
+    // the towers, chasing
+    for (const sd of [-1, 1]) {
+      const tx2 = mx + sd * 34;
+      X.plate(ctx, tx2 - 7, B - 92, 14, 82, '#2a1442', '#5e2a86', '#120722', 3);
+      for (let i = 0; i < 8; i++) {
+        const on = (Math.floor(t * (hot ? 12 : 6)) + i * (sd > 0 ? 1 : -1)) % 4 !== 0;
+        X.blob(ctx, tx2, B - 86 + i * 10, 3.5, 3.5, on ? '#ffd34d' : '#4a3a10');
+      }
+      const bo = Math.sin(t * 4 + (sd > 0 ? 0 : 1.6)) > -0.2;
+      X.plate(ctx, tx2 - 6, B - 102, 12, 10, '#351550', '#7a3aae', '#170a2a', 3);
+      X.blob(ctx, tx2, B - 105, 4, 4, bo ? '#ff5fa8' : '#4a1c3a');
+    }
+    // the body
+    X.plate(ctx, mx - 30, B - 96, 60, 88, '#2a1442', '#5e2a86', '#120722', 5);
+    X.plate(ctx, mx - 25, B - 90, 50, 76, '#1c0c2e', '#4a2270', '#0a0414', 4);
+    // the dome on top, with a world going round in it
+    X.blob(ctx, mx, B - 122, 20, 18, '#0a0418');
+    ctx.save();
+    ctx.beginPath(); ctx.rect(mx - 20, B - 140, 40, 36); ctx.clip();
+    RW(ctx, mx, B - 121, 9, Math.floor(t * 0.22) % 5, t, 0);
+    ctx.restore();
+    X.ring(ctx, mx, B - 122, 20, '#12081e', 3);
+    X.ring(ctx, mx, B - 122, 19, '#7a3aae', 1);
+    for (let i = 0; i < 9; i++) {
+      const a = Math.PI * 0.1 + i * (Math.PI * 0.8 / 8);
+      const on = (Math.floor(t * (hot ? 12 : 5)) + i) % 3 !== 0;
+      X.blob(ctx, mx - Math.cos(a) * 20, B - 122 - Math.sin(a) * 18, 2, 2, on ? '#ffd34d' : '#4a3a10');
+    }
+    // the takings meter over the lot
+    const take = 41200000 + Math.floor(t * 137) * 100;
+    X.plate(ctx, mx - 34, B - 156, 68, 14, '#170a28', '#ff5fa8', '#080312', 3);
+    F.draw(ctx, '$' + take.toLocaleString('en-US'), mx, B - 152, '#ffd34d', { center: true, shadow: '#3a0c30' });
+    // the marquee
+    X.plate(ctx, mx - 29, B - 102, 58, 16, '#170a28', hot ? '#ffd34d' : '#5a4418', '#080312', 3);
+    F.draw(ctx, 'THE UNIVERSAL', mx, B - 99, hot ? '#ffd34d' : '#6a5a1a', { center: true, shadow: '#3a0c30' });
+    F.draw(ctx, 'TEN TAKES THE LOT', mx, B - 91, hot ? '#ff5fa8' : '#4a1c3a', { center: true, shadow: '#1a0614' });
+    // the window on to open space, and three worlds in it
+    const WX = mx - 24, WY = B - 82, WW = 48, WH2 = 26;
+    X.plate(ctx, WX - 2, WY - 2, WW + 4, WH2 + 4, '#3a1a58', '#6e3a9e', '#150828', 3);
+    ctx.save();
+    ctx.beginPath(); ctx.rect(WX, WY, WW, WH2); ctx.clip();
+    X.rect(ctx, WX, WY, WW, WH2, '#0a0418');
+    for (let i = 0; i < 14; i++) {
+      const a = i * 1.31 + t * 0.06;
+      X.rect(ctx, WX + WW / 2 + Math.cos(a) * 20, WY + WH2 / 2 + Math.sin(a * 1.7) * 10, 1, 1, '#7a6ab0');
+    }
+    for (let r = 0; r < 3; r++) RW(ctx, WX + 8 + r * 16, WY + WH2 / 2, 6, (r + 2) % 5, t, 0);
+    ctx.restore();
+    X.rect(ctx, WX, WY + WH2 / 2, WW, 1, 'rgba(255,95,168,0.5)');
+    // the ten lamps, all dark: nobody has ever got ten
     for (let i = 0; i < 10; i++) {
-      const on = (Math.floor(t * 8) + i) % 10 < 4;
-      X.rect(ctx, mx - 30 + i * 6, B - 98, 4, 4, on ? '#ffd34d' : '#3a2a52');
+      X.plate(ctx, mx - 25 + i * 5, B - 50, 4, 8, '#221238', '#54357a', '#0a0414', 1);
     }
-    X.plate(ctx, mx - 28, B - 90, 56, 34, '#0d0718', '#5a2a70', '#000000', 4);
-    for (let r = 0; r < 3; r++) {
-      const rx = mx - 25 + r * 17;
-      X.rect(ctx, rx, B - 87, 15, 28, '#e8e4d0');
-      PD.glyph.draw(ctx, 'star', rx, B - 82, '#c98a10', '#fff3b0');
-    }
-    F.draw(ctx, 'TEN TAKES THE LOT', mx, B - 50, '#8a7ab0', { center: true, shadow: false });
-    X.plate(ctx, mx - 22, B - 40, 44, 18, '#120a1c', '#3a2a52', '#000000', 3);
-    X.line(ctx, mx + 36, B - 46, mx + 36, B - 74, '#8a7ab0', 4);
-    X.blob(ctx, mx + 36, B - 78, 7, 7, '#c22a4a');
-    ctx.globalAlpha = 0.14 + Math.abs(Math.sin(t * 3)) * 0.06;
-    X.blob(ctx, mx, B - 70, 44, 64, '#ff5fa8');
+    F.draw(ctx, '0/10', mx, B - 38, '#8a7ab0', { center: true, shadow: '#1a0614' });
+    // the ledge, the tray and the lever
+    X.plate(ctx, mx - 30, B - 26, 60, 6, '#351550', '#7a3aae', '#170a2a', 2);
+    X.rect(ctx, mx - 12, B - 20, 24, 4, '#0a0614');
+    X.plate(ctx, mx + 30, B - 34, 6, 8, '#2a1442', '#6e3a9e', '#120722', 2);
+    X.limb(ctx, mx + 33, B - 30, mx + 41, B - 42, 3, 2, '#4a3f70', '#a89ad0', '#1c1430');
+    X.blob(ctx, mx + 41, B - 43, 4, 4, '#5e0c22');
+    X.blob(ctx, mx + 41, B - 43, 3, 3, '#c22a4a');
+    ctx.globalAlpha = 0.12 + Math.abs(Math.sin(t * 3)) * 0.06;
+    X.blob(ctx, mx, B - 70, 40, 56, '#ff5fa8');
     ctx.globalAlpha = 1;
   }
 
   function drawMachine(ctx, g, t, cam, i) {
     const mx = SLOT_X[i] - cam;
-    /* The cabinet stands on a plinth. At floor level the reels sat at exactly
-       your own head height and you could not see what you had just lost. */
-    const B = FLOOR - 16;
+    const RW = PD.chum.reelWorld, hue = PD.chum.HUES[(i * 2 + 1) % PD.chum.HUES.length];
+    /* The same cabinet as the rank in the big room, one size up so you can
+       read what it has just done to you. It stands on a plinth: at floor level
+       the reels sat at exactly your own head height. */
+    const B = FLOOR - 6;
     const live = SLOT.at === i;
-    const lv = live ? SLOT.lever * 14 : 0;
-    X.plate(ctx, mx - 26, B, 52, 16, '#1c0e18', '#3a1c30', '#0a0614', 3);
-    X.plate(ctx, mx - 24, B - 84, 48, 84, '#2a1a3a', '#4a3660', '#120a1c', 5);
-    X.plate(ctx, mx - 20, B - 80, 40, 16, '#120a1c', '#3a2a52', '#000000', 3);
-    const on = (Math.floor(t * 5) + i) % 2 === 0;
-    F.draw(ctx, 'VOID', mx, B - 75, on ? '#ffd34d' : '#6a5a1a', { center: true, shadow: false });
-    // the window, and the reels in it
-    X.plate(ctx, mx - 20, B - 60, 40, 26, '#0d0718', '#3a2a52', '#000000', 3);
+    const lv = live ? SLOT.lever * 12 : 0;
+    ctx.globalAlpha = 0.35; X.blob(ctx, mx, B + 1, 18, 3, '#0a0614'); ctx.globalAlpha = 1;
+    X.plate(ctx, mx - 22, B - 12, 44, 12, '#1b0f2c', '#3a2352', '#0a0614', 3);      // the base
+    X.plate(ctx, mx - 19, B - 82, 38, 70, '#33184f', hue, '#120722', 4);
+    X.plate(ctx, mx - 15, B - 64, 30, 22, '#0d0620', '#4a2a70', '#060310', 3);
+    // the topper, out of step with its neighbours
+    const on = Math.sin(t * 3 + i * 1.3) > -0.2;
+    X.plate(ctx, mx - 17, B - 92, 34, 10, on ? '#3a2208' : '#170c22', on ? hue : '#33224a', '#0a0614', 2);
+    F.draw(ctx, ['LUX', 'NOVA', 'HOT'][i % 3], mx, B - 89, '#fff3b0', { center: true, shadow: false });
+    if (on) { ctx.globalAlpha = 0.2; X.blob(ctx, mx, B - 87, 20, 10, hue); ctx.globalAlpha = 1; }
+    // the window on to open space, and the three worlds turning in it
+    const WX = mx - 15, WY = B - 64, WW = 30, WH2 = 22;
+    X.plate(ctx, WX - 3, WY - 3, WW + 6, WH2 + 6, '#3a1a58', '#6e3a9e', '#150828', 3);
+    ctx.save();
+    ctx.beginPath(); ctx.rect(WX, WY, WW, WH2); ctx.clip();
+    X.rect(ctx, WX, WY, WW, WH2, '#0a0418');
+    for (let k = 0; k < 10; k++) {
+      const a = k * 1.31 + t * 0.08;
+      X.rect(ctx, WX + WW / 2 + Math.cos(a) * 12, WY + WH2 / 2 + Math.sin(a * 1.7) * 8, 1, 1, '#7a6ab0');
+    }
     for (let r = 0; r < 3; r++) {
-      const rx = mx - 17 + r * 12;
-      X.rect(ctx, rx, B - 58, 11, 22, '#e8e4d0');
-      X.rect(ctx, rx, B - 58, 11, 1, '#8e8874');
+      const rx = WX + 5 + r * 10;
       const spinning = live && SLOT.t < [0.85, 1.25, 1.7][r];
       const idx = Math.floor(live ? SLOT.reel[r] : (i * 2 + r) % 5) % 5;
       if (spinning) {
+        // smeared, the way the big one does it
+        const roll = SLOT.reel[r] * 2.4 + r;
         for (let k = -1; k <= 1; k++) {
-          ctx.globalAlpha = k ? 0.3 : 0.85;
-          PD.glyph.draw(ctx, SLOT_SYM[(idx + k + 5) % 5], rx - 1, B - 55 + k * 9, '#3a2a52', '#8a7ab0');
+          ctx.globalAlpha = 0.34 - Math.abs(k) * 0.1;
+          RW(ctx, rx, WY + WH2 / 2 + k * 9 + (roll % 1) * 9, 4, Math.floor(roll) + k, t, 1);
+          ctx.globalAlpha = 1;
         }
-        ctx.globalAlpha = 1;
+        ctx.globalAlpha = 0.16; X.rect(ctx, rx - 4, WY, 9, WH2, '#c9a8ff'); ctx.globalAlpha = 1;
       } else {
-        PD.glyph.draw(ctx, SLOT_SYM[idx], rx - 1, B - 55, idx === 3 ? '#c22a4a' : '#3a2a52', '#8a7ab0');
+        RW(ctx, rx, WY + WH2 / 2, 4, idx, t, 0);
       }
+      X.rect(ctx, rx + 5, WY, 1, WH2, '#3a1a58');
     }
-    X.rect(ctx, mx - 20, B - 47, 40, 1, live && SLOT.t > 1.7 ? '#ff5a4d' : '#8a2f4a');
-    F.draw(ctx, '$' + STAKE, mx, B - 31, '#8a7ab0', { center: true, shadow: false });
-    // the tray, and the lever he should never pull
-    X.plate(ctx, mx - 16, B - 22, 32, 14, '#120a1c', '#3a2a52', '#000000', 3);
-    X.line(ctx, mx + 26, B - 30 + lv, mx + 26, B - 52 + lv, '#8a7ab0', 3);
-    X.blob(ctx, mx + 26, B - 54 + lv, 5, 5, '#c22a4a');
-    X.blob(ctx, mx + 25, B - 55 + lv, 2, 2, '#ff8a9a');
+    ctx.restore();
+    X.rect(ctx, WX, WY + WH2 / 2, WW, 1, live && SLOT.t > 1.7 ? '#ff5a4d' : 'rgba(255,95,168,0.5)');
+    X.rect(ctx, WX - 1, WY - 1, 1, WH2 + 2, '#8a5ac0');
+    X.rect(ctx, WX + WW, WY - 1, 1, WH2 + 2, '#8a5ac0');
+    // the stake, the tray, and the lever he should never pull
+    X.plate(ctx, mx - 14, B - 38, 28, 10, '#0d0620', '#4a2a70', '#060310', 2);
+    F.draw(ctx, '$' + STAKE, mx, B - 35, '#ffd34d', { center: true, shadow: '#1a0614' });
+    X.plate(ctx, mx - 19, B - 26, 38, 5, '#351550', '#7a3aae', '#170a2a', 2);
+    X.rect(ctx, mx - 8, B - 21, 16, 4, '#0a0614');
+    X.plate(ctx, mx + 19, B - 48, 5, 7, '#2a1442', '#6e3a9e', '#120722', 2);
+    X.limb(ctx, mx + 21, B - 45, mx + 27, B - 56 + lv, 3, 2, '#4a3f70', '#a89ad0', '#1c1430');
+    X.blob(ctx, mx + 27, B - 57 + lv, 4, 4, '#5e0c22');
+    X.blob(ctx, mx + 27, B - 57 + lv, 3, 3, '#c22a4a');
+    X.blob(ctx, mx + 26, B - 58 + lv, 1.2, 1.2, '#ff8a9a');
   }
 
   /* A cleaning robot that has been going round this room since before any of

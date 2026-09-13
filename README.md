@@ -577,17 +577,15 @@ with a body in it shows what that body is worth, how much of the galaxy it has
 eaten and what it still owes. There is a **FLUSH IT** button under the ones
 that are occupied, which asks once whether you are sure.
 
-He is not in there alone, and he is not in there whole. Turning slowly in the
-fluid with him are **his own arms** — in his own colours, so there is no doubt
-whose they are. Each one hangs off a torn stump: bone standing out of the middle
-of it, a ring of meat round that, and three tendons trailing out of the back
-that wave as it drifts. The elbows still bend and the fingers still close on
-nothing, very slowly. There is a loose hand, there are pieces too small to name,
-there is a shoulder on the body they came off, and what has come off him over
-the years has settled in the bottom of the jar. A feed hose comes down out of
-the cap and screws into his chest, and something thin and red is going back up
-it. Every so often the whole thing **kicks**, all at once, and stops. And every
-so often it opens an eye and finds you.
+Each jar is a different night. The one in **A** has had enough: he hammers on
+the inside of the glass on a slow, steady beat, the jar rings with it, the edge
+lights up white where the fist lands and bubbles come off his knuckles. **B**
+has given up — head down, a hand up at his face, shoulders going every couple of
+seconds, and a thin stream of tears that has nowhere to go. **C** is asleep,
+turning slowly on his back with his eyes shut and a line of `Z`s drifting up out
+of him, and knows none of this is happening. They are the same body — the full
+rig, tentacles and all — and what makes them read as three different people is
+entirely what they are doing with it. Stand in front of A and you can hear him.
 
 **SETTINGS** is up in the corner: noises, the groove, screen wobble, and
 whether Mr Chum is allowed to stand in the corner of your screen at all.
@@ -602,7 +600,10 @@ the back, and the game hands you the machine.
 
 The gamble is a **third-person casino hall**, not a first-person cabinet. You
 are in the shot the whole time, a fully-rigged body standing at the lever with
-one hand on the ball.
+one hand on the ball. The old one-screen casino it replaced is gone, and so is
+the low-rent slot annexe you used to walk through to reach it: the back of the
+club is now the door to this same room, in the same purple and gold, with the
+same red carpet and velvet rope and the same machine standing at the end of it.
 
 The hall is **the Galaxy Room**, and it is a room rather than a backdrop. A
 coffered vault with a gold rose window at either end of it; two full tiers of
@@ -626,10 +627,9 @@ windows on to open space with a nebula behind them and stars that streak when it
 spins; ten lamps along the front that fill in as you go; and a pillar of chasing
 gold lamps up each cheek with a beacon on top of it.
 
-**About a hundred and forty people** watch you do it, in five ranks — the top
-gallery, the mezzanine, the back of the floor, the rank at the rope, and a rank
-of near-black silhouettes across the bottom of the frame that the camera looks
-over. They are not wallpaper. Some of them hold **placards** up (`TEN!`,
+**About a hundred and forty people** watch you do it, in four ranks — the top
+gallery, the mezzanine, the back of the floor, and the rank at the rope. They
+are not wallpaper. Some of them hold **placards** up (`TEN!`,
 `PULL IT`, `ONE MORE`) that swing harder the louder the room gets; some are
 **up on a friend's shoulders**; some hold a **camera** over the heads in front
 and the flash goes off when something happens; two **cocktail servers** work the
@@ -662,9 +662,8 @@ giants and a living one, each drawn round and lit from the left. The three reels
 own settle bounce, so the third one always arrives on its own.
 
 You get to **nine**. At nine the room comes apart — the camera whips out to the
-widest shot in the scene, every lamp on the machine doubles its flash rate, the
-silhouettes across the foreground put both fists in the air, and nobody sits
-down again. It asks whether you want to go on or walk away, and it asks
+widest shot in the scene, every lamp on the machine doubles its flash rate, and
+nobody sits down again. It asks whether you want to go on or walk away, and it asks
 diegetically: pull again, or go and stand at the `EXIT`, which is a real lit
 door in the room that you can click. It does not matter which you pick. The
 third window was always going to have a skull in it.

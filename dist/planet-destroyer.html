@@ -10523,9 +10523,8 @@ window.PD = window.PD || {};
      Four beats, each with its own picture and its own lines. Any key moves
      it on; escape walks out of the whole thing. */
   const IN_S = {
-    beat: 0, t: 0, line: 0, chars: 0, pop: 0, reel: [0, 0, 0], spin: 3, chips: [], flash: 0, done: 0
+    beat: 0, t: 0, line: 0, chars: 0, pop: 0, flash: 0, done: 0
   };
-  const SYMS = ['coin', 'ore', 'planet', 'skull', 'star'];
 
   /* =====================================================================
      THE NIGHT YOU LOST IT
@@ -10606,7 +10605,7 @@ window.PD = window.PD || {};
       { y: 120, s: 0.46, n: 30, x0: -420, x1: 1070, gap: null },   // the mezzanine
       { y: 200, s: 0.54, n: 26, x0: -400, x1: 1050, gap: null },   // the back of the floor
       { y: 240, s: 0.90, n: 29, x0: -390, x1: 1030, gap: [214, 540] },
-      { y: 302, s: 1.55, n: 21, x0: -360, x1: 1010, gap: [252, 604] } // right under your nose
+      { y: 334, s: 1.95, n: 19, x0: -380, x1: 1020, gap: [236, 620] } // right under your nose
     ];
     ROWS.forEach((R, ri) => {
       for (let i = 0; i < R.n; i++) {
@@ -11768,77 +11767,6 @@ window.PD = window.PD || {};
     drawShouts(ctx, t);
   }
 
-  /* Six of them standing between you and the camera, drawn in screen space so
-     they stay enormous however far the shot pulls back. Nothing but silhouette
-     and a rim of whatever colour the room is throwing about -- they are the
-     bottom edge of the frame, not characters. */
-  const SIL = [];
-  for (let i = 0; i < 6; i++) {
-    SIL.push({ x: -10 + i * 98 + U.hash2(i, 3) * 30, w: 27 + U.hash2(i, 7) * 15,
-      h: 96 + U.hash2(i, 11) * 44, ph: U.hash2(i, 13) * U.TAU,
-      crest: Math.floor(U.hash2(i, 17) * 3), col: HUES[i % HUES.length] });
-  }
-  function drawSilhouettes(ctx, t) {
-    const k = U.clamp((1.05 - CAM.z) / 0.35, 0, 1);
-    if (k <= 0.01) return;
-    const hot = UNI.lost ? 0 : UNI.hype;
-    const INK = '#150b22', RIM = '#2a1840';
-    ctx.globalAlpha = k;
-    for (const s2 of SIL) {
-      const jump = Math.max(0, Math.sin(t * (2 + hot * 7) + s2.ph)) * (3 + hot * 20);
-      const y = VH + 2 - jump;                     // the line of their shoulders
-      const w = s2.w, h = s2.h;
-      const hy = y - h * 0.46;                     // the middle of the head
-      const hr = w * 0.42, hry = hr * 1.14;        // a head, not a column
-      // arms, up and waving, drawn behind the body so they read as behind them
-      if (hot > 0.35) {
-        for (const sd of [-1, 1]) {
-          const wag = Math.sin(t * (6 + s2.ph) + (sd > 0 ? 0 : 1.4)) * 6;
-          // a bent arm with a fist on the end of it, not a scaffolding pole
-          const shx = s2.x + sd * w * 0.72, shy = y + 4;
-          const elx = shx + sd * w * 0.5, ely = shy - h * 0.26;
-          const fx = elx + sd * w * 0.22 + wag, fy = hy - hry * 1.5 - hot * 14;
-          X.limb(ctx, shx, shy, elx, ely, 13, 10, INK, RIM, INK);
-          X.limb(ctx, elx, ely, fx, fy, 10, 7, INK, RIM, INK);
-          X.blob(ctx, fx, fy - 2, 7, 7, INK);
-          ctx.globalAlpha = k * 0.35;
-          X.blob(ctx, fx - 3, fy - 6, 3, 1.5, s2.col);
-          ctx.globalAlpha = k;
-        }
-      }
-      // shoulders and chest: a wedge, wider at the bottom, cut off by the frame
-      X.poly(ctx, [[s2.x - w, VH + 60], [s2.x - w * 0.86, y + 6],
-        [s2.x - hr * 0.9, y - h * 0.1], [s2.x + hr * 0.9, y - h * 0.1],
-        [s2.x + w * 0.86, y + 6], [s2.x + w, VH + 60]], INK);
-      X.rect(ctx, s2.x - hr * 0.52, hy, hr * 1.04, y - h * 0.08 - hy, INK);   // the neck
-      X.blob(ctx, s2.x, hy, hr, hry, INK);                                    // the head
-      // whatever is on top of it
-      if (s2.crest === 0) {
-        for (const sd of [-1, 1]) {
-          X.limb(ctx, s2.x + sd * hr * 0.4, hy - hry * 0.5,
-            s2.x + sd * hr * 1.1, hy - hry * 2 + Math.sin(t * 3 + s2.ph) * 3, 4, 3, INK, RIM, INK);
-        }
-      } else if (s2.crest === 1) {
-        for (let f = -2; f <= 2; f++) {
-          const hgt = hry * (1.1 - Math.abs(f) * 0.22);
-          X.rect(ctx, s2.x + f * (hr * 0.4) - 2, hy - hry * 0.7 - hgt, 4, hgt + 4, INK);
-        }
-      } else {
-        X.blob(ctx, s2.x, hy - hry * 0.7, hr * 1.35, hry * 0.34, INK);        // a wide flat skull
-        X.blob(ctx, s2.x - hr * 1.05, hy - hry * 0.2, hr * 0.4, hry * 0.5, INK);
-        X.blob(ctx, s2.x + hr * 1.05, hy - hry * 0.2, hr * 0.4, hry * 0.5, INK);
-      }
-      // the room, catching along the top of the skull and one shoulder
-      ctx.globalAlpha = k * 0.62;
-      X.blob(ctx, s2.x - hr * 0.22, hy - hry * 0.82, hr * 0.6, 1.5, s2.col);
-      X.blob(ctx, s2.x - hr * 0.95, hy - hry * 0.1, 1.5, hry * 0.5, s2.col);
-      ctx.globalAlpha = k * 0.32;
-      X.blob(ctx, s2.x - w * 0.82, y + 14, 2, h * 0.1, s2.col);
-      ctx.globalAlpha = k;
-    }
-    ctx.globalAlpha = 1;
-  }
-
   function drawUniversal(ctx, g, t) {
     const sh = UNI.shake > 0 ? Math.sin(t * 58) * UNI.shake * 5 : 0;
     ctx.save();
@@ -11847,7 +11775,6 @@ window.PD = window.PD || {};
     ctx.translate(-CAM.x, -CAM.y);
     drawHall(ctx, g, t, {});
     ctx.restore();
-    drawSilhouettes(ctx, t);
 
     if (UNI.flash > 0) {
       ctx.fillStyle = 'rgba(255,90,77,' + (UNI.flash * 0.5).toFixed(2) + ')';
@@ -12252,7 +12179,7 @@ window.PD = window.PD || {};
   function enterIntro(g) {
     ensureArt();
     IN_S.beat = 0; IN_S.t = 0; IN_S.line = 0; IN_S.chars = 0; IN_S.pop = 0; IN_S.quit = 0;
-    IN_S.reel = [0, 0, 0]; IN_S.spin = 3.2; IN_S.chips.length = 0; IN_S.flash = 0;
+    IN_S.flash = 0;
     IN_S.done = 0; IN_S.inClub = 1;
     g.save.story = 1;
     g.saveGame();
@@ -12265,13 +12192,6 @@ window.PD = window.PD || {};
   function nextBeat(g) {
     IN_S.beat++; IN_S.t = 0; IN_S.line = 0; IN_S.chars = 0; IN_S.pop = 0;
     if (IN_S.beat >= BEATS.length) { finishIntro(g); return; }
-  }
-
-  function spillChips() {
-    for (let i = 0; i < 40; i++) {
-      IN_S.chips.push({ x: 240 + U.rand(-40, 40), y: 190, vx: U.rand(-180, 180), vy: U.rand(-220, -60),
-        a: U.rand(0, U.TAU), va: U.rand(-8, 8), life: U.rand(1.2, 2.6) });
-    }
   }
 
   function finishIntro(g) {
@@ -12308,20 +12228,6 @@ window.PD = window.PD || {};
     if (IN.hit('Escape')) { finishIntro(g); return; }
     IN_S.pop = Math.min(1, IN_S.pop + dt * 4.5);
     IN_S.flash = Math.max(0, IN_S.flash - dt * 2.2);
-    if (IN_S.spin > 0) {
-      IN_S.spin -= dt;
-      for (let i = 0; i < 3; i++) {
-        if (IN_S.spin < i * 0.5) continue;
-        IN_S.reel[i] = (IN_S.reel[i] + dt * (34 - i * 6)) % SYMS.length;
-      }
-      if (IN_S.spin <= 0) IN_S.reel = [3, 3, 3];           // three skulls
-    }
-    for (let i = IN_S.chips.length - 1; i >= 0; i--) {
-      const c = IN_S.chips[i];
-      c.x += c.vx * dt; c.y += c.vy * dt; c.vy += 320 * dt; c.a += c.va * dt; c.life -= dt;
-      if (c.life <= 0) IN_S.chips.splice(i, 1);
-    }
-
     const b = BEATS[IN_S.beat];
     if (!b) { finishIntro(g); return; }
     const line = b.lines[IN_S.line] || '';
@@ -12336,145 +12242,6 @@ window.PD = window.PD || {};
       return;
     }
     if (IN_S.t > b.dur) nextBeat(g);
-  }
-
-  /* ---- the casino: neon, a carpet nobody has ever cleaned, one machine ---- */
-  function drawCasino(ctx, g, t) {
-    ctx.fillStyle = '#180c22'; ctx.fillRect(0, 0, VW, VH);
-    // a wall of dead neon and one live sign
-    for (let i = 0; i < 9; i++) {
-      const bx = 12 + i * 54, on = Math.sin(t * 3 + i) > -0.3;
-      X.rect(ctx, bx, 16, 36, 3, on ? '#ff5fa8' : '#4a1c3a');
-      X.rect(ctx, bx, 24, 36, 3, on ? '#7ef9ff' : '#12384a');
-    }
-    F.draw(ctx, 'THE LUCKY VOID', VW / 2, 36, Math.sin(t * 7) > -0.2 ? '#ffd34d' : '#6a5a1a',
-      { center: true, scale: 3, shadow: '#3a0c30' });
-    // carpet
-    X.rect(ctx, 0, 206, VW, VH - 206, '#4a1230');
-    for (let x = 0; x < VW; x += 16) {
-      X.rect(ctx, x, 206, 8, VH - 206, '#5c1a3c');
-      X.rect(ctx, x + 4, 214, 6, 6, '#7a2450');
-    }
-    X.rect(ctx, 0, 204, VW, 3, '#2a0a1c');
-
-    /* the machine */
-    const mx = 238, my = 84;
-    X.plate(ctx, mx - 62, my - 16, 124, 122, '#2a1a3a', '#4a3660', '#120a1c', 6);
-    X.plate(ctx, mx - 52, my - 6, 104, 46, '#0d0718', '#3a2a52', '#000000', 4);
-    for (let i = 0; i < 3; i++) {
-      const rx = mx - 46 + i * 32;
-      X.rect(ctx, rx, my, 28, 34, '#e8e4d0');
-      X.rect(ctx, rx, my, 28, 2, '#8e8874');
-      const idx = Math.floor(IN_S.reel[i]) % SYMS.length;
-      const blur = IN_S.spin > i * 0.5;
-      if (blur) {
-        for (let k = -1; k <= 1; k++) {
-          ctx.globalAlpha = k ? 0.3 : 0.8;
-          PD.glyph.draw(ctx, SYMS[(idx + k + SYMS.length) % SYMS.length], rx + 7, my + 10 + k * 12, '#3a2a52', '#8a7ab0');
-        }
-        ctx.globalAlpha = 1;
-      } else {
-        PD.glyph.draw(ctx, SYMS[idx], rx + 7, my + 10, idx === 3 ? '#c22a4a' : '#3a2a52', '#8a7ab0');
-      }
-    }
-    // the payline, and the lever he should never have pulled
-    X.rect(ctx, mx - 52, my + 16, 104, 1, IN_S.spin <= 0 ? '#ff5a4d' : '#8a2f4a');
-    const lever = IN_S.spin > 2.6 ? 16 : 0;
-    X.line(ctx, mx + 66, my + 40 + lever, mx + 66, my + 10 + lever, '#8a7ab0', 3);
-    X.blob(ctx, mx + 66, my + 8 + lever, 6, 6, '#c22a4a');
-    F.draw(ctx, 'INSERT EVERYTHING', mx, my + 46, '#8a7ab0', { center: true, shadow: false });
-    // the payout tray, empty
-    X.plate(ctx, mx - 40, my + 62, 80, 22, '#120a1c', '#3a2a52', '#000000', 3);
-    if (IN_S.beat >= 1) F.draw(ctx, 'NO', mx, my + 68, '#ff5a4d', { center: true, scale: 2, shadow: '#3a0c30' });
-
-    // our man, at the lever, in trouble
-    const al = PD.art.sprites.alien;
-    const K = 1.2, bob = Math.sin(t * 2.4) * 2;
-    const ax = mx + 104, ay = 206 - (al.h - al.oy) * K + bob;
-    ctx.drawImage(al.frames[Math.floor(t * 6) % 4], 0, 0, al.frames[0].width, al.frames[0].height,
-      Math.round(ax - al.ox * K), Math.round(ay - al.oy * K), Math.round(al.w * K), Math.round(al.h * K));
-
-    for (const c of IN_S.chips) {
-      ctx.save();
-      ctx.translate(c.x | 0, c.y | 0); ctx.rotate(c.a);
-      X.blob(ctx, 0, 0, 5, 5, '#0a0614');
-      X.blob(ctx, 0, 0, 4, 4, '#ffd34d');
-      X.blob(ctx, 0, 0, 2, 2, '#e8a02a');
-      ctx.restore();
-    }
-  }
-
-  /* ---- the number, and the shadow that falls across it ---- */
-  function drawDebtCard(ctx, g, t) {
-    drawUniversal(ctx, g, t);
-    ctx.fillStyle = 'rgba(6,3,14,0.88)'; ctx.fillRect(0, 0, VW, VH);
-    const f = U.clamp(IN_S.t / 1.6, 0, 1);
-    const n = Math.round(DEBT0 * f * f);
-    /* A receipt to put the number on, so the slot machine behind it does not
-       read through the zeroes. */
-    X.plate(ctx, 40, 60, VW - 80, 82, 'rgba(4,2,10,0.96)', '#b02a3a', '#000000', 5);
-    F.draw(ctx, 'YOU OWE', VW / 2, 74, '#8a7ab0', { center: true, scale: 2, shadow: '#0a0614' });
-    F.draw(ctx, '$' + n.toLocaleString(), VW / 2, 98, f >= 1 && Math.sin(t * 8) > 0 ? '#ff5a4d' : '#ffd34d',
-      { center: true, scale: 5, shadow: '#3a0c30' });
-    if (f >= 1) {
-      // his shadow, arriving
-      const s = U.clamp((IN_S.t - 1.8) / 1.4, 0, 1);
-      ctx.globalAlpha = s * 0.85;
-      X.poly(ctx, [[VW / 2 - 150 * s, VH], [VW / 2 + 150 * s, VH],
-        [VW / 2 + 90 * s, VH - 150 * s], [VW / 2 - 90 * s, VH - 150 * s]], '#05020c');
-      if (s > 0.5) {
-        // and then the shark himself, rising into the bottom of the frame
-        const a = ensureArt();
-        const k = (s - 0.5) * 2;
-        ctx.globalAlpha = 1;
-        ctx.save();
-        ctx.translate(Math.round(VW / 2 - CCX * 1.6), Math.round(VH - 18 - CBASE * 1.6 * k));
-        ctx.scale(1.6, 1.6);
-        ctx.drawImage(a.real[0][0], 0, 0);
-        ctx.restore();
-      }
-      ctx.globalAlpha = 1;
-    }
-  }
-
-  /* ---- the deal: he is in the room and he is very close ---- */
-  function drawDeal(ctx, g, t) {
-    ctx.fillStyle = '#0d0718'; ctx.fillRect(0, 0, VW, VH);
-    // an alley behind him, one bulb
-    for (let i = 0; i < 5; i++) X.rect(ctx, 20 + i * 100, 0, 60, VH, '#120a1c');
-    X.blob(ctx, 86, 22, 40, 34, 'rgba(255,211,77,0.08)');
-    X.rect(ctx, 82, 6, 8, 12, '#3a2a52');
-    X.blob(ctx, 86, 20, 5, 5, '#ffe9a8');
-    X.rect(ctx, 0, 214, VW, VH - 214, '#1a1024');
-    X.rect(ctx, 0, 212, VW, 2, '#2a1c33');
-
-    // our man, small, on the right, being talked at
-    const al = PD.art.sprites.alien;
-    const K = 1.1, bob = Math.sin(t * 2) * 1.5;
-    const ax = 392, ay = 214 - (al.h - al.oy) * K + bob;
-    ctx.drawImage(al.frames[Math.floor(t * 5) % 4], 0, 0, al.frames[0].width, al.frames[0].height,
-      Math.round(ax - al.ox * K), Math.round(ay - al.oy * K), Math.round(al.w * K), Math.round(al.h * K));
-    // the watch goes on at the fifth line
-    if (IN_S.line >= 4) {
-      X.plate(ctx, ax - 22, ay - 26, 14, 10, '#2a2438', '#453c5c', '#0a0614', 2);
-      X.rect(ctx, ax - 19, ay - 24, 8, 6, Math.sin(t * 6) > 0 ? '#7ef9ff' : '#0d5a78');
-    }
-
-    // MR CHUM, in the flesh, at twice the size of you, with the case he
-    // carries your future around in
-    const a = ensureArt();
-    const lean = Math.sin(t * 1.3) * 3;
-    X.plate(ctx, 14, 176, 26, 38, '#1d1828', '#3a3150', '#0a0614', 4);
-    X.rect(ctx, 14, 190, 26, 2, '#3a3150');
-    X.rect(ctx, 24, 158, 6, 20, '#3a3150');
-    X.rect(ctx, 19, 155, 16, 5, '#3a3150');
-    X.rect(ctx, 32, 196, 5, 5, '#ffd34d');
-    const talk = IN_S.chars < (BEATS[2].lines[IN_S.line] || '').length && Math.floor(t * 9) % 2 === 0;
-    ctx.save();
-    ctx.translate(Math.round(104 - CCX * 2 + lean), Math.round(214 - CBASE * 2));
-    ctx.scale(2, 2);
-    ctx.drawImage(a.real[talk ? 1 : 0][0], 0, 0);
-    ctx.restore();
   }
 
   /* ---- and out, over the moon he now owns ---- */
@@ -12564,7 +12331,9 @@ window.PD = window.PD || {};
     enterIntro, updateIntro, drawIntro, enterGamble, B_OF,
     call, update, draw, active, takeCut, drawDebt, DEBT0, S, IN_S, HS, LESSONS,
     leadStep, drawMini, miniFrame, MS, MW, MH, MCX, MBASE,
-    artFor: ensureArt, CW, CH, CCX, CBASE, UNI, CAM, CROWD
+    artFor: ensureArt, CW, CH, CCX, CBASE, UNI, CAM, CROWD,
+    /* the house style, shared with the room you walk through to get here */
+    reelWorld, HUES
   };
 })(window.PD);
 
@@ -15726,9 +15495,9 @@ window.PD = window.PD || {};
     { id: 'dance', x: 320, r: 52, name: 'THE DANCEFLOOR', sub: 'HAVE A GO' },
     { id: 'stage', x: 412, r: 28, name: 'THE DANCER', sub: 'TIP THEM. IT IS A TUESDAY' },
     { id: 'bar', x: 500, r: 30, name: 'THE BAR', sub: 'BUY SOMETHING SILLY' },
-    { id: 'slot0', x: 620, r: 26, name: 'THE LUCKY VOID', sub: 'ONE MORE GO. $200' },
-    { id: 'slot1', x: 680, r: 26, name: 'THE LUCKY VOID', sub: 'THIS ONE IS DUE. $200' },
-    { id: 'slot2', x: 740, r: 26, name: 'THE LUCKY VOID', sub: 'LAST ONE. $200' }
+    { id: 'slot0', x: 646, r: 24, name: 'LUX', sub: 'ONE MORE GO. $200' },
+    { id: 'slot1', x: 694, r: 24, name: 'NOVA', sub: 'THIS ONE IS DUE. $200' },
+    { id: 'slot2', x: 742, r: 24, name: 'HOT', sub: 'LAST ONE. $200' }
   ];
   const BOOTHS = [];
   /* Four of them never made it to the floor. */
@@ -16575,14 +16344,14 @@ window.PD = window.PD || {};
     }
   }
 
-  /* ------------------------------------------------------------- THE LUCKY VOID
-     The machine that started all of this has a franchise, and there are three
-     of them through the arch at the back of the club. You can walk between
-     them and lose money at any of them. The odds are the odds: about three
-     quarters of what goes in comes back out, which is exactly how you ended up
-     owing a shark a million dollars in the first place. */
-  const SLOT_X = [656, 716, 776];
-  const SLOT_SYM = ['coin', 'ore', 'planet', 'skull', 'star'];
+  /* ------------------------------------------------------------ THE GALAXY ROOM
+     Through the arch at the back of the club is the same room the whole night
+     ends in -- the same purple and gold, the same red carpet, the same velvet
+     rope, and THE UNIVERSAL standing at the end of it. Three ordinary machines
+     stand in front of it and you can lose money at any of them. The odds are
+     the odds: about three quarters of what goes in comes back out, which is
+     exactly how you ended up owing a shark a million dollars. */
+  const SLOT_X = [646, 694, 742];
   const STAKE = 200;
   const SLOT = { at: -1, t: 0, reel: [0, 0, 0], land: [0, 0, 0], lever: 0, win: 0, msg: 0 };
 
@@ -16660,31 +16429,103 @@ window.PD = window.PD || {};
      whoever has been standing at one of them since before you arrived. */
   function drawSlots(ctx, g, t, cam) {
     const a0 = 612 - cam;
-    // the arch through from the club
-    X.rect(ctx, a0, CLUB_CEIL, 10, FLOOR - CLUB_CEIL, '#241f36');
-    X.rect(ctx, a0 + 2, CLUB_CEIL + 6, 6, FLOOR - CLUB_CEIL - 6, '#3a3348');
-    X.rect(ctx, a0 + 10, CLUB_CEIL + 6, 202, 3, '#3a3348');
-    // carpet
-    X.rect(ctx, a0 + 10, FLOOR, 202, VH - FLOOR, '#4a1230');
-    for (let x = 0; x < 202; x += 16) {
-      X.rect(ctx, a0 + 10 + x, FLOOR, 8, VH - FLOOR, '#5c1a3c');
-      X.rect(ctx, a0 + 14 + x, FLOOR + 4, 6, 5, '#7a2450');
+    const W = 202, CH2 = CLUB_CEIL;
+    const HUES = PD.chum.HUES;
+
+    /* ------------------------------------------------ the room through there
+       The same room you end up in later, at a tenth of the size: purple walls,
+       an arcade of lit rooms along the back, gold lamps, red carpet with the
+       house diamond stamped into it, and a velvet rope holding nobody back. */
+    X.rect(ctx, a0 + 10, CH2, W, FLOOR - CH2, '#25103c');
+    const grd = ctx.createLinearGradient(0, CH2, 0, FLOOR);
+    grd.addColorStop(0, '#1a0a2e'); grd.addColorStop(1, '#3a1550');
+    ctx.fillStyle = grd; ctx.fillRect(a0 + 10, CH2, W, FLOOR - CH2);
+    // the arcade: six lit openings with a rank of little machines in each
+    for (let i = 0; i < 6; i++) {
+      const x = a0 + 24 + i * 33, hue = HUES[i % HUES.length];
+      X.rect(ctx, x - 14, CH2 + 8, 28, 40, '#1c0c30');
+      for (let k = 0; k <= 8; k++) {
+        const a = Math.PI + k * (Math.PI / 8);
+        X.blob(ctx, x + Math.cos(a) * 14, CH2 + 8 + Math.sin(a) * 9, 2, 2, '#4a2270');
+      }
+      ctx.globalAlpha = 0.2; X.rect(ctx, x - 13, CH2 + 10, 26, 38, hue); ctx.globalAlpha = 1;
+      ctx.globalAlpha = 0.45; X.rect(ctx, x - 13, CH2 + 10, 26, 2, hue); ctx.globalAlpha = 1;
+      for (let m = -1; m <= 1; m++) {
+        X.rect(ctx, x + m * 8 - 3, CH2 + 34, 7, 14, '#150920');
+        X.rect(ctx, x + m * 8 - 3, CH2 + 32, 7, 2, '#22102f');
+        const on = (Math.floor(t * 3.5) + i + m) % 4 !== 0;
+        X.rect(ctx, x + m * 8 - 2, CH2 + 37, 5, 3, on ? hue : '#1d0c2c');
+      }
+      X.rect(ctx, x - 18, CH2 + 6, 8, 44, '#2e1446');                  // the pier
+      X.rect(ctx, x - 18, CH2 + 6, 2, 44, '#4a2270');
     }
-    X.rect(ctx, a0 + 10, FLOOR - 1, 202, 1, '#2a0a1c');
-    // the sign over the arch
-    const lit = Math.sin(t * 7) > -0.25;
-    X.plate(ctx, a0 + 52, CLUB_CEIL + 12, 112, 18, '#120a1c', '#3a2a52', '#000000', 3);
-    F.draw(ctx, 'THE LUCKY VOID', a0 + 108, CLUB_CEIL + 18, lit ? '#ffd34d' : '#6a5a1a',
-      { center: true, shadow: '#3a0c30' });
+    // a rail along the front of it, and two chandeliers
+    X.rect(ctx, a0 + 10, CH2 + 50, W, 3, '#4a2270');
+    X.rect(ctx, a0 + 10, CH2 + 50, W, 1, '#8a5ac0');
+    for (let i = 0; i < 22; i++) X.rect(ctx, a0 + 14 + i * 9, CH2 + 53, 2, 6, '#3c1a58');
+    for (const gx of [a0 + 58, a0 + 158]) {
+      const cy = CH2 + 14 + Math.sin(t * 0.6 + gx) * 1;
+      X.rect(ctx, gx, CH2, 1, 14, '#5a4a78');
+      for (let k = 0; k < 7; k++) {
+        const a = k / 7 * U.TAU + t * 0.22;
+        X.blob(ctx, gx + Math.cos(a) * 7, cy + Math.sin(a) * 3, 2, 2, '#ffe9a8');
+      }
+      X.blob(ctx, gx, cy + 1, 4, 3, '#fff3b0');
+      ctx.globalAlpha = 0.14; X.blob(ctx, gx, cy + 5, 20, 12, '#ffd34d'); ctx.globalAlpha = 1;
+    }
+
+    // the carpet, with the house diamond stamped into it
+    X.rect(ctx, a0 + 10, FLOOR, W, VH - FLOOR, '#3a0e26');
+    for (let y = 0; y < VH - FLOOR; y += 6) {
+      X.rect(ctx, a0 + 10, FLOOR + y, W, 6, y > 12 ? '#4a1230' : '#3d0f28');
+      for (let x = (y * 7) % 22; x < W; x += 22) {
+        X.rect(ctx, a0 + 10 + x, FLOOR + y + 2, 8, 2, y > 12 ? '#5c1a3c' : '#47122e');
+      }
+    }
+    for (let x = 6; x < W; x += 34) {
+      ctx.globalAlpha = 0.5;
+      X.poly(ctx, [[a0 + 10 + x, FLOOR + 10], [a0 + 16 + x, FLOOR + 15],
+        [a0 + 10 + x, FLOOR + 20], [a0 + 4 + x, FLOOR + 15]], '#5c1a3c');
+      ctx.globalAlpha = 1;
+    }
+    X.rect(ctx, a0 + 10, FLOOR - 1, W, 2, '#2a0a1c');
+    X.rect(ctx, a0 + 10, FLOOR + 1, W, 1, '#57163a');
+    // the velvet rope, the same as the one in the big room
+    for (let i = 0; i < 5; i++) {
+      const px = a0 + 24 + i * 44;
+      if (i < 4) {
+        X.curve(ctx, px, FLOOR + 12, px + 22, FLOOR + 19, px + 44, FLOOR + 12, '#5e0f2c', 3, 8);
+        X.curve(ctx, px, FLOOR + 11, px + 22, FLOOR + 18, px + 44, FLOOR + 11, '#a8265a', 1, 8);
+      }
+      X.rect(ctx, px - 1, FLOOR + 11, 3, 10, '#8a6a2a');
+      X.rect(ctx, px - 1, FLOOR + 11, 1, 10, '#ffd34d');
+      X.blob(ctx, px, FLOOR + 10, 2.5, 2.5, '#ffd34d');
+    }
+
+    // the way through: a gold jamb, so it reads as a threshold and not a seam
+    X.plate(ctx, a0 - 5, CLUB_CEIL + 2, 20, FLOOR - CLUB_CEIL - 2, '#2e1446', '#5e2a86', '#120722', 3);
+    X.rect(ctx, a0 + 3, CLUB_CEIL + 10, 5, FLOOR - CLUB_CEIL - 16, '#7a3aae');
+    X.plate(ctx, a0 - 8, CLUB_CEIL, 26, 9, '#351550', '#7a3aae', '#170a2a', 3);
+    X.plate(ctx, a0 - 8, FLOOR - 10, 26, 10, '#351550', '#7a3aae', '#170a2a', 3);
     for (let i = 0; i < 9; i++) {
-      const on = (Math.floor(t * 6) + i) % 3 !== 0;
-      X.rect(ctx, a0 + 54 + i * 13, CLUB_CEIL + 32, 9, 2, on ? '#ff5fa8' : '#4a1c3a');
+      const on = (Math.floor(t * 5) + i) % 4 !== 0;
+      X.blob(ctx, a0 + 5, CLUB_CEIL + 18 + i * 12, 2.5, 2.5, on ? '#ffd34d' : '#4a3a10');
     }
+    X.rect(ctx, a0 + 10, CLUB_CEIL, W, 6, '#2e1446');
+    for (let i = 0; i <= 14; i++) {
+      const on = (Math.floor(t * 6) + i) % 4 !== 0;
+      X.blob(ctx, a0 + 18 + i * 13, CLUB_CEIL + 3, 2.5, 2.5, on ? '#ffd34d' : '#4a3a10');
+    }
+    const lit = Math.sin(t * 5) > -0.3;
+    X.plate(ctx, a0 + 40, CLUB_CEIL - 20, 142, 20, '#3a0e26', '#ff5fa8', '#180510', 4);
+    F.draw(ctx, 'THE GALAXY ROOM', a0 + 111, CLUB_CEIL - 15, lit ? '#ffd6f0' : '#7a4a68',
+      { center: true, shadow: '#180510' });
+    F.draw(ctx, 'NO CREDIT  NO PITY', a0 + 111, CLUB_CEIL - 7, '#ff8ad8', { center: true, shadow: '#180510' });
 
     for (let i = 0; i < 3; i++) drawMachine(ctx, g, t, cam, i);
     drawUniversalCab(ctx, g, t, cam);
     // the two who have been here since before you arrived
-    for (const q of [{ x: 636, k: 12 }, { x: 798, k: 13 }]) {
+    for (const q of [{ x: 636, k: 12 }, { x: 700, k: 13 }]) {
       const K = AH.KIN[q.k % AH.KIN.length];
       const bob = Math.sin(t * 1.4 + q.x) * 1;
       kinShadow(ctx, q.x - cam, FLOOR, K);
@@ -16692,72 +16533,142 @@ window.PD = window.PD || {};
     }
   }
 
-  /* The machine the whole game is downstream of. It is twice the size of the
-     others and it is always lit. */
+  /* THE UNIVERSAL, the same machine you end up in front of at the end of the
+     night, standing here where you first saw it: takings meter, glass dome
+     with a world turning in it, marquee, and a pillar of gold up each cheek. */
   function drawUniversalCab(ctx, g, t, cam) {
-    const mx = 812 - cam, B = FLOOR - 20;
-    X.plate(ctx, mx - 38, B, 76, 20, '#1c0e18', '#3a1c30', '#0a0614', 4);
-    X.plate(ctx, mx - 34, B - 132, 68, 132, '#3a1a44', '#6a3a80', '#1a0a22', 6);
-    X.plate(ctx, mx - 28, B - 126, 56, 24, '#120a1c', '#5a2a70', '#000000', 4);
-    const lit = Math.sin(t * 6) > -0.3;
-    F.draw(ctx, 'THE', mx, B - 122, lit ? '#ffd34d' : '#6a5a1a', { center: true, shadow: false });
-    F.draw(ctx, 'UNIVERSAL', mx, B - 113, lit ? '#ff5fa8' : '#4a1c3a', { center: true, shadow: false });
+    const mx = 782 - cam, B = FLOOR - 4;
+    const RW = PD.chum.reelWorld;
+    const hot = Math.sin(t * 5) > -0.3;
+    // shadow and dais
+    ctx.globalAlpha = 0.4; X.blob(ctx, mx, B + 2, 44, 4, '#0a0614'); ctx.globalAlpha = 1;
+    X.plate(ctx, mx - 40, B - 10, 80, 12, '#2a1040', '#5e2a86', '#120722', 3);
+    // the towers, chasing
+    for (const sd of [-1, 1]) {
+      const tx2 = mx + sd * 34;
+      X.plate(ctx, tx2 - 7, B - 92, 14, 82, '#2a1442', '#5e2a86', '#120722', 3);
+      for (let i = 0; i < 8; i++) {
+        const on = (Math.floor(t * (hot ? 12 : 6)) + i * (sd > 0 ? 1 : -1)) % 4 !== 0;
+        X.blob(ctx, tx2, B - 86 + i * 10, 3.5, 3.5, on ? '#ffd34d' : '#4a3a10');
+      }
+      const bo = Math.sin(t * 4 + (sd > 0 ? 0 : 1.6)) > -0.2;
+      X.plate(ctx, tx2 - 6, B - 102, 12, 10, '#351550', '#7a3aae', '#170a2a', 3);
+      X.blob(ctx, tx2, B - 105, 4, 4, bo ? '#ff5fa8' : '#4a1c3a');
+    }
+    // the body
+    X.plate(ctx, mx - 30, B - 96, 60, 88, '#2a1442', '#5e2a86', '#120722', 5);
+    X.plate(ctx, mx - 25, B - 90, 50, 76, '#1c0c2e', '#4a2270', '#0a0414', 4);
+    // the dome on top, with a world going round in it
+    X.blob(ctx, mx, B - 122, 20, 18, '#0a0418');
+    ctx.save();
+    ctx.beginPath(); ctx.rect(mx - 20, B - 140, 40, 36); ctx.clip();
+    RW(ctx, mx, B - 121, 9, Math.floor(t * 0.22) % 5, t, 0);
+    ctx.restore();
+    X.ring(ctx, mx, B - 122, 20, '#12081e', 3);
+    X.ring(ctx, mx, B - 122, 19, '#7a3aae', 1);
+    for (let i = 0; i < 9; i++) {
+      const a = Math.PI * 0.1 + i * (Math.PI * 0.8 / 8);
+      const on = (Math.floor(t * (hot ? 12 : 5)) + i) % 3 !== 0;
+      X.blob(ctx, mx - Math.cos(a) * 20, B - 122 - Math.sin(a) * 18, 2, 2, on ? '#ffd34d' : '#4a3a10');
+    }
+    // the takings meter over the lot
+    const take = 41200000 + Math.floor(t * 137) * 100;
+    X.plate(ctx, mx - 34, B - 156, 68, 14, '#170a28', '#ff5fa8', '#080312', 3);
+    F.draw(ctx, '$' + take.toLocaleString('en-US'), mx, B - 152, '#ffd34d', { center: true, shadow: '#3a0c30' });
+    // the marquee
+    X.plate(ctx, mx - 29, B - 102, 58, 16, '#170a28', hot ? '#ffd34d' : '#5a4418', '#080312', 3);
+    F.draw(ctx, 'THE UNIVERSAL', mx, B - 99, hot ? '#ffd34d' : '#6a5a1a', { center: true, shadow: '#3a0c30' });
+    F.draw(ctx, 'TEN TAKES THE LOT', mx, B - 91, hot ? '#ff5fa8' : '#4a1c3a', { center: true, shadow: '#1a0614' });
+    // the window on to open space, and three worlds in it
+    const WX = mx - 24, WY = B - 82, WW = 48, WH2 = 26;
+    X.plate(ctx, WX - 2, WY - 2, WW + 4, WH2 + 4, '#3a1a58', '#6e3a9e', '#150828', 3);
+    ctx.save();
+    ctx.beginPath(); ctx.rect(WX, WY, WW, WH2); ctx.clip();
+    X.rect(ctx, WX, WY, WW, WH2, '#0a0418');
+    for (let i = 0; i < 14; i++) {
+      const a = i * 1.31 + t * 0.06;
+      X.rect(ctx, WX + WW / 2 + Math.cos(a) * 20, WY + WH2 / 2 + Math.sin(a * 1.7) * 10, 1, 1, '#7a6ab0');
+    }
+    for (let r = 0; r < 3; r++) RW(ctx, WX + 8 + r * 16, WY + WH2 / 2, 6, (r + 2) % 5, t, 0);
+    ctx.restore();
+    X.rect(ctx, WX, WY + WH2 / 2, WW, 1, 'rgba(255,95,168,0.5)');
+    // the ten lamps, all dark: nobody has ever got ten
     for (let i = 0; i < 10; i++) {
-      const on = (Math.floor(t * 8) + i) % 10 < 4;
-      X.rect(ctx, mx - 30 + i * 6, B - 98, 4, 4, on ? '#ffd34d' : '#3a2a52');
+      X.plate(ctx, mx - 25 + i * 5, B - 50, 4, 8, '#221238', '#54357a', '#0a0414', 1);
     }
-    X.plate(ctx, mx - 28, B - 90, 56, 34, '#0d0718', '#5a2a70', '#000000', 4);
-    for (let r = 0; r < 3; r++) {
-      const rx = mx - 25 + r * 17;
-      X.rect(ctx, rx, B - 87, 15, 28, '#e8e4d0');
-      PD.glyph.draw(ctx, 'star', rx, B - 82, '#c98a10', '#fff3b0');
-    }
-    F.draw(ctx, 'TEN TAKES THE LOT', mx, B - 50, '#8a7ab0', { center: true, shadow: false });
-    X.plate(ctx, mx - 22, B - 40, 44, 18, '#120a1c', '#3a2a52', '#000000', 3);
-    X.line(ctx, mx + 36, B - 46, mx + 36, B - 74, '#8a7ab0', 4);
-    X.blob(ctx, mx + 36, B - 78, 7, 7, '#c22a4a');
-    ctx.globalAlpha = 0.14 + Math.abs(Math.sin(t * 3)) * 0.06;
-    X.blob(ctx, mx, B - 70, 44, 64, '#ff5fa8');
+    F.draw(ctx, '0/10', mx, B - 38, '#8a7ab0', { center: true, shadow: '#1a0614' });
+    // the ledge, the tray and the lever
+    X.plate(ctx, mx - 30, B - 26, 60, 6, '#351550', '#7a3aae', '#170a2a', 2);
+    X.rect(ctx, mx - 12, B - 20, 24, 4, '#0a0614');
+    X.plate(ctx, mx + 30, B - 34, 6, 8, '#2a1442', '#6e3a9e', '#120722', 2);
+    X.limb(ctx, mx + 33, B - 30, mx + 41, B - 42, 3, 2, '#4a3f70', '#a89ad0', '#1c1430');
+    X.blob(ctx, mx + 41, B - 43, 4, 4, '#5e0c22');
+    X.blob(ctx, mx + 41, B - 43, 3, 3, '#c22a4a');
+    ctx.globalAlpha = 0.12 + Math.abs(Math.sin(t * 3)) * 0.06;
+    X.blob(ctx, mx, B - 70, 40, 56, '#ff5fa8');
     ctx.globalAlpha = 1;
   }
 
   function drawMachine(ctx, g, t, cam, i) {
     const mx = SLOT_X[i] - cam;
-    /* The cabinet stands on a plinth. At floor level the reels sat at exactly
-       your own head height and you could not see what you had just lost. */
-    const B = FLOOR - 16;
+    const RW = PD.chum.reelWorld, hue = PD.chum.HUES[(i * 2 + 1) % PD.chum.HUES.length];
+    /* The same cabinet as the rank in the big room, one size up so you can
+       read what it has just done to you. It stands on a plinth: at floor level
+       the reels sat at exactly your own head height. */
+    const B = FLOOR - 6;
     const live = SLOT.at === i;
-    const lv = live ? SLOT.lever * 14 : 0;
-    X.plate(ctx, mx - 26, B, 52, 16, '#1c0e18', '#3a1c30', '#0a0614', 3);
-    X.plate(ctx, mx - 24, B - 84, 48, 84, '#2a1a3a', '#4a3660', '#120a1c', 5);
-    X.plate(ctx, mx - 20, B - 80, 40, 16, '#120a1c', '#3a2a52', '#000000', 3);
-    const on = (Math.floor(t * 5) + i) % 2 === 0;
-    F.draw(ctx, 'VOID', mx, B - 75, on ? '#ffd34d' : '#6a5a1a', { center: true, shadow: false });
-    // the window, and the reels in it
-    X.plate(ctx, mx - 20, B - 60, 40, 26, '#0d0718', '#3a2a52', '#000000', 3);
+    const lv = live ? SLOT.lever * 12 : 0;
+    ctx.globalAlpha = 0.35; X.blob(ctx, mx, B + 1, 18, 3, '#0a0614'); ctx.globalAlpha = 1;
+    X.plate(ctx, mx - 22, B - 12, 44, 12, '#1b0f2c', '#3a2352', '#0a0614', 3);      // the base
+    X.plate(ctx, mx - 19, B - 82, 38, 70, '#33184f', hue, '#120722', 4);
+    X.plate(ctx, mx - 15, B - 64, 30, 22, '#0d0620', '#4a2a70', '#060310', 3);
+    // the topper, out of step with its neighbours
+    const on = Math.sin(t * 3 + i * 1.3) > -0.2;
+    X.plate(ctx, mx - 17, B - 92, 34, 10, on ? '#3a2208' : '#170c22', on ? hue : '#33224a', '#0a0614', 2);
+    F.draw(ctx, ['LUX', 'NOVA', 'HOT'][i % 3], mx, B - 89, '#fff3b0', { center: true, shadow: false });
+    if (on) { ctx.globalAlpha = 0.2; X.blob(ctx, mx, B - 87, 20, 10, hue); ctx.globalAlpha = 1; }
+    // the window on to open space, and the three worlds turning in it
+    const WX = mx - 15, WY = B - 64, WW = 30, WH2 = 22;
+    X.plate(ctx, WX - 3, WY - 3, WW + 6, WH2 + 6, '#3a1a58', '#6e3a9e', '#150828', 3);
+    ctx.save();
+    ctx.beginPath(); ctx.rect(WX, WY, WW, WH2); ctx.clip();
+    X.rect(ctx, WX, WY, WW, WH2, '#0a0418');
+    for (let k = 0; k < 10; k++) {
+      const a = k * 1.31 + t * 0.08;
+      X.rect(ctx, WX + WW / 2 + Math.cos(a) * 12, WY + WH2 / 2 + Math.sin(a * 1.7) * 8, 1, 1, '#7a6ab0');
+    }
     for (let r = 0; r < 3; r++) {
-      const rx = mx - 17 + r * 12;
-      X.rect(ctx, rx, B - 58, 11, 22, '#e8e4d0');
-      X.rect(ctx, rx, B - 58, 11, 1, '#8e8874');
+      const rx = WX + 5 + r * 10;
       const spinning = live && SLOT.t < [0.85, 1.25, 1.7][r];
       const idx = Math.floor(live ? SLOT.reel[r] : (i * 2 + r) % 5) % 5;
       if (spinning) {
+        // smeared, the way the big one does it
+        const roll = SLOT.reel[r] * 2.4 + r;
         for (let k = -1; k <= 1; k++) {
-          ctx.globalAlpha = k ? 0.3 : 0.85;
-          PD.glyph.draw(ctx, SLOT_SYM[(idx + k + 5) % 5], rx - 1, B - 55 + k * 9, '#3a2a52', '#8a7ab0');
+          ctx.globalAlpha = 0.34 - Math.abs(k) * 0.1;
+          RW(ctx, rx, WY + WH2 / 2 + k * 9 + (roll % 1) * 9, 4, Math.floor(roll) + k, t, 1);
+          ctx.globalAlpha = 1;
         }
-        ctx.globalAlpha = 1;
+        ctx.globalAlpha = 0.16; X.rect(ctx, rx - 4, WY, 9, WH2, '#c9a8ff'); ctx.globalAlpha = 1;
       } else {
-        PD.glyph.draw(ctx, SLOT_SYM[idx], rx - 1, B - 55, idx === 3 ? '#c22a4a' : '#3a2a52', '#8a7ab0');
+        RW(ctx, rx, WY + WH2 / 2, 4, idx, t, 0);
       }
+      X.rect(ctx, rx + 5, WY, 1, WH2, '#3a1a58');
     }
-    X.rect(ctx, mx - 20, B - 47, 40, 1, live && SLOT.t > 1.7 ? '#ff5a4d' : '#8a2f4a');
-    F.draw(ctx, '$' + STAKE, mx, B - 31, '#8a7ab0', { center: true, shadow: false });
-    // the tray, and the lever he should never pull
-    X.plate(ctx, mx - 16, B - 22, 32, 14, '#120a1c', '#3a2a52', '#000000', 3);
-    X.line(ctx, mx + 26, B - 30 + lv, mx + 26, B - 52 + lv, '#8a7ab0', 3);
-    X.blob(ctx, mx + 26, B - 54 + lv, 5, 5, '#c22a4a');
-    X.blob(ctx, mx + 25, B - 55 + lv, 2, 2, '#ff8a9a');
+    ctx.restore();
+    X.rect(ctx, WX, WY + WH2 / 2, WW, 1, live && SLOT.t > 1.7 ? '#ff5a4d' : 'rgba(255,95,168,0.5)');
+    X.rect(ctx, WX - 1, WY - 1, 1, WH2 + 2, '#8a5ac0');
+    X.rect(ctx, WX + WW, WY - 1, 1, WH2 + 2, '#8a5ac0');
+    // the stake, the tray, and the lever he should never pull
+    X.plate(ctx, mx - 14, B - 38, 28, 10, '#0d0620', '#4a2a70', '#060310', 2);
+    F.draw(ctx, '$' + STAKE, mx, B - 35, '#ffd34d', { center: true, shadow: '#1a0614' });
+    X.plate(ctx, mx - 19, B - 26, 38, 5, '#351550', '#7a3aae', '#170a2a', 2);
+    X.rect(ctx, mx - 8, B - 21, 16, 4, '#0a0614');
+    X.plate(ctx, mx + 19, B - 48, 5, 7, '#2a1442', '#6e3a9e', '#120722', 2);
+    X.limb(ctx, mx + 21, B - 45, mx + 27, B - 56 + lv, 3, 2, '#4a3f70', '#a89ad0', '#1c1430');
+    X.blob(ctx, mx + 27, B - 57 + lv, 4, 4, '#5e0c22');
+    X.blob(ctx, mx + 27, B - 57 + lv, 3, 3, '#c22a4a');
+    X.blob(ctx, mx + 26, B - 58 + lv, 1.2, 1.2, '#ff8a9a');
   }
 
   /* A cleaning robot that has been going round this room since before any of
@@ -17442,10 +17353,12 @@ window.PD = window.PD || {};
     { x: 370, name: 'SPECIMEN C' }
   ];
   const TW = 62, TH = 106, TY = 74;                 // one tank
-  const S = { t: 0, sel: -1, pick: -1, open: 0, wipe: -1, hum: 0, bub: [] };
+  const S = { t: 0, sel: -1, pick: -1, open: 0, wipe: -1, hum: 0, bub: [],
+    hit: [0, 0, 0], hitY: [0, 0, 0], knock: 0 };
 
   function enter(g) {
     S.t = 0; S.sel = -1; S.pick = -1; S.open = 0; S.wipe = -1;
+    for (let i = 0; i < 3; i++) RIGS[i] = PD.rig.make();
     if (!S.bub.length) {
       for (let i = 0; i < 3; i++) {
         S.bub[i] = [];
@@ -17459,6 +17372,16 @@ window.PD = window.PD || {};
 
   function update(dt, g) {
     S.t += dt;
+    stepRigs(dt);
+    // he only gets to be heard by whoever is standing in front of him
+    const ph = (S.t * 1.5) % 1;   // tank A, hammering
+    if (ph < S.knock) {
+      if (S.sel === 0) {
+        A.sfx.tone(64, { type: 'sine', to: 38, dur: 0.16, vol: 0.1 });
+        A.noise({ from: 260, to: 80, dur: 0.1, vol: 0.05 });
+      }
+    }
+    S.knock = ph;
     const IN = PD.input, m = IN.mouse;
     for (const set of S.bub) {
       for (const b of set) { b.y -= b.sp * dt; if (b.y < 0) { b.y = TH; b.x = U.rand(-22, 22); } }
@@ -17558,6 +17481,9 @@ window.PD = window.PD || {};
 
   function drawTube(ctx, g, t, i) {
     const tb = TUBE[i], x = tb.x, on = S.sel === i;
+    // the jar rings when he hits it, so you feel it from out here
+    const ring = S.hit[i] > 0.02 ? Math.sin(S.t * 70) * S.hit[i] * 1.6 : 0;
+    if (ring) { ctx.save(); ctx.translate(Math.round(ring), 0); }
     const info = g.slotInfo(i);
     const lit = on ? 1 : 0.72;
     // the light over it
@@ -17577,22 +17503,15 @@ window.PD = window.PD || {};
       X.rect(ctx, x - TW / 2, TY + k, TW, 1, '#8affd0');
       ctx.globalAlpha = 1;
     }
-    // what has come off him over the years has settled in the bottom of it
-    ctx.globalAlpha = 0.5;
-    X.rect(ctx, x - TW / 2, TY + TH - 11, TW, 11, '#3a1020');
-    X.rect(ctx, x - TW / 2, TY + TH - 11, TW, 1, '#5e1a30');
-    ctx.globalAlpha = 0.26;
-    for (let k = 0; k < 4; k++) {
-      const a = t * 0.13 + k * 1.7;
-      X.blob(ctx, x + Math.cos(a) * 18, TY + 30 + k * 22 + Math.sin(a * 1.7) * 10,
-        13 + k * 3, 7 + k * 2, '#4a0a18');
-    }
+    // a drift of sediment across the bottom of the glass
+    ctx.globalAlpha = 0.4;
+    X.rect(ctx, x - TW / 2, TY + TH - 9, TW, 9, '#0f3830');
+    X.rect(ctx, x - TW / 2, TY + TH - 9, TW, 1, '#1d5a4c');
     ctx.globalAlpha = 1;
     // whoever is in it
     // there is always a body in the tank. An empty file is a body that has
     // not been out yet.
     drawSpecimen(ctx, g, x, TY + TH - 16, t, i, on);
-    drawGore(ctx, x, i, t, on);
     if (!info) F.draw(ctx, 'UNUSED', x, TY + 8, '#2b7a6a', { center: true, shadow: '#031014' });
     // bubbles
     for (const b of S.bub[i]) {
@@ -17608,6 +17527,20 @@ window.PD = window.PD || {};
     X.rect(ctx, x + TW / 2 - 14, TY, 2, TH, '#ffffff');
     ctx.globalAlpha = 1;
     if (on) { X.rect(ctx, x - TW / 2 - 2, TY - 2, TW + 4, 2, '#8affd0'); X.rect(ctx, x - TW / 2 - 2, TY + TH, TW + 4, 2, '#8affd0'); }
+    // and the glass takes it: the edge lights up where the fist lands
+    if (S.hit[i] > 0.02) {
+      const h = S.hit[i], hy = S.hitY[i];
+      ctx.globalAlpha = Math.min(1, h * 1.3);
+      X.rect(ctx, x - TW / 2 - 2, hy - 7 - h * 4, 2, 14 + h * 8, '#ffffff');
+      X.blob(ctx, x - TW / 2 + 1, hy, 2, 4 + h * 2, '#ffffff');
+      ctx.globalAlpha = h * 0.22;
+      X.blob(ctx, x - TW / 2 + 3, hy, 5 + (1 - h) * 7, 7 + (1 - h) * 7, '#d8fbff');
+      ctx.globalAlpha = h * 0.7;
+      for (let k = -1; k <= 1; k++) {
+        X.rect(ctx, x - TW / 2, hy + k * (6 + (1 - h) * 6), 3 + h * 4, 1, '#ffffff');
+      }
+      ctx.globalAlpha = 1;
+    }
 
     // the label plate
     const ly = TY + TH + 12;
@@ -17623,191 +17556,142 @@ window.PD = window.PD || {};
     } else {
       F.draw(ctx, 'NEW', x, ly + 20, '#8affd0', { center: true, scale: 2, shadow: '#031014' });
     }
+    if (ring) ctx.restore();
   }
 
-  /* ------------------------------------------------------------- the gore
-     Nothing comes out of a tank in one piece, and nothing that went wrong in
-     one ever got taken out. What is left of the last few attempts is still in
-     there with him, turning slowly: two arms, a hand, and the bits nobody
-     bothered naming. They are HIS arms, in his colours, which is the part
-     that is supposed to bother you. */
-  const MEAT = '#7e1226', MEATL = '#c4304a', MEATD = '#4a0a18';
-  const BONE = '#f0e4c8', BONED = '#b0a184';
+  /* --------------------------------------------------------- what is in them
+     Three tanks, three of you, and none of them are having the same night.
+     One has had enough and is hammering on the glass. One has given up and is
+     crying about it. One is asleep and does not know any of this is happening.
+     They are the same body: what makes them read as three different people is
+     entirely what they are doing with it. */
+  const MOOD = ['bang', 'cry', 'sleep'];
+  const RIGS = [null, null, null];
+  const F_BLINK = 4, F_CROSS = 6;
 
-  const GORE = [];
-  (function buildGore() {
+  function stepRigs(dt) {
     for (let i = 0; i < 3; i++) {
-      const set = [];
-      for (let k = 0; k < 5; k++) {
-        const h = (n) => U.hash2(i * 37 + k * 5, n);
-        const side = k % 2 ? 1 : -1;
-        set.push({
-          kind: k < 2 ? 0 : (k === 2 ? 1 : 2),        // an arm, a hand, a scrap
-          // they drift round the glass rather than across him, so he is never
-          // buried by his own arms
-          rx: 6 + h(3) * 5,
-          ry: 12 + h(7) * 16,
-          cx: side * (15 + h(11) * 6),
-          cy: 12 + k * 17 + h(13) * 9,
-          sp: 0.10 + h(17) * 0.14,
-          ph: h(19) * U.TAU,
-          s: (k < 2 ? 0.6 : 0.44) + h(23) * 0.22,
-          spin: (h(29) - 0.5) * 0.7,
-          roll: h(31) * U.TAU
-        });
-      }
-      GORE.push(set);
+      if (!RIGS[i]) RIGS[i] = PD.rig.make();
+      PD.rig.step(RIGS[i], { dt: dt, vx: 0, vy: 0, ground: false, drilling: false });
     }
-  })();
-
-  /* One arm, pivoting on its stump, pointing right. The elbow and the fingers
-     both keep working, very slowly, which is the bit that is not funny. */
-  const GINK = '#16221f';                 // the ink everything in the fluid wears
-  function severedArm(ctx, t, ph, skin, lite, dark) {
-    const curl = 0.3 + Math.sin(t * 0.9 + ph) * 0.5;
-    const ex = 15, ey = Math.sin(t * 0.7 + ph) * 3;
-    const hx = ex + Math.cos(curl) * 13, hy = ey + Math.sin(curl) * 13;
-    // tendons first, so they trail out of the back of the stump
-    for (let k = -1; k <= 1; k++) {
-      const wob = Math.sin(t * 2.2 + ph + k * 1.6);
-      X.curve(ctx, -2, k * 1.6, -9 + wob * 2, k * 3 + wob * 3, -17 - Math.abs(wob) * 3,
-        k * 4 + wob * 5, k ? MEATD : MEAT, 1, 8);
-    }
-    X.limb(ctx, 0, 0, ex, ey, 6, 5, skin, lite, GINK);
-    X.limb(ctx, ex, ey, hx, hy, 5, 4, skin, lite, GINK);
-    X.knob(ctx, ex, ey, 2.5, skin, lite);
-    // the hand: a narrow palm and three long fingers half closed on nothing
-    X.limb(ctx, hx, hy, hx + Math.cos(curl) * 4, hy + Math.sin(curl) * 4, 5, 4, skin, lite, GINK);
-    for (let f = -1; f <= 1; f++) {
-      const fa = curl + f * 0.46 + Math.sin(t * 1.7 + ph + f * 2) * 0.18;
-      const kx = hx + Math.cos(fa) * 7, ky = hy + Math.sin(fa) * 7;
-      X.limb(ctx, hx + Math.cos(curl) * 3, hy + Math.sin(curl) * 3, kx, ky, 3, 2, skin, lite, GINK);
-      X.limb(ctx, kx, ky, kx + Math.cos(fa + 0.7) * 5, ky + Math.sin(fa + 0.7) * 5, 2, 2, skin, lite, GINK);
-    }
-    // the stump: torn meat, the ring of it, and the bone standing out of it
-    X.blob(ctx, 0, 0, 4.5, 4.5, GINK);
-    X.blob(ctx, 0, 0, 3.6, 3.6, MEAT);
-    X.blob(ctx, -1, 0, 2.4, 2.4, MEATL);
-    X.rect(ctx, -4, -1, 4, 2, BONE);
-    X.rect(ctx, -5, -1, 1, 2, BONED);
   }
 
-  function severedHand(ctx, t, ph, skin, lite, dark) {
-    const curl = Math.sin(t * 1.1 + ph) * 0.4;
-    X.curve(ctx, -2, 0, -8, Math.sin(t * 2 + ph) * 3, -14, Math.sin(t * 2 + ph) * 5, MEAT, 1, 7);
-    X.limb(ctx, -1, 0, 4, 0, 6, 5, skin, lite, GINK);
-    for (let f = -1; f <= 2; f++) {
-      const fa = curl + f * 0.44 - 0.24;
-      const kx = 4 + Math.cos(fa) * 6, ky = Math.sin(fa) * 6;
-      X.limb(ctx, 3, 0, kx, ky, 3, 2, skin, lite, GINK);
-      X.limb(ctx, kx, ky, kx + Math.cos(fa + 0.8) * 4, ky + Math.sin(fa + 0.8) * 4, 2, 2, skin, lite, GINK);
-    }
-    X.blob(ctx, -3, 0, 3, 3.2, MEAT);
-    X.rect(ctx, -6, -1, 3, 2, BONE);
+  /* The one who wants out. A hit every third of a second, the glass flexing
+     with it, and the whole jar ringing. */
+  function bangPose(x, y, t, i) {
+    const k = (t * 1.5 + i * 0.37) % 1;
+    // he holds it against the glass, drags it back, then snaps it in again
+    let fwd;
+    if (k < 0.2) fwd = 1;
+    else if (k < 0.75) fwd = 1 - (k - 0.2) / 0.55;
+    else fwd = U.smoothstep(0, 1, (k - 0.75) / 0.25);
+    const hit = k < 0.14 ? 1 - k / 0.14 : 0;
+    const gx = x - 31 + (1 - fwd) * 13;
+    const gy = y - 8 - (1 - fwd) * 12;
+    return {
+      grip: { x: gx, y: gy }, flip: true, face: F_CROSS,
+      ang: -0.05 + hit * 0.06, squash: 1 + hit * 0.09,
+      dx: -9 - hit * 2, dy: -2, hit: hit, gx: gx, gy: gy
+    };
   }
 
-  /* Fluid moves. A clot in it wobbles as it goes rather than sliding about
-     like a sticker. */
-  function drawGore(ctx, x, i, t, on) {
-    const sk = PD.art.skinFor(null);
-    const skin = sk.P.skin, lite = sk.P.skinL, dark = sk.P.skinD;
-    ctx.save();
-    ctx.beginPath(); ctx.rect(x - TW / 2, TY, TW, TH); ctx.clip();
-    ctx.globalAlpha = on ? 0.95 : 0.68;
-    for (const q of GORE[i]) {
-      const a = q.roll + t * q.sp;
-      const px = x + q.cx + Math.cos(a) * q.rx;
-      const py = TY + q.cy + Math.sin(a * 1.3 + q.ph) * q.ry * 0.5;
-      // whatever has come off it hangs in the fluid behind it
-      const back = Math.atan2(Math.sin(a * 1.3 + q.ph), Math.cos(a));
-      for (let b = 1; b <= 3; b++) {
-        ctx.globalAlpha = (on ? 0.1 : 0.06) / b;
-        X.blob(ctx, px - Math.cos(back) * b * 4, py - Math.sin(back) * b * 2.5,
-          1.4 + b * 1.1, 1 + b * 0.8, MEATD);
-      }
-      ctx.globalAlpha = on ? 0.95 : 0.68;
-      ctx.save();
-      ctx.translate(Math.round(px), Math.round(py));
-      ctx.rotate(a * q.spin + Math.sin(t * 0.6 + q.ph) * 0.3);
-      ctx.scale(q.s, q.s);
-      if (q.kind === 0) severedArm(ctx, t, q.ph, skin, lite, dark);
-      else if (q.kind === 1) severedHand(ctx, t, q.ph, skin, lite, dark);
-      else {
-        // a scrap: a knuckle of meat with a shard of bone through it
-        X.blob(ctx, 0, 0, 3.4, 2.6, MEAT);
-        X.blob(ctx, -1, -1, 1.8, 1.4, MEATL);
-        X.rect(ctx, -3, 0, 6, 1, BONED);
-        X.curve(ctx, 2, 0, 6, Math.sin(t * 2.6 + q.ph) * 3, 10,
-          Math.sin(t * 2.6 + q.ph) * 5, MEATD, 1, 6);
-      }
-      ctx.restore();
-    }
-    ctx.globalAlpha = 1;
-    ctx.restore();
+  /* The one who has stopped trying: head down, hands up at the face, and the
+     shoulders going every couple of seconds. */
+  function cryPose(x, y, t, i) {
+    const sob = Math.max(0, Math.sin(t * 1.1 + i)) * Math.abs(Math.sin(t * 9));
+    return {
+      grip: { x: x - 9, y: y - 22 - sob * 2 }, flip: true, face: F_BLINK,
+      ang: 0.12 + sob * 0.04, squash: 1 - 0.06 - sob * 0.05,
+      dx: 2, dy: 2 + sob, hit: 0
+    };
   }
 
-  /* The thing in the jar: your own sprite, floating, eyes shut -- except when
-     they are not. */
+  /* The one who is asleep, hanging in the middle of it, going nowhere. */
+  function sleepPose(x, y, t, i) {
+    return {
+      grip: null, flip: false, face: F_BLINK,
+      ang: -0.92 + Math.sin(t * 0.42 + i) * 0.08,
+      squash: 1 - 0.04, dx: -2 + Math.sin(t * 0.31 + i) * 4, dy: -10 + Math.sin(t * 0.55) * 3,
+      hit: 0, limp: 1
+    };
+  }
+
+  /* The body in the jar: the whole rig, tentacles and all, posed by mood. */
   function drawSpecimen(ctx, g, x, y, t, i, on) {
     const sk = PD.art.skinFor(g.save ? g.save.cos : null);
-    const spr = sk.alienCore;
-    const fl = Math.sin(t * 0.9 + i * 2) * 4;
-    const cv = spr.frames[0];
-    const hd = spr.hd || 1;
-    // once in a while the whole thing kicks, all at once, and then stops
-    const tw = (U.hash2(Math.floor(t * 0.5) + i * 13, 7) > 0.94)
-      ? Math.sin(t * 41) * (1 - ((t * 0.5) % 1)) : 0;
+    if (!RIGS[i]) RIGS[i] = PD.rig.make();
+    const r = RIGS[i];
+    const mood = MOOD[i % MOOD.length];
+    const lt = S.t;                       // the same clock the knock runs off
+    const fl = Math.sin(lt * 0.9 + i * 2) * 3;
+    const p = mood === 'bang' ? bangPose(x, y, lt, i)
+      : (mood === 'cry' ? cryPose(x, y, lt, i) : sleepPose(x, y, lt, i));
+    const bx = x + p.dx, by = y + p.dy + fl;
 
-    // the feed: four straight lengths of hose out of the cap and into his
-    // chest, drawn before him so he hangs in front of it
-    const cy0 = y + fl - 24;
+    // the feed: four lengths of clean hose out of the cap into his shoulder
+    const cy0 = by - 30;
     ctx.globalAlpha = on ? 0.85 : 0.62;
-    const HOSE = [[x + 20, TY], [x + 22, TY + 24], [x + 18, cy0 - 22], [x + 14, cy0 - 6], [x + 10, cy0]];
+    const HOSE = [[x + 21, TY], [x + 23, TY + 22], [x + 19, cy0 - 20], [x + 15, cy0 - 6], [x + 11, cy0]];
     for (let q = 0; q < HOSE.length - 1; q++) {
       X.limb(ctx, HOSE[q][0], HOSE[q][1], HOSE[q + 1][0], HOSE[q + 1][1],
         4 - q * 0.5, 3.5 - q * 0.5, '#2c5e58', '#68b0a0', '#0e1e20');
       if (q) X.rect(ctx, HOSE[q][0] - 3, HOSE[q][1] - 1, 6, 3, '#7fc4b0');
     }
-    ctx.globalAlpha = 0.55;
-    for (let q = 0; q < 5; q++) {                  // and what is going back up it
+    ctx.globalAlpha = 0.5;
+    for (let q = 0; q < 5; q++) {                  // and what is going down it
       const f = ((t * 0.24 + q * 0.2) % 1) * (HOSE.length - 1);
       const j = Math.min(HOSE.length - 2, Math.floor(f)), u = f - j;
       X.rect(ctx, U.lerp(HOSE[j][0], HOSE[j + 1][0], u), U.lerp(HOSE[j][1], HOSE[j + 1][1], u),
-        1, 2, u > 0.5 ? MEATL : MEATD);
+        1, 2, u > 0.5 ? '#c4fff6' : '#4fd0b0');
     }
     ctx.globalAlpha = 1;
 
     ctx.save();
-    ctx.globalAlpha = on ? 0.95 : 0.7;
-    ctx.translate(Math.round(x + tw * 2), Math.round(y + fl));
-    ctx.rotate(Math.sin(t * 0.5 + i) * 0.06 + tw * 0.06);
-    ctx.drawImage(cv, -spr.ox, -spr.oy, cv.width / hd, cv.height / hd);
-    // the shoulder one of those arms came off
-    X.blob(ctx, -9, -30, 4, 3.4, MEATD);
-    X.blob(ctx, -9, -30, 2.6, 2.2, MEAT);
-    X.blob(ctx, -10, -30, 1.2, 1.2, BONE);
-    for (let q = 0; q < 3; q++) {
-      X.curve(ctx, -10, -30 + q, -15, -28 + Math.sin(t * 1.8 + q) * 3,
-        -19, -24 + Math.sin(t * 1.8 + q) * 5, q & 1 ? MEAT : MEATD, 1, 7);
-    }
-    // and the socket the hose is screwed into
-    X.blob(ctx, 10, -24, 3.4, 3, '#0e1e20');
-    X.blob(ctx, 10, -24, 2.4, 2.2, MEAT);
-    X.rect(ctx, 8, -25, 5, 2, '#7fc4b0');
-    ctx.restore();
-    // and every so often it opens an eye and finds you
-    const look = U.hash2(Math.floor(t * 0.34) + i * 7, 23);
-    if (look > 0.82) {
-      const f = 1 - ((t * 0.34) % 1);
-      ctx.globalAlpha = (on ? 1 : 0.8) * Math.min(1, f * 3);
-      for (const s2 of [-1, 1]) {
-        X.blob(ctx, x + s2 * 4, y + fl - 41, 2, 1.4, '#ff3a4a');
-        X.blob(ctx, x + s2 * 4, y + fl - 41, 4, 3, 'rgba(255,58,74,0.18)');
+    ctx.beginPath(); ctx.rect(x - TW / 2, TY, TW, TH); ctx.clip();
+    ctx.globalAlpha = on ? 0.95 : 0.72;
+    PD.rig.draw(ctx, r, {
+      x: bx, y: by, flip: p.flip, spr: sk.alienCore, frame: p.face,
+      drilling: false, twoHand: false, grip: p.grip,
+      aim: p.grip ? Math.atan2(p.grip.y - (by - 6.5), p.grip.x - (bx - 4)) : Math.PI,
+      ground: false, vx: 0, vy: p.limp ? 8 : 0, ang: p.ang,
+      squash: p.squash, ragdoll: !!p.limp
+    }, sk.P, PD.art.BIZ);
+    ctx.globalAlpha = 1;
+
+    // what each of them leaves in the water
+    if (mood === 'bang') {
+      S.hit[i] = p.hit; S.hitY[i] = p.gy;
+      for (let k = 0; k < 5; k++) {
+        const up = ((t * 26 + k * 13) % 52);
+        ctx.globalAlpha = U.clamp(1 - up / 52, 0, 1) * 0.7;
+        X.blob(ctx, x - TW / 2 + 6 + k * 2 + Math.sin(t * 3 + k) * 3, p.gy - up,
+          1 + (k % 2), 1 + (k % 2), '#d8fbff');
+        ctx.globalAlpha = 1;
       }
-      ctx.globalAlpha = 1;
+    } else if (mood === 'cry') {
+      // it does not go anywhere in here, which is the sad part
+      for (let k = 0; k < 7; k++) {
+        const f = ((t * 0.26 + k * 0.15) % 1);
+        ctx.globalAlpha = (1 - f) * 0.75;
+        X.blob(ctx, bx - 10 + Math.sin(t * 1.2 + k * 2) * 3 + k * 0.8,
+          by - 30 + f * 32, 2, 2.4, '#d8f4ff');
+        ctx.globalAlpha = 1;
+      }
+    } else {
+      // out cold, and letting everyone know
+      for (let k = 0; k < 3; k++) {
+        const f = ((t * 0.22 + k * 0.34) % 1);
+        ctx.globalAlpha = (1 - f) * 0.8;
+        F.draw(ctx, 'Z', bx + 4 + f * 16 + Math.sin(f * 6) * 3, by - 30 - f * 34,
+          '#c4fff6', { center: true, scale: f > 0.45 ? 2 : 1, shadow: '#062018' });
+        ctx.globalAlpha = 1;
+      }
     }
-    ctx.globalAlpha = 0.22;
-    X.rect(ctx, x - 30, y - 44, 60, 46, '#1a6a58');
+    ctx.restore();
+
+    // the tank light lying over the whole of him
+    ctx.globalAlpha = 0.2;
+    X.rect(ctx, x - TW / 2, TY, TW, TH, '#1a6a58');
     ctx.globalAlpha = 1;
   }
 

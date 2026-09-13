@@ -783,9 +783,8 @@
      Four beats, each with its own picture and its own lines. Any key moves
      it on; escape walks out of the whole thing. */
   const IN_S = {
-    beat: 0, t: 0, line: 0, chars: 0, pop: 0, reel: [0, 0, 0], spin: 3, chips: [], flash: 0, done: 0
+    beat: 0, t: 0, line: 0, chars: 0, pop: 0, flash: 0, done: 0
   };
-  const SYMS = ['coin', 'ore', 'planet', 'skull', 'star'];
 
   /* =====================================================================
      THE NIGHT YOU LOST IT
@@ -866,7 +865,7 @@
       { y: 120, s: 0.46, n: 30, x0: -420, x1: 1070, gap: null },   // the mezzanine
       { y: 200, s: 0.54, n: 26, x0: -400, x1: 1050, gap: null },   // the back of the floor
       { y: 240, s: 0.90, n: 29, x0: -390, x1: 1030, gap: [214, 540] },
-      { y: 302, s: 1.55, n: 21, x0: -360, x1: 1010, gap: [252, 604] } // right under your nose
+      { y: 334, s: 1.95, n: 19, x0: -380, x1: 1020, gap: [236, 620] } // right under your nose
     ];
     ROWS.forEach((R, ri) => {
       for (let i = 0; i < R.n; i++) {
@@ -2028,77 +2027,6 @@
     drawShouts(ctx, t);
   }
 
-  /* Six of them standing between you and the camera, drawn in screen space so
-     they stay enormous however far the shot pulls back. Nothing but silhouette
-     and a rim of whatever colour the room is throwing about -- they are the
-     bottom edge of the frame, not characters. */
-  const SIL = [];
-  for (let i = 0; i < 6; i++) {
-    SIL.push({ x: -10 + i * 98 + U.hash2(i, 3) * 30, w: 27 + U.hash2(i, 7) * 15,
-      h: 96 + U.hash2(i, 11) * 44, ph: U.hash2(i, 13) * U.TAU,
-      crest: Math.floor(U.hash2(i, 17) * 3), col: HUES[i % HUES.length] });
-  }
-  function drawSilhouettes(ctx, t) {
-    const k = U.clamp((1.05 - CAM.z) / 0.35, 0, 1);
-    if (k <= 0.01) return;
-    const hot = UNI.lost ? 0 : UNI.hype;
-    const INK = '#150b22', RIM = '#2a1840';
-    ctx.globalAlpha = k;
-    for (const s2 of SIL) {
-      const jump = Math.max(0, Math.sin(t * (2 + hot * 7) + s2.ph)) * (3 + hot * 20);
-      const y = VH + 2 - jump;                     // the line of their shoulders
-      const w = s2.w, h = s2.h;
-      const hy = y - h * 0.46;                     // the middle of the head
-      const hr = w * 0.42, hry = hr * 1.14;        // a head, not a column
-      // arms, up and waving, drawn behind the body so they read as behind them
-      if (hot > 0.35) {
-        for (const sd of [-1, 1]) {
-          const wag = Math.sin(t * (6 + s2.ph) + (sd > 0 ? 0 : 1.4)) * 6;
-          // a bent arm with a fist on the end of it, not a scaffolding pole
-          const shx = s2.x + sd * w * 0.72, shy = y + 4;
-          const elx = shx + sd * w * 0.5, ely = shy - h * 0.26;
-          const fx = elx + sd * w * 0.22 + wag, fy = hy - hry * 1.5 - hot * 14;
-          X.limb(ctx, shx, shy, elx, ely, 13, 10, INK, RIM, INK);
-          X.limb(ctx, elx, ely, fx, fy, 10, 7, INK, RIM, INK);
-          X.blob(ctx, fx, fy - 2, 7, 7, INK);
-          ctx.globalAlpha = k * 0.35;
-          X.blob(ctx, fx - 3, fy - 6, 3, 1.5, s2.col);
-          ctx.globalAlpha = k;
-        }
-      }
-      // shoulders and chest: a wedge, wider at the bottom, cut off by the frame
-      X.poly(ctx, [[s2.x - w, VH + 60], [s2.x - w * 0.86, y + 6],
-        [s2.x - hr * 0.9, y - h * 0.1], [s2.x + hr * 0.9, y - h * 0.1],
-        [s2.x + w * 0.86, y + 6], [s2.x + w, VH + 60]], INK);
-      X.rect(ctx, s2.x - hr * 0.52, hy, hr * 1.04, y - h * 0.08 - hy, INK);   // the neck
-      X.blob(ctx, s2.x, hy, hr, hry, INK);                                    // the head
-      // whatever is on top of it
-      if (s2.crest === 0) {
-        for (const sd of [-1, 1]) {
-          X.limb(ctx, s2.x + sd * hr * 0.4, hy - hry * 0.5,
-            s2.x + sd * hr * 1.1, hy - hry * 2 + Math.sin(t * 3 + s2.ph) * 3, 4, 3, INK, RIM, INK);
-        }
-      } else if (s2.crest === 1) {
-        for (let f = -2; f <= 2; f++) {
-          const hgt = hry * (1.1 - Math.abs(f) * 0.22);
-          X.rect(ctx, s2.x + f * (hr * 0.4) - 2, hy - hry * 0.7 - hgt, 4, hgt + 4, INK);
-        }
-      } else {
-        X.blob(ctx, s2.x, hy - hry * 0.7, hr * 1.35, hry * 0.34, INK);        // a wide flat skull
-        X.blob(ctx, s2.x - hr * 1.05, hy - hry * 0.2, hr * 0.4, hry * 0.5, INK);
-        X.blob(ctx, s2.x + hr * 1.05, hy - hry * 0.2, hr * 0.4, hry * 0.5, INK);
-      }
-      // the room, catching along the top of the skull and one shoulder
-      ctx.globalAlpha = k * 0.62;
-      X.blob(ctx, s2.x - hr * 0.22, hy - hry * 0.82, hr * 0.6, 1.5, s2.col);
-      X.blob(ctx, s2.x - hr * 0.95, hy - hry * 0.1, 1.5, hry * 0.5, s2.col);
-      ctx.globalAlpha = k * 0.32;
-      X.blob(ctx, s2.x - w * 0.82, y + 14, 2, h * 0.1, s2.col);
-      ctx.globalAlpha = k;
-    }
-    ctx.globalAlpha = 1;
-  }
-
   function drawUniversal(ctx, g, t) {
     const sh = UNI.shake > 0 ? Math.sin(t * 58) * UNI.shake * 5 : 0;
     ctx.save();
@@ -2107,7 +2035,6 @@
     ctx.translate(-CAM.x, -CAM.y);
     drawHall(ctx, g, t, {});
     ctx.restore();
-    drawSilhouettes(ctx, t);
 
     if (UNI.flash > 0) {
       ctx.fillStyle = 'rgba(255,90,77,' + (UNI.flash * 0.5).toFixed(2) + ')';
@@ -2512,7 +2439,7 @@
   function enterIntro(g) {
     ensureArt();
     IN_S.beat = 0; IN_S.t = 0; IN_S.line = 0; IN_S.chars = 0; IN_S.pop = 0; IN_S.quit = 0;
-    IN_S.reel = [0, 0, 0]; IN_S.spin = 3.2; IN_S.chips.length = 0; IN_S.flash = 0;
+    IN_S.flash = 0;
     IN_S.done = 0; IN_S.inClub = 1;
     g.save.story = 1;
     g.saveGame();
@@ -2525,13 +2452,6 @@
   function nextBeat(g) {
     IN_S.beat++; IN_S.t = 0; IN_S.line = 0; IN_S.chars = 0; IN_S.pop = 0;
     if (IN_S.beat >= BEATS.length) { finishIntro(g); return; }
-  }
-
-  function spillChips() {
-    for (let i = 0; i < 40; i++) {
-      IN_S.chips.push({ x: 240 + U.rand(-40, 40), y: 190, vx: U.rand(-180, 180), vy: U.rand(-220, -60),
-        a: U.rand(0, U.TAU), va: U.rand(-8, 8), life: U.rand(1.2, 2.6) });
-    }
   }
 
   function finishIntro(g) {
@@ -2568,20 +2488,6 @@
     if (IN.hit('Escape')) { finishIntro(g); return; }
     IN_S.pop = Math.min(1, IN_S.pop + dt * 4.5);
     IN_S.flash = Math.max(0, IN_S.flash - dt * 2.2);
-    if (IN_S.spin > 0) {
-      IN_S.spin -= dt;
-      for (let i = 0; i < 3; i++) {
-        if (IN_S.spin < i * 0.5) continue;
-        IN_S.reel[i] = (IN_S.reel[i] + dt * (34 - i * 6)) % SYMS.length;
-      }
-      if (IN_S.spin <= 0) IN_S.reel = [3, 3, 3];           // three skulls
-    }
-    for (let i = IN_S.chips.length - 1; i >= 0; i--) {
-      const c = IN_S.chips[i];
-      c.x += c.vx * dt; c.y += c.vy * dt; c.vy += 320 * dt; c.a += c.va * dt; c.life -= dt;
-      if (c.life <= 0) IN_S.chips.splice(i, 1);
-    }
-
     const b = BEATS[IN_S.beat];
     if (!b) { finishIntro(g); return; }
     const line = b.lines[IN_S.line] || '';
@@ -2596,145 +2502,6 @@
       return;
     }
     if (IN_S.t > b.dur) nextBeat(g);
-  }
-
-  /* ---- the casino: neon, a carpet nobody has ever cleaned, one machine ---- */
-  function drawCasino(ctx, g, t) {
-    ctx.fillStyle = '#180c22'; ctx.fillRect(0, 0, VW, VH);
-    // a wall of dead neon and one live sign
-    for (let i = 0; i < 9; i++) {
-      const bx = 12 + i * 54, on = Math.sin(t * 3 + i) > -0.3;
-      X.rect(ctx, bx, 16, 36, 3, on ? '#ff5fa8' : '#4a1c3a');
-      X.rect(ctx, bx, 24, 36, 3, on ? '#7ef9ff' : '#12384a');
-    }
-    F.draw(ctx, 'THE LUCKY VOID', VW / 2, 36, Math.sin(t * 7) > -0.2 ? '#ffd34d' : '#6a5a1a',
-      { center: true, scale: 3, shadow: '#3a0c30' });
-    // carpet
-    X.rect(ctx, 0, 206, VW, VH - 206, '#4a1230');
-    for (let x = 0; x < VW; x += 16) {
-      X.rect(ctx, x, 206, 8, VH - 206, '#5c1a3c');
-      X.rect(ctx, x + 4, 214, 6, 6, '#7a2450');
-    }
-    X.rect(ctx, 0, 204, VW, 3, '#2a0a1c');
-
-    /* the machine */
-    const mx = 238, my = 84;
-    X.plate(ctx, mx - 62, my - 16, 124, 122, '#2a1a3a', '#4a3660', '#120a1c', 6);
-    X.plate(ctx, mx - 52, my - 6, 104, 46, '#0d0718', '#3a2a52', '#000000', 4);
-    for (let i = 0; i < 3; i++) {
-      const rx = mx - 46 + i * 32;
-      X.rect(ctx, rx, my, 28, 34, '#e8e4d0');
-      X.rect(ctx, rx, my, 28, 2, '#8e8874');
-      const idx = Math.floor(IN_S.reel[i]) % SYMS.length;
-      const blur = IN_S.spin > i * 0.5;
-      if (blur) {
-        for (let k = -1; k <= 1; k++) {
-          ctx.globalAlpha = k ? 0.3 : 0.8;
-          PD.glyph.draw(ctx, SYMS[(idx + k + SYMS.length) % SYMS.length], rx + 7, my + 10 + k * 12, '#3a2a52', '#8a7ab0');
-        }
-        ctx.globalAlpha = 1;
-      } else {
-        PD.glyph.draw(ctx, SYMS[idx], rx + 7, my + 10, idx === 3 ? '#c22a4a' : '#3a2a52', '#8a7ab0');
-      }
-    }
-    // the payline, and the lever he should never have pulled
-    X.rect(ctx, mx - 52, my + 16, 104, 1, IN_S.spin <= 0 ? '#ff5a4d' : '#8a2f4a');
-    const lever = IN_S.spin > 2.6 ? 16 : 0;
-    X.line(ctx, mx + 66, my + 40 + lever, mx + 66, my + 10 + lever, '#8a7ab0', 3);
-    X.blob(ctx, mx + 66, my + 8 + lever, 6, 6, '#c22a4a');
-    F.draw(ctx, 'INSERT EVERYTHING', mx, my + 46, '#8a7ab0', { center: true, shadow: false });
-    // the payout tray, empty
-    X.plate(ctx, mx - 40, my + 62, 80, 22, '#120a1c', '#3a2a52', '#000000', 3);
-    if (IN_S.beat >= 1) F.draw(ctx, 'NO', mx, my + 68, '#ff5a4d', { center: true, scale: 2, shadow: '#3a0c30' });
-
-    // our man, at the lever, in trouble
-    const al = PD.art.sprites.alien;
-    const K = 1.2, bob = Math.sin(t * 2.4) * 2;
-    const ax = mx + 104, ay = 206 - (al.h - al.oy) * K + bob;
-    ctx.drawImage(al.frames[Math.floor(t * 6) % 4], 0, 0, al.frames[0].width, al.frames[0].height,
-      Math.round(ax - al.ox * K), Math.round(ay - al.oy * K), Math.round(al.w * K), Math.round(al.h * K));
-
-    for (const c of IN_S.chips) {
-      ctx.save();
-      ctx.translate(c.x | 0, c.y | 0); ctx.rotate(c.a);
-      X.blob(ctx, 0, 0, 5, 5, '#0a0614');
-      X.blob(ctx, 0, 0, 4, 4, '#ffd34d');
-      X.blob(ctx, 0, 0, 2, 2, '#e8a02a');
-      ctx.restore();
-    }
-  }
-
-  /* ---- the number, and the shadow that falls across it ---- */
-  function drawDebtCard(ctx, g, t) {
-    drawUniversal(ctx, g, t);
-    ctx.fillStyle = 'rgba(6,3,14,0.88)'; ctx.fillRect(0, 0, VW, VH);
-    const f = U.clamp(IN_S.t / 1.6, 0, 1);
-    const n = Math.round(DEBT0 * f * f);
-    /* A receipt to put the number on, so the slot machine behind it does not
-       read through the zeroes. */
-    X.plate(ctx, 40, 60, VW - 80, 82, 'rgba(4,2,10,0.96)', '#b02a3a', '#000000', 5);
-    F.draw(ctx, 'YOU OWE', VW / 2, 74, '#8a7ab0', { center: true, scale: 2, shadow: '#0a0614' });
-    F.draw(ctx, '$' + n.toLocaleString(), VW / 2, 98, f >= 1 && Math.sin(t * 8) > 0 ? '#ff5a4d' : '#ffd34d',
-      { center: true, scale: 5, shadow: '#3a0c30' });
-    if (f >= 1) {
-      // his shadow, arriving
-      const s = U.clamp((IN_S.t - 1.8) / 1.4, 0, 1);
-      ctx.globalAlpha = s * 0.85;
-      X.poly(ctx, [[VW / 2 - 150 * s, VH], [VW / 2 + 150 * s, VH],
-        [VW / 2 + 90 * s, VH - 150 * s], [VW / 2 - 90 * s, VH - 150 * s]], '#05020c');
-      if (s > 0.5) {
-        // and then the shark himself, rising into the bottom of the frame
-        const a = ensureArt();
-        const k = (s - 0.5) * 2;
-        ctx.globalAlpha = 1;
-        ctx.save();
-        ctx.translate(Math.round(VW / 2 - CCX * 1.6), Math.round(VH - 18 - CBASE * 1.6 * k));
-        ctx.scale(1.6, 1.6);
-        ctx.drawImage(a.real[0][0], 0, 0);
-        ctx.restore();
-      }
-      ctx.globalAlpha = 1;
-    }
-  }
-
-  /* ---- the deal: he is in the room and he is very close ---- */
-  function drawDeal(ctx, g, t) {
-    ctx.fillStyle = '#0d0718'; ctx.fillRect(0, 0, VW, VH);
-    // an alley behind him, one bulb
-    for (let i = 0; i < 5; i++) X.rect(ctx, 20 + i * 100, 0, 60, VH, '#120a1c');
-    X.blob(ctx, 86, 22, 40, 34, 'rgba(255,211,77,0.08)');
-    X.rect(ctx, 82, 6, 8, 12, '#3a2a52');
-    X.blob(ctx, 86, 20, 5, 5, '#ffe9a8');
-    X.rect(ctx, 0, 214, VW, VH - 214, '#1a1024');
-    X.rect(ctx, 0, 212, VW, 2, '#2a1c33');
-
-    // our man, small, on the right, being talked at
-    const al = PD.art.sprites.alien;
-    const K = 1.1, bob = Math.sin(t * 2) * 1.5;
-    const ax = 392, ay = 214 - (al.h - al.oy) * K + bob;
-    ctx.drawImage(al.frames[Math.floor(t * 5) % 4], 0, 0, al.frames[0].width, al.frames[0].height,
-      Math.round(ax - al.ox * K), Math.round(ay - al.oy * K), Math.round(al.w * K), Math.round(al.h * K));
-    // the watch goes on at the fifth line
-    if (IN_S.line >= 4) {
-      X.plate(ctx, ax - 22, ay - 26, 14, 10, '#2a2438', '#453c5c', '#0a0614', 2);
-      X.rect(ctx, ax - 19, ay - 24, 8, 6, Math.sin(t * 6) > 0 ? '#7ef9ff' : '#0d5a78');
-    }
-
-    // MR CHUM, in the flesh, at twice the size of you, with the case he
-    // carries your future around in
-    const a = ensureArt();
-    const lean = Math.sin(t * 1.3) * 3;
-    X.plate(ctx, 14, 176, 26, 38, '#1d1828', '#3a3150', '#0a0614', 4);
-    X.rect(ctx, 14, 190, 26, 2, '#3a3150');
-    X.rect(ctx, 24, 158, 6, 20, '#3a3150');
-    X.rect(ctx, 19, 155, 16, 5, '#3a3150');
-    X.rect(ctx, 32, 196, 5, 5, '#ffd34d');
-    const talk = IN_S.chars < (BEATS[2].lines[IN_S.line] || '').length && Math.floor(t * 9) % 2 === 0;
-    ctx.save();
-    ctx.translate(Math.round(104 - CCX * 2 + lean), Math.round(214 - CBASE * 2));
-    ctx.scale(2, 2);
-    ctx.drawImage(a.real[talk ? 1 : 0][0], 0, 0);
-    ctx.restore();
   }
 
   /* ---- and out, over the moon he now owns ---- */
@@ -2824,6 +2591,8 @@
     enterIntro, updateIntro, drawIntro, enterGamble, B_OF,
     call, update, draw, active, takeCut, drawDebt, DEBT0, S, IN_S, HS, LESSONS,
     leadStep, drawMini, miniFrame, MS, MW, MH, MCX, MBASE,
-    artFor: ensureArt, CW, CH, CCX, CBASE, UNI, CAM, CROWD
+    artFor: ensureArt, CW, CH, CCX, CBASE, UNI, CAM, CROWD,
+    /* the house style, shared with the room you walk through to get here */
+    reelWorld, HUES
   };
 })(window.PD);
