@@ -1705,17 +1705,7 @@
 
     if (S.scene !== 'club') drawRat(ctx, g, cam, t);
     drawPlayer(ctx, g, cam, t);
-    /* And the small one, who does not follow you anywhere. He goes on ahead to
-       whatever he has decided you should be doing and waits there. */
-    if (g.save.seenIntro && !PD.chum.active() && !UI.mode) {
-      const bd = bounds();
-      const m = PD.chum.leadStep(g.dt, g, {
-        px: P.x, goals: leadGoals(g), key: S.scene + ':' + (g.save.trash || 0),
-        lo: bd[0] + 6, hi: bd[1] - 6
-      });
-      PD.chum.drawMini(ctx, Math.round(m.x - cam), Math.round(groundY(m.x)), t,
-        Math.round(VIEW.x) + 4, Math.round(VIEW.x) + ZW - 4);
-    }
+
   }
 
   /* Signs, speech and the sleep fade, drawn on the screen at screen size so
@@ -1743,6 +1733,13 @@
     }
     // what you still owe the shark, where the top bar used to be
     PD.chum.drawDebt(ctx, g, 8, VH - 30);
+    /* And the small one, standing on it. He does not walk about in the scene
+       any more -- he lives in this corner, points at whatever you ought to be
+       doing, and is rude about how long it is taking. */
+    if (g.save.seenIntro && !PD.chum.active() && !UI.mode && S.sleep <= 0) {
+      PD.chum.leadStep(g.dt, g, { px: P.x, goals: leadGoals(g), key: S.scene + ':' + (g.save.trash || 0) });
+      PD.chum.drawMini(ctx, 28, VH - 34, t, 4, VW - 4);
+    }
   }
 
   /* Kept for anything that still wants the whole thing in one call. */

@@ -154,6 +154,10 @@
      and a shrug: walking, idling, waving you over, both fins up in disgust,
      pointing at the thing, and squashed and stretched for the bounce. */
   const MW = 28, MH = 26, MCX = 14, MBASE = 25;   // wide enough for a pointing fin
+  /* Where he lives. He used to walk about in the middle of the scene and get
+     in front of whatever you were trying to look at; he now stands in the
+     bottom-left corner, on the book of what you owe him, and stays there. */
+  const CORNER = { x: 28, y: VH - 34 };
 
   function buildMini(P, o) {
     o = o || {};
@@ -261,19 +265,23 @@
     'A MILLION. WITH AN M.',
     'I HAVE OTHER CLIENTS. THEY ARE ALL FASTER.'
   ];
-  const BECKONS = ['COME ON.', 'HERE. NOW.', 'OVER HERE.', 'WITH ME.'];
+  const BECKONS = ['COME ON.', 'THAT WAY. STILL.', 'ANY TIME NOW.', 'I AM WAITING.'];
+  const ARRIVED = [
+    'THERE. WAS THAT SO HARD.', 'GOOD. PRESS E. DO NOT MAKE ME SAY IT AGAIN.',
+    'FINALLY. GET ON WITH IT.', 'YES. THAT ONE. THAT IS THE ONE.'
+  ];
 
   const MS = {
     x: 0, y: 0, dir: 1, ph: 0, on: 0, pop: 0,
-    mode: 'lead', goal: null, key: '', gi: 0, t: 0,
-    say: null, sayT: 0, hop: 0, z: 0, dz: 0, nag: 6
+    mode: 'lead', goal: null, key: '', gi: 0, t: 0, point: 1, dist: 0,
+    say: null, sayT: 0, hop: 0, z: 0, dz: 0, nag: 20
   };
   function mtalk(line, dur) { MS.say = line; MS.sayT = dur || 3; }
   function mset(mode) { MS.mode = mode; MS.t = 0; }
 
   function leadStep(dt, g, o) {
     const M = MS;
-    if (!M.on) { M.x = o.px + 30; M.on = 1; M.pop = 0; M.gi = 0; }
+    if (!M.on) { M.on = 1; M.pop = 0; M.gi = 0; }
     M.pop = Math.min(1, M.pop + dt * 2);
     M.t += dt;
     M.sayT = Math.max(0, M.sayT - dt);
@@ -284,53 +292,48 @@
       M.key = o.key;
       M.goal = o.goals.length ? o.goals[M.gi % o.goals.length] : null;
       mset('lead');
+      if (M.goal) mtalk(M.goal.line, 3.4);
     }
-    let tx = M.goal ? M.goal.x : o.px;
-    // never get stranded a screen away from the person you are leading
-    if (Math.abs(o.px - tx) > 170) tx = o.px + Math.sign(tx - o.px) * 90;
-    if (o.lo !== undefined) tx = U.clamp(tx, o.lo, o.hi);
-
-    const dx = tx - M.x;
-    const near = Math.abs(o.px - M.x) < 54;
-    const walking = M.mode === 'lead' && Math.abs(dx) > 5;
+    /* He does not go anywhere any more. He stands in the corner and points at
+       where you ought to be, and the arrow beside him does the rest. */
+    const gx = M.goal ? M.goal.x : o.px;
+    M.point = Math.sign(gx - o.px) || 1;
+    M.dist = Math.abs(gx - o.px);
+    const there = M.dist < 48;
+    M.dir = M.mode === 'lead' || M.mode === 'point' ? M.point : 1;
 
     if (M.mode === 'lead') {
-      if (walking) {
-        M.x += Math.sign(dx) * Math.min(Math.abs(dx), 82 * dt);
-        M.dir = Math.sign(dx);
-        M.ph += dt * 7;
-        M.hop += dt * 7.6;
-      } else { mset('wait'); }
-    } else {
-      if (M.mode !== 'point') M.dir = Math.sign(o.px - M.x) || M.dir;
-      if (M.mode === 'wait') {
-        if (near) { mset('point'); if (M.goal) mtalk(M.goal.line, 3.2); }
-        else if (M.t > 1.8) { mset('beckon'); mtalk(U.pick(BECKONS), 2); }
-      } else if (M.mode === 'beckon') {
-        if (near) { mset('point'); if (M.goal) mtalk(M.goal.line, 3.2); }
-        else if (M.t > 2.8) { mset('scold'); mtalk(U.pick(SCOLDS), 3); }
-      } else if (M.mode === 'scold') {
-        if (near) { mset('point'); if (M.goal) mtalk(M.goal.line, 3.2); }
-        else if (M.t > 3.2) mset('wait');
-      } else if (M.mode === 'point') {
-        M.dir = Math.sign((M.goal ? M.goal.x : o.px) - M.x) || M.dir;
-        if (M.t > 3.2) { M.gi++; M.goal = null; mset('lead'); }
-      }
-      // he does not stand still. He shifts his weight.
-      M.hop += dt * 2.4;
+      M.hop += dt * 7.6;
+      if (there) { mset('point'); mtalk(U.pick(ARRIVED), 2.6); }
+      else if (M.t > 3) mset('wait');
+    } else if (M.mode === 'wait') {
+      M.hop += dt * 2.2;
+      if (there) { mset('point'); mtalk(U.pick(ARRIVED), 2.6); }
+      else if (M.t > 9) { mset('beckon'); mtalk(U.pick(BECKONS), 2.2); }
+    } else if (M.mode === 'beckon') {
+      M.hop += dt * 3.4;
+      if (there) { mset('point'); mtalk(U.pick(ARRIVED), 2.6); }
+      else if (M.t > 3) { mset('scold'); mtalk(U.pick(SCOLDS), 3); }
+    } else if (M.mode === 'scold') {
+      M.hop += dt * 3.4;
+      if (there) { mset('point'); mtalk(U.pick(ARRIVED), 2.6); }
+      else if (M.t > 3.2) mset('wait');
+    } else if (M.mode === 'point') {
+      M.hop += dt * 2.2;
+      if (M.t > 3) { M.gi++; M.goal = null; }
     }
     // the bounce, and what it does to his shape
-    const z = walking ? Math.abs(Math.sin(M.hop)) * 5 : Math.abs(Math.sin(M.hop)) * 1.2;
+    const lively = M.mode === 'lead';
+    const z = Math.abs(Math.sin(M.hop)) * (lively ? 4 : 1);
     M.dz = (z - M.z) / Math.max(dt, 0.001);
     M.z = z;
 
-    // and the occasional unprompted remark
+    // and the occasional unprompted remark, which is now genuinely occasional
     M.nag -= dt;
     if (M.nag <= 0) {
-      M.nag = U.rand(10, 20);
-      if (!M.say && M.mode !== 'point') mtalk(U.pick(NAGS), 2.8);
+      M.nag = U.rand(26, 46);
+      if (!M.say && M.mode === 'wait') mtalk(U.pick(NAGS), 2.6);
     }
-    if (o.lo !== undefined) M.x = U.clamp(M.x, o.lo, o.hi);
     return M;
   }
 
@@ -341,10 +344,10 @@
        normal at the top -- keyed off height and speed rather than one of them,
        or he spends the whole cycle stretched. */
     if (M.mode === 'lead') {
-      if (M.z < 0.7 && M.dz < 0) return a.mini.squash;
-      if (Math.abs(M.dz) > 26) return a.mini.stretch;
+      if (M.z < 0.6 && M.dz < 0) return a.mini.squash;
+      if (Math.abs(M.dz) > 22) return a.mini.stretch;
     }
-    if (M.mode === 'lead') return a.mini.walk[M.say ? 1 : 0][Math.floor(M.ph) % 4];
+    if (M.mode === 'lead') return a.mini.point;
     if (M.mode === 'beckon') return a.mini.wave[Math.floor(t * 6) % 2];
     if (M.mode === 'scold') return a.mini.scold[Math.floor(t * 8) % 2];
     if (M.mode === 'point') return a.mini.point;
@@ -380,7 +383,15 @@
     ctx.drawImage(cv, 0, 0);
     ctx.restore();
     ctx.globalAlpha = 1;
-    if (M.say) miniBubble(ctx, x, by - MBASE - 4, M.say, M.sayT, lo, hi);
+    // the arrow: which way the thing he wants is, and how far off you are
+    if (M.goal && M.dist > 48) {
+      const ax = x + M.point * 23, k = Math.abs(Math.sin(t * 3));
+      ctx.globalAlpha = flick * (0.5 + k * 0.5);
+      for (let i = 0; i < 4; i++) X.rect(ctx, ax + M.point * i, y - 12 - i, 2, 1 + i * 2, '#7ef9ff');
+      X.rect(ctx, ax - M.point * 5, y - 13, 6, 3, '#7ef9ff');
+      ctx.globalAlpha = 1;
+    }
+    if (M.say) miniBubble(ctx, x + 10, by - MBASE - 4, M.say, M.sayT, lo, hi);
   }
 
   /* A small shark gets a small bubble. Unwrapped, one of his longer opinions
@@ -490,7 +501,7 @@
     if (S.call === id) return;
     if (S.call) { S.queue.push(id); return; }
     S.call = id; S.t = 0; S.lines = LESSONS[id]; S.line = 0; S.chars = 0; S.buzz = 1.2;
-    S.pop = 0; S.phase = 'in'; S.beam = 0; HS.x = VW * 0.42; HS.dir = 1; HS.ph = 0;
+    S.pop = 0; S.phase = 'in'; S.beam = 0; HS.x = CORNER.x; HS.dir = 1; HS.ph = 0;
     A.sfx.tone(760, { type: 'square', to: 1180, dur: 0.07, vol: 0.07 });
     A.sfx.tone(760, { type: 'square', to: 1180, dur: 0.07, vol: 0.07, delay: 0.14 });
     PD.touch.buzz(18);
@@ -520,9 +531,6 @@
     S.buzz = Math.max(0, S.buzz - dt);
     // pacing: forward until the wall, then about-face
     HS.ph += dt * 6.5;
-    HS.x += HS.dir * 24 * dt;
-    if (HS.x > VW - 74) { HS.x = VW - 74; HS.dir = -1; }
-    if (HS.x < 74) { HS.x = 74; HS.dir = 1; }
 
     // arriving, or leaving. Neither takes input.
     if (S.phase === 'in') {
@@ -572,7 +580,7 @@
     const e = o.pop >= 1 ? 1 : outBack(Math.max(0.001, o.pop));
     const dw = Math.max(12, Math.round(w * e)), dh = Math.max(10, Math.round(h * e));
     const wob = Math.round(Math.sin(o.t * 4.5));
-    const bx = Math.round(U.clamp(o.cx - dw / 2, 6, VW - dw - 6));
+    const bx = Math.round(U.clamp(o.anchorL !== undefined ? o.anchorL : o.cx - dw / 2, 6, VW - dw - 6));
     const by = Math.round(o.ty - 11 - dh) + wob;
     const tip = Math.round(U.clamp(o.tipX === undefined ? o.cx : o.tipX, bx + 11, bx + dw - 11));
 
@@ -661,8 +669,10 @@
 
   /* Where his feet go. The chart and the ABAY screen both keep a panel along
      the bottom edge, so on those he walks a stripe higher up. */
+  /* The chart and the computer both keep a panel along the bottom edge, so in
+     those two he stands a stripe higher. He stays in the same corner. */
   function groundY(g) {
-    return (g.state === 'starmap' || g.state === 'desk') ? VH - 70 : VH - 24;
+    return CORNER.y - ((g.state === 'starmap' || g.state === 'desk') ? 56 : 0);
   }
 
   function draw(ctx, g, t) {
@@ -677,7 +687,7 @@
     /* The watch on your own wrist. It sits bottom RIGHT, because bottom left
        is where the book of what you owe him lives. */
     const bz = S.buzz > 0 ? Math.round(U.rand(-2, 2)) : 0;
-    const wx = VW - 40 + bz, wy = gy - 10;
+    const wx = VW - 40 + bz, wy = gy + 4;
     X.plate(ctx, wx, wy, 22, 14, '#2a2438', '#453c5c', '#0a0614', 3);
     X.rect(ctx, wx + 4, wy + 3, 14, 8, '#0d5a78');
     X.rect(ctx, wx + 6, wy + 5, 10, 4, '#7ef9ff');
@@ -718,21 +728,18 @@
       beamDraw(ctx, cv, sx, sy, HS.dir < 0, bm, gy, flick, t, K);
     }
 
-    if (bm > 0.55) {
-      ctx.globalAlpha = (bm - 0.55) / 0.45;
-      F.draw(ctx, 'MR CHUM', HS.x, gy + 9, 'rgba(126,249,255,0.8)', { center: true, shadow: '#04202c' });
-      ctx.globalAlpha = 1;
-    }
+    // no name tag any more: the bubble says who it is, and the corner is
+    // small enough already without a caption under it
     if (bm < 1) return;                     // no bubble while he is materialising
 
     /* The bubble stays put in the middle while he walks about under it --
        a caption that slides around with him is unreadable -- and only the
        tail follows him. */
-    const rows = wrap(shown, 250, 1);
+    const rows = wrap(shown, 232, 1);
     const done = S.chars >= line.length;
     const more = S.line < S.lines.length - 1;
     speech(ctx, {
-      cx: VW / 2, tipX: HS.x, ty: gy - MH * 2 - 2, rows, scale: 1, pop: S.pop, t,
+      anchorL: HS.x - 12, tipX: HS.x + 4, ty: gy - MH * 2 - 2, rows, scale: 1, pop: S.pop, t,
       fill: '#cdf6ff', light: '#ffffff', dark: '#6fc8e0', ink: '#0a3446',
       foot: done ? (more ? 'E / TAP  MORE' : 'E / TAP  BYE') : null,
       foot2: Math.abs(Math.sin(t * 4)) > 0.4 ? '#0a3446' : '#6fc8e0'

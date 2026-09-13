@@ -626,17 +626,20 @@ On the galaxy chart and at the computer he paces a stripe higher up the
 screen, because both of those keep a panel along the bottom edge and he is
 rude but not illegible.
 
-## He does not follow you. You follow him.
+## He lives in the bottom-left corner
 
-The watch puts **a very small copy of him on the ground next to you** — about
-half your height, entirely round, in a suit the size of a stamp — and he is not
-a pet. He decides what you ought to be doing, walks off to it, and waits there.
+The watch puts a very small copy of him on screen — about half your height,
+entirely round, in a suit the size of a stamp — and he **stays in the
+bottom-left corner**, standing on the book of what you owe him. He used to walk
+about in the middle of the scene and get in front of whatever you were trying
+to look at. He does not do that any more.
 
-The loop is: **lead** (he bounces off to the next thing on his list),
-**wait** (he turns round and looks at you), **beckon** (a fin in the air and a
-`COME ON.`), **scold** (both fins up and something sharper), and **point** —
-which only happens once you have actually got there, and comes with the reason
-you were brought. Then he picks the next thing and goes.
+What he does instead is **point**. He picks the thing you ought to be doing,
+turns to face it, sticks a fin out, and a little arrow beside him says which
+way it is. The states are: **lead** (he bounces on the spot and tells you what
+it is), **wait** (he stands there), **beckon** after nine seconds of you not
+going, **scold** after another three, and **arrived** — which fires when *you*
+reach the thing, not when he does, and is the only nice thing he says.
 
 What is on his list depends on where you are and what state it is in: the
 heaps that are still on the moon, then the saucer, then the house; the computer
@@ -646,21 +649,21 @@ rebuilt whenever the scene or the state of the tip changes, which starts the
 tour again from the top.
 
 He has nine things to say when you keep him waiting and seven more he says
-unprompted, and he is not kind in any of them:
+unprompted — and the unprompted ones are now every twenty-six to forty-six
+seconds rather than every ten, because he is meant to be a guide and not a
+smoke alarm:
 
 > WALK. IT IS ONE OF THE TWO THINGS YOU DO.
 > I AM STANDING RIGHT HERE. I AM VERY BLUE.
 > YOU OWE ME A MILLION AND YOU ARE LOOKING AT A ROCK.
 > IS IT THE LEGS? IS THAT WHAT IT IS?
 
-He has a proper set of poses rather than a walk cycle and a shrug — walking,
-idling, waving you over, both fins up, pointing, and squashed and stretched for
-the bounce, which reads off his height and his speed rather than either on its
-own, or he would spend the whole cycle stretched.
-
-The one who turns up on a call is **the same small shark**, drawn at exactly
-twice size. He used to be eighty pixels tall and take up a third of the screen;
-this is a hologram of a shark, not a shark.
+The one who turns up on a **call** is the same small shark at exactly twice
+size, in the same corner, with the bubble hung off his left edge rather than
+stretched across the middle of the screen. He used to be eighty pixels tall and
+pace about; this is a hologram of a shark, not a shark. On the chart and at the
+computer he stands a stripe higher, because both of those keep a panel along
+the bottom edge.
 
 ## Nobody reads a caption bar
 
