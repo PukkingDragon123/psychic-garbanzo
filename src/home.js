@@ -209,7 +209,7 @@
   function goClub(g, story) {
     S.scene = 'club';
     place(g, story ? 120 : CLUB_SPOTS[0].x + 30);
-    if (story) { UI.mode = null; S.drunk = 1; say('YOU ARE UP. YOU ARE NOT WELL. THE BACK OF THE ROOM IS THAT WAY.'); }
+    if (story) { UI.mode = null; S.drunk = 0.45; say('YOU ARE UP. YOU ARE NOT WELL. THE BACK OF THE ROOM IS THAT WAY.'); }
     A.sfx.tone(90, { type: 'square', to: 60, dur: 0.3, vol: 0.1 });
   }
   function leaveClub(g) {
@@ -572,7 +572,7 @@
     updateRat(dt, g);
     if (S.scene === 'club') updateClub(dt, g);
     P.sweep = Math.max(0, P.sweep - dt);
-    if (S.drunk > 0 && g.save.story !== 1) S.drunk = Math.max(0, S.drunk - dt * 0.4);
+    S.drunk = Math.max(g.save.story === 1 ? 0.32 : 0, S.drunk - dt * 0.06);
 
     const use_ = P.lock <= 0 && (IN.hit('KeyE') || IN.hit('space'));
     const m = IN.mouse;

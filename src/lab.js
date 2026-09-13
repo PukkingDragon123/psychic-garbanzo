@@ -206,12 +206,6 @@
     ctx.rotate(Math.sin(t * 0.5 + i) * 0.06);
     ctx.drawImage(cv, -spr.ox, -spr.oy, cv.width / k, cv.height / k);
     ctx.restore();
-    // limp arms and legs, because he is asleep in a jar
-    for (let a = 0; a < 4; a++) {
-      const sx = x + (a % 2 ? 7 : -7), sy = y + fl - (a < 2 ? 14 : 2);
-      X.curve(ctx, sx, sy, sx + Math.sin(t + a) * 5, sy + 9, sx + Math.sin(t * 0.7 + a) * 8, sy + 18,
-        sk.P && sk.P.skin ? sk.P.skin : '#6abf5a', 3, 6);
-    }
     ctx.globalAlpha = 0.22;
     X.rect(ctx, x - 30, y - 44, 60, 46, '#1a6a58');
     ctx.globalAlpha = 1;

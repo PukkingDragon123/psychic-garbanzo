@@ -582,38 +582,71 @@ whether Mr Chum is allowed to stand in the corner of your screen at all.
 
 ## The night you lost it
 
-The first time a body is decanted it gets the whole night, in eight beats with
-a playable stretch in the middle.
+The first time a body is decanted it gets the whole night. There is no
+carpet-level opening any more: you come round on your feet in the club, walk to
+the back, and the game hands you the machine.
 
-1. **You wake up on a carpet.** You do not know whose carpet. There is a
-   machine at the back of the room with your name on it.
-2. **Then the game hands you the club** and gets out of the way. Walk to the
-   back. Mr Chum's arrow points at the only thing that matters.
-3. **THE UNIVERSAL**, shown the way the computer is shown — **first person**,
-   your own two hands in the bottom of the frame, the machine filling
-   everything else. It is a galaxy in a box: three reel windows on to open
-   space with a nebula and a turning spiral behind them, stars that streak when
-   it spins, and **planets instead of symbols** — a rock, an ocean, two ringed
-   gas giants and a living one, each drawn round and lit from the left. Ten
-   worlds in a row takes the lot. You pull the lever yourself and the worlds
-   come, all the way to **nine**. Then it asks whether you want to go on or
-   walk away, and it does not matter which you pick, because the tenth window
-   was always going to have a skull in it.
-4. **The number.** `$1,000,000`, counting up on a red-ruled receipt.
-5. **The floor.** You go down on the carpet, six inches from it, legs walking
-   past out of focus. Nobody stops dancing. Somebody steps over you to get to
-   the bar.
-6. **The drag.** Two of them pick you up and carry you out through the city:
+### THE UNIVERSAL
+
+The gamble is a **third-person casino hall**, not a first-person cabinet. You
+are in the shot the whole time, a fully-rigged body standing at the lever with
+one hand on the ball.
+
+The scene opens hard on the marquee and then **pulls all the way back** to show
+what you have walked into: a hall of machines running off both edges of the
+frame, a mezzanine with the cheap seats leaning over the rail, five chandeliers,
+four sweeping ceiling spots, three ranks of neon arches on the back wall, a
+banner over the middle of the room reading `THE GALAXY ROOM — NO CREDIT, NO
+REFUNDS, NO PITY`, patterned carpet with a velvet rope holding the crowd back,
+and a lit `EXIT` a long way off to the left.
+
+Around seventy-odd people watch you do it. Four ranks of procedurally generated
+aliens — the balcony, a far rank behind the machines, the rank at the rope, and
+a rank of near-black silhouettes across the bottom of the frame that the camera
+looks over. They have a **cheer pose** of their own (arms straight up, mouth
+open), and a cheer does not happen all at once: it **ripples outward** from the
+machine, everyone getting a head start proportional to how far away they are.
+The hotter the room gets the less any of them stay on the ground. They shout —
+`GO ON`, `TEN`, `ONE MORE` — in speech bubbles that refuse to sit on top of each
+other, they throw whatever they were holding, and they spill their drinks
+mid-jump.
+
+There is **no button to press**. You pull the lever: tap anywhere, or `E`. The
+lever goes down hard, holds, and springs back past the top; your arm rides it
+down and back because the hand is genuinely pinned to the ball by the rig's
+grip, and your whole body leans into the pull. The camera pushes in on the
+window while it spins and back out when it stops.
+
+The machine itself is a galaxy in a box. Three reel windows on to open space
+with a nebula and a turning spiral behind them, stars that streak when it spins,
+and **planets instead of symbols** — a rock, an ocean, two ringed gas giants and
+a living one, each drawn round and lit from the left. The three reels **stop one
+at a time**, each with its own thump, its own screen-shake and its own settle
+bounce, so the third one always arrives on its own. Ten worlds in a row takes
+the lot; ten lamps along the front fill in as you go.
+
+You get to **nine**. At nine the room comes apart — the camera whips out to the
+widest shot in the scene, the marquee doubles its flash rate, and nobody sits
+down again. It asks whether you want to go on or walk away, and it asks
+diegetically: pull again, or go and stand at the `EXIT`, which is a real lit
+door in the room that you can click. It does not matter which you pick. The
+third window was always going to have a skull in it.
+
+### And then the rest of it
+
+1. **The floor.** Same hall, same machine, same people: the only thing that has
+   changed is that you are on the carpet and they are leaving. He goes down in
+   two stages, the last of his money is all over the carpet around him, and
+   somebody walks across the front of the shot to get to the bar.
+2. **The drag.** Two of them pick you up and carry you out through the city:
    three parallax layers of tower with lit windows, neon signs on every fifth
    one, rain, flying traffic with tail-lights, and wet neon smeared across the
    street. The big one has **horns** and does not say anything all night. The
    other one is grey and covered in red and will not shut up — that is
    **DRAX**, and he finds all of this extremely funny.
-7. **You ask him why he is grey.** He knocks you out. The fist arrives at the
+3. **You ask him why he is grey.** He knocks you out. The fist arrives at the
    speed the fist arrives at.
-8. **The throne.** You come round looking at a gold ceiling, up a flight of
-   steps, with two enormous silhouettes either side of the chair and the small
-   blue shark sitting in it. He explains the arrangement. He fits the watch.
+4. **And that is how you came to own a moon.**
 
 ## He arrives and he leaves
 

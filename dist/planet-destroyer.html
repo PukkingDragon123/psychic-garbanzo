@@ -4427,7 +4427,7 @@ window.PD = window.PD || {};
   }
 
   function buildAlien(t, face) {
-    const HW = t.hr * 2 + 26, HH = t.hr * 2 + t.th + t.lh + 24;
+    const HW = t.hr * 2 + 26, HH = t.hr * 2 + t.th + t.lh + 26;
     const W = HW & ~1, H = HH & ~1;
     const p = pix(W, H);
     const cx = W >> 1;
@@ -4437,7 +4437,8 @@ window.PD = window.PD || {};
     const neckY = shY - 3;
     const headY = neckY - t.hr - 1;
     const INK = '#140f26';
-    const kiss = face === 4, blink = face === 5, talk = face === 3;
+    const kiss = face === 4, blink = face === 5, cheer = face === 6;
+    const talk = face === 3 || cheer;
     const step = face === 1 ? 1 : (face === 2 ? -1 : 0);   // walk frames
 
     // ---------------------------------------------------------------- legs
@@ -4509,10 +4510,12 @@ window.PD = window.PD || {};
     for (const side of [-1, 1]) {
       const swing = side * (-step * 3);
       const sx = cx + side * (t.sw + 1);
-      const ex = sx + side * 3 + swing;
-      const hy = shY + t.th + 2 + Math.abs(swing);
-      limb(p, sx, shY + 4, ex, shY + Math.round(t.th * 0.55), t.aw + 1, t.aw, t.skin, t.lite, INK);
-      limb(p, ex, shY + Math.round(t.th * 0.55), ex + side * 2, hy, t.aw, t.aw - 1, t.skin, t.lite, INK);
+      // both arms straight up when the room is going mad
+      const ex = cheer ? sx + side * 2 : sx + side * 3 + swing;
+      const hy = cheer ? shY - t.th + 2 : shY + t.th + 2 + Math.abs(swing);
+      const mid = cheer ? shY - Math.round(t.th * 0.3) : shY + Math.round(t.th * 0.55);
+      limb(p, sx, shY + 4, ex, mid, t.aw + 1, t.aw, t.skin, t.lite, INK);
+      limb(p, ex, mid, ex + side * 2, hy, t.aw, t.aw - 1, t.skin, t.lite, INK);
       if (t.pads) p.round(sx - 2, shY + 2, 5, 4, 1, t.acc);
       // a hand with a couple of fingers on it
       p.round(ex + side * 2 - 3, hy, 6, 6, 2, t.lite);
@@ -4630,7 +4633,7 @@ window.PD = window.PD || {};
   function makeKin(n) {
     for (let i = 0; i < n; i++) {
       const t = alienKin(i * 7717 + 13);
-      const frames = [0, 1, 2, 3, 4, 5].map(f => buildAlien(t, f));
+      const frames = [0, 1, 2, 3, 4, 5, 6].map(f => buildAlien(t, f));
       const W = frames[0].w, H = frames[0].h;
       t.key = 'kin' + i;
       regRaw(t.key, frames, W / 2 / HD, H / HD);
@@ -10413,12 +10416,6 @@ window.PD = window.PD || {};
      that it is out of your hands: the floor, the drag through the city, the
      fist, and the room with the throne in it. */
   const BEATS = [
-    { id: 'wake', dur: 11, lines: [
-      'YOU WAKE UP ON A CARPET.',
-      'YOU DO NOT KNOW WHOSE CARPET.',
-      'THERE IS A MACHINE AT THE BACK OF THE ROOM WITH YOUR NAME ON IT.',
-      'GO AND FIND IT. THAT IS WHAT YOU CAME FOR.'
-    ] },
     { id: 'universal', dur: 999, lines: [] },      // interactive: the ten stars
     { id: 'floor', dur: 10, lines: [
       'YOU GO DOWN ON THE CARPET.',
@@ -10444,68 +10441,306 @@ window.PD = window.PD || {};
   BEATS.forEach((b, i) => { B_OF[b.id] = i; });
 
   /* ------------------------------------------------------ THE UNIVERSAL
-     Ten stars in a row. You get nine. At nine it asks you whether you want to
-     go on or walk away, and it does not matter: the tenth reel is a skull
-     either way, because that is what the machine is for. */
-  const UNI = { n: 0, spin: 0, reel: 0, choice: 0, lost: 0, t: 0, shake: 0, flash: 0 };
+     A casino floor, seen from the side, with you standing on it.
+
+     The camera opens hard on the marquee, then pulls all the way back to show
+     what you have walked into: two hundred machines, a room full of people,
+     and one cabinet in the middle of it that is four times your height. You
+     do not press a button. You pull a lever, and the room watches.
+
+     Ten worlds in a row takes the lot. You get nine. At nine it asks you
+     whether you want to go on or walk away, and it does not matter -- the
+     third reel is a skull either way, because that is what the machine is
+     for. */
+  const AH = PD.arthome;
+  const FY = 224;                        // the floor of the hall: feet stand here
+  const CBX = 250, CBW = 200;            // the cabinet, in hall coordinates
+  const CBTOP = 26;
+  const PIVX = 476, PIVY = 209;          // the lever, bolted to its right cheek
+  const PSX = 498;                       // and you, standing at it
+  const EXITX = -76;                     // the way out, lit, a long way off
+
+  const UNI = {
+    n: 0, spin: 0, spinMax: 1, reel: 0, choice: 0, lost: 0, t: 0, shake: 0, flash: 0,
+    arrive: 0, lever: 0, pull: 0, hype: 0, hop: 0, rig: null, face: [0, 0, 0],
+    kick: 0, glare: 0, exitHot: 0
+  };
+  const CAM = { x: 350, y: 52, z: 2.1 };
+  const STOPF = [0.42, 0.68, 1];         // the three reels do not stop together
+
+  /* world -> screen, so the update pass can hit-test things that live in the
+     hall rather than on the glass */
+  function camPt(wx, wy) {
+    return { x: VW / 2 + (wx - CAM.x) * CAM.z, y: VH / 2 + (wy - CAM.y) * CAM.z };
+  }
+
+  /* ------------------------------------------------------------- the room
+     Thirty-odd people, in three ranks. The back rank is small and far and
+     mostly silhouette; the middle rank is the one you read faces on; the
+     front rank is huge and cropped by the bottom of the frame, so you are
+     standing in the crowd rather than looking at it. */
+  const CROWD = [];
+  (function buildCrowd() {
+    const ROWS = [
+      { y: 120, s: 0.46, n: 28, x0: -190, x1: 900, gap: null },      // the balcony
+      { y: 200, s: 0.54, n: 21, x0: -150, x1: 870, gap: null },
+      { y: 240, s: 0.90, n: 18, x0: -130, x1: 860, gap: [222, 534] },
+      { y: 302, s: 1.55, n: 14, x0: -100, x1: 850, gap: [252, 604] } // right under your nose
+    ];
+    ROWS.forEach((R, ri) => {
+      for (let i = 0; i < R.n; i++) {
+        let x = R.x0 + (R.x1 - R.x0) * ((i + 0.5) / R.n) + (U.hash2(ri * 31 + i, 5) - 0.5) * 30;
+        if (R.gap && x > R.gap[0] && x < R.gap[1]) {
+          const mid = (R.gap[0] + R.gap[1]) / 2;
+          x = x < mid ? R.gap[0] - 14 - U.hash2(i, 9) * 40 : R.gap[1] + 14 + U.hash2(i, 9) * 40;
+        }
+        CROWD.push({
+          x0: x, x: x, y: R.y, row: ri,
+          clump: (U.hash2(ri * 3 + i, 41) - 0.5) * 16,
+          s: R.s * (0.9 + U.hash2(ri * 7 + i, 13) * 0.22),
+          k: Math.floor(U.hash2(ri * 17 + i, 3) * 14),
+          ph: U.hash2(i * 5 + ri, 19) * U.TAU,
+          face: x > 350 ? -1 : 1,
+          drink: U.hash2(i * 11 + ri, 27) > 0.55 ? Math.floor(U.hash2(i, 31) * 4) : -1,
+          jt: 99, jd: 0.5, jh: 0, shout: 0, word: 0, drift: 0
+        });
+        CROWD[CROWD.length - 1].x0 += CROWD[CROWD.length - 1].clump;
+        CROWD[CROWD.length - 1].x = CROWD[CROWD.length - 1].x0;
+      }
+    });
+  })();
+  const WORDS = ['GO ON', 'TEN', 'AGAIN', 'YES', 'WOO', 'ONE MORE', 'PULL IT', 'HA'];
+
+  /* A cheer runs OUT from the machine rather than happening everywhere at
+     once: everyone gets a negative head start proportional to how far away
+     they are, so the jump ripples across the room. */
+  function cheerWave(power, spread) {
+    const taken = [];
+    for (const c of CROWD) if (c.shout > 0) taken.push(c.x);
+    for (const c of CROWD) {
+      const d = Math.abs(c.x - 350) / 430;
+      c.jt = -(d * (spread === undefined ? 0.34 : spread));
+      c.jd = 0.40 + U.hash2(c.x | 0, 3) * 0.22;
+      c.jh = (6 + power * 18) * (0.65 + U.hash2(c.x | 0, 7) * 0.7) * (c.row === 0 ? 0.7 : 1);
+      if (c.row >= 2 && U.hash2(c.x | 0, 13) < 0.16 + power * 0.34) {
+        let clear = true;
+        for (const q of taken) if (Math.abs(q - c.x) < 46) { clear = false; break; }
+        if (clear) {
+          c.shout = 1.0 + U.hash2(c.x | 0, 11) * 0.9;
+          c.word = Math.floor(U.hash2((c.x | 0) + UNI.n * 7, 17) * WORDS.length);
+          taken.push(c.x);
+        }
+      }
+    }
+  }
+  function updateCrowd(dt, t) {
+    for (const c of CROWD) {
+      c.jt += dt;
+      c.shout = Math.max(0, c.shout - dt);
+      if (UNI.lost) {
+        // the room loses interest in you in about four seconds
+        c.drift = Math.min(1, c.drift + dt * (0.16 + U.hash2(c.x | 0, 5) * 0.16));
+        c.x = c.x0 + (c.x0 < 350 ? -1 : 1) * c.drift * (60 + U.hash2(c.x | 0, 9) * 90);
+      } else if (UNI.hype > 0.2) {
+        // the hotter it gets the less any of them stay on the ground
+        const wait = c.jd + (UNI.hype > 0.6 ? 0.05 : 1.2 + U.hash2(c.x | 0, 23) * 2.4);
+        if (c.jt > wait && U.chance(dt * (2 + UNI.hype * 9))) {
+          c.jt = 0; c.jd = 0.36 + U.hash2(c.x | 0, 29) * 0.18;
+          c.jh = (4 + UNI.hype * 15) * (c.row === 0 ? 0.6 : 1);
+        }
+      }
+    }
+  }
+
+  /* --------------------------------------------------------- little things
+     Confetti, coins and sparks, in hall coordinates so they sit inside the
+     camera move with everything else. */
+  const BITS = [];
+  function bits(x, y, n, cols, power, kind) {
+    for (let i = 0; i < n; i++) {
+      const a = U.rand(-Math.PI, 0), sp = U.rand(power * 0.35, power);
+      BITS.push({
+        x, y, vx: Math.cos(a) * sp + U.rand(-14, 14), vy: Math.sin(a) * sp,
+        life: 1.1 + Math.random() * 1.5, t: 0, spin: U.rand(-9, 9), ang: Math.random() * 6.28,
+        col: cols[(Math.random() * cols.length) | 0], kind: kind || 0,
+        w: 2 + ((Math.random() * 2) | 0)
+      });
+    }
+  }
+  function updateBits(dt) {
+    for (let i = BITS.length - 1; i >= 0; i--) {
+      const b = BITS[i];
+      b.t += dt;
+      b.vy += (b.kind === 2 ? 90 : 200) * dt;
+      b.vx *= 1 - dt * (b.kind === 2 ? 1.4 : 0.5);
+      b.x += b.vx * dt; b.y += b.vy * dt; b.ang += b.spin * dt;
+      const rest = FY + 4 + (b.x % 7);
+      if (b.y > rest && b.kind !== 2) { b.y = rest; b.vy *= -0.26; b.vx *= 0.55; b.spin *= 0.5; }
+      if (b.t > b.life) BITS.splice(i, 1);
+    }
+    if (BITS.length > 220) BITS.splice(0, BITS.length - 220);
+  }
+  function drawBits(ctx) {
+    for (const b of BITS) {
+      const k = 1 - b.t / b.life;
+      ctx.globalAlpha = Math.min(1, k * 2.2);
+      if (b.kind === 1) {                       // a coin, turning edge-on
+        const w = Math.max(1, Math.abs(Math.cos(b.ang)) * 5);
+        X.blob(ctx, b.x, b.y, w, 2.5, b.col);
+        X.blob(ctx, b.x - w * 0.3, b.y - 0.6, w * 0.4, 1, '#fff3b0');
+      } else if (b.kind === 2) {                // smoke / dust
+        ctx.globalAlpha *= 0.3;
+        X.blob(ctx, b.x, b.y, 2 + b.t * 3, 1.5 + b.t * 2.4, b.col);
+      } else {                                  // confetti, a flat scrap turning
+        const h = Math.max(1, Math.abs(Math.sin(b.ang)) * 4);
+        X.rect(ctx, b.x - b.w / 2, b.y - h / 2, b.w, h, b.col);
+      }
+      ctx.globalAlpha = 1;
+    }
+  }
+
   function enterGamble(g) {
     IN_S.beat = B_OF.universal; IN_S.t = 0; IN_S.line = 0; IN_S.chars = 0; IN_S.pop = 1;
     UNI.n = 0; UNI.spin = 0; UNI.reel = 0; UNI.choice = 0; UNI.lost = 0; UNI.t = 0;
-    UNI.shake = 0; UNI.flash = 0;
+    UNI.shake = 0; UNI.flash = 0; UNI.arrive = 0; UNI.lever = 0; UNI.pull = 0;
+    UNI.hype = 0; UNI.hop = 0; UNI.kick = 0; UNI.glare = 0; UNI.face = [0, 2, 4];
+    UNI.rig = PD.rig.make();
+    CAM.x = 350; CAM.y = 46; CAM.z = 2.3;
+    BITS.length = 0;
+    for (const c of CROWD) { c.x = c.x0; c.drift = 0; c.jt = 99; c.shout = 0; }
     g.state = 'intro';
     A.sfx.tone(160, { type: 'square', to: 90, dur: 0.6, vol: 0.1 });
   }
 
   function updateUniversal(dt, g) {
-    UNI.t += dt;
+    UNI.t += dt; UNI.arrive += dt;
     UNI.shake = Math.max(0, UNI.shake - dt * 2);
     UNI.flash = Math.max(0, UNI.flash - dt * 1.6);
+    UNI.kick = Math.max(0, UNI.kick - dt * 3);
+    UNI.glare = Math.max(0, UNI.glare - dt * 1.2);
+    UNI.hop = Math.max(0, UNI.hop - dt);
+    UNI.hype = U.clamp(UNI.hype - dt * (UNI.lost ? 1.4 : 0.34),
+      UNI.lost ? 0 : (UNI.choice ? 1 : UNI.n / 22), 1);
+    updateCrowd(dt, UNI.t);
+    updateBits(dt);
+
+    // ------------------------------------------------------------- the lever
+    if (UNI.pull > 0) {
+      UNI.pull -= dt;
+      const k = U.clamp(1 - Math.max(0, UNI.pull) / 0.62, 0, 1);
+      // down hard, held at the bottom, then springs back past the top and settles
+      if (k < 0.2) UNI.lever = U.smoothstep(0, 1, k / 0.2);
+      else if (k < 0.46) UNI.lever = 1;
+      else {
+        const b = (k - 0.46) / 0.54;
+        UNI.lever = Math.max(0, Math.cos(b * 4.2) * (1 - b) * 0.85);
+      }
+    } else UNI.lever = Math.max(0, UNI.lever - dt * 3);
+
+    // -------------------------------------------------------------- the rig
+    if (UNI.rig) PD.rig.step(UNI.rig, { dt: dt, vx: 0, vy: 0, ground: true, drilling: false });
+
+    // ------------------------------------------------------------ the camera
+    let tx = 388, ty = 142, tz = 1.02, rate = 1.7;
+    if (UNI.arrive < 1.5) { tx = 350; ty = 48; tz = 2.3; rate = 0.7; }
+    else if (UNI.arrive < 4.4) { tx = 344; ty = 150; tz = 0.58; rate = 1.15; }  // the reveal
+    else if (UNI.lost) { tx = 402; ty = 146; tz = 1.0; rate = 0.8; }
+    else if (UNI.choice) { tx = 348; ty = 152; tz = 0.56; rate = 2.0; }
+    else if (UNI.spin > 0) { tx = 352; ty = 124; tz = 1.22; rate = 2.4; }
+    const e = Math.min(1, dt * rate * 1.6);
+    CAM.x += (tx + Math.sin(UNI.t * 0.31) * 3 - CAM.x) * e;
+    CAM.y += (ty + Math.sin(UNI.t * 0.44 + 1) * 2 - CAM.y) * e;
+    CAM.z += (tz * (1 + UNI.kick * 0.05) - CAM.z) * e;
+
     const IN = PD.input, m = IN.mouse;
-    const poke = IN.hit('KeyE') || IN.hit('Space') || IN.hit('Enter') || (m.inside && m.leftPressed);
+    const ready = UNI.arrive > 4.0;
+    const key = IN.hit('KeyE') || IN.hit('Space') || IN.hit('Enter');
+    const tap = m.inside && m.leftPressed;
+
+    // the EXIT sign is a real thing standing in the room, not a button on the
+    // glass: you get out by walking at the door
+    const ep = camPt(EXITX, 150);
+    const hotExit = m.inside && Math.abs(m.x - ep.x) < 34 * CAM.z + 10 && Math.abs(m.y - ep.y) < 30 * CAM.z + 10;
+    UNI.exitHot = hotExit ? 1 : 0;
 
     if (UNI.spin > 0) {
+      const was = UNI.spin;
       UNI.spin -= dt;
-      UNI.reel = (UNI.reel + dt * 30) % 5;
+      UNI.reel = (UNI.reel + dt * 34) % 5;
+      // each reel lands with its own thump
+      for (let r = 0; r < 3; r++) {
+        const at = UNI.spinMax * (1 - STOPF[r]);
+        if (was > at && UNI.spin <= at) {
+          UNI.shake = Math.max(UNI.shake, r === 2 ? 0.8 : 0.34);
+          UNI.kick = 1;
+          A.sfx.tone(180 - r * 20, { type: 'square', to: 70, dur: 0.11, vol: 0.09 });
+          A.noise({ from: 900, to: 200, dur: 0.09, vol: 0.07 });
+          if (r < 2 && UNI.n >= 9) { cheerWave(0.5, 0.22); UNI.hype = 1; }
+          if (r === 1) {
+            // two down, one to go: the room holds its breath and so does the sound
+            A.sfx.tone(130, { type: 'sine', to: 190, dur: 0.9, vol: 0.07 });
+            A.sfx.tone(520, { type: 'triangle', to: 700, dur: 0.9, vol: 0.03, delay: 0.1 });
+          }
+        }
+      }
       if (UNI.spin <= 0) {
         if (UNI.n < 9) {
-          UNI.n++; UNI.reel = 4;                 // another star
-          A.sfx.tone(500 + UNI.n * 70, { type: 'square', to: 900 + UNI.n * 80, dur: 0.12, vol: 0.07 });
-          FX.stars(240, 116, 6, '#ffd34d');
-          if (UNI.n === 9) { UNI.choice = 1; A.sfx.tone(200, { type: 'sine', to: 140, dur: 0.8, vol: 0.08 }); }
+          UNI.n++;
+          A.sfx.tone(460 + UNI.n * 62, { type: 'square', to: 880 + UNI.n * 70, dur: 0.14, vol: 0.08 });
+          A.sfx.sell();
+          UNI.hype = Math.min(1, 0.45 + UNI.n * 0.07);
+          UNI.hop = 0.6; UNI.glare = 1;
+          cheerWave(0.45 + UNI.n * 0.06);
+          // the room throws whatever it is holding
+          for (let i = 0; i < 4 + UNI.n; i++) {
+            const c = CROWD[(Math.random() * CROWD.length) | 0];
+            if (c.row < 2) continue;
+            bits(c.x, c.y - 24, 1, ['#ffd34d', '#8affa0', '#ff8ad8', '#7ec8ff', '#f4f0ff'], 240, 0);
+          }
+          bits(350, CBTOP + 14, 16 + UNI.n * 3, ['#ffd34d', '#ff5fa8', '#5fe8d8', '#ffffff'], 200, 0);
+          bits(350, 118, 8 + UNI.n, ['#ffd34d', '#ffb03d'], 170, 1);
+          if (UNI.n === 9) {
+            UNI.choice = 1; UNI.hype = 1;
+            cheerWave(1, 0.5);
+            A.sfx.tone(200, { type: 'sine', to: 140, dur: 0.9, vol: 0.09 });
+          }
         } else {
-          UNI.reel = 3;                          // and the skull
-          UNI.lost = 1; UNI.shake = 1; UNI.flash = 1;
+          UNI.lost = 1; UNI.shake = 1; UNI.flash = 1; UNI.hype = 0;
           A.sfx.deny();
-          A.sfx.tone(220, { type: 'square', to: 60, dur: 1.1, vol: 0.12 });
-          FX.ring(240, 116, 4, 120, 1.1, '#ff5a4d', 3);
+          A.sfx.tone(220, { type: 'square', to: 54, dur: 1.2, vol: 0.13 });
+          A.sfx.boom(0.5);
+          bits(398, 118, 26, ['#4a3a56', '#2a1c38', '#6a5a78'], 120, 2);
+          for (const c of CROWD) { c.jt = 99; c.shout = 0; }
         }
       }
       return;
     }
     if (UNI.lost) {
-      if (UNI.t > 2.6 && poke) nextBeat(g);
+      if (UNI.t > 3.0 && (key || tap)) nextBeat(g);
       return;
     }
+    if (!ready) { if (key || tap) UNI.arrive = Math.max(UNI.arrive, 4.0); return; }
     if (UNI.choice) {
-      // GO ON, or WALK AWAY. There is no walking away.
-      const go = m.inside && m.leftPressed && m.x > 120 && m.x < 232 && m.y > 196 && m.y < 218;
-      const out = m.inside && m.leftPressed && m.x > 248 && m.x < 360 && m.y > 196 && m.y < 218;
-      if (go || IN.hit('KeyE') || IN.hit('Enter')) { UNI.choice = 0; UNI.n = 9; UNI.spin = 1.4; A.sfx.click(); }
-      else if (out || IN.hit('Escape')) {
-        UNI.choice = 0; UNI.spin = 1.4;
-        IN_S.quit = 1;
-        A.sfx.click();
+      if ((hotExit && m.leftPressed) || IN.hit('Escape')) {
+        UNI.choice = 0; IN_S.quit = 1; startSpin(1.7);
+        return;
       }
+      if (key || tap) { UNI.choice = 0; startSpin(1.7); }
       return;
     }
-    if (poke) { UNI.spin = UNI.n < 8 ? 0.5 : 0.9; A.sfx.tone(260, { type: 'square', to: 520, dur: 0.14, vol: 0.07 }); }
+    if (key || tap) startSpin(UNI.n < 8 ? 0.72 : 1.2);
   }
 
-  /* --------------------------------------------------- THE UNIVERSAL, up close
-     Shown the way the computer is shown: first person, hands in the bottom of
-     the frame, the thing filling everything else. It is a galaxy in a box. Ten
-     planets in a row takes the lot, and you are not getting ten. */
-  const SY = ['coin', 'ore', 'planet', 'skull', 'star'];
+  function startSpin(len) {
+    UNI.spin = len; UNI.spinMax = len; UNI.pull = 0.62;
+    const k = Math.floor(U.hash2(UNI.n * 13 + 3, 7) * 5);
+    UNI.face = [k, k, UNI.n < 9 ? k : 3];
+    A.sfx.tone(300, { type: 'square', to: 120, dur: 0.18, vol: 0.08 });
+    A.noise({ from: 400, to: 1800, dur: 0.5, vol: 0.05 });
+    bits(PIVX + 14, PIVY - 6, 4, ['#8e86a8'], 60, 2);
+  }
+
+  /* ---------------------------------------------------------- the symbols */
   const WORLDS = [
     { c: '#c9744a', d: '#7a3d22', l: '#ffb07a', ring: 0, spot: 1 },   // a rock
     { c: '#4a8fd6', d: '#23507f', l: '#a8daff', ring: 0, spot: 2 },   // an ocean
@@ -10513,9 +10748,8 @@ window.PD = window.PD || {};
     { c: '#7a4ad6', d: '#3f2280', l: '#c9a8ff', ring: 0, spot: 3 },   // a void
     { c: '#4ad69a', d: '#1e7a58', l: '#a8ffd8', ring: 1, spot: 1 }    // a living one
   ];
-  /* One planet, drawn round and lit from the left, in a reel window. */
   function reelWorld(ctx, x, y, r, k, t, blur) {
-    const w = WORLDS[k % WORLDS.length];
+    const w = WORLDS[((k % 5) + 5) % 5];
     if (w.ring) {
       ctx.globalAlpha = blur ? 0.4 : 0.75;
       X.blob(ctx, x, y + Math.round(r * 0.25), Math.round(r * 1.65), Math.max(1, Math.round(r * 0.26)), w.d);
@@ -10535,244 +10769,668 @@ window.PD = window.PD || {};
       X.blob(ctx, x, y + Math.round(r * 0.25), Math.round(r * 1.1), Math.max(1, Math.round(r * 0.14)), '#0a0614');
     }
   }
+  function reelSkull(ctx, x, y, r, t) {
+    X.blob(ctx, x, y, r + 2, r + 2, '#1a0a12');
+    X.blob(ctx, x, y, r, r, '#2a1018');
+    PD.glyph.draw(ctx, 'skull', x - 14, y - 14, '#c22a4a', '#ff8a9a', 2);
+    ctx.globalAlpha = 0.35 + Math.abs(Math.sin(t * 5)) * 0.3;
+    X.blob(ctx, x, y, r * 1.4, r * 1.4, 'rgba(200,40,70,0.25)');
+    ctx.globalAlpha = 1;
+  }
 
-  /* the warp field behind the reels */
   const WARP = [];
   for (let i = 0; i < 70; i++) WARP.push({ a: U.hash2(i, 3) * U.TAU, r: U.hash2(i, 7), s: 0.4 + U.hash2(i, 11) });
 
-  function drawUniversal(ctx, g, t) {
-    const sh = UNI.shake > 0 ? Math.round(Math.sin(t * 60) * UNI.shake * 6) : 0;
-    ctx.save(); ctx.translate(sh, Math.round(sh * 0.4));
+  /* ------------------------------------------------------------- the hall */
+  const HUES = ['#ff5fa8', '#5fe8d8', '#ffd34d', '#9a6aff', '#ff8a4d', '#6affa0'];
+  const BANKS = [];
+  (function buildBanks() {
+    // a back row that runs the whole width, and two side banks either side of
+    // the big one, so the room reads as a floor of machines
+    for (let i = 0; i < 22; i++) BANKS.push({ x: -150 + i * 46, y: 198, s: 0.62, i: i });
+    for (let i = 0; i < 5; i++) BANKS.push({ x: -26 + i * 54, y: 224, s: 1, i: i + 3 });
+    for (let i = 0; i < 5; i++) BANKS.push({ x: 540 + i * 54, y: 224, s: 1, i: i + 7 });
+  })();
 
-    // ------------------------------------------------------------ the room
-    ctx.fillStyle = '#080414'; ctx.fillRect(-10, 0, VW + 20, VH);
-    for (let i = 0; i < 40; i++) {
-      const x = (U.hash2(i, 3) * VW) | 0, y = (U.hash2(i, 7) * 90) | 0;
-      ctx.globalAlpha = 0.1 + U.hash2(i, 11) * 0.2;
-      ctx.fillStyle = i % 3 ? '#4a1c3a' : '#12384a'; ctx.fillRect(x, y, 2, 1);
+  function slotBox(ctx, x, y, s, i, t) {
+    // one ordinary machine: base, body, a lit screen with something turning in
+    // it, a topper light and a little lever of its own
+    ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
+    const hue = HUES[i % HUES.length], W = 34, H = 62;
+    X.plate(ctx, -W / 2 - 2, -12, W + 4, 12, '#1b0f2c', '#3a2352', '#0a0614', 2);   // the base
+    X.plate(ctx, -W / 2, -H, W, H - 10, '#2a1442', hue, '#120722', 3);
+    X.plate(ctx, -W / 2 + 3, -H + 22, W - 6, 20, '#0d0620', '#4a2a70', '#060310', 2);
+    // the little screen
+    const spin = (Math.floor(t * 2.4 + i * 1.7) % 7) < 2;
+    for (let r = 0; r < 3; r++) {
+      const cx = -W / 2 + 8 + r * 9;
+      const k = spin ? (Math.floor(t * 22 + r * 3 + i) % 5) : ((i + r) % 5);
+      ctx.globalAlpha = spin ? 0.6 : 1;
+      reelWorld(ctx, cx, -H + 32, 3.4, k, t, spin ? 1 : 0);
+      ctx.globalAlpha = 1;
     }
+    // the topper, pulsing out of step with its neighbours
+    const on = Math.sin(t * 3 + i * 1.3) > -0.2;
+    X.plate(ctx, -W / 2 + 2, -H - 9, W - 4, 9, on ? '#3a2208' : '#170c22', on ? hue : '#33224a', '#0a0614', 2);
+    if (on) {
+      F.draw(ctx, ['LUX', 'NOVA', 'HOT', 'BIG', 'ZAP', 'GEM'][i % 6], 0, -H - 7, '#fff3b0', { center: true, shadow: false });
+      ctx.globalAlpha = 0.22; X.blob(ctx, 0, -H - 5, 22, 12, hue); ctx.globalAlpha = 1;
+    }
+    F.draw(ctx, '888', 0, -H + 7, 'rgba(255,211,77,0.75)', { center: true, shadow: false });
+    X.rect(ctx, W / 2 - 1, -H + 26, 3, 3, '#8e86a8');                                // its lever
+    X.rect(ctx, W / 2 + 1, -H + 20, 2, 8, '#6a5a9c');
+    X.blob(ctx, W / 2 + 2, -H + 19, 3, 3, '#c22a4a');
+    ctx.globalAlpha = 0.35; X.blob(ctx, 0, -1, W * 0.6, 4, '#0a0614'); ctx.globalAlpha = 1;
+    ctx.restore();
+  }
+
+  /* The carpet, the motif stamped into it and the velvet rope across the front
+     are all static, so they are drawn once into their own canvas and blitted.
+     Live, they were two and a half thousand fill calls a frame. */
+  let carpetCv = null;
+  function buildCarpet() {
+    const c = document.createElement('canvas');
+    c.width = 1200; c.height = 200;
+    const q = c.getContext('2d');
+    q.imageSmoothingEnabled = false;
+    q.translate(200, -FY);                       // so world coordinates land right
+    X.rect(q, -200, FY, 1200, 200, '#3a0e26');
+    for (let y = FY; y < FY + 170; y += 7) {
+      const k = (y - FY) / 170;
+      X.rect(q, -200, y, 1200, 7, k > 0.45 ? '#4a1230' : '#3d0f28');
+      for (let x = -200 + ((y * 11) % 26); x < 1000; x += 26) {
+        X.rect(q, x, y + 2, 9 + k * 4, 3, k > 0.45 ? '#5c1a3c' : '#47122e');
+        X.rect(q, x + 3, y + 3, 3, 1, '#6e2148');
+      }
+    }
+    // a motif stamped into it, growing with the perspective
+    for (let row = 0; row < 5; row++) {
+      const y = FY + 16 + row * 30, sc = 1 + row * 0.34;
+      for (let x = -200 + ((row % 2) * 46); x < 1000; x += 92) {
+        q.globalAlpha = 0.5;
+        X.poly(q, [[x, y - 6 * sc], [x + 9 * sc, y], [x, y + 6 * sc], [x - 9 * sc, y]], '#5c1a3c');
+        X.poly(q, [[x, y - 3 * sc], [x + 4 * sc, y], [x, y + 3 * sc], [x - 4 * sc, y]], '#7a2450');
+        q.globalAlpha = 1;
+      }
+    }
+    X.rect(q, -200, FY, 1200, 2, '#2a0a1c');
+    X.rect(q, -200, FY + 2, 1200, 1, '#57163a');
+    // the room's light lying on the carpet
+    q.globalAlpha = 0.1;
+    X.blob(q, 350, FY + 22, 200, 26, '#ff5fa8');
+    q.globalAlpha = 1;
+    // velvet rope: they are allowed to watch and no closer
+    for (let i = -4; i <= 8; i++) {
+      const px = 160 + i * 60;
+      if (i < 8) {
+        X.curve(q, px, FY + 30, px + 30, FY + 41, px + 60, FY + 30, '#5e0f2c', 5, 10);
+        X.curve(q, px, FY + 29, px + 30, FY + 40, px + 60, FY + 29, '#a8265a', 2, 10);
+      }
+      X.blob(q, px, FY + 46, 7, 2.5, '#0a0614');
+      X.rect(q, px - 5, FY + 43, 11, 3, '#6a5220');
+      X.rect(q, px - 2, FY + 28, 4, 16, '#8a6a2a');
+      X.rect(q, px - 2, FY + 28, 1, 16, '#ffd34d');
+      X.blob(q, px, FY + 27, 3.5, 3.5, '#ffd34d');
+      X.blob(q, px - 1, FY + 26, 1.2, 1, '#fff3b0');
+    }
+    return c;
+  }
+
+  function hallRoom(ctx, t) {
+    // ------------------------------------------------------------ the shell
+    ctx.fillStyle = '#150826'; ctx.fillRect(-200, -160, 1200, 400);
+    const grd = ctx.createLinearGradient(0, -140, 0, FY);
+    grd.addColorStop(0, '#0b0418'); grd.addColorStop(0.6, '#25103c'); grd.addColorStop(1, '#3a1550');
+    ctx.fillStyle = grd; ctx.fillRect(-200, -160, 1200, FY + 160);
+    // a ceiling of coffers, going back
+    for (let i = 0; i < 26; i++) {
+      const x = -180 + i * 42;
+      X.rect(ctx, x, -60, 38, 6, '#2a1040');
+      X.rect(ctx, x + 4, -54, 30, 3, '#3c1a58');
+    }
+    // neon arches on the back wall, three deep
+    for (let a = 0; a < 3; a++) {
+      const r = 250 + a * 62, alpha = 0.72 - a * 0.16;
+      ctx.globalAlpha = alpha;
+      for (let i = 0; i <= 22; i++) {
+        const ang = Math.PI + i * (Math.PI / 22);
+        const ax = 350 + Math.cos(ang) * r, ay = 208 + Math.sin(ang) * (r * 0.62);
+        const on = (Math.floor(t * 5 - a * 2) + i) % 5 !== 0;
+        X.blob(ctx, ax, ay, 3, 3, on ? HUES[(a * 2 + i) % HUES.length] : '#2a1440');
+      }
+      ctx.globalAlpha = 1;
+    }
+    // the house banner, hung off the ceiling over the big machine
+    const bw = Math.sin(t * 0.8) * 1.5;
+    X.rect(ctx, 300, -58, 1, 16, '#5a4a78'); X.rect(ctx, 400, -58, 1, 16, '#5a4a78');
+    X.plate(ctx, 246, -44 + bw, 208, 30, '#3a0e26', '#ff5fa8', '#180510', 5);
+    F.draw(ctx, 'THE GALAXY ROOM', 350, -37 + bw, '#ffd6f0', { center: true, scale: 2, shadow: '#180510' });
+    F.draw(ctx, 'NO CREDIT  NO REFUNDS  NO PITY', 350, -22 + bw, '#ff8ad8', { center: true, shadow: '#180510' });
+    // chandeliers
+    for (let i = 0; i < 5; i++) {
+      const cx = -60 + i * 200, cy = -40 + Math.sin(t * 0.7 + i) * 1.5;
+      X.rect(ctx, cx, -60, 1, 22, '#5a4a78');
+      for (let k = 0; k < 7; k++) {
+        const a = k / 7 * U.TAU + t * 0.25 + i;
+        X.blob(ctx, cx + Math.cos(a) * 13, cy + 2 + Math.sin(a) * 5, 2.5, 2.5, '#ffe9a8');
+      }
+      X.blob(ctx, cx, cy + 2, 6, 4, '#fff3b0');
+      ctx.globalAlpha = 0.13; X.blob(ctx, cx, cy + 8, 30, 18, '#ffd34d'); ctx.globalAlpha = 1;
+    }
+    // the mezzanine the cheap seats are standing on
+    X.rect(ctx, -220, 120, 1240, 16, '#180a28');
+    X.rect(ctx, -220, 120, 1240, 1, '#3c1a58');
+    for (let i = 0; i < 31; i++) X.rect(ctx, -216 + i * 40, 136, 6, 10, '#120720');
+    // a far wall of signage: the rest of the casino, out of focus
+    for (let i = 0; i < 16; i++) {
+      const x = -170 + i * 64, y = 24 + (i % 3) * 16;
+      const on = (Math.floor(t * 3.5) + i) % 4 !== 0;
+      ctx.globalAlpha = 0.42;
+      X.rect(ctx, x, y, 38, 7, on ? HUES[i % HUES.length] : '#241338');
+      X.rect(ctx, x + 2, y + 2, 34, 3, on ? '#ffffff' : '#160a26');
+      ctx.globalAlpha = 1;
+    }
+    // sweeping spotlights out of the ceiling
+    for (let i = 0; i < 4; i++) {
+      const bx = 40 + i * 200, a = Math.sin(t * 0.5 + i * 1.9) * 0.5;
+      const fx = bx + Math.sin(a) * 210, sp = 26;
+      ctx.globalAlpha = 0.075;
+      X.poly(ctx, [[bx - 5, -52], [bx + 5, -52], [fx + sp, FY], [fx - sp, FY]], HUES[(i * 2) % HUES.length]);
+      ctx.globalAlpha = 1;
+      X.blob(ctx, bx, -52, 5, 3, '#ffe9a8');
+    }
+    // ------------------------------------------------------------ the floor
+    // baked once: it is two and a half thousand rectangles and none of them move
+    if (!carpetCv) carpetCv = buildCarpet();
+    ctx.drawImage(carpetCv, -200, FY);
+
+  }
+
+  /* The rail of the mezzanine, drawn over the people leaning on it. */
+  function balconyRail(ctx) {
+    for (let i = 0; i < 62; i++) X.rect(ctx, -212 + i * 20, 110, 2, 10, '#3c1a58');
+    X.rect(ctx, -220, 108, 1240, 3, '#4a2270');
+    X.rect(ctx, -220, 108, 1240, 1, '#8a5ac0');
+    X.rect(ctx, -220, 118, 1240, 3, '#2a1040');
+  }
+
+  /* The way out. It is lit, it is real, and at nine you can walk at it. */
+  function exitSign(ctx, t) {
+    const hot = UNI.exitHot && UNI.choice;
+    X.plate(ctx, EXITX - 34, 120, 68, 104, '#1a0c2a', '#3a2252', '#0a0614', 4);
+    X.plate(ctx, EXITX - 26, 136, 52, 88, '#080410', '#2a1840', '#050208', 3);
+    ctx.globalAlpha = 0.5 + Math.abs(Math.sin(t * 1.4)) * 0.2;
+    X.blob(ctx, EXITX, 200, 24, 26, '#2a4a6a');                      // the street outside
     ctx.globalAlpha = 1;
-
-    // ------------------------------------------------------- the cabinet
-    // it fills the frame: you are standing at it with your face nearly on it
-    X.plate(ctx, 22, 2, 436, 214, '#2a1442', '#5e2a86', '#120722', 8);
-    X.plate(ctx, 30, 10, 420, 198, '#1c0c2e', '#4a2270', '#0a0414', 6);
-    // the arch over the window
-    for (let i = 0; i < 14; i++) {
-      const a = Math.PI + i * (Math.PI / 13);
-      const ax = 240 + Math.cos(a) * 176, ay = 118 + Math.sin(a) * 96;
-      const on = (Math.floor(t * 7) + i) % 4 !== 0;
-      X.blob(ctx, ax, ay, 5, 5, on ? '#ffd34d' : '#4a3a10');
-      X.blob(ctx, ax, ay, 2, 2, on ? '#fff3b0' : '#6a5a2a');
+    const on = hot || Math.sin(t * 2.2) > -0.6;
+    X.plate(ctx, EXITX - 30, 106, 60, 16, on ? '#0f3a22' : '#0a1c14', on ? '#5fff9a' : '#1d5a38', '#040c08', 3);
+    F.draw(ctx, 'EXIT', EXITX, 110, on ? '#c4ffd8' : '#2a6a46', { center: true, scale: 1, shadow: '#041008' });
+    if (hot) {
+      ctx.globalAlpha = 0.2; X.blob(ctx, EXITX, 170, 46, 60, '#5fff9a'); ctx.globalAlpha = 1;
+      F.draw(ctx, 'WALK AWAY', EXITX, 232, '#c4ffd8', { center: true, scale: 1, shadow: '#041008' });
     }
-    // the name, in something approaching lights
-    const lit = Math.sin(t * 6) > -0.3;
-    F.draw(ctx, 'THE UNIVERSAL', 240, 14, lit ? '#ffd34d' : '#6a5a1a', { center: true, scale: 3, shadow: '#3a0c30' });
-    F.draw(ctx, 'TEN WORLDS IN A ROW TAKES THE LOT', 240, 38, lit ? '#ff5fa8' : '#4a1c3a', { center: true, shadow: '#1a0614' });
+  }
 
-    // ----------------------------------------------- the window, and the void
-    const WX = 84, WY = 52, WW = 312, WH2 = 92;
+  /* ---------------------------------------------------------- the cabinet */
+  function drawCabinet(ctx, g, t) {
+    const CX = CBX + CBW / 2;
+    const hot = UNI.n >= 9;
+    // a shadow and a little dais
+    ctx.globalAlpha = 0.4; X.blob(ctx, CX, FY + 6, 128, 9, '#0a0614'); ctx.globalAlpha = 1;
+    X.plate(ctx, CBX - 26, FY - 12, CBW + 52, 18, '#2a1040', '#5e2a86', '#120722', 4);
+    X.plate(ctx, CBX - 14, FY - 22, CBW + 28, 12, '#351550', '#7a3aae', '#170a2a', 3);
+    // the body
+    X.plate(ctx, CBX, CBTOP + 10, CBW, FY - CBTOP - 30, '#2a1442', '#5e2a86', '#120722', 8);
+    X.plate(ctx, CBX + 8, CBTOP + 18, CBW - 16, FY - CBTOP - 46, '#1c0c2e', '#4a2270', '#0a0414', 6);
+    // the crown: an arch of lamps chasing round the top
+    for (let i = 0; i <= 18; i++) {
+      const a = Math.PI + i * (Math.PI / 18);
+      const ax = CX + Math.cos(a) * (CBW / 2 + 10), ay = CBTOP + 58 + Math.sin(a) * 44;
+      const on = (Math.floor(t * (hot ? 14 : 7)) + i) % 4 !== 0;
+      X.blob(ctx, ax, ay, 4, 4, on ? '#ffd34d' : '#4a3a10');
+      X.blob(ctx, ax, ay, 1.6, 1.6, on ? '#fff3b0' : '#6a5a2a');
+      if (on) { ctx.globalAlpha = 0.16; X.blob(ctx, ax, ay, 9, 9, '#ffd34d'); ctx.globalAlpha = 1; }
+    }
+    // the marquee
+    const lit = UNI.arrive < 4.4 ? true : (hot ? Math.sin(t * 14) > -0.2 : Math.sin(t * 5) > -0.35);
+    X.plate(ctx, CBX + 2, CBTOP + 2, CBW - 4, 36, '#170a28', lit ? '#ffd34d' : '#5a4418', '#080312', 4);
+    X.rect(ctx, CBX + 6, CBTOP + 6, CBW - 12, 1, lit ? '#3a2a08' : '#1a1008');
+    F.draw(ctx, 'THE UNIVERSAL', CX, CBTOP + 9, lit ? '#ffd34d' : '#6a5a1a',
+      { center: true, scale: 2, shadow: '#3a0c30' });
+    F.draw(ctx, 'TEN WORLDS TAKES THE LOT', CX, CBTOP + 26, lit ? '#ff5fa8' : '#4a1c3a',
+      { center: true, shadow: '#1a0614' });
+    if (UNI.glare > 0) {
+      ctx.globalAlpha = UNI.glare * 0.3;
+      X.blob(ctx, CX, CBTOP + 20, CBW * 0.7, 30, '#ffd34d');
+      ctx.globalAlpha = 1;
+    }
+
+    // ------------------------------------------------- the window, and the void
+    const WX = CBX + 22, WY = 82, WW = CBW - 44, WH2 = 62;
     X.plate(ctx, WX - 6, WY - 6, WW + 12, WH2 + 12, '#3a1a58', '#6e3a9e', '#150828', 5);
     ctx.save();
     ctx.beginPath(); ctx.rect(WX, WY, WW, WH2); ctx.clip();
-    // a nebula and a spiral turning behind the reels
     ctx.fillStyle = '#0a0418'; ctx.fillRect(WX, WY, WW, WH2);
-    ctx.globalAlpha = 0.18;
-    X.blob(ctx, WX + 110, WY + 40, 90, 34, '#6a2ab0');
-    X.blob(ctx, WX + 220, WY + 56, 70, 26, '#2a5fb0');
+    ctx.globalAlpha = 0.2;
+    X.blob(ctx, WX + 50, WY + 26, 58, 22, '#6a2ab0');
+    X.blob(ctx, WX + 116, WY + 38, 46, 18, '#2a5fb0');
     ctx.globalAlpha = 1;
-    for (let i = 0; i < 46; i++) {
-      const a = i * 0.42 + t * 0.3, r = 4 + i * 2.2;
-      const px = WX + WW / 2 + Math.cos(a) * r * 1.6, py = WY + WH2 / 2 + Math.sin(a) * r * 0.6;
-      ctx.globalAlpha = 0.5 - i * 0.008;
-      X.rect(ctx, px, py, 1, 1, i % 3 ? '#c9a8ff' : '#ffffff');
-      ctx.globalAlpha = 1;
-    }
-    // stars, streaking while it spins
     for (const w of WARP) {
       const sp = UNI.spin > 0 ? 5 : 0.6;
       const f = ((w.r + t * w.s * sp * 0.2) % 1);
-      const px = WX + WW / 2 + Math.cos(w.a) * f * WW * 0.7;
-      const py = WY + WH2 / 2 + Math.sin(w.a) * f * WH2 * 0.7;
-      const ln = UNI.spin > 0 ? 1 + f * 9 : 1;
+      const px = WX + WW / 2 + Math.cos(w.a) * f * WW * 0.72;
+      const py = WY + WH2 / 2 + Math.sin(w.a) * f * WH2 * 0.72;
+      const ln = UNI.spin > 0 ? 1 + f * 8 : 1;
       ctx.globalAlpha = 0.25 + f * 0.6;
       X.rect(ctx, px, py, Math.round(ln), 1, f > 0.7 ? '#ffffff' : '#a8c8ff');
       ctx.globalAlpha = 1;
     }
-    // three reel bands, each a window on to somewhere else
+    // three bands, each stopping in its own time
+    const prog = UNI.spin > 0 ? 1 - UNI.spin / UNI.spinMax : 1;
     for (let r = 0; r < 3; r++) {
-      const rx = WX + 16 + r * 100;
-      ctx.globalAlpha = 0.28;
-      X.rect(ctx, rx, WY, 84, WH2, '#160a26');
-      ctx.globalAlpha = 1;
-      X.rect(ctx, rx, WY, 1, WH2, '#6e3a9e');
-      X.rect(ctx, rx + 83, WY, 1, WH2, '#6e3a9e');
-      const spinning = UNI.spin > 0;
-      const idx = Math.floor(UNI.reel + r) % 5;
+      const rx = WX + 4 + r * ((WW - 8) / 3), rw = (WW - 8) / 3 - 3;
+      const cx = rx + rw / 2, cy = WY + WH2 / 2;
+      ctx.globalAlpha = 0.3; X.rect(ctx, rx, WY, rw, WH2, '#160a26'); ctx.globalAlpha = 1;
+      const spinning = UNI.spin > 0 && prog < STOPF[r];
       if (spinning) {
-        for (let k = -1; k <= 1; k++) {
-          ctx.globalAlpha = k ? 0.3 : 0.9;
-          reelWorld(ctx, rx + 42, WY + WH2 / 2 + k * 46, 20, (idx + k + 5) % 5, t, 1);
+        // six worlds smeared through the window at once, so it reads as speed
+        const roll = (UNI.reel * 2.6 + r * 2.1);
+        const off = (roll % 1) * 22;
+        for (let k = -3; k <= 3; k++) {
+          ctx.globalAlpha = 0.3 - Math.abs(k) * 0.05;
+          reelWorld(ctx, cx, cy + k * 22 + off, 11, Math.floor(roll) + k, t, 1);
           ctx.globalAlpha = 1;
         }
-      } else if (UNI.lost) {
-        // and the one that is not a world at all
-        X.blob(ctx, rx + 42, WY + WH2 / 2, 23, 23, '#1a0a12');
-        X.blob(ctx, rx + 42, WY + WH2 / 2, 20, 20, '#2a1018');
-        PD.glyph.draw(ctx, 'skull', rx + 28, WY + WH2 / 2 - 14, '#c22a4a', '#ff8a9a', 2);
-        ctx.globalAlpha = 0.4 + Math.abs(Math.sin(t * 5)) * 0.3;
-        X.blob(ctx, rx + 42, WY + WH2 / 2, 30, 30, 'rgba(200,40,70,0.25)');
+        // horizontal streaks, and a wash over the lot
+        for (let sy = WY + 2; sy < WY + WH2; sy += 4) {
+          ctx.globalAlpha = 0.1 + ((sy + roll * 40) % 12 < 4 ? 0.14 : 0);
+          X.rect(ctx, rx + 2, sy + ((roll * 30) % 4), rw - 4, 1, '#e8d8ff');
+          ctx.globalAlpha = 1;
+        }
+        ctx.globalAlpha = 0.14;
+        X.rect(ctx, rx, WY, rw, WH2, '#c9a8ff');
         ctx.globalAlpha = 1;
       } else {
-        reelWorld(ctx, rx + 42, WY + WH2 / 2, 22, UNI.n > 0 ? 2 : (idx + r) % 5, t, 0);
-        if (UNI.n > 0) {
-          ctx.globalAlpha = 0.3 + Math.abs(Math.sin(t * 3 + r)) * 0.2;
-          X.blob(ctx, rx + 42, WY + WH2 / 2, 34, 34, 'rgba(255,211,77,0.2)');
+        // a settle bounce for the first tenth of a second after it lands
+        // a settle bounce for a fifth of a second after this reel lands
+        const at = UNI.spinMax * (1 - STOPF[r]);
+        const set = UNI.spin > 0 ? Math.max(0, 1 - (at - UNI.spin) / 0.2) : 0;
+        const bY = cy + Math.sin(set * 9) * set * 7;
+        if (UNI.face[r] === 3 && UNI.lost) reelSkull(ctx, cx, bY, 15, t);
+        else reelWorld(ctx, cx, bY, 15, UNI.face[r], t, 0);
+        if (!UNI.lost && UNI.n > 0) {
+          ctx.globalAlpha = 0.2 + Math.abs(Math.sin(t * 3 + r)) * 0.16;
+          X.blob(ctx, cx, bY, 24, 24, 'rgba(255,211,77,0.35)');
           ctx.globalAlpha = 1;
         }
       }
+      X.rect(ctx, rx - 2, WY, 1, WH2, '#6e3a9e');
+      X.rect(ctx, rx + rw + 1, WY, 1, WH2, '#6e3a9e');
+      // the last reel left turning gets a frame round it that will not keep still
+      if (r === 2 && spinning && prog >= STOPF[1]) {
+        const pu = 0.4 + Math.abs(Math.sin(t * 9)) * 0.6;
+        ctx.globalAlpha = pu;
+        X.rect(ctx, rx - 2, WY, rw + 4, 2, '#ffd34d');
+        X.rect(ctx, rx - 2, WY + WH2 - 2, rw + 4, 2, '#ffd34d');
+        X.rect(ctx, rx - 2, WY, 2, WH2, '#ffd34d');
+        X.rect(ctx, rx + rw, WY, 2, WH2, '#ffd34d');
+        ctx.globalAlpha = pu * 0.16;
+        X.blob(ctx, cx, cy, rw, WH2 * 0.7, '#ffd34d');
+        ctx.globalAlpha = 1;
+      }
     }
-    // the payline, straight through the middle of the universe
+    // the payline
     X.rect(ctx, WX, WY + WH2 / 2, WW, 1, UNI.lost ? '#ff5a4d' : 'rgba(255,95,168,0.5)');
+    // glass: a diagonal sheen over the whole window
+    ctx.globalAlpha = 0.07;
+    X.poly(ctx, [[WX, WY + WH2], [WX + WW * 0.4, WY], [WX + WW * 0.62, WY], [WX + WW * 0.22, WY + WH2]], '#ffffff');
+    ctx.globalAlpha = 1;
     ctx.restore();
 
     // -------------------------------------------------- the ten world lamps
     for (let i = 0; i < 10; i++) {
-      const lx = 58 + i * 38;
+      const lx = CBX + 10 + i * 18, ly = 156;
       const on = i < UNI.n;
-      X.plate(ctx, lx, 162, 30, 26, on ? '#3a2a08' : '#190c28', on ? '#ffd34d' : '#3a2252', '#0a0414', 4);
+      const fresh = on && i === UNI.n - 1 && UNI.glare > 0;
+      X.plate(ctx, lx, ly, 16, 18, on ? '#3a2a08' : '#221238', on ? '#ffd34d' : '#54357a', '#0a0414', 3);
       if (on) {
-        reelWorld(ctx, lx + 15, 175, 8, i % 5, t, 0);
-        ctx.globalAlpha = 0.3;
-        X.blob(ctx, lx + 15, 175, 15, 15, '#ffd34d');
+        reelWorld(ctx, lx + 8, ly + 9, 5, i % 5, t, 0);
+        ctx.globalAlpha = fresh ? 0.14 + UNI.glare * 0.3 : 0.12;
+        X.blob(ctx, lx + 8, ly + 9, fresh ? 11 + UNI.glare * 6 : 8, fresh ? 11 + UNI.glare * 6 : 8, '#ffd34d');
         ctx.globalAlpha = 1;
       } else {
-        F.draw(ctx, String(i + 1), lx + 15, 171, '#4a3a66', { center: true, shadow: false, scale: 2 });
+        F.draw(ctx, String(i + 1), lx + 8, ly + 6, '#4a3a66', { center: true, shadow: false });
       }
     }
-    F.draw(ctx, UNI.n + ' / 10', 240, 194, UNI.n >= 9 ? '#ffd34d' : '#8a7ab0', { center: true, scale: 2, shadow: '#1a0614' });
+    // the counter, and the coin slot, and the bit that takes everything
+    X.plate(ctx, CBX + 34, 180, 60, 16, '#0d0620', '#4a2a70', '#060310', 3);
+    F.draw(ctx, UNI.n + '/10', CBX + 64, 184, UNI.n >= 9 ? '#ffd34d' : '#8a7ab0', { center: true, shadow: '#1a0614' });
+    X.plate(ctx, CBX + 104, 180, 62, 16, '#0d0620', '#4a2a70', '#060310', 3);
+    F.draw(ctx, UNI.lost ? 'NOTHING' : (IN_S.quit ? 'TOO LATE' : 'ALL OF IT'), CBX + 135, 184,
+      UNI.lost ? '#ff5a4d' : '#ff5fa8', { center: true, shadow: '#1a0614' });
+    // a ledge to lean on, and the coin tray
+    X.plate(ctx, CBX - 6, 198, CBW + 12, 10, '#351550', '#7a3aae', '#170a2a', 3);
+    X.rect(ctx, CBX + 74, 208, 52, 6, '#0a0614');
 
-    // ------------------------------------------------------------ the lever
-    const lv = UNI.spin > 0 ? 30 : 0;
-    X.rect(ctx, 452, 60 + lv, 10, 110 - lv, '#3a3060');
-    X.rect(ctx, 454, 60 + lv, 3, 110 - lv, '#6a5a9c');
-    X.blob(ctx, 457, 54 + lv, 15, 15, '#7a1030');
-    X.blob(ctx, 457, 54 + lv, 11, 11, '#c22a4a');
-    X.blob(ctx, 452, 49 + lv, 5, 4, '#ff8a9a');
+    // the mount the lever turns in; the lever itself goes on last, over you
+    X.plate(ctx, PIVX - 7, PIVY - 7, 14, 16, '#2a1442', '#6e3a9e', '#120722', 3);
+    X.blob(ctx, PIVX, PIVY, 3.5, 3.5, '#12081e');
+  }
 
+  function leverBall() {
+    const ang = -1.1 + UNI.lever * 1.42;
+    return { x: PIVX + Math.cos(ang) * 18, y: PIVY + Math.sin(ang) * 18 };
+  }
+  /* Drawn under your hand, not over it: shaft, chrome, and a ball you can just
+     about get a tentacle round. */
+  function drawLever(ctx) {
+    const b = leverBall();
+    X.limb(ctx, PIVX, PIVY, b.x, b.y, 4, 3, '#4a3f70', '#a89ad0', '#1c1430');
+    X.blob(ctx, b.x, b.y, 5.5, 5.5, '#5e0c22');
+    X.blob(ctx, b.x, b.y, 4, 4, '#c22a4a');
+    X.blob(ctx, b.x - 1.3, b.y - 1.4, 1.6, 1.4, '#ff8a9a');
+    if (UNI.pull > 0) {
+      ctx.globalAlpha = 0.26;
+      X.blob(ctx, b.x, b.y, 9, 9, '#ff5fa8');
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  /* --------------------------------------------------------------- you
+     The full rig, one hand on the lever the whole time, which means the arm
+     genuinely rides the lever down and springs back with it. */
+  function drawGambler(ctx, g, t) {
+    const sk = PD.art.skinFor(g.save ? g.save.cos : null);
+    if (!UNI.rig) UNI.rig = PD.rig.make();
+    const r = UNI.rig;
+    const lb = leverBall(), bx = lb.x, by = lb.y;
+    const hop = UNI.hop > 0 ? Math.sin(Math.PI * (1 - UNI.hop / 0.6)) : 0;
+    const sag = UNI.lost ? Math.min(1, UNI.t / 1.1) : 0;
+    const y = FY - 13 - hop * 9 + UNI.lever * 2 + sag * 11;
+    const shx = PSX - 4, shy = y - 6.5;
+    ctx.globalAlpha = 0.42 - hop * 0.18;
+    X.blob(ctx, PSX, FY + 1, 12 - hop * 3, 3, '#0a0614');
+    ctx.globalAlpha = 1;
+    const grip = UNI.lost ? null : { x: bx, y: by };
+    ctx.save();
+    ctx.translate(PSX, FY);
+    ctx.rotate(UNI.lever * 0.1 - hop * 0.04 - sag * 0.3);
+    ctx.translate(-PSX, -FY);
+    PD.rig.draw(ctx, r, {
+      x: PSX, y: y, flip: true, spr: sk.alienCore,
+      frame: PD.rig.faceOf(r, t, Math.sin(t * 1.3) > 0.93),
+      drilling: false, twoHand: false, grip: grip,
+      aim: grip ? Math.atan2(by - shy, bx - shx) : Math.PI,
+      ground: true, vx: 0, vy: 0,
+      squash: 1 + (hop > 0 ? hop * 0.16 : Math.sin(t * 3.2) * 0.02) - sag * 0.12,
+      ragdoll: false
+    }, sk.P, PD.art.BIZ);
     ctx.restore();
+    if (hop > 0.5 && U.chance(0.4)) bits(PSX, FY, 1, ['#ffd34d', '#ffffff'], 60, 0);
+  }
 
-    // --------------------------------------------------- your own two hands
-    drawUniHands(ctx, g, t, lv);
+  /* -------------------------------------------------------- one of the room */
+  function drawFan(ctx, c, t) {
+    const K = AH.KIN[c.k % AH.KIN.length];
+    if (c.row === 0 && UNI.lost && c.drift > 0.5) return;      // the balcony empties
+    const jump = (c.jt > 0 && c.jt < c.jd) ? Math.sin(Math.PI * c.jt / c.jd) * c.jh : 0;
+    const hot = UNI.hype;
+    const bob = Math.sin(t * (2.2 + hot * 6) + c.ph) * (0.8 + hot * 2.2);
+    const x = c.x + (UNI.lost ? 0 : Math.sin(t * 0.6 + c.ph) * 1.6);
+    const y = c.y - jump + bob * 0.4;
+    ctx.globalAlpha = 0.42 - Math.min(0.3, jump / 46);
+    X.blob(ctx, x, c.y + 1, K.w * 0.42 * c.s, 3 * c.s, '#0a0614');
+    ctx.globalAlpha = 1;
+    const walking = UNI.lost && c.drift > 0.02 && c.drift < 0.98;
+    const face = UNI.lost
+      ? (walking ? (Math.floor(t * 7 + c.ph) % 2 ? 1 : 2) : 0)
+      : (jump > 0.4 || hot > 0.45 ? 6 : (c.shout > 0 ? 3 : (Math.floor(t * 2 + c.ph) % 11 === 0 ? 5 : 0)));
+    ctx.save();
+    ctx.translate(x, y); ctx.scale(c.s, c.s);
+    const flip = UNI.lost ? c.x0 < 350 : c.face < 0;
+    AH.blit(ctx, AH.S[K.key], face, 0, 0, flip);
+    // a drink held up, spilling when they jump
+    if (c.drink >= 0 && face !== 6) {
+      const dc = ['#8affa0', '#ff8ad8', '#ffb03d', '#7ec8ff'][c.drink];
+      const hx = (flip ? -1 : 1) * (K.w * 0.52 + 2), hy = -K.h * 0.42 + Math.sin(t * 3 + c.ph) * 1.5;
+      X.rect(ctx, hx - 2, hy, 5, 7, 'rgba(220,235,255,0.35)');
+      X.rect(ctx, hx - 2, hy + 2, 5, 5, dc);
+      X.rect(ctx, hx - 2, hy, 5, 1, '#d8fbff');
+    }
+    ctx.restore();
+    if (jump > 3 && c.drink >= 0 && U.chance(0.16)) {
+      bits(x + (c.face < 0 ? -6 : 6) * c.s, y - K.h * 0.42 * c.s, 1,
+        [['#8affa0', '#ff8ad8', '#ffb03d', '#7ec8ff'][c.drink]], 40, 0);
+    }
+    c.sx = x; c.sy = y - K.h * c.s;
+  }
+
+  /* every shout in the room, drawn last so nothing sits on top of one */
+  function drawShouts(ctx, t) {
+    void t;
+    for (const c of CROWD) {
+      if (c.shout <= 0 || c.row < 2 || c.sx === undefined) continue;
+      const w = WORDS[c.word % WORDS.length];
+      const bw = F.width(w, 1) + 8, bh = 11;
+      const x = c.sx, by = c.sy - 11 - Math.min(7, c.shout * 7) - (c.row === 3 ? 4 : 0);
+      ctx.globalAlpha = Math.min(1, c.shout * 1.6) * 0.94;
+      X.plate(ctx, x - bw / 2, by, bw, bh, '#f4f0ff', '#ffffff', '#9a90c0', 2);
+      X.poly(ctx, [[x - 3, by + bh - 1], [x + 3, by + bh - 1], [x - 1, by + bh + 4]], '#f4f0ff');
+      F.draw(ctx, w, x, by + 3, '#2a1a44', { center: true, shadow: false });
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  /* ------------------------------------------------------------ the scene */
+  function drawHall(ctx, g, t, opts) {
+    opts = opts || {};
+    hallRoom(ctx, t);
+    for (const c of CROWD) if (c.row === 0) drawFan(ctx, c, t);     // the balcony
+    balconyRail(ctx);
+    for (const b of BANKS) if (b.s < 1) slotBox(ctx, b.x, b.y, b.s, b.i, t);
+    for (const c of CROWD) if (c.row === 1) drawFan(ctx, c, t);
+    for (const b of BANKS) if (b.s >= 1) slotBox(ctx, b.x, b.y, b.s, b.i, t);
+    exitSign(ctx, t);
+    drawCabinet(ctx, g, t);
+    // the house has one light on you, because you are the entertainment
+    ctx.globalAlpha = 0.09 + UNI.hype * 0.05;
+    X.poly(ctx, [[PSX - 4, -50], [PSX + 6, -50], [PSX + 20, FY + 2], [PSX - 18, FY + 2]], '#ffe9a8');
+    ctx.globalAlpha = 1;
+    drawBits(ctx);
+    drawLever(ctx);
+    if (!opts.noPlayer) drawGambler(ctx, g, t);
+    for (const c of CROWD) if (c.row === 2) drawFan(ctx, c, t);
+    if (opts.player) opts.player(ctx);
+    for (const c of CROWD) if (c.row === 3) drawFan(ctx, c, t);
+    // haze, so the far end of the room sits back
+    ctx.globalAlpha = 0.09;
+    X.rect(ctx, -200, 60, 1200, 150, '#6a3ab0');
+    ctx.globalAlpha = 1;
+    drawShouts(ctx, t);
+  }
+
+  /* Six of them standing between you and the camera, drawn in screen space so
+     they stay enormous however far the shot pulls back. Nothing but silhouette
+     and a rim of whatever colour the room is throwing about -- they are the
+     bottom edge of the frame, not characters. */
+  const SIL = [];
+  for (let i = 0; i < 7; i++) {
+    SIL.push({ x: -26 + i * 78 + U.hash2(i, 3) * 34, w: 25 + U.hash2(i, 7) * 17,
+      h: 36 + U.hash2(i, 11) * 22, ph: U.hash2(i, 13) * U.TAU,
+      crest: Math.floor(U.hash2(i, 17) * 3), col: HUES[i % HUES.length] });
+  }
+  function drawSilhouettes(ctx, t) {
+    const k = U.clamp((1.05 - CAM.z) / 0.35, 0, 1);
+    if (k <= 0.01) return;
+    const hot = UNI.lost ? 0 : UNI.hype;
+    const INK = '#150b22', RIM = '#2a1840';
+    ctx.globalAlpha = k;
+    for (const s2 of SIL) {
+      const jump = Math.max(0, Math.sin(t * (2 + hot * 7) + s2.ph)) * (2 + hot * 14);
+      const y = VH - 20 - jump;                    // the line of their shoulders
+      const w = s2.w, h = s2.h;
+      const hy = y - h * 0.46;                     // the middle of the head
+      const hr = w * 0.40;
+      // arms, up and waving, drawn behind the body so they read as behind them
+      if (hot > 0.35) {
+        for (const sd of [-1, 1]) {
+          const wag = Math.sin(t * (6 + s2.ph) + (sd > 0 ? 0 : 1.4)) * 5;
+          X.limb(ctx, s2.x + sd * w * 0.62, y + 4,
+            s2.x + sd * (w * 0.98) + wag, hy - h * 0.78 - hot * 12, 9, 6, INK, RIM, INK);
+        }
+      }
+      // shoulders and chest: a wedge, wider at the bottom, cut off by the frame
+      X.poly(ctx, [[s2.x - w, VH + 6], [s2.x - w * 0.72, y + 2],
+        [s2.x - hr * 0.8, y - h * 0.14], [s2.x + hr * 0.8, y - h * 0.14],
+        [s2.x + w * 0.72, y + 2], [s2.x + w, VH + 6]], INK);
+      X.rect(ctx, s2.x - hr * 0.5, y - h * 0.3, hr, h * 0.2, INK);     // the neck
+      X.blob(ctx, s2.x, hy, hr, h * 0.34, INK);                        // the head
+      // whatever is on top of it
+      if (s2.crest === 0) {
+        for (const sd of [-1, 1]) {
+          X.limb(ctx, s2.x + sd * hr * 0.4, hy - h * 0.2,
+            s2.x + sd * hr * 0.85, hy - h * 0.62 + Math.sin(t * 3 + s2.ph) * 2, 3, 2, INK, RIM, INK);
+        }
+      } else if (s2.crest === 1) {
+        for (let f = -2; f <= 2; f++) {
+          const hgt = h * (0.3 - Math.abs(f) * 0.05);
+          X.rect(ctx, s2.x + f * (hr * 0.34) - 1, hy - h * 0.26 - hgt, 3, hgt + 3, INK);
+        }
+      } else {
+        X.blob(ctx, s2.x, hy - h * 0.26, hr * 1.25, h * 0.1, INK);      // a wide flat skull
+        X.blob(ctx, s2.x - hr * 0.9, hy - h * 0.1, hr * 0.35, h * 0.16, INK);
+        X.blob(ctx, s2.x + hr * 0.9, hy - h * 0.1, hr * 0.35, h * 0.16, INK);
+      }
+      // one thin line of the room along the top of the skull
+      ctx.globalAlpha = k * 0.45;
+      X.blob(ctx, s2.x - hr * 0.25, hy - h * 0.31, hr * 0.42, 1, s2.col);
+      ctx.globalAlpha = k;
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function drawUniversal(ctx, g, t) {
+    const sh = UNI.shake > 0 ? Math.sin(t * 58) * UNI.shake * 5 : 0;
+    ctx.save();
+    ctx.translate(VW / 2 + sh, VH / 2 + sh * 0.4);
+    ctx.scale(CAM.z, CAM.z);
+    ctx.translate(-CAM.x, -CAM.y);
+    drawHall(ctx, g, t, {});
+    ctx.restore();
+    drawSilhouettes(ctx, t);
 
     if (UNI.flash > 0) {
       ctx.fillStyle = 'rgba(255,90,77,' + (UNI.flash * 0.5).toFixed(2) + ')';
       ctx.fillRect(0, 0, VW, VH);
     }
-
-    // ---------------------------------------------------------- what it wants
-    if (UNI.lost) {
-      captionCard(ctx, [IN_S.quit ? 'YOU WALKED AWAY. IT SPUN ANYWAY.' : 'NINE. AND THEN THIS.'],
-        2, 1, t, UNI.t > 2.6 && Math.abs(Math.sin(t * 4)) > 0.4 ? 'E / TAP' : null);
-    } else if (UNI.choice) {
-      const m = PD.input.mouse;
-      captionCard(ctx, ['NINE. ONE MORE TAKES EVERYTHING.'], 1, 1, t, null);
-      for (const [bx, lab, col] of [[120, 'ONE MORE', '#f2c23a'], [248, 'WALK AWAY', '#8a7ab0']]) {
-        const hot = m.inside && m.x > bx && m.x < bx + 112 && m.y > 196 && m.y < 218;
-        X.plate(ctx, bx, 196, 112, 22, hot ? col : '#241636', col, '#120a1c', 4);
-        F.draw(ctx, lab, bx + 56, 202, hot ? '#1a1024' : col, { center: true, scale: 2, shadow: '#000000' });
-      }
-    } else {
-      captionCard(ctx, [UNI.n === 0 ? 'PULL IT.' : 'AGAIN. ' + (10 - UNI.n) + ' TO GO.'], 2, 1, t,
-        Math.abs(Math.sin(t * 4)) > 0.4 ? 'E / TAP' : null);
+    if (UNI.glare > 0) {
+      ctx.fillStyle = 'rgba(255,211,77,' + (UNI.glare * 0.16).toFixed(2) + ')';
+      ctx.fillRect(0, 0, VW, VH);
     }
-  }
-
-  /* His hands, in the bottom corners, the same way the computer scene does it.
-     One of them is on the lever and the other one has nothing to do. */
-  let uniHands = null;
-  function buildUniHands(P) {
-    const out = [];
-    for (let f = 0; f < 2; f++) {
-      const p = pix(112, 90);
-      p.round(20, 36, 72, 54, 18, P.skinD);
-      p.round(14, 46, 84, 44, 16, P.skin);
-      p.round(22, 56, 68, 34, 12, P.skinD);
-      // three fat fingers curled over whatever it is holding
-      for (let i = 0; i < 3; i++) {
-        const fy = 30 + i * 18 - (f ? 4 : 0);
-        p.round(8 + i * 2, fy, 40, 18, 8, P.skin);
-        p.round(8 + i * 2, fy, 40, 6, 5, P.skinL);
-        p.round(6 + i * 2, fy + 3, 12, 12, 5, P.skinL);
-      }
-      p.round(14, 18 - (f ? 5 : 0), 34, 22, 9, P.skin);
-      p.round(14, 18 - (f ? 5 : 0), 34, 7, 5, P.skinL);
-      p.outline('#120a1c');
-      out.push(p.toCanvas());
-    }
-    return out;
-  }
-  function drawUniHands(ctx, g, t, lv) {
-    const sk = PD.art.skinFor(g.save ? g.save.cos : null);
-    if (!uniHands) uniHands = buildUniHands(sk.P || { skin: '#6abf5a', skinD: '#3f7f3a', skinL: '#9fe88a' });
-    const br = Math.sin(t * 1.6) * 2;
-    // the one on the lever, riding it down when it is pulled
-    ctx.save();
-    ctx.translate(VW - 34, VH - 96 + lv * 0.9 + br);
-    ctx.scale(-0.85, 0.85);
-    ctx.drawImage(uniHands[UNI.spin > 0 ? 1 : 0], 0, 0);
-    ctx.restore();
-    // and the idle one, tapping on the glass
-    ctx.save();
-    ctx.translate(2, VH - 84 + Math.sin(t * 3.4) * 3);
-    ctx.scale(0.78, 0.78);
-    ctx.drawImage(uniHands[Math.floor(t * 4) % 2], 0, 0);
-    ctx.restore();
-  }
-
-  /* ---- the floor of the club, from very close to it ---- */
-  function drawFloor(ctx, g, t) {
-    ctx.fillStyle = '#140820'; ctx.fillRect(0, 0, VW, VH);
-    // carpet, seen from about six inches up
-    for (let y = 120; y < VH; y += 6) {
-      const k = (y - 120) / (VH - 120);
-      X.rect(ctx, 0, y, VW, 6, k > 0.5 ? '#4a1230' : '#3a0e26');
-      for (let x = ((y * 7) % 18); x < VW; x += 18) X.rect(ctx, x, y + 2, 7, 3, k > 0.5 ? '#5c1a3c' : '#47122e');
-    }
-    X.rect(ctx, 0, 118, VW, 2, '#2a0a1c');
-    // legs going past, out of focus
-    for (let i = 0; i < 7; i++) {
-      const lx = ((i * 83 + t * (14 + i * 5)) % (VW + 80)) - 40;
-      ctx.globalAlpha = 0.55;
-      X.rect(ctx, lx, 66, 9, 54, '#1d0e28');
-      X.rect(ctx, lx + 13, 70, 9, 50, '#1d0e28');
-      X.blob(ctx, lx + 4, 120, 8, 3, '#0d0614');
-      ctx.globalAlpha = 1;
-    }
-    // the lights of the room, far away and not interested
-    for (let i = 0; i < 9; i++) {
-      const on = (Math.floor(t * 4) + i) % 3 !== 0;
-      X.rect(ctx, 10 + i * 52, 28, 34, 3, on ? '#7a2450' : '#2a0e1c');
-    }
-    ctx.globalAlpha = 0.12;
-    X.blob(ctx, 240, 50, 180, 40, '#ff5fa8');
+    // a soft vignette and a warm bloom over the whole frame
+    ctx.globalAlpha = 0.16 + UNI.hype * 0.1;
+    const vg = ctx.createRadialGradient(240, 128, 60, 240, 128, 260);
+    vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, '#0a0412');
+    ctx.fillStyle = vg; ctx.fillRect(0, 0, VW, VH);
     ctx.globalAlpha = 1;
 
-    // you, down there
-    const sk = PD.art.skinFor(g.save.cos), spr = sk.alienCore;
-    const cv = spr.frames[0], k = spr.hd || 1;
-    ctx.save();
-    ctx.translate(200, 150 + Math.sin(t * 1.4) * 1);
-    ctx.rotate(-0.5);
-    ctx.drawImage(cv, -spr.ox, -spr.oy, cv.width / k, cv.height / k);
-    ctx.restore();
-    // and the tears, which are the only thing moving fast
-    for (let i = 0; i < 5; i++) {
-      const f = ((t * 1.4 + i * 0.2) % 1);
-      ctx.globalAlpha = 1 - f;
-      X.rect(ctx, 196 + i * 3 - f * 6, 132 + f * 26, 2, 3, '#9fe8ff');
+    // ---------------------------------------------------------- what it wants
+    // no buttons: one line at the bottom of the frame and the room does the rest
+    let line = null, sub = null;
+    if (UNI.arrive < 4.4) { line = 'EVERY NIGHT SOMEBODY GETS NINE.'; sub = 'NOBODY HAS EVER GOT TEN.'; }
+    else if (UNI.lost) { line = IN_S.quit ? 'YOU WALKED AWAY. IT SPUN ANYWAY.' : 'NINE. AND THEN THIS.'; sub = UNI.t > 3 ? 'TAP' : null; }
+    else if (UNI.choice) { line = 'NINE. ONE MORE TAKES EVERYTHING.'; sub = 'PULL AGAIN, OR GO AND STAND AT THE EXIT'; }
+    else if (UNI.spin > 0) { line = null; }
+    else { line = UNI.n === 0 ? 'PULL THE LEVER.' : 'AGAIN. ' + (10 - UNI.n) + ' TO GO.'; sub = null; }
+    if (line) {
+      const a = UNI.arrive < 4.4 ? U.clamp(UNI.arrive * 1.4, 0, 1) * U.clamp((4.4 - UNI.arrive) * 2, 0, 1) : 1;
+      ctx.globalAlpha = a;
+      ctx.fillStyle = 'rgba(8,4,18,0.55)'; ctx.fillRect(0, VH - 34, VW, 34);
+      X.rect(ctx, 0, VH - 35, VW, 1, 'rgba(255,95,168,0.35)');
+      F.draw(ctx, line, 240, VH - 28, '#ffe9a8', { center: true, scale: 2, shadow: '#1a0614' });
+      if (sub) {
+        const bl = sub === 'TAP' ? (Math.abs(Math.sin(t * 4)) > 0.4 ? 1 : 0.25) : 1;
+        ctx.globalAlpha = a * bl;
+        F.draw(ctx, sub, 240, VH - 12, '#c9a8ff', { center: true, shadow: '#1a0614' });
+      }
       ctx.globalAlpha = 1;
     }
+  }
+
+  /* ---- the same floor, from down on it ----
+     Same room, same machine, same people: the only thing that has changed is
+     that you are on the carpet and they are leaving. */
+  function drawFloor(ctx, g, t) {
+    const bt = IN_S.t;
+    const k = U.clamp(bt / 5, 0, 1);
+    const z = U.lerp(1.02, 1.24, k);
+    const cx = U.lerp(414, 388, k), cy = U.lerp(176, 190, k);
+    ctx.save();
+    ctx.translate(VW / 2, VH / 2);
+    ctx.scale(z, z);
+    ctx.translate(-cx, -cy);
+    hallRoom(ctx, t);
+    for (const c of CROWD) if (c.row === 0) drawFan(ctx, c, t);
+    balconyRail(ctx);
+    for (const b of BANKS) if (b.s < 1) slotBox(ctx, b.x, b.y, b.s, b.i, t);
+    for (const c of CROWD) if (c.row === 1) drawFan(ctx, c, t);
+    for (const b of BANKS) if (b.s >= 1) slotBox(ctx, b.x, b.y, b.s, b.i, t);
+    drawCabinet(ctx, g, t);
+    drawLever(ctx);
+    drawBits(ctx);
+
+    // -------------------------------------------------------------- you
+    // he goes down in two stages: on to his knees, then all the way over
+    const sk = PD.art.skinFor(g.save.cos);
+    if (!UNI.rig) UNI.rig = PD.rig.make();
+    PD.rig.step(UNI.rig, { dt: g.dt, vx: 0, vy: 0, ground: false, drilling: false });
+    const fall = U.smoothstep(0, 1, U.clamp((bt - 0.5) / 1.7, 0, 1));
+    const rot = -0.3 - fall * 1.16;
+    const px = PSX - 8 - fall * 58, py = FY - 14 + fall * 12;
+    ctx.save();
+    ctx.translate(px, py + Math.sin(t * 1.2) * 0.5);
+    ctx.rotate(rot + Math.sin(t * 0.9) * 0.015);
+    PD.rig.draw(ctx, UNI.rig, {
+      x: 0, y: 0, flip: true, spr: sk.alienCore, frame: 3,
+      drilling: false, twoHand: false, grip: null, aim: Math.PI,
+      ground: false, vx: 0, vy: 30, squash: 0.94, ragdoll: true
+    }, sk.P, PD.art.BIZ);
+    ctx.restore();
+    // his shadow, spreading as he goes down
+    ctx.globalAlpha = 0.38;
+    X.blob(ctx, px - fall * 14, FY + 3, 12 + fall * 22, 3.5, '#0a0614');
+    ctx.globalAlpha = 1;
+    // the last of his money, all over the carpet
+    for (let i = 0; i < 9; i++) {
+      const cx2 = px - 34 + U.hash2(i, 3) * 78, cy2 = FY + 3 + U.hash2(i, 7) * 16;
+      ctx.globalAlpha = 0.9;
+      X.blob(ctx, cx2, cy2, 3, 1.6, i % 3 ? '#8a6a2a' : '#3a2a52');
+      X.blob(ctx, cx2 - 0.8, cy2 - 0.5, 1.2, 0.7, i % 3 ? '#ffd34d' : '#6a5a9c');
+      ctx.globalAlpha = 1;
+    }
+    // and the tears, which are the only thing moving fast
+    for (let i = 0; i < 6; i++) {
+      const f = ((t * 1.5 + i * 0.17) % 1);
+      ctx.globalAlpha = (1 - f) * fall;
+      X.rect(ctx, px - 24 + i * 2 - f * 7, FY - 14 + f * 13, 2, 3, '#9fe8ff');
+      ctx.globalAlpha = 1;
+    }
+    for (const c of CROWD) if (c.row === 2) drawFan(ctx, c, t);
+    // somebody walks across the front of the shot to get to the bar
+    const wx = -60 + ((bt * 62) % 620);
+    const WK = AH.KIN[3];
+    ctx.save();
+    ctx.translate(wx, 300); ctx.scale(1.5, 1.5);
+    AH.blit(ctx, AH.S[WK.key], Math.floor(bt * 7) % 2 ? 1 : 2, 0, 0, false);
+    ctx.restore();
+    for (const c of CROWD) if (c.row === 3) drawFan(ctx, c, t);
+    ctx.restore();
+
+    ctx.globalAlpha = 0.32;
+    const vg = ctx.createRadialGradient(240, 150, 40, 240, 150, 230);
+    vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, '#0a0412');
+    ctx.fillStyle = vg; ctx.fillRect(0, 0, VW, VH);
+    ctx.globalAlpha = 1;
   }
 
   /* ---- the city, going past upside down ---- */
@@ -11057,29 +11715,25 @@ window.PD = window.PD || {};
     }
   }
 
+  /* There is no opening cutscene any more. The night starts with you already on
+     your feet in the club -- the machine is at the back of the room and you go
+     and find it yourself. Everything after that is beats. */
   function enterIntro(g) {
     ensureArt();
     IN_S.beat = 0; IN_S.t = 0; IN_S.line = 0; IN_S.chars = 0; IN_S.pop = 0; IN_S.quit = 0;
     IN_S.reel = [0, 0, 0]; IN_S.spin = 3.2; IN_S.chips.length = 0; IN_S.flash = 0;
-    IN_S.done = 0;
-    g.state = 'intro';
+    IN_S.done = 0; IN_S.inClub = 1;
+    g.save.story = 1;
+    g.saveGame();
+    g.state = 'home';
+    PD.home.enter(g);
+    PD.home.goClub(g, true);
     A.sfx.tone(180, { type: 'square', to: 90, dur: 0.5, vol: 0.1 });
   }
 
   function nextBeat(g) {
     IN_S.beat++; IN_S.t = 0; IN_S.line = 0; IN_S.chars = 0; IN_S.pop = 0;
     if (IN_S.beat >= BEATS.length) { finishIntro(g); return; }
-    // after the first beat you are on your feet in the club, and it is yours
-    if (BEATS[IN_S.beat].id === 'universal' && !IN_S.inClub) {
-      IN_S.inClub = 1;
-      g.save.story = 1;
-      g.saveGame();
-      g.wipeTo(240, 135, '#1a1230', () => {
-        g.state = 'home';
-        PD.home.enter(g);
-        PD.home.goClub(g, true);
-      });
-    }
   }
 
   function spillChips() {
@@ -11114,6 +11768,11 @@ window.PD = window.PD || {};
       IN_S.pop = 1;
       updateUniversal(dt, g);
       return;
+    }
+    // the crowd carries on leaving while you are still on the carpet
+    if (BEATS[IN_S.beat] && BEATS[IN_S.beat].id === 'floor') {
+      UNI.lever = 0; UNI.pull = 0;
+      updateCrowd(dt, IN_S.t); updateBits(dt);
     }
     if (IN.hit('Escape')) { finishIntro(g); return; }
     IN_S.pop = Math.min(1, IN_S.pop + dt * 4.5);
@@ -11331,8 +11990,7 @@ window.PD = window.PD || {};
 
   function drawIntro(ctx, g, t) {
     const id = BEATS[IN_S.beat] ? BEATS[IN_S.beat].id : 'drop';
-    if (id === 'wake') drawFloor(ctx, g, t);
-    else if (id === 'universal') { drawUniversal(ctx, g, t); return; }
+    if (id === 'universal') { drawUniversal(ctx, g, t); return; }
     else if (id === 'floor') drawFloor(ctx, g, t);
     else if (id === 'drag') drawDrag(ctx, g, t);
     else if (id === 'fist') drawFist(ctx, g, t);
@@ -14592,7 +15250,7 @@ window.PD = window.PD || {};
   function goClub(g, story) {
     S.scene = 'club';
     place(g, story ? 120 : CLUB_SPOTS[0].x + 30);
-    if (story) { UI.mode = null; S.drunk = 1; say('YOU ARE UP. YOU ARE NOT WELL. THE BACK OF THE ROOM IS THAT WAY.'); }
+    if (story) { UI.mode = null; S.drunk = 0.45; say('YOU ARE UP. YOU ARE NOT WELL. THE BACK OF THE ROOM IS THAT WAY.'); }
     A.sfx.tone(90, { type: 'square', to: 60, dur: 0.3, vol: 0.1 });
   }
   function leaveClub(g) {
@@ -14955,7 +15613,7 @@ window.PD = window.PD || {};
     updateRat(dt, g);
     if (S.scene === 'club') updateClub(dt, g);
     P.sweep = Math.max(0, P.sweep - dt);
-    if (S.drunk > 0 && g.save.story !== 1) S.drunk = Math.max(0, S.drunk - dt * 0.4);
+    S.drunk = Math.max(g.save.story === 1 ? 0.32 : 0, S.drunk - dt * 0.06);
 
     const use_ = P.lock <= 0 && (IN.hit('KeyE') || IN.hit('space'));
     const m = IN.mouse;
@@ -16438,12 +17096,6 @@ window.PD = window.PD || {};
     ctx.rotate(Math.sin(t * 0.5 + i) * 0.06);
     ctx.drawImage(cv, -spr.ox, -spr.oy, cv.width / k, cv.height / k);
     ctx.restore();
-    // limp arms and legs, because he is asleep in a jar
-    for (let a = 0; a < 4; a++) {
-      const sx = x + (a % 2 ? 7 : -7), sy = y + fl - (a < 2 ? 14 : 2);
-      X.curve(ctx, sx, sy, sx + Math.sin(t + a) * 5, sy + 9, sx + Math.sin(t * 0.7 + a) * 8, sy + 18,
-        sk.P && sk.P.skin ? sk.P.skin : '#6abf5a', 3, 6);
-    }
     ctx.globalAlpha = 0.22;
     X.rect(ctx, x - 30, y - 44, 60, 46, '#1a6a58');
     ctx.globalAlpha = 1;

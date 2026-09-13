@@ -1172,7 +1172,7 @@
   }
 
   function buildAlien(t, face) {
-    const HW = t.hr * 2 + 26, HH = t.hr * 2 + t.th + t.lh + 24;
+    const HW = t.hr * 2 + 26, HH = t.hr * 2 + t.th + t.lh + 26;
     const W = HW & ~1, H = HH & ~1;
     const p = pix(W, H);
     const cx = W >> 1;
@@ -1182,7 +1182,8 @@
     const neckY = shY - 3;
     const headY = neckY - t.hr - 1;
     const INK = '#140f26';
-    const kiss = face === 4, blink = face === 5, talk = face === 3;
+    const kiss = face === 4, blink = face === 5, cheer = face === 6;
+    const talk = face === 3 || cheer;
     const step = face === 1 ? 1 : (face === 2 ? -1 : 0);   // walk frames
 
     // ---------------------------------------------------------------- legs
@@ -1254,10 +1255,12 @@
     for (const side of [-1, 1]) {
       const swing = side * (-step * 3);
       const sx = cx + side * (t.sw + 1);
-      const ex = sx + side * 3 + swing;
-      const hy = shY + t.th + 2 + Math.abs(swing);
-      limb(p, sx, shY + 4, ex, shY + Math.round(t.th * 0.55), t.aw + 1, t.aw, t.skin, t.lite, INK);
-      limb(p, ex, shY + Math.round(t.th * 0.55), ex + side * 2, hy, t.aw, t.aw - 1, t.skin, t.lite, INK);
+      // both arms straight up when the room is going mad
+      const ex = cheer ? sx + side * 2 : sx + side * 3 + swing;
+      const hy = cheer ? shY - t.th + 2 : shY + t.th + 2 + Math.abs(swing);
+      const mid = cheer ? shY - Math.round(t.th * 0.3) : shY + Math.round(t.th * 0.55);
+      limb(p, sx, shY + 4, ex, mid, t.aw + 1, t.aw, t.skin, t.lite, INK);
+      limb(p, ex, mid, ex + side * 2, hy, t.aw, t.aw - 1, t.skin, t.lite, INK);
       if (t.pads) p.round(sx - 2, shY + 2, 5, 4, 1, t.acc);
       // a hand with a couple of fingers on it
       p.round(ex + side * 2 - 3, hy, 6, 6, 2, t.lite);
@@ -1375,7 +1378,7 @@
   function makeKin(n) {
     for (let i = 0; i < n; i++) {
       const t = alienKin(i * 7717 + 13);
-      const frames = [0, 1, 2, 3, 4, 5].map(f => buildAlien(t, f));
+      const frames = [0, 1, 2, 3, 4, 5, 6].map(f => buildAlien(t, f));
       const W = frames[0].w, H = frames[0].h;
       t.key = 'kin' + i;
       regRaw(t.key, frames, W / 2 / HD, H / HD);
