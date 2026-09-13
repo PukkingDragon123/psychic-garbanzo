@@ -145,29 +145,32 @@
      it is still down there with the lights on. It is another `scene`, like the
      inside of the house, so it inherits the walking, the camera, the prompt
      and the touch controls for nothing. */
-  const CLUB_W = 820, CLUB_CEIL = 84;
+  const CLUB_W = 1440, CLUB_CEIL = 84;
   const CLUB_SPOTS = [
     { id: 'clubout', x: 26, r: 24, name: 'THE WAY OUT', sub: 'BACK UP TO THE MOON' },
     /* Every spot stands a little to the LEFT of the thing it names. Put it on
        top and you walk into the middle of the prop and your own head hides it. */
-    { id: 'dj', x: 132, r: 22, name: 'DJ GORB', sub: 'ASK HIM FOR SOMETHING' },
-    { id: 'dance', x: 320, r: 52, name: 'THE DANCEFLOOR', sub: 'HAVE A GO' },
-    { id: 'stage', x: 412, r: 28, name: 'THE DANCER', sub: 'TIP THEM. IT IS A TUESDAY' },
-    { id: 'bar', x: 500, r: 30, name: 'THE BAR', sub: 'BUY SOMETHING SILLY' },
-    { id: 'slot0', x: 646, r: 24, name: 'LUX', sub: 'ONE MORE GO. $200' },
-    { id: 'slot1', x: 694, r: 24, name: 'NOVA', sub: 'THIS ONE IS DUE. $200' },
-    { id: 'slot2', x: 742, r: 24, name: 'HOT', sub: 'LAST ONE. $200' }
+    { id: 'dj', x: 288, r: 24, name: 'DJ GORB', sub: 'ASK HIM FOR SOMETHING' },
+    { id: 'dance', x: 470, r: 64, name: 'THE DANCEFLOOR', sub: 'HAVE A GO' },
+    { id: 'stage', x: 596, r: 30, name: 'THE DANCER', sub: 'TIP THEM. IT IS A TUESDAY' },
+    { id: 'bar', x: 750, r: 34, name: 'THE BAR', sub: 'BUY SOMETHING SILLY' },
+    { id: 'slot0', x: 1104, r: 24, name: 'LUX', sub: 'ONE MORE GO. $200' },
+    { id: 'slot1', x: 1164, r: 24, name: 'NOVA', sub: 'THIS ONE IS DUE. $200' },
+    { id: 'slot2', x: 1224, r: 24, name: 'HOT', sub: 'LAST ONE. $200' }
   ];
-  const BOOTHS = [];
+  /* Booths down the back wall, in the parts of the room nobody dances in. */
+  const BOOTHS = [
+    { x: 186 }, { x: 250 }, { x: 880 }, { x: 950 }, { x: 1014 }
+  ];
   /* Four of them never made it to the floor. */
   const SEATS = [
-    { x: 514, k: 10 }, { x: 538, k: 11 }
+    { x: 770, k: 10 }, { x: 796, k: 11 }, { x: 214, k: 14 }, { x: 962, k: 16 }
   ];
   /* Eight regulars. They wander, they stop, they dance, and now and then two
      of them find each other and the tentacles get involved. */
   const CLUBBERS = [];
-  for (let i = 0; i < 9; i++) {
-    CLUBBERS.push({ x: 250 + i * 17, vx: 0, k: i, t: U.rand(0, 6), face: i % 2 ? 1 : -1,
+  for (let i = 0; i < 16; i++) {
+    CLUBBERS.push({ x: 330 + i * 38, vx: 0, k: i, t: U.rand(0, 6), face: i % 2 ? 1 : -1,
       dance: U.rand(0, 3), kiss: 0, mate: -1, wait: U.rand(0, 2),
       blink: U.rand(0, 4), say: null, sayT: 0, drink: i % 3 === 0 ? i % 4 : -1 });
   }
@@ -389,7 +392,7 @@
   function spots(g) {
     if (S.scene === 'club') {
       // the night the game opens there is one machine and one reason to be here
-      if (g.save.story === 1) return [{ id: 'universal', x: 796, r: 40,
+      if (g.save.story === 1) return [{ id: 'universal', x: 1344, r: 66,
         name: 'THE UNIVERSAL', sub: 'TEN IN A ROW TAKES THE LOT' }];
       return CLUB_SPOTS;
     }
@@ -528,14 +531,14 @@
      which starts the tour over from the top. */
   function leadGoals(g) {
     if (S.scene === 'club' && g.save.story === 1) return [
-      { x: 796, line: 'THE BIG ONE. AT THE BACK. YOU KNOW THE ONE.' }
+      { x: 1344, line: 'THE BIG ONE. AT THE BACK. YOU KNOW THE ONE.' }
     ];
     if (S.scene === 'club') return [
-      { x: 320, line: 'DANCE. IT IS FREE. NOTHING ELSE IN HERE IS.' },
-      { x: 412, line: 'TIP THEM. THEY ARE WORKING. UNLIKE YOU.' },
-      { x: 500, line: 'BUY A DRINK. PUT IT ON MY TAB. THERE IS NO TAB.' },
-      { x: 680, line: 'NO. NOT THE MACHINES. LOOK AT ME. NOT THE MACHINES.' },
-      { x: 132, line: 'ASK HIM FOR A SONG. HE HAS TWO. IT IS A COIN FLIP.' }
+      { x: 470, line: 'DANCE. IT IS FREE. NOTHING ELSE IN HERE IS.' },
+      { x: 596, line: 'TIP THEM. THEY ARE WORKING. UNLIKE YOU.' },
+      { x: 750, line: 'BUY A DRINK. PUT IT ON MY TAB. THERE IS NO TAB.' },
+      { x: 1130, line: 'NO. NOT THE MACHINES. LOOK AT ME. NOT THE MACHINES.' },
+      { x: 288, line: 'ASK HIM FOR A SONG. HE HAS TWO. IT IS A COIN FLIP.' }
     ];
     if (S.scene === 'in') return [
       { x: IN_SPOTS[0].x, line: 'THE COMPUTER. SELL THE ROCKS. THAT IS THE BUSINESS.' },
@@ -873,6 +876,119 @@
      A hole in the moon with a floor that changes colour under you, a man on
      the decks who has two records, somebody on a pole who would rather be in
      bed, and nine regulars with nothing useful to say. */
+  /* ------------------------------------------------------------- the walls
+     A big room with nothing on the walls is a corridor. Everything here is
+     placed deterministically off its own x, so the same junk is in the same
+     place every night: posters nobody has taken down, flyers stapled over
+     flyers, vents, pipework, graffiti, gold discs for records that did not
+     sell, a payphone, and a fire door that has been chained since before you
+     were born. The furniture keeps its own gaps. */
+  const WALL_GAPS = [[0, 140], [166, 226], [296, 392], [376, 436], [548, 700],
+    [634, 694], [740, 862], [890, 1044]];
+  function wallFree(x) {
+    for (const g of WALL_GAPS) if (x > g[0] && x < g[1]) return false;
+    return true;
+  }
+  function clubWall(ctx, t, cam) {
+    const TOP = CLUB_CEIL + 30;
+    for (let x = 150; x < CLUB_W - 30; x += 46) {
+      if (!wallFree(x)) continue;
+      const k = Math.floor(U.hash2(x, 3) * 9);
+      const px = x - cam, y = TOP + Math.round(U.hash2(x, 7) * 26);
+      if (px < -70 || px > VW + 70) continue;
+      if (k === 0) {                                   // a poster in a frame
+        const h = 30 + Math.round(U.hash2(x, 11) * 14);
+        X.plate(ctx, px - 13, y, 26, h, '#241c3a', '#3a3055', '#100a1c', 2);
+        const c = ['#ff5fa8', '#7ef9ff', '#ffd34d', '#8affa0'][k + Math.floor(U.hash2(x, 13) * 4) % 4];
+        X.rect(ctx, px - 10, y + 3, 20, h - 12, '#140f26');
+        X.blob(ctx, px, y + 12, 6, 7, c);
+        X.rect(ctx, px - 8, y + h - 8, 16, 2, c);
+        X.rect(ctx, px - 6, y + h - 5, 12, 1, '#6b6480');
+      } else if (k === 1) {                            // flyers, over flyers
+        for (let i = 0; i < 5; i++) {
+          const fx = px - 12 + (i % 3) * 9, fy = y + ((i / 3) | 0) * 13 + (i % 2) * 2;
+          X.rect(ctx, fx, fy, 8, 11, ['#c9bce8', '#8a8ab0', '#b0a8d0'][i % 3]);
+          X.rect(ctx, fx + 1, fy + 2, 6, 1, '#3a3348');
+          X.rect(ctx, fx + 1, fy + 5, 6, 1, '#3a3348');
+          X.rect(ctx, fx + 1, fy + 8, 4, 1, '#3a3348');
+        }
+      } else if (k === 2) {                            // a vent, turning
+        X.plate(ctx, px - 11, y, 22, 22, '#1a1424', '#2e2640', '#0a0614', 3);
+        for (let i = 0; i < 3; i++) {
+          const a = t * 3.5 + i * 2.1;
+          X.line(ctx, px, y + 11, px + Math.cos(a) * 8, y + 11 + Math.sin(a) * 8, '#3a3348', 2);
+        }
+        X.blob(ctx, px, y + 11, 2, 2, '#5a5474');
+      } else if (k === 3) {                            // somebody's tag
+        const c = ['#ff5fa8', '#8affa0', '#7ef9ff'][Math.floor(U.hash2(x, 17) * 3)];
+        ctx.globalAlpha = 0.75;
+        for (let i = 0; i < 7; i++) {
+          const a = U.hash2(x + i, 19);
+          X.line(ctx, px - 16 + i * 5, y + 6 + a * 12, px - 12 + i * 5, y + 16 - a * 12, c, 2);
+        }
+        ctx.globalAlpha = 1;
+      } else if (k === 4) {                            // a gold disc, framed
+        X.plate(ctx, px - 14, y, 28, 28, '#3a2a1a', '#6a5220', '#1c1208', 3);
+        X.blob(ctx, px, y + 14, 10, 10, '#12101c');
+        X.blob(ctx, px, y + 14, 9, 9, '#c99a1e');
+        X.blob(ctx, px, y + 14, 5, 5, '#ffd34d');
+        X.blob(ctx, px, y + 14, 2, 2, '#12101c');
+        X.rect(ctx, px - 9, y + 24, 18, 2, '#8a6a2a');
+      } else if (k === 5) {                            // pipework, down the wall
+        for (const o of [-6, 6]) {
+          X.rect(ctx, px + o - 2, CLUB_CEIL + 10, 4, FLOOR - CLUB_CEIL - 10, '#2e2640');
+          X.rect(ctx, px + o - 2, CLUB_CEIL + 10, 1, FLOOR - CLUB_CEIL - 10, '#48405e');
+          for (let j = 0; j < 4; j++) X.rect(ctx, px + o - 3, CLUB_CEIL + 26 + j * 30, 6, 3, '#3a3348');
+        }
+      } else if (k === 6) {                            // the fire door, chained
+        X.plate(ctx, px - 16, FLOOR - 52, 32, 52, '#1d2a20', '#2e4436', '#0a1410', 3);
+        X.rect(ctx, px - 1, FLOOR - 50, 2, 48, '#0f1a14');
+        X.rect(ctx, px - 12, FLOOR - 30, 24, 3, '#6b7e70');
+        for (let i = 0; i < 6; i++) X.blob(ctx, px - 10 + i * 4, FLOOR - 28, 2, 2, '#8e86a8');
+        X.plate(ctx, px - 12, FLOOR - 64, 24, 10, '#0f2a18', '#2f7a52', '#04100a', 2);
+        F.draw(ctx, 'EXIT', px, FLOOR - 61, '#8affa0', { center: true, shadow: false });
+      } else if (k === 7) {                            // a payphone nobody uses
+        X.plate(ctx, px - 9, y + 6, 18, 26, '#1a2430', '#2e4256', '#0a1018', 3);
+        X.rect(ctx, px - 6, y + 9, 12, 8, '#0d1620');
+        for (let i = 0; i < 9; i++) X.rect(ctx, px - 5 + (i % 3) * 4, y + 19 + ((i / 3) | 0) * 3, 3, 2, '#4f6a80');
+        X.curve(ctx, px - 9, y + 14, px - 15, y + 24, px - 8, y + 32, '#12181f', 2, 7);
+        X.rect(ctx, px - 11, y + 30, 7, 5, '#2e4256');
+      } else {                                          // a mirror, with the room in it
+        X.plate(ctx, px - 15, y, 30, 40, '#2a2438', '#453c5c', '#0a0614', 3);
+        X.rect(ctx, px - 12, y + 3, 24, 34, '#1d2436');
+        ctx.globalAlpha = 0.35;
+        X.rect(ctx, px - 12, y + 3, 24, 10, '#3a4a66');
+        X.blob(ctx, px + 4, y + 26, 5, 7, '#2e3a52');
+        ctx.globalAlpha = 1;
+        X.rect(ctx, px - 10, y + 5, 3, 30, 'rgba(255,255,255,0.12)');
+      }
+    }
+  }
+
+  /* The floor: tape, cable runs, and everything that has been dropped on it. */
+  function clubFloor(ctx, t, cam) {
+    for (let x = 20; x < CLUB_W; x += 37) {
+      const px = x - cam;
+      if (px < -40 || px > VW + 40) continue;
+      const k = Math.floor(U.hash2(x, 23) * 6);
+      if (k === 0) {                                    // gaffer tape over a cable
+        X.rect(ctx, px - 14, FLOOR + 7, 28, 2, '#2a2438');
+        X.rect(ctx, px - 6, FLOOR + 6, 12, 4, '#3a3348');
+      } else if (k === 1) {                             // a dropped glass
+        X.rect(ctx, px, FLOOR + 4, 4, 5, 'rgba(200,220,255,0.3)');
+        X.rect(ctx, px, FLOOR + 4, 4, 1, '#d8f0ff');
+        X.blob(ctx, px + 2, FLOOR + 9, 5, 1.5, '#2f7a52');
+      } else if (k === 2) {                             // flyers, trodden flat
+        for (let i = 0; i < 3; i++) X.rect(ctx, px + i * 6 - 6, FLOOR + 6 + (i % 2) * 3, 5, 2, '#6b6480');
+      } else if (k === 3) {                             // a bottle on its side
+        X.rect(ctx, px - 5, FLOOR + 6, 11, 3, '#2f5a3a');
+        X.rect(ctx, px + 6, FLOOR + 6, 3, 3, '#8affa0');
+      } else if (k === 4) {                             // a cable, snaking off
+        X.curve(ctx, px - 18, FLOOR + 9, px, FLOOR + 5, px + 18, FLOOR + 9, '#1a1424', 2, 8);
+      }
+    }
+  }
+
   function drawClub(ctx, g, t, cam) {
     const bt = beatOf(t);
     const punch = Math.max(0, 1 - bt * 5);
@@ -886,27 +1002,28 @@
     }
     X.rect(ctx, -cam, CLUB_CEIL + 8, CLUB_W, 2, '#2e2450');
     for (let x = 10; x < CLUB_W; x += 96) X.rect(ctx, x - cam, CLUB_CEIL + 12, 76, 3, '#2a2140');
-    const fx3 = 128 - cam;
+    const fx3 = 344 - cam;
     X.rect(ctx, fx3 - 11, CLUB_CEIL + 16, 22, 22, '#1a1424');
     for (let i = 0; i < 3; i++) {
       const a = t * 4 + i * 2.1;
       X.line(ctx, fx3, CLUB_CEIL + 27, fx3 + Math.cos(a) * 9, CLUB_CEIL + 27 + Math.sin(a) * 9, '#3a3348', 2);
     }
     // neon, and a poster or two
-    for (let i = 0; i < 12; i++) {
+    for (let i = 0; i < 33; i++) {
       const on = (Math.floor(t * 4) + i) % 3 !== 0;
       X.rect(ctx, 12 + i * 44 - cam, CLUB_CEIL + 20, 32, 2, on ? '#ff5fa8' : '#4a1c3a');
       X.rect(ctx, 12 + i * 44 - cam, CLUB_CEIL + 26, 32, 2, on ? '#7ef9ff' : '#12384a');
     }
-    for (const [px, lab, col] of [[228, 'TONITE', '#ffd34d'], [360, 'NO DRILLS', '#ff5a4d']]) {
+    for (const [px, lab, col] of [[196, 'TONITE', '#ffd34d'], [406, 'NO DRILLS', '#ff5a4d'],
+      [664, 'LIVE', '#8affa0'], [846, 'CASH ONLY', '#7ef9ff'], [986, 'NO REFUNDS', '#ff5fa8']]) {
       X.plate(ctx, px - cam, CLUB_CEIL + 34, 46, 18, '#120a1c', '#3a3348', '#000000', 3);
       F.draw(ctx, lab, px + 23 - cam, CLUB_CEIL + 40, col, { center: true, shadow: false });
     }
 
     // the lit tiles, underfoot
     X.rect(ctx, -cam, FLOOR - 1, CLUB_W, 1, '#2e2450');
-    const TILE = 18, T0 = 266;
-    for (let i = 0; i < 6; i++) {
+    const TILE = 18, T0 = 390;
+    for (let i = 0; i < 11; i++) {
       const k = (Math.floor(t * 4.4) + i) % 4;
       const col = ['#ff5fa8', '#7ef9ff', '#ffd34d', '#8affa0'][k];
       X.rect(ctx, T0 + i * TILE - cam, FLOOR, TILE - 2, 13, col);
@@ -917,22 +1034,26 @@
       ctx.globalAlpha = 1;
     }
     // spilled drinks and dropped glasses, because people have been in here
-    for (const [lx, lk] of [[200, 0], [292, 1], [386, 0], [478, 1]]) {
+    for (const [lx, lk] of [[200, 0], [352, 1], [466, 0], [598, 1], [712, 0], [858, 1], [1000, 0]]) {
       if (lk) { X.blob(ctx, lx - cam, FLOOR + 6, 7, 2, '#2f7a52'); X.blob(ctx, lx - cam, FLOOR + 6, 4, 1, '#8affa0'); }
       else { X.rect(ctx, lx - cam, FLOOR + 4, 4, 5, '#7ec8ff'); X.rect(ctx, lx - cam, FLOOR + 4, 4, 1, '#d8f0ff'); }
     }
 
+    clubWall(ctx, t, cam);
+    clubFloor(ctx, t, cam);
     drawBooths(ctx, g, t, cam);
     drawRoomba(ctx, t, cam);
-    drawStack(ctx, 236, cam, punch);
-    drawStack(ctx, 394, cam, punch);
+    drawStack(ctx, 372, cam, punch);
+    drawStack(ctx, 570, cam, punch);
+    drawStack(ctx, 690, cam, punch);
+    drawStack(ctx, 906, cam, punch);
     drawDJ(ctx, g, t, cam, punch);
     drawStage(ctx, g, t, cam, punch);
     drawBar(ctx, g, t, cam);
     drawSlots(ctx, g, t, cam);
 
     // a mirror ball, throwing spots about
-    const mbx = 320 - cam, mby = CLUB_CEIL + 24;
+    const mbx = 480 - cam, mby = CLUB_CEIL + 24;
     X.rect(ctx, mbx, CLUB_CEIL + 6, 1, 18, '#5a5474');
     X.blob(ctx, mbx, mby, 9, 9, '#8e86a8');
     for (let i = 0; i < 9; i++) {
@@ -946,8 +1067,8 @@
       ctx.globalAlpha = 1;
     }
     // two spotlights sweeping the room, and a fan of lasers on the beat
-    for (let i = 0; i < 2; i++) {
-      const rx = 236 + i * 180 - cam;
+    for (let i = 0; i < 5; i++) {
+      const rx = 230 + i * 200 - cam;
       const sw = Math.sin(t * (0.7 + i * 0.35) + i * 2) * 90;
       ctx.globalAlpha = 0.09;
       X.poly(ctx, [[rx - 5, CLUB_CEIL + 8], [rx + 5, CLUB_CEIL + 8],
@@ -957,7 +1078,7 @@
     }
     if (punch > 0.4) {
       ctx.globalAlpha = (punch - 0.4) * 0.45;
-      for (let i = -4; i <= 4; i++) X.line(ctx, 320 - cam, CLUB_CEIL + 10, 320 - cam + i * 42, FLOOR, '#8affa0', 1);
+      for (let i = -4; i <= 4; i++) X.line(ctx, 480 - cam, CLUB_CEIL + 10, 480 - cam + i * 42, FLOOR, '#8affa0', 1);
       ctx.globalAlpha = 1;
     }
 
@@ -997,7 +1118,7 @@
     F.draw(ctx, 'COATS', 107 - cam, FLOOR - 84, '#8e86a8', { center: true, shadow: '#0a0614' });
 
     // and the doors nobody wants to draw
-    for (const [dx, lab] of [[566, 'LOO']]) {
+    for (const [dx, lab] of [[930, 'LOO'], [956, 'LOO'], [154, 'STAFF']]) {
       X.plate(ctx, dx - cam, FLOOR - 40, 18, 40, '#241f36', '#3a3348', '#120a1c', 3);
       F.draw(ctx, lab, dx + 9 - cam, FLOOR - 50, '#6b6480', { center: true, shadow: false });
     }
@@ -1010,7 +1131,7 @@
      stand in front of it and you can lose money at any of them. The odds are
      the odds: about three quarters of what goes in comes back out, which is
      exactly how you ended up owing a shark a million dollars. */
-  const SLOT_X = [646, 694, 742];
+  const SLOT_X = [1104, 1164, 1224];
   const STAKE = 200;
   const SLOT = { at: -1, t: 0, reel: [0, 0, 0], land: [0, 0, 0], lever: 0, win: 0, msg: 0 };
 
@@ -1087,8 +1208,8 @@
   /* The alcove: an arch, a carpet nobody has ever cleaned, three machines and
      whoever has been standing at one of them since before you arrived. */
   function drawSlots(ctx, g, t, cam) {
-    const a0 = 612 - cam;
-    const W = 202, CH2 = CLUB_CEIL;
+    const a0 = 1050 - cam;
+    const W = 380, CH2 = CLUB_CEIL;
     const HUES = PD.chum.HUES;
 
     /* ------------------------------------------------ the room through there
@@ -1100,8 +1221,8 @@
     grd.addColorStop(0, '#1a0a2e'); grd.addColorStop(1, '#3a1550');
     ctx.fillStyle = grd; ctx.fillRect(a0 + 10, CH2, W, FLOOR - CH2);
     // the arcade: six lit openings with a rank of little machines in each
-    for (let i = 0; i < 6; i++) {
-      const x = a0 + 24 + i * 33, hue = HUES[i % HUES.length];
+    for (let i = 0; i < 11; i++) {
+      const x = a0 + 26 + i * 34, hue = HUES[i % HUES.length];
       X.rect(ctx, x - 14, CH2 + 8, 28, 40, '#1c0c30');
       for (let k = 0; k <= 8; k++) {
         const a = Math.PI + k * (Math.PI / 8);
@@ -1121,8 +1242,8 @@
     // a rail along the front of it, and two chandeliers
     X.rect(ctx, a0 + 10, CH2 + 50, W, 3, '#4a2270');
     X.rect(ctx, a0 + 10, CH2 + 50, W, 1, '#8a5ac0');
-    for (let i = 0; i < 22; i++) X.rect(ctx, a0 + 14 + i * 9, CH2 + 53, 2, 6, '#3c1a58');
-    for (const gx of [a0 + 58, a0 + 158]) {
+    for (let i = 0; i < 42; i++) X.rect(ctx, a0 + 14 + i * 9, CH2 + 53, 2, 6, '#3c1a58');
+    for (const gx of [a0 + 62, a0 + 190, a0 + 318]) {
       const cy = CH2 + 14 + Math.sin(t * 0.6 + gx) * 1;
       X.rect(ctx, gx, CH2, 1, 14, '#5a4a78');
       for (let k = 0; k < 7; k++) {
@@ -1150,9 +1271,9 @@
     X.rect(ctx, a0 + 10, FLOOR - 1, W, 2, '#2a0a1c');
     X.rect(ctx, a0 + 10, FLOOR + 1, W, 1, '#57163a');
     // the velvet rope, the same as the one in the big room
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 9; i++) {
       const px = a0 + 24 + i * 44;
-      if (i < 4) {
+      if (i < 8) {
         X.curve(ctx, px, FLOOR + 12, px + 22, FLOOR + 19, px + 44, FLOOR + 12, '#5e0f2c', 3, 8);
         X.curve(ctx, px, FLOOR + 11, px + 22, FLOOR + 18, px + 44, FLOOR + 11, '#a8265a', 1, 8);
       }
@@ -1171,20 +1292,21 @@
       X.blob(ctx, a0 + 5, CLUB_CEIL + 18 + i * 12, 2.5, 2.5, on ? '#ffd34d' : '#4a3a10');
     }
     X.rect(ctx, a0 + 10, CLUB_CEIL, W, 6, '#2e1446');
-    for (let i = 0; i <= 14; i++) {
+    for (let i = 0; i <= 28; i++) {
       const on = (Math.floor(t * 6) + i) % 4 !== 0;
       X.blob(ctx, a0 + 18 + i * 13, CLUB_CEIL + 3, 2.5, 2.5, on ? '#ffd34d' : '#4a3a10');
     }
     const lit = Math.sin(t * 5) > -0.3;
-    X.plate(ctx, a0 + 40, CLUB_CEIL - 20, 142, 20, '#3a0e26', '#ff5fa8', '#180510', 4);
-    F.draw(ctx, 'THE GALAXY ROOM', a0 + 111, CLUB_CEIL - 15, lit ? '#ffd6f0' : '#7a4a68',
+    X.plate(ctx, a0 + 110, CLUB_CEIL - 22, 168, 22, '#3a0e26', '#ff5fa8', '#180510', 4);
+    F.draw(ctx, 'THE GALAXY ROOM', a0 + 194, CLUB_CEIL - 18, lit ? '#ffd6f0' : '#7a4a68',
       { center: true, shadow: '#180510' });
-    F.draw(ctx, 'NO CREDIT  NO PITY', a0 + 111, CLUB_CEIL - 7, '#ff8ad8', { center: true, shadow: '#180510' });
+    F.draw(ctx, 'NO CREDIT  NO REFUNDS  NO PITY', a0 + 194, CLUB_CEIL - 9, '#ff8ad8',
+      { center: true, shadow: '#180510' });
 
     for (let i = 0; i < 3; i++) drawMachine(ctx, g, t, cam, i);
     drawUniversalCab(ctx, g, t, cam);
     // the two who have been here since before you arrived
-    for (const q of [{ x: 636, k: 12 }, { x: 700, k: 13 }]) {
+    for (const q of [{ x: 1076, k: 12 }, { x: 1284, k: 13 }, { x: 1400, k: 17 }]) {
       const K = AH.KIN[q.k % AH.KIN.length];
       const bob = Math.sin(t * 1.4 + q.x) * 1;
       kinShadow(ctx, q.x - cam, FLOOR, K);
@@ -1196,7 +1318,7 @@
      night, standing here where you first saw it: takings meter, glass dome
      with a world turning in it, marquee, and a pillar of gold up each cheek. */
   function drawUniversalCab(ctx, g, t, cam) {
-    const mx = 782 - cam, B = FLOOR - 4;
+    const mx = 1344 - cam, B = FLOOR - 4;
     const RW = PD.chum.reelWorld;
     const hot = Math.sin(t * 5) > -0.3;
     // shadow and dais
@@ -1373,7 +1495,7 @@
   /* DJ GORB. Two records, and a riser, because otherwise you stand in front
      of him and the whole booth disappears behind your own head. */
   function drawDJ(ctx, g, t, cam, punch) {
-    const dx = 184 - cam, TOP = FLOOR - 46;
+    const dx = 340 - cam, TOP = FLOOR - 46;
     AH.blit(ctx, AH.S.dj, Math.floor(t * 6) % 2, dx, TOP - Math.abs(Math.sin(t * 4.4)) * 3);
     X.plate(ctx, dx - 34, TOP, 68, 46, '#463a68', '#6b5a9c', '#1d1438', 4);
     X.rect(ctx, dx - 34, TOP, 68, 3, '#8a76c4');
@@ -1408,7 +1530,7 @@
   /* The stage. A pole, a light, and somebody working a Tuesday. It stands
      proud of the floor for the same reason the DJ does. */
   function drawStage(ctx, g, t, cam, punch) {
-    const sx = 456 - cam, TOP = FLOOR - 26;
+    const sx = 640 - cam, TOP = FLOOR - 26;
     X.rect(ctx, sx - 1, CLUB_CEIL + 10, 3, TOP - CLUB_CEIL - 10, '#c9c4b4');
     X.rect(ctx, sx - 1, CLUB_CEIL + 10, 1, TOP - CLUB_CEIL - 10, '#ffffff');
     ctx.globalAlpha = 0.13 + punch * 0.05;
@@ -1429,14 +1551,14 @@
     for (let i = 0; i < 5; i++) X.rect(ctx, sx - 32 + i * 15, TOP - 2, 7, 2, '#8affa0');
     if (S.tip > 0) {
       F.draw(ctx, 'TA', sx + 20, TOP - 58, '#ffd34d', { center: true, shadow: '#0a0614' });
-      if (U.chance(0.4)) FX.stars(456 + U.rand(-14, 14), FLOOR - 56, 1, '#ffd34d');
+      if (U.chance(0.4)) FX.stars(640 + U.rand(-14, 14), FLOOR - 56, 1, '#ffd34d');
     }
   }
 
   /* The bar. Taps, optics, a tip jar nobody has troubled, and a man who has
      heard it. */
   function drawBar(ctx, g, t, cam) {
-    const bx = 550 - cam;
+    const bx = 800 - cam;
     X.rect(ctx, bx - 40, FLOOR - 62, 80, 26, '#1a1424');
     for (let i = 0; i < 10; i++) {
       const col = ['#8affa0', '#ff8ad8', '#ffb03d', '#7ec8ff'][i % 4];

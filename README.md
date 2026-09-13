@@ -674,15 +674,37 @@ third window was always going to have a skull in it.
    changed is that you are on the carpet and they are leaving. He goes down in
    two stages, the last of his money is all over the carpet around him, and
    somebody walks across the front of the shot to get to the bar.
-2. **The drag.** Two of them pick you up and carry you out through the city:
-   three parallax layers of tower with lit windows, neon signs on every fifth
-   one, rain, flying traffic with tail-lights, and wet neon smeared across the
-   street. The big one has **horns** and does not say anything all night. The
+2. **The drag.** Two of them pick you up and carry you out through the city,
+   and the city is **five layers deep**. A sky with a planet in it and cloud lit
+   from underneath; three ranks of tower, each slower than the one in front,
+   with setbacks, roof spires, water tanks on legs, aerial arrays, whole dark
+   floors where the windows are out, and columns of neon sign hanging off their
+   fronts; nine lanes of air traffic crossing each other with trails and
+   blinking lights; cables strung across the street with lanterns on them; one
+   enormous scan-lined hologram selling something. At street level a strip of
+   shopfronts with the light coming *out* of them — stock in silhouette against
+   lit windows, awnings, market stalls, overflowing bins, gratings breathing
+   steam, and somebody standing in a lit doorway. The road is wet and holds a
+   smear of everything above it, there are puddles with the sky the wrong way up
+   in them, rain at two speeds, rings where it lands, and lamp posts going past
+   close enough to be out of focus. The three tower layers and the shopfront
+   strip are each baked once into their own canvas, which is what pays for all
+   of that. The big one has **horns** and does not say anything all night. The
    other one is grey and covered in red and will not shut up — that is
    **DRAX**, and he finds all of this extremely funny.
 3. **You ask him why he is grey.** He knocks you out. The fist arrives at the
    speed the fist arrives at.
-4. **And that is how you came to own a moon.**
+4. **And you meet Mr Chum.** You come round on your back on a very expensive
+   carpet, looking straight up: a gold coffered ceiling going away from you, two
+   lamps on long chains, red columns converging, and a vault door the size of
+   the room with him sitting in front of it on a chair with spikes on the back.
+   Drax and the big one stand a step below him. Two tickers on the side walls
+   both say `OWED $1,000,000`. Your own arm is in the bottom of the frame,
+   because this is your eyes — and when he says *put the watch on him*, the
+   watch goes on that arm and does not come off. He bought your marker off the
+   house. He is fond of a round number. There is a moon with your name on it
+   now, and you are going to go and dig.
+5. **And that is how you came to own a moon.**
 
 ## He arrives and he leaves
 
@@ -791,6 +813,21 @@ Under the last heap is a hatch, and the hatch has a **neon sign on it**, and the
 sign still works.
 
 ## The club
+
+It is a **big** room — nearly four screens of it, and it takes twelve seconds
+to walk end to end. The way in is a door, a bouncer and a rope; then a corridor
+past the cloakroom and the staff door; then the DJ, the lit dancefloor and two
+stacks of speaker; then the stage; then the long bar; then the toilets and the
+booths; and then a gold-lamp jamb with `THE GALAXY ROOM` over it, and the whole
+back end of the club is the casino.
+
+Nothing in it is bare wall. Posters in frames, flyers stapled over flyers,
+turning vents, pipework down to the floor, somebody's tag, gold discs for
+records that did not sell, a payphone nobody has used in years, a mirror with
+the room in it, and a fire door that has been chained since before you were
+born. On the floor: gaffer tape over cable runs, dropped glasses, flyers
+trodden flat, bottles on their sides. Every piece of it is placed off its own
+x, so the same junk is in the same place every night.
 
 Whatever this moon was before it was a tip, somebody ran a club on it, and it
 is still down there with the lights on. Go down the hatch and you are in a room

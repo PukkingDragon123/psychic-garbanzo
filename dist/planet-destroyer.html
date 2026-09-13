@@ -10554,6 +10554,17 @@ window.PD = window.PD || {};
       'DRAX: WHAT?',
       'YOU: I SAID WHY ARE YOU --'
     ] },
+    { id: 'chum', dur: 90, lines: [
+      'YOU COME ROUND ON A CARPET WORTH MORE THAN YOU ARE.',
+      'MR CHUM: THERE HE IS. THE TEN-IN-A-ROW MAN.',
+      'MR CHUM: I BOUGHT YOUR MARKER OFF THE HOUSE TONIGHT. ALL OF IT.',
+      'MR CHUM: ONE MILLION. A ROUND NUMBER. I AM FOND OF A ROUND NUMBER.',
+      'YOU: I HAVE NOT GOT A MILLION.',
+      'MR CHUM: NO. IF YOU HAD, THIS WOULD BE A SHORTER EVENING.',
+      'MR CHUM: PUT THE WATCH ON HIM.',
+      'MR CHUM: IT TELLS ME WHERE YOU ARE. IT TELLS ME WHAT YOU ARE WORTH.',
+      'MR CHUM: THERE IS A MOON WITH YOUR NAME ON IT NOW. GO AND DIG.'
+    ] },
     { id: 'drop', dur: 6, lines: ['AND THAT IS HOW YOU CAME TO OWN A MOON.'] }
   ];
   const B_OF = {};
@@ -11892,95 +11903,333 @@ window.PD = window.PD || {};
   }
 
   /* ---- the city, going past upside down ---- */
-  const CITY = [];
-  for (let i = 0; i < 120; i++) {
-    CITY.push({ l: i % 3, x: U.hash2(i, 3) * 1600, w: 16 + U.hash2(i, 7) * 42, h: 40 + U.hash2(i, 11) * 130,
-      hue: U.hash2(i, 13) });
-  }
-  function drawDrag(ctx, g, t) {
-    const scroll = t * 58;
-    // a sky with a fat neon smear in it
-    const grd = ctx.createLinearGradient(0, 0, 0, VH);
-    grd.addColorStop(0, '#120428'); grd.addColorStop(0.55, '#2a0c3e'); grd.addColorStop(1, '#0a0418');
-    ctx.fillStyle = grd; ctx.fillRect(0, 0, VW, VH);
-    ctx.globalAlpha = 0.18;
-    X.blob(ctx, 300, 56, 150, 40, '#ff2f7a');
-    X.blob(ctx, 120, 40, 110, 26, '#2f7aff');
-    ctx.globalAlpha = 1;
-    // rain
-    for (let i = 0; i < 70; i++) {
-      const x = ((U.hash2(i, 5) * VW + t * 40) % (VW + 20)) - 10;
-      const y = ((U.hash2(i, 9) * VH + t * 420 + i * 13) % VH);
-      ctx.globalAlpha = 0.18 + U.hash2(i, 17) * 0.2;
-      X.rect(ctx, x, y, 1, 7, '#9fd8ff');
-      ctx.globalAlpha = 1;
-    }
-    // three layers of tower, each slower than the one in front
-    for (let L = 2; L >= 0; L--) {
-      const sp = [1, 0.55, 0.28][L];
-      const base = [186, 176, 168][L];
-      const col = ['#150a24', '#1d1030', '#28183f'][L];
-      const litc = ['#3a2050', '#4a2a66', '#5e3a80'][L];
-      for (const b of CITY) {
-        if (b.l !== L) continue;
-        const x = ((b.x - scroll * sp) % 1600 + 1600) % 1600 - 200;
-        if (x < -80 || x > VW + 20) continue;
-        const h = b.h * (0.6 + L * 0.2);
-        X.rect(ctx, x, base - h, b.w, h + 40, col);
-        X.rect(ctx, x, base - h, b.w, 2, litc);
-        // windows
-        for (let wy = base - h + 6; wy < base - 4; wy += 8) {
-          for (let wx = x + 3; wx < x + b.w - 3; wx += 7) {
-            const on = U.hash2((wx * 3) | 0, (wy * 5) | 0) > (0.35 + L * 0.12);
-            if (!on) continue;
-            X.rect(ctx, wx, wy, 3, 4, b.hue > 0.6 ? '#ffd34d' : (b.hue > 0.3 ? '#7ef9ff' : '#ff5fa8'));
+  /* ---- the city, going past upside down ----
+     Five layers deep. The three tower layers and the strip of shopfronts at
+     street level never change, so each is baked once into its own 1600-wide
+     canvas and blitted twice at an offset -- which buys enough frame budget to
+     put setbacks, water tanks, spires, aerials, hanging sign columns, awnings,
+     market stalls and doorways on them instead of flat rectangles. */
+  const CW_TILE = 1600;
+  const cityCv = [null, null, null, null];
+
+  function cityTowers(L) {
+    const c = document.createElement('canvas');
+    c.width = CW_TILE; c.height = 280;
+    const q = c.getContext('2d');
+    q.imageSmoothingEnabled = false;
+    const base = [196, 184, 172][L];
+    const col = ['#140922', '#1d1030', '#2a1943'][L];
+    const lit = ['#2a1740', '#3c2058', '#54357a'][L];
+    const dk = ['#0d0518', '#140a24', '#1d1030'][L];
+    const winC = ['#6a5aa0', '#9a86d8', '#ffd34d'];
+    let x = -40;
+    let i = 0;
+    while (x < CW_TILE + 60) {
+      const h = (44 + U.hash2(i * 7 + L * 31, 3) * 128) * (0.7 + L * 0.2);
+      const w = 20 + U.hash2(i * 5 + L, 7) * (30 + L * 22);
+      const top = base - h;
+      // the slab, with a setback near the top on the taller ones
+      X.rect(q, x, top, w, h + 90, col);
+      X.rect(q, x, top, w, 2, lit);
+      X.rect(q, x + w - 2, top, 2, h + 90, dk);
+      if (h > 110) {
+        const sw = w * 0.6, sx = x + (w - sw) / 2;
+        X.rect(q, sx, top - 26, sw, 28, col);
+        X.rect(q, sx, top - 26, sw, 2, lit);
+        // and something on the roof of it
+        const k = Math.floor(U.hash2(i, 11) * 3);
+        if (k === 0) {                                   // a spire
+          X.rect(q, sx + sw / 2 - 1, top - 60, 3, 36, lit);
+          X.blob(q, sx + sw / 2, top - 62, 2, 2, '#ff5a4d');
+        } else if (k === 1) {                            // a water tank on legs
+          X.rect(q, sx + 3, top - 40, sw - 6, 14, dk);
+          X.rect(q, sx + 3, top - 40, sw - 6, 2, lit);
+          for (let j = 0; j < 3; j++) X.rect(q, sx + 5 + j * (sw - 12) / 2, top - 26, 2, 8, dk);
+        } else {                                         // an aerial array
+          for (let j = 0; j < 3; j++) {
+            X.rect(q, sx + 4 + j * 6, top - 34 - j * 4, 1, 32 + j * 4, lit);
+            X.blob(q, sx + 4 + j * 6, top - 35 - j * 4, 1.5, 1.5, '#7ef9ff');
           }
         }
-        // a sign on about one in five
-        if (b.hue > 0.78) {
-          const on = Math.sin(t * 5 + b.x) > -0.4;
-          X.rect(ctx, x + 2, base - h - 10, b.w - 4, 8, on ? '#ff2f7a' : '#3a0e26');
-          X.rect(ctx, x + 4, base - h - 8, b.w - 8, 4, on ? '#ffd6f0' : '#5a1a3a');
+      }
+      // windows, in bands with dark floors between them
+      for (let wy = top + 7; wy < base - 6; wy += 9) {
+        if (U.hash2((wy * 3) | 0, i) < 0.18) continue;   // a whole dark floor
+        for (let wx = x + 3; wx < x + w - 4; wx += 7) {
+          const on = U.hash2((wx * 3) | 0, (wy * 5) | 0) > (0.3 + L * 0.14);
+          if (!on) continue;
+          X.rect(q, wx, wy, 3, 5, winC[Math.floor(U.hash2(wx | 0, wy | 0) * 3)]);
+          if (L === 2) X.rect(q, wx, wy, 3, 1, '#ffffff');
         }
       }
+      // a column of sign hanging off the front of one in four
+      if (L === 2 && U.hash2(i, 13) > 0.62) {
+        const sx2 = x + w - 6, n = 3 + Math.floor(U.hash2(i, 17) * 3);
+        const hue = ['#ff2f7a', '#7ef9ff', '#ffd34d', '#8affa0'][Math.floor(U.hash2(i, 19) * 4)];
+        X.rect(q, sx2 - 1, top + 16, 12, n * 13 + 4, '#0d0518');
+        for (let j = 0; j < n; j++) {
+          X.rect(q, sx2, top + 19 + j * 13, 10, 10, hue);
+          X.rect(q, sx2 + 2, top + 21 + j * 13, 6, 6, '#0d0518');
+          X.rect(q, sx2 + 2, top + 23 + j * 13, 6, 2, hue);
+        }
+      }
+      x += w + 3 + U.hash2(i, 23) * 12;
+      i++;
     }
-    // traffic, in the gap between the layers
-    for (let i = 0; i < 5; i++) {
-      const x = ((i * 137 - t * (90 + i * 30)) % (VW + 120) + VW + 120) % (VW + 120) - 60;
-      const y = 60 + (i % 3) * 16;
-      X.rect(ctx, x, y, 18, 5, '#2a2140');
-      X.rect(ctx, x + 2, y - 2, 12, 3, '#3a3060');
-      X.rect(ctx, x + 17, y + 1, 4, 2, '#ff5a4d');
-      X.rect(ctx, x - 3, y + 1, 4, 2, '#7ef9ff');
-      ctx.globalAlpha = 0.25;
-      X.blob(ctx, x - 8, y + 2, 10, 2, '#7ef9ff');
+    return c;
+  }
+
+  /* The strip you are actually being dragged along: shopfronts, awnings,
+     stalls, bins and lit doorways, all the way across. */
+  function cityStreet() {
+    const c = document.createElement('canvas');
+    c.width = CW_TILE; c.height = 120;
+    const q = c.getContext('2d');
+    q.imageSmoothingEnabled = false;
+    const TOP = 0;                                       // canvas y0 == world 128
+    for (let x = 0, i = 0; x < CW_TILE + 40; i++) {
+      const w = 54 + Math.floor(U.hash2(i, 3) * 40);
+      const hue = ['#ff2f7a', '#7ef9ff', '#ffd34d', '#8affa0', '#c9a0ff'][i % 5];
+      // the shopfront: dark, with the light coming out of it rather than off it
+      X.rect(q, x, TOP + 10, w, 52, '#140b26');
+      X.rect(q, x, TOP + 10, w, 2, '#241640');
+      X.rect(q, x, TOP + 10, 3, 52, '#1d1030');          // a pier between each
+      X.rect(q, x + w - 3, TOP + 10, 3, 52, '#0d0518');
+      // the window, lit from inside, with stock in silhouette against it
+      X.rect(q, x + 6, TOP + 22, w - 12, 24, '#0a0618');
+      q.globalAlpha = 0.26; X.rect(q, x + 6, TOP + 22, w - 12, 24, hue); q.globalAlpha = 1;
+      q.globalAlpha = 0.5; X.rect(q, x + 6, TOP + 22, w - 12, 2, hue); q.globalAlpha = 1;
+      for (let j = 0; j < 4; j++) {
+        const sx2 = x + 10 + j * ((w - 20) / 4);
+        X.rect(q, sx2, TOP + 32, 5, 13, '#0a0614');
+        X.rect(q, sx2 + 1, TOP + 30, 3, 3, '#0a0614');
+      }
+      X.rect(q, x + 6, TOP + 45, w - 12, 1, '#0a0614');
+      // a small lit sign over it
+      X.rect(q, x + 4, TOP + 3, w - 8, 7, '#0d0518');
+      X.rect(q, x + 7, TOP + 5, w - 14, 3, hue);
+      q.globalAlpha = 0.22; X.rect(q, x + 2, TOP + 1, w - 4, 11, hue); q.globalAlpha = 1;
+      // an awning on about half of them, in the dark
+      if (U.hash2(i, 7) > 0.5) {
+        for (let j = 0; j * 8 < w - 6; j++) {
+          X.rect(q, x + 3 + j * 8, TOP + 46, 8, 6, j % 2 ? '#3a1024' : '#1d0a18');
+        }
+        X.rect(q, x + 3, TOP + 52, w - 6, 2, '#4a1230');
+      }
+      // and what is standing outside it
+      const k = Math.floor(U.hash2(i, 11) * 4);
+      if (k === 0) {                                     // a stall under a canopy
+        X.rect(q, x + 8, TOP + 62, 30, 3, '#2e1e14');
+        X.rect(q, x + 10, TOP + 65, 2, 12, '#1a1424');
+        X.rect(q, x + 34, TOP + 65, 2, 12, '#1a1424');
+        for (let j = 0; j < 5; j++) X.blob(q, x + 12 + j * 6, TOP + 60, 2, 1.5, ['#4a7a52', '#7a5a2a', '#7a4a60'][j % 3]);
+      } else if (k === 1) {                              // bins, overflowing
+        X.rect(q, x + 10, TOP + 60, 12, 17, '#181e24');
+        X.rect(q, x + 10, TOP + 60, 12, 2, '#2a3440');
+        X.blob(q, x + 16, TOP + 58, 6, 3, '#242a1c');
+        X.rect(q, x + 25, TOP + 66, 9, 11, '#141c18');
+      } else if (k === 2) {                              // a lit doorway
+        X.rect(q, x + 14, TOP + 46, 16, 31, '#0a0614');
+        q.globalAlpha = 0.4; X.rect(q, x + 15, TOP + 48, 14, 29, hue); q.globalAlpha = 1;
+        X.rect(q, x + 20, TOP + 58, 5, 19, '#120a1e');   // somebody in it
+        X.blob(q, x + 22, TOP + 55, 3, 3, '#120a1e');
+        X.rect(q, x + 13, TOP + 44, 18, 3, '#241640');
+      } else {                                           // a grating
+        X.rect(q, x + 12, TOP + 70, 18, 7, '#181e24');
+        for (let j = 0; j < 3; j++) X.rect(q, x + 14 + j * 6, TOP + 70, 3, 7, '#0c1014');
+      }
+      x += w + 4;
+    }
+    // it is a long way down the street and none of it is well lit
+    q.globalAlpha = 0.3;
+    X.rect(q, 0, 0, CW_TILE, 120, '#0a0618');
+    q.globalAlpha = 1;
+    return c;
+  }
+
+  function drawDrag(ctx, g, t) {
+    const scroll = t * 58;
+    // ------------------------------------------------------------- the sky
+    const grd = ctx.createLinearGradient(0, 0, 0, VH);
+    grd.addColorStop(0, '#0d0424'); grd.addColorStop(0.42, '#2a0c3e');
+    grd.addColorStop(0.78, '#4a1240'); grd.addColorStop(1, '#12061c');
+    ctx.fillStyle = grd; ctx.fillRect(0, 0, VW, VH);
+    // a planet hanging over the whole thing, and cloud lit from underneath
+    const px0 = ((-scroll * 0.05) % 900 + 900) % 900 - 120;
+    X.blob(ctx, px0, 52, 46, 44, '#3a1a52');
+    X.blob(ctx, px0 - 12, 40, 26, 22, '#4e2668');
+    X.blob(ctx, px0 + 16, 62, 18, 14, '#2e1442');
+    for (let i = 0; i < 7; i++) {
+      const cx = ((i * 210 - scroll * 0.09) % 1000 + 1000) % 1000 - 160;
+      ctx.globalAlpha = 0.2;
+      X.blob(ctx, cx, 34 + (i % 3) * 16, 70, 12, '#5e2a6e');
+      ctx.globalAlpha = 0.13;
+      X.blob(ctx, cx + 16, 38 + (i % 3) * 16, 44, 7, '#ff5fa8');
       ctx.globalAlpha = 1;
     }
-    // the street
-    X.rect(ctx, 0, 200, VW, VH - 200, '#0f0a1a');
-    X.rect(ctx, 0, 198, VW, 3, '#1d1030');
-    for (let x = ((-scroll * 1.6) % 40 + 40) % 40 - 40; x < VW; x += 40) X.rect(ctx, x, 214, 22, 3, '#2a2140');
-    ctx.globalAlpha = 0.14;
-    for (let i = 0; i < 6; i++) X.blob(ctx, ((i * 96 - scroll * 1.6) % 600 + 600) % 600 - 60, 208, 30, 8, '#ff2f7a');
-    ctx.globalAlpha = 1;
 
-    // and the three of them, dead centre
-    const a = ensureArt();
+    // --------------------------------------------------------- the towers
+    if (!cityCv[0]) { cityCv[0] = cityTowers(0); cityCv[1] = cityTowers(1); cityCv[2] = cityTowers(2); }
+    const SP = [0.16, 0.36, 0.72];
+    for (let L = 0; L < 3; L++) {
+      const off = ((-scroll * SP[L]) % CW_TILE + CW_TILE) % CW_TILE;
+      ctx.globalAlpha = [0.7, 0.86, 1][L];
+      ctx.drawImage(cityCv[L], off - CW_TILE, -12 + L * 6);
+      ctx.drawImage(cityCv[L], off, -12 + L * 6);
+      ctx.globalAlpha = 1;
+      // a handful of windows that will not settle
+      for (let i = 0; i < 5; i++) {
+        const fx = ((i * 173 - scroll * SP[L] * 1.0) % 520 + 520) % 520 - 20;
+        if (Math.sin(t * 7 + i * 3 + L) < 0.3) continue;
+        X.rect(ctx, fx, 70 + ((i * 37 + L * 19) % 90), 3, 5, '#ffd34d');
+      }
+      // a haze between this layer and the next
+      ctx.globalAlpha = 0.1 - L * 0.02;
+      X.rect(ctx, 0, 40 + L * 20, VW, 170, '#6a3ab0');
+      ctx.globalAlpha = 1;
+    }
+
+    // ---------------------------------------------------------- the traffic
+    for (let i = 0; i < 9; i++) {
+      const lane = i % 3;
+      const sp = 70 + lane * 46 + (i % 2) * 30;
+      const dir = lane === 1 ? -1 : 1;
+      const span = VW + 160;
+      const x = dir > 0
+        ? ((i * 149 - t * sp) % span + span) % span - 80
+        : span - (((i * 149 + t * sp) % span + span) % span) - 80;
+      const y = 44 + lane * 22 + Math.sin(t * 0.8 + i) * 2;
+      const sc = 0.7 + lane * 0.25;
+      ctx.globalAlpha = 0.22;
+      X.blob(ctx, x - dir * 16 * sc, y + 2 * sc, 18 * sc, 1.5, '#7ef9ff');
+      ctx.globalAlpha = 1;
+      X.rect(ctx, x - 9 * sc, y, 18 * sc, 5 * sc, '#241a3a');
+      X.rect(ctx, x - 6 * sc, y - 2 * sc, 12 * sc, 3 * sc, '#3a3060');
+      X.rect(ctx, x - 5 * sc, y - 1 * sc, 8 * sc, 2 * sc, '#7ec8ff');
+      X.rect(ctx, x + dir * 9 * sc, y + 1 * sc, 3 * sc, 2 * sc, '#ff5a4d');
+      if (Math.sin(t * 9 + i) > 0) X.rect(ctx, x, y - 4 * sc, 2, 2, '#ffd34d');
+    }
+    // cables strung across the street, with lanterns on them
+    for (let c = 0; c < 3; c++) {
+      const off = ((c * 210 - scroll * 0.72) % 640 + 640) % 640 - 120;
+      X.curve(ctx, off, 96, off + 100, 112, off + 200, 96, '#1a1030', 1, 12);
+      for (let j = 1; j < 5; j++) {
+        const f = j / 5, gk = 1 - f;
+        const lx = gk * gk * off + 2 * gk * f * (off + 100) + f * f * (off + 200);
+        const ly = gk * gk * 96 + 2 * gk * f * 112 + f * f * 96;
+        X.blob(ctx, lx, ly + 4, 3, 4, ['#ffb03d', '#ff5fa8', '#8affa0'][j % 3]);
+        ctx.globalAlpha = 0.2;
+        X.blob(ctx, lx, ly + 5, 9, 8, ['#ffb03d', '#ff5fa8', '#8affa0'][j % 3]);
+        ctx.globalAlpha = 1;
+      }
+    }
+    // one enormous hologram, side on, selling something
+    const hx = ((-scroll * 0.72) % 900 + 900) % 900 - 150;
+    if (hx > -140 && hx < VW + 40) {
+      ctx.globalAlpha = 0.3 + Math.abs(Math.sin(t * 2)) * 0.12;
+      X.blob(ctx, hx, 96, 30, 46, '#2f7aff');
+      X.blob(ctx, hx, 60, 15, 16, '#5f9aff');
+      X.blob(ctx, hx - 16, 100, 8, 26, '#2f7aff');
+      X.blob(ctx, hx + 16, 100, 8, 26, '#2f7aff');
+      ctx.globalAlpha = 0.55;
+      for (let sy = 50; sy < 150; sy += 4) X.rect(ctx, hx - 32, sy + ((t * 24) % 4), 64, 1, '#9fd8ff');
+      ctx.globalAlpha = 1;
+      F.draw(ctx, 'DRINK IT', hx, 156, 'rgba(159,216,255,0.7)', { center: true, shadow: false });
+    }
+
+    // ---------------------------------------------------------- the street
+    if (!cityCv[3]) cityCv[3] = cityStreet();
+    const soff = ((-scroll * 1.15) % CW_TILE + CW_TILE) % CW_TILE;
+    ctx.drawImage(cityCv[3], soff - CW_TILE, 128);
+    ctx.drawImage(cityCv[3], soff, 128);
+    // steam, out of the gratings
+    for (let i = 0; i < 6; i++) {
+      const sx = ((i * 173 - scroll * 1.15) % 700 + 700) % 700 - 60;
+      const rise = (t * 26 + i * 40) % 80;
+      ctx.globalAlpha = U.clamp(1 - rise / 80, 0, 1) * 0.24;
+      X.blob(ctx, sx + Math.sin(t + i) * 4, 196 - rise, 8 + rise * 0.24, 5 + rise * 0.18, '#c9bce8');
+      ctx.globalAlpha = 1;
+    }
+
+    // the road: wet, and holding a smear of everything above it
+    X.rect(ctx, 0, 204, VW, VH - 204, '#0c0718');
+    X.rect(ctx, 0, 202, VW, 3, '#241640');
+    ctx.globalAlpha = 0.16;
+    for (let i = 0; i < 16; i++) {
+      const rx = ((i * 97 - scroll * 1.15) % 640 + 640) % 640 - 80;
+      X.rect(ctx, rx, 206, 5, 24 + (i % 3) * 12,
+        ['#ff2f7a', '#7ef9ff', '#ffd34d', '#8affa0'][i % 4]);
+    }
+    ctx.globalAlpha = 1;
+    for (let x = ((-scroll * 1.6) % 44 + 44) % 44 - 44; x < VW; x += 44) {
+      X.rect(ctx, x, 224, 24, 3, '#1d1430');
+    }
+    // puddles, with the sky the wrong way up in them
+    for (let i = 0; i < 5; i++) {
+      const qx = ((i * 128 - scroll * 1.6) % 600 + 600) % 600 - 70;
+      ctx.globalAlpha = 0.22;
+      X.blob(ctx, qx, 210 + (i % 2) * 9, 26, 4, '#3a2a66');
+      ctx.globalAlpha = 0.3;
+      X.rect(ctx, qx - 6, 209 + (i % 2) * 9, 3, 8, '#ff2f7a');
+      X.rect(ctx, qx + 8, 210 + (i % 2) * 9, 2, 6, '#7ef9ff');
+      ctx.globalAlpha = 1;
+    }
+
+    // --------------------------------------------------------------- rain
+    for (let i = 0; i < 110; i++) {
+      const far = i % 3 === 0;
+      const x = ((U.hash2(i, 5) * VW + t * (far ? 26 : 52)) % (VW + 20)) - 10;
+      const y = ((U.hash2(i, 9) * VH + t * (far ? 300 : 520) + i * 13) % VH);
+      ctx.globalAlpha = (far ? 0.12 : 0.24) + U.hash2(i, 17) * 0.16;
+      X.rect(ctx, x, y, 1, far ? 5 : 9, '#9fd8ff');
+      ctx.globalAlpha = 1;
+    }
+    for (let i = 0; i < 12; i++) {                       // and where it lands
+      const sx = (U.hash2(i, 29) * VW + Math.floor(t * 3 + i) * 67) % VW;
+      const f = ((t * 3 + i) % 1);
+      ctx.globalAlpha = (1 - f) * 0.4;
+      X.ring(ctx, sx, 208 + (i % 3) * 8, 1 + f * 5, '#9fd8ff', 1);
+      ctx.globalAlpha = 1;
+    }
+
+    // a couple of posts going past close enough to be out of focus
+    for (let i = 0; i < 3; i++) {
+      const fx = ((i * 214 - scroll * 2.3) % 640 + 640) % 640 - 60;
+      ctx.globalAlpha = 0.85;
+      X.rect(ctx, fx, 96, 7, 148, '#070410');
+      X.rect(ctx, fx - 4, 92, 15, 7, '#070410');
+      X.blob(ctx, fx + 3, 104, 5, 4, '#0d0820');
+      ctx.globalAlpha = 0.22;
+      X.blob(ctx, fx + 3, 104, 13, 11, '#ffb03d');
+      ctx.globalAlpha = 1;
+    }
+
+    // ------------------------------------------------- and the three of them
     const bob = Math.sin(t * 5) * 2;
-    drawBull(ctx, 300, 200 + bob, t);
-    drawDrax(ctx, 176, 200 - bob, t);
+    ctx.globalAlpha = 0.4;
+    X.blob(ctx, 300, 232 + bob, 22, 4, '#050310');
+    X.blob(ctx, 176, 232 - bob, 20, 4, '#050310');
+    ctx.globalAlpha = 1;
+    drawBull(ctx, 300, 228 + bob, t);
+    drawDrax(ctx, 176, 228 - bob, t);
     // you, between them, being dragged by the ankles
     const sk = PD.art.skinFor(g.save.cos), spr = sk.alienCore;
     const cv = spr.frames[0], k = spr.hd || 1;
     ctx.save();
-    ctx.translate(238, 190 + bob);
+    ctx.translate(238, 216 + bob);
     ctx.rotate(1.5);
     ctx.drawImage(cv, -spr.ox, -spr.oy, cv.width / k, cv.height / k);
     ctx.restore();
     for (let i = 0; i < 4; i++) {
       if (!U.chance(0.5)) continue;
-      X.rect(ctx, 226 + U.rand(-14, 14), 198 + U.rand(-2, 4), 2, 1, '#c9bce8');
+      X.rect(ctx, 226 + U.rand(-14, 14), 224 + U.rand(-2, 4), 2, 1, '#c9bce8');
     }
+    // the frame itself is wet
+    ctx.globalAlpha = 0.1;
+    const vg = ctx.createRadialGradient(240, 120, 70, 240, 130, 250);
+    vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, '#06030f');
+    ctx.fillStyle = vg; ctx.fillRect(0, 0, VW, VH);
+    ctx.globalAlpha = 1;
   }
 
   /* Drax: grey, covered in red, bare to the waist, and not remotely joking.
@@ -12110,67 +12359,168 @@ window.PD = window.PD || {};
     }
   }
 
-  /* ---- and the room with the throne in it, seen from the carpet ---- */
-  function drawThrone(ctx, g, t) {
-    const wake = U.clamp(IN_S.t / 1.6, 0, 1);
-    ctx.fillStyle = '#12060c'; ctx.fillRect(0, 0, VW, VH);
-    // a gold ceiling, way up, because you are looking up at it
-    for (let i = 0; i < 9; i++) {
-      const w = 60 + i * 6;
-      X.rect(ctx, 240 - w / 2, 4 + i * 4, w, 3, i % 2 ? '#6a5220' : '#8a6a2a');
+  /* ---- and the room at the end of it, seen from the carpet ----
+     The first time you meet him. You are on your back on a very expensive
+     floor, looking up, and he is a long way above you: a shark in a suit, on a
+     chair on a dais, with the two who carried you standing either side. Every
+     line he says is a fact about the rest of your life. */
+  function drawMeet(ctx, g, t) {
+    const wake = U.clamp(IN_S.t / 1.8, 0, 1);
+    const line = IN_S.line;
+    ctx.fillStyle = '#150409'; ctx.fillRect(0, 0, VW, VH);
+
+    // -------------------------------------------------------- the ceiling
+    // gold coffers, going away from you, because you are looking straight up
+    for (let i = 0; i < 11; i++) {
+      const w = 34 + i * 22, y = 2 + i * 5;
+      X.rect(ctx, 240 - w / 2, y, w, 4, i % 2 ? '#6a5220' : '#8a6a2a');
+      X.rect(ctx, 240 - w / 2, y, w, 1, i % 2 ? '#8a6a2a' : '#c99a1e');
     }
-    ctx.globalAlpha = 0.14;
-    X.blob(ctx, 240, 30, 190, 30, '#ffd34d');
+    ctx.globalAlpha = 0.16;
+    X.blob(ctx, 240, 34, 200, 34, '#ffd34d');
     ctx.globalAlpha = 1;
-    // pillars either side, converging because of the angle
-    for (const s of [-1, 1]) {
-      X.poly(ctx, [[240 + s * 70, 30], [240 + s * 96, 30], [240 + s * 250, VH], [240 + s * 150, VH]], '#2a1018');
-      X.poly(ctx, [[240 + s * 70, 30], [240 + s * 78, 30], [240 + s * 170, VH], [240 + s * 150, VH]], '#3a1a24');
-    }
-    // the steps up to it
-    for (let i = 0; i < 6; i++) {
-      const w = 150 + i * 26, y = 150 + i * 14;
-      X.rect(ctx, 240 - w / 2, y, w, 14, i % 2 ? '#3a1a24' : '#451f2c');
-      X.rect(ctx, 240 - w / 2, y, w, 2, '#5e2c3c');
-    }
-    // the throne
-    X.plate(ctx, 206, 84, 68, 70, '#5e2c3c', '#8a4458', '#2a1018', 5);
-    for (let i = 0; i < 5; i++) X.spike(ctx, 0, 0, 0, 0, 0, '#000');
-    for (let i = 0; i < 7; i++) {
-      const sx = 208 + i * 10;
-      X.poly(ctx, [[sx, 84], [sx + 8, 84], [sx + 4, 84 - 8 - (i % 2) * 6]], '#8a6a2a');
-    }
-    X.rect(ctx, 206, 130, 68, 6, '#8a6a2a');
-    // and him on it, at a comfortable size for a man who owns the building
-    const a = ensureArt();
-    const K = 1.4;
-    ctx.save();
-    ctx.translate(Math.round(240 - MCX * K), Math.round(146 - MBASE * K));
-    ctx.scale(K, K);
-    ctx.drawImage(a.mini.walk[IN_S.chars < (BEATS[B_OF.throne].lines[IN_S.line] || '').length
-      && Math.floor(t * 9) % 2 === 0 ? 1 : 0][0], 0, 0);
-    ctx.restore();
-    // two very large silhouettes either side of him
-    for (const s of [-1, 1]) {
-      ctx.globalAlpha = 0.9;
-      X.blob(ctx, 240 + s * 62, 150, 16, 30, '#160a10');
-      X.blob(ctx, 240 + s * 62, 116, 11, 10, '#160a10');
+    // two lamps on long chains, swinging very slightly
+    for (const lx of [104, 376]) {
+      const sw = Math.sin(t * 0.7 + lx) * 2;
+      X.rect(ctx, lx + sw, 10, 1, 26, '#6a5220');
+      X.blob(ctx, lx + sw, 40, 9, 7, '#3a2a10');
+      X.blob(ctx, lx + sw, 40, 6, 5, '#ffd34d');
+      ctx.globalAlpha = 0.14;
+      X.blob(ctx, lx + sw, 50, 28, 22, '#ffd34d');
       ctx.globalAlpha = 1;
     }
-    // the edge of your own eyelids, opening
+
+    // -------------------------------------------------------- the columns
+    for (const s of [-1, 1]) {
+      X.poly(ctx, [[240 + s * 74, 34], [240 + s * 104, 34],
+        [240 + s * 268, VH], [240 + s * 156, VH]], '#2a0f16');
+      X.poly(ctx, [[240 + s * 74, 34], [240 + s * 84, 34],
+        [240 + s * 186, VH], [240 + s * 156, VH]], '#3d1a24');
+      // fluting, following the same convergence
+      for (let i = 1; i < 4; i++) {
+        X.line(ctx, 240 + s * (78 + i * 6), 36, 240 + s * (164 + i * 22), VH, '#4e222e', 1);
+      }
+    }
+    // the wall behind: a vault door, shut, with his money behind it
+    X.blob(ctx, 240, 112, 88, 80, '#241018');
+    X.ring(ctx, 240, 112, 86, '#5e2c3c', 5);
+    X.ring(ctx, 240, 112, 70, '#8a6a2a', 2);
+    for (let i = 0; i < 10; i++) {
+      const a = i * (U.TAU / 10) + t * 0.12;
+      X.blob(ctx, 240 + Math.cos(a) * 78, 112 + Math.sin(a) * 70, 3, 3, '#8a6a2a');
+    }
+    // two tickers on the side walls, both saying the same thing
+    const tick = Math.sin(t * 4) > -0.3;
+    for (const tx of [76, 404]) {
+      X.plate(ctx, tx - 46, 150, 92, 15, '#1a0a10', '#5e2c3c', '#0a0408', 3);
+      F.draw(ctx, 'OWED', tx, 153, '#6a3040', { center: true, shadow: false });
+      F.draw(ctx, '$1,000,000', tx, 161, tick ? '#ff5a4d' : '#6a2020',
+        { center: true, shadow: false });
+    }
+
+    // ----------------------------------------------------------- the dais
+    for (let i = 0; i < 5; i++) {
+      const w = 150 + i * 40, y = 172 + i * 12;
+      X.rect(ctx, 240 - w / 2, y, w, 12, i % 2 ? '#3d1a24' : '#4a212c');
+      X.rect(ctx, 240 - w / 2, y, w, 2, '#6a3040');
+      X.rect(ctx, 240 - w / 2, y + 11, w, 1, '#210a10');
+    }
+    // the carpet you are lying on, running up to the bottom step
+    X.rect(ctx, 0, 232, VW, VH - 232, '#4a1230');
+    for (let i = 0; i < 9; i++) {
+      X.rect(ctx, i * 56 - 20, 232, 26, VH - 232, '#5c1a3c');
+      X.blob(ctx, i * 56 - 7, 248, 8, 5, '#7a2450');
+    }
+    X.rect(ctx, 0, 230, VW, 2, '#2a0a1c');
+
+    // ---------------------------------------------------------- the throne
+    X.plate(ctx, 202, 96, 76, 80, '#5e2c3c', '#8a4458', '#2a1018', 5);
+    X.plate(ctx, 210, 104, 60, 56, '#3d1a24', '#6a3040', '#1a0a10', 4);
+    for (let i = 0; i < 7; i++) {                    // spikes along the back
+      const sx = 206 + i * 11;
+      X.poly(ctx, [[sx, 96], [sx + 9, 96], [sx + 4, 96 - 10 - (i % 2) * 7]], '#c99a1e');
+      X.poly(ctx, [[sx + 2, 96], [sx + 7, 96], [sx + 4, 96 - 7 - (i % 2) * 5]], '#ffd34d');
+    }
+    X.rect(ctx, 200, 168, 80, 8, '#8a6a2a');
+    X.rect(ctx, 200, 168, 80, 2, '#ffd34d');
+    for (const s of [-1, 1]) {                       // arms of the chair
+      X.plate(ctx, 240 + s * 40 - 8, 138, 16, 32, '#5e2c3c', '#8a4458', '#2a1018', 3);
+      X.blob(ctx, 240 + s * 40, 136, 7, 5, '#c99a1e');
+    }
+
+    // -------------------------------------------------------------- HIM
+    const a = ensureArt();
+    const talking = IN_S.chars < (BEATS[B_OF.chum].lines[line] || '').length;
+    const K = 1.25;
+    const mouth = talking && Math.floor(t * 9) % 2 === 0 ? 1 : 0;
+    const step = talking ? (Math.floor(t * 5) % 4) : 0;
+    ctx.globalAlpha = 0.4;
+    X.blob(ctx, 240, 174, 34, 5, '#1a0810');
+    ctx.globalAlpha = 1;
+    ctx.save();
+    ctx.translate(Math.round(240 - CCX * K), Math.round(172 - CBASE * K));
+    ctx.scale(K, K);
+    ctx.drawImage(a.real[mouth][step], 0, 0);
+    ctx.restore();
+    ctx.globalAlpha = 0.1 + Math.abs(Math.sin(t * 1.6)) * 0.05;
+    X.blob(ctx, 240, 130, 60, 56, '#ffd34d');
+    ctx.globalAlpha = 1;
+
+    // ------------------------------------------------- the two who carried you
+    // both of them a step down and turned in, so the eye goes to him
+    ctx.save(); ctx.translate(0, 0); ctx.scale(0.78, 0.78);
+    drawDrax(ctx, 176 / 0.78, 214 / 0.78, t);
+    ctx.restore();
+    ctx.save(); ctx.scale(0.78, 0.78);
+    drawBull(ctx, 322 / 0.78, 214 / 0.78, t);
+    ctx.restore();
+
+    // ---------------------------------------------------------- and you
+    // your own arm, in the bottom of the frame, because this is your eyes
+    const sk = PD.art.skinFor(g.save ? g.save.cos : null);
+    const sway = Math.sin(t * 0.9) * 2;
+    X.limb(ctx, 66 + sway, VH + 10, 96 + sway, 244, 15, 11, sk.P.skin, sk.P.skinL, '#16221f');
+    X.limb(ctx, 96 + sway, 244, 122 + sway * 1.4, 238, 11, 8, sk.P.skin, sk.P.skinL, '#16221f');
+    X.blob(ctx, 124 + sway * 1.4, 238, 7, 6, sk.P.skin);
+    for (let f = -1; f <= 1; f++) {
+      const fa = -0.4 + f * 0.5;
+      X.limb(ctx, 124 + sway * 1.4, 238, 124 + sway * 1.4 + Math.cos(fa) * 11,
+        238 + Math.sin(fa) * 11, 5, 3, sk.P.skin, sk.P.skinL, '#16221f');
+    }
+
+    // the watch, going on, and not coming off
+    if (line >= 6) {
+      const clamp = U.clamp((IN_S.t - 0.2) * 3, 0, 1);
+      const bz = line === 6 && clamp < 1 ? Math.round(U.rand(-2, 2)) : 0;
+      const wx = 104 + sway, wy = 242;
+      X.plate(ctx, wx - 15 + bz, wy - 10, 30, 20, '#2a2438', '#453c5c', '#0a0614', 4);
+      X.rect(ctx, wx - 10 + bz, wy - 5, 20, 11, '#0d5a78');
+      X.rect(ctx, wx - 8 + bz, wy - 3, 16, 7, '#7ef9ff');
+      F.draw(ctx, '$1M', wx + bz, wy - 3, '#0a2a34', { center: true, shadow: false });
+      if (clamp < 1) {
+        ctx.globalAlpha = 1 - clamp;
+        X.ring(ctx, wx, wy, 6 + clamp * 26, '#ffffff', 2);
+        ctx.globalAlpha = 1;
+      }
+    }
+
+    // the room is only as open as your eyes are
     const lid = (1 - wake) * (VH / 2);
     if (lid > 0.5) {
       ctx.fillStyle = '#000000';
       ctx.fillRect(0, 0, VW, lid);
       ctx.fillRect(0, VH - lid, VW, lid);
+      ctx.globalAlpha = 0.5;
+      X.rect(ctx, 0, lid, VW, 2, '#1a0810');
+      X.rect(ctx, 0, VH - lid - 2, VW, 2, '#1a0810');
+      ctx.globalAlpha = 1;
     }
-    // the watch, being fitted
-    if (IN_S.line >= 6) {
-      const bz = Math.round(U.rand(-1, 1));
-      X.plate(ctx, 40 + bz, VH - 52, 26, 16, '#2a2438', '#453c5c', '#0a0614', 3);
-      X.rect(ctx, 44 + bz, VH - 48, 18, 9, '#0d5a78');
-      X.rect(ctx, 46 + bz, VH - 46, 14, 5, '#7ef9ff');
-    }
+    // and there is a ringing in it
+    ctx.globalAlpha = 0.1 + (1 - wake) * 0.2;
+    const vg = ctx.createRadialGradient(240, 150, 60, 240, 150, 260);
+    vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, '#0a0206');
+    ctx.fillStyle = vg; ctx.fillRect(0, 0, VW, VH);
+    ctx.globalAlpha = 1;
   }
 
   /* There is no opening cutscene any more. The night starts with you already on
@@ -12292,6 +12642,7 @@ window.PD = window.PD || {};
     else if (id === 'floor') drawFloor(ctx, g, t);
     else if (id === 'drag') drawDrag(ctx, g, t);
     else if (id === 'fist') drawFist(ctx, g, t);
+    else if (id === 'chum') drawMeet(ctx, g, t);
     else drawDrop(ctx, g, t);
 
     if (IN_S.flash > 0) {
@@ -12315,7 +12666,8 @@ window.PD = window.PD || {};
       const blink = Math.abs(Math.sin(t * 4)) > 0.4;
       if (chum) {
         speech(ctx, {
-          cx: 276, tipX: 104, ty: 92, rows, scale: sc, pop: IN_S.pop, t,
+          cx: id === 'chum' ? 240 : 276, tipX: id === 'chum' ? 240 : 104,
+          ty: id === 'chum' ? 92 : 92, rows, scale: sc, pop: IN_S.pop, t,
           fill: '#f2ece0', light: '#ffffff', dark: '#ad9f88', ink: '#1a1020',
           foot: done ? 'E / TAP' : null, foot2: blink ? '#1a1020' : '#ad9f88'
         });
@@ -15486,29 +15838,32 @@ window.PD = window.PD || {};
      it is still down there with the lights on. It is another `scene`, like the
      inside of the house, so it inherits the walking, the camera, the prompt
      and the touch controls for nothing. */
-  const CLUB_W = 820, CLUB_CEIL = 84;
+  const CLUB_W = 1440, CLUB_CEIL = 84;
   const CLUB_SPOTS = [
     { id: 'clubout', x: 26, r: 24, name: 'THE WAY OUT', sub: 'BACK UP TO THE MOON' },
     /* Every spot stands a little to the LEFT of the thing it names. Put it on
        top and you walk into the middle of the prop and your own head hides it. */
-    { id: 'dj', x: 132, r: 22, name: 'DJ GORB', sub: 'ASK HIM FOR SOMETHING' },
-    { id: 'dance', x: 320, r: 52, name: 'THE DANCEFLOOR', sub: 'HAVE A GO' },
-    { id: 'stage', x: 412, r: 28, name: 'THE DANCER', sub: 'TIP THEM. IT IS A TUESDAY' },
-    { id: 'bar', x: 500, r: 30, name: 'THE BAR', sub: 'BUY SOMETHING SILLY' },
-    { id: 'slot0', x: 646, r: 24, name: 'LUX', sub: 'ONE MORE GO. $200' },
-    { id: 'slot1', x: 694, r: 24, name: 'NOVA', sub: 'THIS ONE IS DUE. $200' },
-    { id: 'slot2', x: 742, r: 24, name: 'HOT', sub: 'LAST ONE. $200' }
+    { id: 'dj', x: 288, r: 24, name: 'DJ GORB', sub: 'ASK HIM FOR SOMETHING' },
+    { id: 'dance', x: 470, r: 64, name: 'THE DANCEFLOOR', sub: 'HAVE A GO' },
+    { id: 'stage', x: 596, r: 30, name: 'THE DANCER', sub: 'TIP THEM. IT IS A TUESDAY' },
+    { id: 'bar', x: 750, r: 34, name: 'THE BAR', sub: 'BUY SOMETHING SILLY' },
+    { id: 'slot0', x: 1104, r: 24, name: 'LUX', sub: 'ONE MORE GO. $200' },
+    { id: 'slot1', x: 1164, r: 24, name: 'NOVA', sub: 'THIS ONE IS DUE. $200' },
+    { id: 'slot2', x: 1224, r: 24, name: 'HOT', sub: 'LAST ONE. $200' }
   ];
-  const BOOTHS = [];
+  /* Booths down the back wall, in the parts of the room nobody dances in. */
+  const BOOTHS = [
+    { x: 186 }, { x: 250 }, { x: 880 }, { x: 950 }, { x: 1014 }
+  ];
   /* Four of them never made it to the floor. */
   const SEATS = [
-    { x: 514, k: 10 }, { x: 538, k: 11 }
+    { x: 770, k: 10 }, { x: 796, k: 11 }, { x: 214, k: 14 }, { x: 962, k: 16 }
   ];
   /* Eight regulars. They wander, they stop, they dance, and now and then two
      of them find each other and the tentacles get involved. */
   const CLUBBERS = [];
-  for (let i = 0; i < 9; i++) {
-    CLUBBERS.push({ x: 250 + i * 17, vx: 0, k: i, t: U.rand(0, 6), face: i % 2 ? 1 : -1,
+  for (let i = 0; i < 16; i++) {
+    CLUBBERS.push({ x: 330 + i * 38, vx: 0, k: i, t: U.rand(0, 6), face: i % 2 ? 1 : -1,
       dance: U.rand(0, 3), kiss: 0, mate: -1, wait: U.rand(0, 2),
       blink: U.rand(0, 4), say: null, sayT: 0, drink: i % 3 === 0 ? i % 4 : -1 });
   }
@@ -15730,7 +16085,7 @@ window.PD = window.PD || {};
   function spots(g) {
     if (S.scene === 'club') {
       // the night the game opens there is one machine and one reason to be here
-      if (g.save.story === 1) return [{ id: 'universal', x: 796, r: 40,
+      if (g.save.story === 1) return [{ id: 'universal', x: 1344, r: 66,
         name: 'THE UNIVERSAL', sub: 'TEN IN A ROW TAKES THE LOT' }];
       return CLUB_SPOTS;
     }
@@ -15869,14 +16224,14 @@ window.PD = window.PD || {};
      which starts the tour over from the top. */
   function leadGoals(g) {
     if (S.scene === 'club' && g.save.story === 1) return [
-      { x: 796, line: 'THE BIG ONE. AT THE BACK. YOU KNOW THE ONE.' }
+      { x: 1344, line: 'THE BIG ONE. AT THE BACK. YOU KNOW THE ONE.' }
     ];
     if (S.scene === 'club') return [
-      { x: 320, line: 'DANCE. IT IS FREE. NOTHING ELSE IN HERE IS.' },
-      { x: 412, line: 'TIP THEM. THEY ARE WORKING. UNLIKE YOU.' },
-      { x: 500, line: 'BUY A DRINK. PUT IT ON MY TAB. THERE IS NO TAB.' },
-      { x: 680, line: 'NO. NOT THE MACHINES. LOOK AT ME. NOT THE MACHINES.' },
-      { x: 132, line: 'ASK HIM FOR A SONG. HE HAS TWO. IT IS A COIN FLIP.' }
+      { x: 470, line: 'DANCE. IT IS FREE. NOTHING ELSE IN HERE IS.' },
+      { x: 596, line: 'TIP THEM. THEY ARE WORKING. UNLIKE YOU.' },
+      { x: 750, line: 'BUY A DRINK. PUT IT ON MY TAB. THERE IS NO TAB.' },
+      { x: 1130, line: 'NO. NOT THE MACHINES. LOOK AT ME. NOT THE MACHINES.' },
+      { x: 288, line: 'ASK HIM FOR A SONG. HE HAS TWO. IT IS A COIN FLIP.' }
     ];
     if (S.scene === 'in') return [
       { x: IN_SPOTS[0].x, line: 'THE COMPUTER. SELL THE ROCKS. THAT IS THE BUSINESS.' },
@@ -16214,6 +16569,119 @@ window.PD = window.PD || {};
      A hole in the moon with a floor that changes colour under you, a man on
      the decks who has two records, somebody on a pole who would rather be in
      bed, and nine regulars with nothing useful to say. */
+  /* ------------------------------------------------------------- the walls
+     A big room with nothing on the walls is a corridor. Everything here is
+     placed deterministically off its own x, so the same junk is in the same
+     place every night: posters nobody has taken down, flyers stapled over
+     flyers, vents, pipework, graffiti, gold discs for records that did not
+     sell, a payphone, and a fire door that has been chained since before you
+     were born. The furniture keeps its own gaps. */
+  const WALL_GAPS = [[0, 140], [166, 226], [296, 392], [376, 436], [548, 700],
+    [634, 694], [740, 862], [890, 1044]];
+  function wallFree(x) {
+    for (const g of WALL_GAPS) if (x > g[0] && x < g[1]) return false;
+    return true;
+  }
+  function clubWall(ctx, t, cam) {
+    const TOP = CLUB_CEIL + 30;
+    for (let x = 150; x < CLUB_W - 30; x += 46) {
+      if (!wallFree(x)) continue;
+      const k = Math.floor(U.hash2(x, 3) * 9);
+      const px = x - cam, y = TOP + Math.round(U.hash2(x, 7) * 26);
+      if (px < -70 || px > VW + 70) continue;
+      if (k === 0) {                                   // a poster in a frame
+        const h = 30 + Math.round(U.hash2(x, 11) * 14);
+        X.plate(ctx, px - 13, y, 26, h, '#241c3a', '#3a3055', '#100a1c', 2);
+        const c = ['#ff5fa8', '#7ef9ff', '#ffd34d', '#8affa0'][k + Math.floor(U.hash2(x, 13) * 4) % 4];
+        X.rect(ctx, px - 10, y + 3, 20, h - 12, '#140f26');
+        X.blob(ctx, px, y + 12, 6, 7, c);
+        X.rect(ctx, px - 8, y + h - 8, 16, 2, c);
+        X.rect(ctx, px - 6, y + h - 5, 12, 1, '#6b6480');
+      } else if (k === 1) {                            // flyers, over flyers
+        for (let i = 0; i < 5; i++) {
+          const fx = px - 12 + (i % 3) * 9, fy = y + ((i / 3) | 0) * 13 + (i % 2) * 2;
+          X.rect(ctx, fx, fy, 8, 11, ['#c9bce8', '#8a8ab0', '#b0a8d0'][i % 3]);
+          X.rect(ctx, fx + 1, fy + 2, 6, 1, '#3a3348');
+          X.rect(ctx, fx + 1, fy + 5, 6, 1, '#3a3348');
+          X.rect(ctx, fx + 1, fy + 8, 4, 1, '#3a3348');
+        }
+      } else if (k === 2) {                            // a vent, turning
+        X.plate(ctx, px - 11, y, 22, 22, '#1a1424', '#2e2640', '#0a0614', 3);
+        for (let i = 0; i < 3; i++) {
+          const a = t * 3.5 + i * 2.1;
+          X.line(ctx, px, y + 11, px + Math.cos(a) * 8, y + 11 + Math.sin(a) * 8, '#3a3348', 2);
+        }
+        X.blob(ctx, px, y + 11, 2, 2, '#5a5474');
+      } else if (k === 3) {                            // somebody's tag
+        const c = ['#ff5fa8', '#8affa0', '#7ef9ff'][Math.floor(U.hash2(x, 17) * 3)];
+        ctx.globalAlpha = 0.75;
+        for (let i = 0; i < 7; i++) {
+          const a = U.hash2(x + i, 19);
+          X.line(ctx, px - 16 + i * 5, y + 6 + a * 12, px - 12 + i * 5, y + 16 - a * 12, c, 2);
+        }
+        ctx.globalAlpha = 1;
+      } else if (k === 4) {                            // a gold disc, framed
+        X.plate(ctx, px - 14, y, 28, 28, '#3a2a1a', '#6a5220', '#1c1208', 3);
+        X.blob(ctx, px, y + 14, 10, 10, '#12101c');
+        X.blob(ctx, px, y + 14, 9, 9, '#c99a1e');
+        X.blob(ctx, px, y + 14, 5, 5, '#ffd34d');
+        X.blob(ctx, px, y + 14, 2, 2, '#12101c');
+        X.rect(ctx, px - 9, y + 24, 18, 2, '#8a6a2a');
+      } else if (k === 5) {                            // pipework, down the wall
+        for (const o of [-6, 6]) {
+          X.rect(ctx, px + o - 2, CLUB_CEIL + 10, 4, FLOOR - CLUB_CEIL - 10, '#2e2640');
+          X.rect(ctx, px + o - 2, CLUB_CEIL + 10, 1, FLOOR - CLUB_CEIL - 10, '#48405e');
+          for (let j = 0; j < 4; j++) X.rect(ctx, px + o - 3, CLUB_CEIL + 26 + j * 30, 6, 3, '#3a3348');
+        }
+      } else if (k === 6) {                            // the fire door, chained
+        X.plate(ctx, px - 16, FLOOR - 52, 32, 52, '#1d2a20', '#2e4436', '#0a1410', 3);
+        X.rect(ctx, px - 1, FLOOR - 50, 2, 48, '#0f1a14');
+        X.rect(ctx, px - 12, FLOOR - 30, 24, 3, '#6b7e70');
+        for (let i = 0; i < 6; i++) X.blob(ctx, px - 10 + i * 4, FLOOR - 28, 2, 2, '#8e86a8');
+        X.plate(ctx, px - 12, FLOOR - 64, 24, 10, '#0f2a18', '#2f7a52', '#04100a', 2);
+        F.draw(ctx, 'EXIT', px, FLOOR - 61, '#8affa0', { center: true, shadow: false });
+      } else if (k === 7) {                            // a payphone nobody uses
+        X.plate(ctx, px - 9, y + 6, 18, 26, '#1a2430', '#2e4256', '#0a1018', 3);
+        X.rect(ctx, px - 6, y + 9, 12, 8, '#0d1620');
+        for (let i = 0; i < 9; i++) X.rect(ctx, px - 5 + (i % 3) * 4, y + 19 + ((i / 3) | 0) * 3, 3, 2, '#4f6a80');
+        X.curve(ctx, px - 9, y + 14, px - 15, y + 24, px - 8, y + 32, '#12181f', 2, 7);
+        X.rect(ctx, px - 11, y + 30, 7, 5, '#2e4256');
+      } else {                                          // a mirror, with the room in it
+        X.plate(ctx, px - 15, y, 30, 40, '#2a2438', '#453c5c', '#0a0614', 3);
+        X.rect(ctx, px - 12, y + 3, 24, 34, '#1d2436');
+        ctx.globalAlpha = 0.35;
+        X.rect(ctx, px - 12, y + 3, 24, 10, '#3a4a66');
+        X.blob(ctx, px + 4, y + 26, 5, 7, '#2e3a52');
+        ctx.globalAlpha = 1;
+        X.rect(ctx, px - 10, y + 5, 3, 30, 'rgba(255,255,255,0.12)');
+      }
+    }
+  }
+
+  /* The floor: tape, cable runs, and everything that has been dropped on it. */
+  function clubFloor(ctx, t, cam) {
+    for (let x = 20; x < CLUB_W; x += 37) {
+      const px = x - cam;
+      if (px < -40 || px > VW + 40) continue;
+      const k = Math.floor(U.hash2(x, 23) * 6);
+      if (k === 0) {                                    // gaffer tape over a cable
+        X.rect(ctx, px - 14, FLOOR + 7, 28, 2, '#2a2438');
+        X.rect(ctx, px - 6, FLOOR + 6, 12, 4, '#3a3348');
+      } else if (k === 1) {                             // a dropped glass
+        X.rect(ctx, px, FLOOR + 4, 4, 5, 'rgba(200,220,255,0.3)');
+        X.rect(ctx, px, FLOOR + 4, 4, 1, '#d8f0ff');
+        X.blob(ctx, px + 2, FLOOR + 9, 5, 1.5, '#2f7a52');
+      } else if (k === 2) {                             // flyers, trodden flat
+        for (let i = 0; i < 3; i++) X.rect(ctx, px + i * 6 - 6, FLOOR + 6 + (i % 2) * 3, 5, 2, '#6b6480');
+      } else if (k === 3) {                             // a bottle on its side
+        X.rect(ctx, px - 5, FLOOR + 6, 11, 3, '#2f5a3a');
+        X.rect(ctx, px + 6, FLOOR + 6, 3, 3, '#8affa0');
+      } else if (k === 4) {                             // a cable, snaking off
+        X.curve(ctx, px - 18, FLOOR + 9, px, FLOOR + 5, px + 18, FLOOR + 9, '#1a1424', 2, 8);
+      }
+    }
+  }
+
   function drawClub(ctx, g, t, cam) {
     const bt = beatOf(t);
     const punch = Math.max(0, 1 - bt * 5);
@@ -16227,27 +16695,28 @@ window.PD = window.PD || {};
     }
     X.rect(ctx, -cam, CLUB_CEIL + 8, CLUB_W, 2, '#2e2450');
     for (let x = 10; x < CLUB_W; x += 96) X.rect(ctx, x - cam, CLUB_CEIL + 12, 76, 3, '#2a2140');
-    const fx3 = 128 - cam;
+    const fx3 = 344 - cam;
     X.rect(ctx, fx3 - 11, CLUB_CEIL + 16, 22, 22, '#1a1424');
     for (let i = 0; i < 3; i++) {
       const a = t * 4 + i * 2.1;
       X.line(ctx, fx3, CLUB_CEIL + 27, fx3 + Math.cos(a) * 9, CLUB_CEIL + 27 + Math.sin(a) * 9, '#3a3348', 2);
     }
     // neon, and a poster or two
-    for (let i = 0; i < 12; i++) {
+    for (let i = 0; i < 33; i++) {
       const on = (Math.floor(t * 4) + i) % 3 !== 0;
       X.rect(ctx, 12 + i * 44 - cam, CLUB_CEIL + 20, 32, 2, on ? '#ff5fa8' : '#4a1c3a');
       X.rect(ctx, 12 + i * 44 - cam, CLUB_CEIL + 26, 32, 2, on ? '#7ef9ff' : '#12384a');
     }
-    for (const [px, lab, col] of [[228, 'TONITE', '#ffd34d'], [360, 'NO DRILLS', '#ff5a4d']]) {
+    for (const [px, lab, col] of [[196, 'TONITE', '#ffd34d'], [406, 'NO DRILLS', '#ff5a4d'],
+      [664, 'LIVE', '#8affa0'], [846, 'CASH ONLY', '#7ef9ff'], [986, 'NO REFUNDS', '#ff5fa8']]) {
       X.plate(ctx, px - cam, CLUB_CEIL + 34, 46, 18, '#120a1c', '#3a3348', '#000000', 3);
       F.draw(ctx, lab, px + 23 - cam, CLUB_CEIL + 40, col, { center: true, shadow: false });
     }
 
     // the lit tiles, underfoot
     X.rect(ctx, -cam, FLOOR - 1, CLUB_W, 1, '#2e2450');
-    const TILE = 18, T0 = 266;
-    for (let i = 0; i < 6; i++) {
+    const TILE = 18, T0 = 390;
+    for (let i = 0; i < 11; i++) {
       const k = (Math.floor(t * 4.4) + i) % 4;
       const col = ['#ff5fa8', '#7ef9ff', '#ffd34d', '#8affa0'][k];
       X.rect(ctx, T0 + i * TILE - cam, FLOOR, TILE - 2, 13, col);
@@ -16258,22 +16727,26 @@ window.PD = window.PD || {};
       ctx.globalAlpha = 1;
     }
     // spilled drinks and dropped glasses, because people have been in here
-    for (const [lx, lk] of [[200, 0], [292, 1], [386, 0], [478, 1]]) {
+    for (const [lx, lk] of [[200, 0], [352, 1], [466, 0], [598, 1], [712, 0], [858, 1], [1000, 0]]) {
       if (lk) { X.blob(ctx, lx - cam, FLOOR + 6, 7, 2, '#2f7a52'); X.blob(ctx, lx - cam, FLOOR + 6, 4, 1, '#8affa0'); }
       else { X.rect(ctx, lx - cam, FLOOR + 4, 4, 5, '#7ec8ff'); X.rect(ctx, lx - cam, FLOOR + 4, 4, 1, '#d8f0ff'); }
     }
 
+    clubWall(ctx, t, cam);
+    clubFloor(ctx, t, cam);
     drawBooths(ctx, g, t, cam);
     drawRoomba(ctx, t, cam);
-    drawStack(ctx, 236, cam, punch);
-    drawStack(ctx, 394, cam, punch);
+    drawStack(ctx, 372, cam, punch);
+    drawStack(ctx, 570, cam, punch);
+    drawStack(ctx, 690, cam, punch);
+    drawStack(ctx, 906, cam, punch);
     drawDJ(ctx, g, t, cam, punch);
     drawStage(ctx, g, t, cam, punch);
     drawBar(ctx, g, t, cam);
     drawSlots(ctx, g, t, cam);
 
     // a mirror ball, throwing spots about
-    const mbx = 320 - cam, mby = CLUB_CEIL + 24;
+    const mbx = 480 - cam, mby = CLUB_CEIL + 24;
     X.rect(ctx, mbx, CLUB_CEIL + 6, 1, 18, '#5a5474');
     X.blob(ctx, mbx, mby, 9, 9, '#8e86a8');
     for (let i = 0; i < 9; i++) {
@@ -16287,8 +16760,8 @@ window.PD = window.PD || {};
       ctx.globalAlpha = 1;
     }
     // two spotlights sweeping the room, and a fan of lasers on the beat
-    for (let i = 0; i < 2; i++) {
-      const rx = 236 + i * 180 - cam;
+    for (let i = 0; i < 5; i++) {
+      const rx = 230 + i * 200 - cam;
       const sw = Math.sin(t * (0.7 + i * 0.35) + i * 2) * 90;
       ctx.globalAlpha = 0.09;
       X.poly(ctx, [[rx - 5, CLUB_CEIL + 8], [rx + 5, CLUB_CEIL + 8],
@@ -16298,7 +16771,7 @@ window.PD = window.PD || {};
     }
     if (punch > 0.4) {
       ctx.globalAlpha = (punch - 0.4) * 0.45;
-      for (let i = -4; i <= 4; i++) X.line(ctx, 320 - cam, CLUB_CEIL + 10, 320 - cam + i * 42, FLOOR, '#8affa0', 1);
+      for (let i = -4; i <= 4; i++) X.line(ctx, 480 - cam, CLUB_CEIL + 10, 480 - cam + i * 42, FLOOR, '#8affa0', 1);
       ctx.globalAlpha = 1;
     }
 
@@ -16338,7 +16811,7 @@ window.PD = window.PD || {};
     F.draw(ctx, 'COATS', 107 - cam, FLOOR - 84, '#8e86a8', { center: true, shadow: '#0a0614' });
 
     // and the doors nobody wants to draw
-    for (const [dx, lab] of [[566, 'LOO']]) {
+    for (const [dx, lab] of [[930, 'LOO'], [956, 'LOO'], [154, 'STAFF']]) {
       X.plate(ctx, dx - cam, FLOOR - 40, 18, 40, '#241f36', '#3a3348', '#120a1c', 3);
       F.draw(ctx, lab, dx + 9 - cam, FLOOR - 50, '#6b6480', { center: true, shadow: false });
     }
@@ -16351,7 +16824,7 @@ window.PD = window.PD || {};
      stand in front of it and you can lose money at any of them. The odds are
      the odds: about three quarters of what goes in comes back out, which is
      exactly how you ended up owing a shark a million dollars. */
-  const SLOT_X = [646, 694, 742];
+  const SLOT_X = [1104, 1164, 1224];
   const STAKE = 200;
   const SLOT = { at: -1, t: 0, reel: [0, 0, 0], land: [0, 0, 0], lever: 0, win: 0, msg: 0 };
 
@@ -16428,8 +16901,8 @@ window.PD = window.PD || {};
   /* The alcove: an arch, a carpet nobody has ever cleaned, three machines and
      whoever has been standing at one of them since before you arrived. */
   function drawSlots(ctx, g, t, cam) {
-    const a0 = 612 - cam;
-    const W = 202, CH2 = CLUB_CEIL;
+    const a0 = 1050 - cam;
+    const W = 380, CH2 = CLUB_CEIL;
     const HUES = PD.chum.HUES;
 
     /* ------------------------------------------------ the room through there
@@ -16441,8 +16914,8 @@ window.PD = window.PD || {};
     grd.addColorStop(0, '#1a0a2e'); grd.addColorStop(1, '#3a1550');
     ctx.fillStyle = grd; ctx.fillRect(a0 + 10, CH2, W, FLOOR - CH2);
     // the arcade: six lit openings with a rank of little machines in each
-    for (let i = 0; i < 6; i++) {
-      const x = a0 + 24 + i * 33, hue = HUES[i % HUES.length];
+    for (let i = 0; i < 11; i++) {
+      const x = a0 + 26 + i * 34, hue = HUES[i % HUES.length];
       X.rect(ctx, x - 14, CH2 + 8, 28, 40, '#1c0c30');
       for (let k = 0; k <= 8; k++) {
         const a = Math.PI + k * (Math.PI / 8);
@@ -16462,8 +16935,8 @@ window.PD = window.PD || {};
     // a rail along the front of it, and two chandeliers
     X.rect(ctx, a0 + 10, CH2 + 50, W, 3, '#4a2270');
     X.rect(ctx, a0 + 10, CH2 + 50, W, 1, '#8a5ac0');
-    for (let i = 0; i < 22; i++) X.rect(ctx, a0 + 14 + i * 9, CH2 + 53, 2, 6, '#3c1a58');
-    for (const gx of [a0 + 58, a0 + 158]) {
+    for (let i = 0; i < 42; i++) X.rect(ctx, a0 + 14 + i * 9, CH2 + 53, 2, 6, '#3c1a58');
+    for (const gx of [a0 + 62, a0 + 190, a0 + 318]) {
       const cy = CH2 + 14 + Math.sin(t * 0.6 + gx) * 1;
       X.rect(ctx, gx, CH2, 1, 14, '#5a4a78');
       for (let k = 0; k < 7; k++) {
@@ -16491,9 +16964,9 @@ window.PD = window.PD || {};
     X.rect(ctx, a0 + 10, FLOOR - 1, W, 2, '#2a0a1c');
     X.rect(ctx, a0 + 10, FLOOR + 1, W, 1, '#57163a');
     // the velvet rope, the same as the one in the big room
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 9; i++) {
       const px = a0 + 24 + i * 44;
-      if (i < 4) {
+      if (i < 8) {
         X.curve(ctx, px, FLOOR + 12, px + 22, FLOOR + 19, px + 44, FLOOR + 12, '#5e0f2c', 3, 8);
         X.curve(ctx, px, FLOOR + 11, px + 22, FLOOR + 18, px + 44, FLOOR + 11, '#a8265a', 1, 8);
       }
@@ -16512,20 +16985,21 @@ window.PD = window.PD || {};
       X.blob(ctx, a0 + 5, CLUB_CEIL + 18 + i * 12, 2.5, 2.5, on ? '#ffd34d' : '#4a3a10');
     }
     X.rect(ctx, a0 + 10, CLUB_CEIL, W, 6, '#2e1446');
-    for (let i = 0; i <= 14; i++) {
+    for (let i = 0; i <= 28; i++) {
       const on = (Math.floor(t * 6) + i) % 4 !== 0;
       X.blob(ctx, a0 + 18 + i * 13, CLUB_CEIL + 3, 2.5, 2.5, on ? '#ffd34d' : '#4a3a10');
     }
     const lit = Math.sin(t * 5) > -0.3;
-    X.plate(ctx, a0 + 40, CLUB_CEIL - 20, 142, 20, '#3a0e26', '#ff5fa8', '#180510', 4);
-    F.draw(ctx, 'THE GALAXY ROOM', a0 + 111, CLUB_CEIL - 15, lit ? '#ffd6f0' : '#7a4a68',
+    X.plate(ctx, a0 + 110, CLUB_CEIL - 22, 168, 22, '#3a0e26', '#ff5fa8', '#180510', 4);
+    F.draw(ctx, 'THE GALAXY ROOM', a0 + 194, CLUB_CEIL - 18, lit ? '#ffd6f0' : '#7a4a68',
       { center: true, shadow: '#180510' });
-    F.draw(ctx, 'NO CREDIT  NO PITY', a0 + 111, CLUB_CEIL - 7, '#ff8ad8', { center: true, shadow: '#180510' });
+    F.draw(ctx, 'NO CREDIT  NO REFUNDS  NO PITY', a0 + 194, CLUB_CEIL - 9, '#ff8ad8',
+      { center: true, shadow: '#180510' });
 
     for (let i = 0; i < 3; i++) drawMachine(ctx, g, t, cam, i);
     drawUniversalCab(ctx, g, t, cam);
     // the two who have been here since before you arrived
-    for (const q of [{ x: 636, k: 12 }, { x: 700, k: 13 }]) {
+    for (const q of [{ x: 1076, k: 12 }, { x: 1284, k: 13 }, { x: 1400, k: 17 }]) {
       const K = AH.KIN[q.k % AH.KIN.length];
       const bob = Math.sin(t * 1.4 + q.x) * 1;
       kinShadow(ctx, q.x - cam, FLOOR, K);
@@ -16537,7 +17011,7 @@ window.PD = window.PD || {};
      night, standing here where you first saw it: takings meter, glass dome
      with a world turning in it, marquee, and a pillar of gold up each cheek. */
   function drawUniversalCab(ctx, g, t, cam) {
-    const mx = 782 - cam, B = FLOOR - 4;
+    const mx = 1344 - cam, B = FLOOR - 4;
     const RW = PD.chum.reelWorld;
     const hot = Math.sin(t * 5) > -0.3;
     // shadow and dais
@@ -16714,7 +17188,7 @@ window.PD = window.PD || {};
   /* DJ GORB. Two records, and a riser, because otherwise you stand in front
      of him and the whole booth disappears behind your own head. */
   function drawDJ(ctx, g, t, cam, punch) {
-    const dx = 184 - cam, TOP = FLOOR - 46;
+    const dx = 340 - cam, TOP = FLOOR - 46;
     AH.blit(ctx, AH.S.dj, Math.floor(t * 6) % 2, dx, TOP - Math.abs(Math.sin(t * 4.4)) * 3);
     X.plate(ctx, dx - 34, TOP, 68, 46, '#463a68', '#6b5a9c', '#1d1438', 4);
     X.rect(ctx, dx - 34, TOP, 68, 3, '#8a76c4');
@@ -16749,7 +17223,7 @@ window.PD = window.PD || {};
   /* The stage. A pole, a light, and somebody working a Tuesday. It stands
      proud of the floor for the same reason the DJ does. */
   function drawStage(ctx, g, t, cam, punch) {
-    const sx = 456 - cam, TOP = FLOOR - 26;
+    const sx = 640 - cam, TOP = FLOOR - 26;
     X.rect(ctx, sx - 1, CLUB_CEIL + 10, 3, TOP - CLUB_CEIL - 10, '#c9c4b4');
     X.rect(ctx, sx - 1, CLUB_CEIL + 10, 1, TOP - CLUB_CEIL - 10, '#ffffff');
     ctx.globalAlpha = 0.13 + punch * 0.05;
@@ -16770,14 +17244,14 @@ window.PD = window.PD || {};
     for (let i = 0; i < 5; i++) X.rect(ctx, sx - 32 + i * 15, TOP - 2, 7, 2, '#8affa0');
     if (S.tip > 0) {
       F.draw(ctx, 'TA', sx + 20, TOP - 58, '#ffd34d', { center: true, shadow: '#0a0614' });
-      if (U.chance(0.4)) FX.stars(456 + U.rand(-14, 14), FLOOR - 56, 1, '#ffd34d');
+      if (U.chance(0.4)) FX.stars(640 + U.rand(-14, 14), FLOOR - 56, 1, '#ffd34d');
     }
   }
 
   /* The bar. Taps, optics, a tip jar nobody has troubled, and a man who has
      heard it. */
   function drawBar(ctx, g, t, cam) {
-    const bx = 550 - cam;
+    const bx = 800 - cam;
     X.rect(ctx, bx - 40, FLOOR - 62, 80, 26, '#1a1424');
     for (let i = 0; i < 10; i++) {
       const col = ['#8affa0', '#ff8ad8', '#ffb03d', '#7ec8ff'][i % 4];
