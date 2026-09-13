@@ -589,12 +589,16 @@ a playable stretch in the middle.
    machine at the back of the room with your name on it.
 2. **Then the game hands you the club** and gets out of the way. Walk to the
    back. Mr Chum's arrow points at the only thing that matters.
-3. **THE UNIVERSAL.** Twice the size of the other machines and always lit. Ten
-   stars in a row takes the lot. You pull the lever yourself, and the stars
-   come — one, two, three, all the way to **nine**. Then it asks you whether
-   you want to go on or walk away, and it does not matter which you pick,
-   because the tenth reel was always going to be a skull. That is what the
-   machine is for.
+3. **THE UNIVERSAL**, shown the way the computer is shown — **first person**,
+   your own two hands in the bottom of the frame, the machine filling
+   everything else. It is a galaxy in a box: three reel windows on to open
+   space with a nebula and a turning spiral behind them, stars that streak when
+   it spins, and **planets instead of symbols** — a rock, an ocean, two ringed
+   gas giants and a living one, each drawn round and lit from the left. Ten
+   worlds in a row takes the lot. You pull the lever yourself and the worlds
+   come, all the way to **nine**. Then it asks whether you want to go on or
+   walk away, and it does not matter which you pick, because the tenth window
+   was always going to have a skull in it.
 4. **The number.** `$1,000,000`, counting up on a red-ruled receipt.
 5. **The floor.** You go down on the carpet, six inches from it, legs walking
    past out of focus. Nobody stops dancing. Somebody steps over you to get to
@@ -742,32 +746,22 @@ own head hides what you came to look at.
 
 ## Who is in — every one of them generated
 
-Nobody in the club is a drawing. Each regular is **generated from a seed**, and
-the seed picks everything:
+Nobody in the club is a drawing, and none of them are blobs any more. Each
+regular is **generated from a seed** as an actual person: a head on a neck, a
+torso with clothes on it, two arms with hands on the ends, two legs with boots.
 
 | | |
 | --- | --- |
-| **Body plan** | blob, pear, tall, squat, flat-bottomed dome or a stack of segments |
-| **Size** | anywhere from about two-thirds to one-and-a-half of the next one along |
-| **Colour** | a hue off the wheel, turned into a four-tone ramp — skin, shade, highlight and a clashing accent — so no two of them are the same species of green |
-| **Eyes** | one to four of them, in a row, stacked up the front, in a triangle, or out on stalks |
-| **Mouth** | a grin, tusks, a beak, a proboscis, mandibles, or nothing at all |
-| **Head** | antennae (one, two or three, at different heights), horns, a dorsal crest, a tuft, a small top hat, or bare |
-| **Markings** | spots, stripes, a pale belly panel, or clean |
-| **Extras** | gills, glasses, a studded collar, a gold earring |
-| **Tentacles** | two to five, drawn live at the right thickness and colour for that alien, so they wave about and can wrap round each other |
+| **Build** | lanky, stout, normal or hulk — which changes the shoulders, the torso and the leg length, not just the scale |
+| **Colour** | a hue off the wheel turned into skin, shade, highlight and a clashing accent, plus its own clothes and its own trousers, because when the top and the bottom shared a colour the whole body read as one dark slab |
+| **Eyes** | one to four, in a row, stacked, in a triangle or out on stalks, each set in a socket with a brow over it |
+| **Mouth** | a grin, lips, tusks, a beak, a proboscis or mandibles |
+| **Head** | antennae, horns, a dorsal crest, a tuft, ears, a small top hat, or bare |
+| **Skin** | plain, speckled, scaled, striped or plated — drawn into the face and the torso both |
+| **Wearing** | a vest, an open jacket with a shirt and a tie under it, a tank, a sash, a long coat, or nothing |
 
-Fourteen are built at load and the same seed always makes the same alien, so
-the room is stable between frames and between saves. They blink. A third are
-still holding whatever they came in with. Two of them are on the bar stools and
-one is working behind the bar.
-
-And they talk. Every couple of seconds a line surfaces over whoever is standing
-still — `I ONLY CAME OUT FOR ONE`, `HE IS A SHARK. LITERALLY.`, `NINE HEARTS.
-ALL OF THEM HURT.`, `WHOSE TENTACLE IS THIS` — in a bubble whose tail points at
-them and whose height is worked out from how tall that particular alien is.
-Sixteen of those, five for the DJ and six for the dancer, and none of them are
-useful.
+Six frames each: idle, two steps of a walk, talking, kissing and blinking. The
+walk is in the sprite now rather than drawn under it, because they have legs.
 
 ## The dancer
 
@@ -795,15 +789,6 @@ Mr Chum notices. He notices the first time, and he has something to say if the
 three ever land.
 
 Two regulars have been standing at the end machines since before you arrived.
-
-## The suit
-
-They will not let you in like that. On the way through the door somebody hands
-you a **hippie suit** and it is magnificent: purple, a collar you could
-hang-glide with, a gold medallion on a chain, and sequins that catch whatever
-light is going one at a time. You wear it everywhere from then on — on the
-moon, in the house, down the club — and you can hang it back up at the coat
-check any time you like, which the game will call you a coward for.
 
 ## The chart
 
@@ -968,7 +953,7 @@ a line of history under its blurb.
 | `src/player.js` | Movement, the drill, weapons, dash, the ragdoll, air, cargo, damage, and the tether to the pod |
 | `src/fx.js` | Particles, floating numbers, shockwave rings, terrain chunks, bouncing debris, screen shake, hit-stop, and the block iris |
 | `src/ui.js` | The cardboard-and-masking-tape HUD (air tank, hull chips, sack tube), the action strip, the plank over the door, pause, victory and title screens |
-| `src/lab.js` | Decanting Bay 7: three tanks, three save files, and the settings panel |
+| `src/lab.js` | Decanting Bay 7: three tanks with a body in each, three save files, and the settings panel |
 | `src/home.js` | All three parts of home: the lumpy moon surface outside with the house and the saucer standing on the curve of it, the very small room inside with the computer and the jar, Brenda, the tip you have to clear off the regolith, and and the club under the hatch with its dancefloor, its mirror ball, DJ Gorb, the act on the pole and its nine chattering regulars |
 | `src/desk.js` | First person at the computer: hands, keyboard, CRT, the loose-spring pointer, ZORB OS and ABAY |
 | `src/glyph.js` | The icon language that rides alongside the text, and the hex primitives |

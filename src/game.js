@@ -60,7 +60,7 @@
       thots: 0, thotFrac: 0, neur: {},            // what the brain in the jar has grown
       artifacts: 0,                               // relics hauled home
       debt: PD.chum.DEBT0,                        // what you owe Mr Chum
-      seenIntro: 0, trash: 0, suit: 0, spun: 0,
+      seenIntro: 0, trash: 0, spun: 0,
       story: 0                                   // how far through the night you are
     };
   }
@@ -103,7 +103,6 @@
       base.seenIntro = s.seenIntro ? 1 : 0;
       base.debt = s.debt === undefined ? 0 : Math.max(0, +s.debt || 0);
       base.trash = Math.max(0, +s.trash || 0);
-      base.suit = s.suit ? 1 : 0;
       base.spun = Math.max(0, +s.spun || 0);
       base.story = Math.max(0, +s.story || 0);
       if (s.vault) for (const k in s.vault) { const n = +s.vault[k]; if (n > 0 && D.MAT[k]) base.vault[k] = n; }
@@ -1276,8 +1275,29 @@
         F.draw(c, str, x, y, col, { center: true, scale: size >= 2 ? 2 : 1 }));
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.imageSmoothingEnabled = false;
-      ctx.drawImage(homeCv, vx * HD, vy * HD, PD.home.ZW * HD, PD.home.ZH * HD, 0, 0, VW * HD, VH * HD);
+      /* DRUNK. You come round in that club having lost a night, and the game
+         says so rather than telling you: the window swims, and a second copy
+         of everything trails it a few pixels behind and will not line up. */
+      const dk = PD.home.drunk();
+      const sw = dk > 0 ? Math.sin(g.time * 0.9) * 7 * dk : 0;
+      const sv = dk > 0 ? Math.sin(g.time * 1.37 + 1) * 4 * dk : 0;
+      ctx.drawImage(homeCv, (vx + sw) * HD, (vy + sv) * HD, PD.home.ZW * HD, PD.home.ZH * HD, 0, 0, VW * HD, VH * HD);
+      if (dk > 0) {
+        ctx.globalAlpha = 0.34 * dk;
+        const gx = Math.sin(g.time * 1.9) * 5 * dk, gy2 = Math.cos(g.time * 1.3) * 3 * dk;
+        ctx.drawImage(homeCv, (vx + sw + gx) * HD, (vy + sv + gy2) * HD, PD.home.ZW * HD, PD.home.ZH * HD,
+          0, 0, VW * HD, VH * HD);
+        ctx.globalAlpha = 1;
+      }
       ctx.setTransform(HD, 0, 0, HD, 0, 0);
+      if (dk > 0) {
+        // and the edges close in, the way they do
+        for (let i = 0; i < 10; i++) {
+          ctx.fillStyle = 'rgba(10,4,20,' + (0.05 * (10 - i) * dk).toFixed(3) + ')';
+          ctx.fillRect(0, i * 2, VW, 2); ctx.fillRect(0, VH - 2 - i * 2, VW, 2);
+          ctx.fillRect(i * 3, 0, 3, VH); ctx.fillRect(VW - 3 - i * 3, 0, 3, VH);
+        }
+      }
       PD.home.drawOverlay(ctx, g, g.time);
       PD.touch.draw(ctx, PD.home.touchMode(), g);
       UI.endFrame();

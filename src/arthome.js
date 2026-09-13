@@ -1090,12 +1090,14 @@
      they can wave them about and wrap them round each other. Frame 1 is the
      face they make when somebody is kissing them. */
   /* ------------------------------------------------------------- a species
-     The regulars in the club are not six drawings with the colours swapped.
-     Each one is GENERATED: a seed picks a body plan, a size, a hue, how many
-     eyes it has and where they sit, what its mouth is, what is growing out of
-     its head, how many tentacles hang off the bottom and what it is wearing.
-     Nothing in here is a variant of anything else, and the same seed always
-     produces the same alien, so the room is stable between frames and saves. */
+     The regulars in the club are generated, and they are PEOPLE: a head on a
+     neck, a torso with clothes on it, two arms with hands on the ends and two
+     legs with boots. A seed picks the body plan, the build, the hue, how many
+     eyes there are and where, the mouth, what is growing out of the head, what
+     the skin is made of and what they came out in.
+
+     They were blobs with tentacles before. Blobs do not read at this size and
+     nine of them in a room read as one thing. */
   function hsl(h, s, l) {
     h = ((h % 360) + 360) % 360; s /= 100; l /= 100;
     const c = (1 - Math.abs(2 * l - 1)) * s;
@@ -1109,12 +1111,12 @@
     return '#' + q(r) + q(g) + q(b);
   }
 
-  const BODYK = ['blob', 'blob', 'pear', 'tall', 'squat', 'dome', 'segment'];
+  const BUILDK = ['lanky', 'stout', 'normal', 'normal', 'hulk'];
   const EYEK = ['row', 'row', 'row', 'stack', 'tri', 'stalk'];
-  const MOUTHK = ['grin', 'grin', 'tusk', 'beak', 'straw', 'mandible', 'none'];
-  const CROWNK = ['none', 'antenna', 'antenna', 'horns', 'fin', 'hat', 'tuft'];
-  const MARKK = ['none', 'none', 'spots', 'stripes', 'belly'];
-  const EXTRAK = ['none', 'none', 'gills', 'specs', 'collar', 'ring'];
+  const MOUTHK = ['grin', 'grin', 'tusk', 'beak', 'straw', 'mandible', 'lips'];
+  const CROWNK = ['none', 'antenna', 'antenna', 'horns', 'fin', 'hat', 'tuft', 'ears'];
+  const SKINK = ['plain', 'plain', 'speckle', 'scale', 'stripe', 'plate'];
+  const WEARK = ['vest', 'jacket', 'tank', 'sash', 'coat', 'bare'];
 
   function alienKin(seed) {
     const R = PD.util.mulberry32(seed * 2654435761 + 12345);
@@ -1123,161 +1125,257 @@
     const hue = R() * 360;
     const t = {
       seed: seed, hue: hue,
-      skin: hsl(hue, 42 + R() * 34, 55 + R() * 14),
-      dark: hsl(hue, 48 + R() * 22, 27 + R() * 9),
-      lite: hsl(hue, 38 + R() * 26, 79 + R() * 9),
-      acc: hsl(hue + 80 + R() * 200, 68, 62),
-      body: pick(BODYK), eyes: ri(1, 4), eyeK: pick(EYEK),
-      mouth: pick(MOUTHK), crown: pick(CROWNK), mark: pick(MARKK), extra: pick(EXTRAK),
-      arms: ri(2, 5), big: 0.94 + R() * 0.5, lean: R() < 0.5 ? -1 : 1,
-      ant: ri(1, 3)
+      skin: hsl(hue, 36 + R() * 32, 54 + R() * 14),
+      dark: hsl(hue, 44 + R() * 20, 26 + R() * 8),
+      lite: hsl(hue, 34 + R() * 24, 76 + R() * 10),
+      acc: hsl(hue + 90 + R() * 180, 62, 56),
+      accD: hsl(hue + 90 + R() * 180, 60, 30),
+      cloth: hsl(hue + 140 + R() * 160, 38 + R() * 34, 44 + R() * 14),
+      build: pick(BUILDK), eyes: ri(1, 4), eyeK: pick(EYEK),
+      mouth: pick(MOUTHK), crown: pick(CROWNK), tex: pick(SKINK), wear: pick(WEARK),
+      big: 0.9 + R() * 0.42, lean: R() < 0.5 ? -1 : 1, ant: ri(1, 3),
+      belt: R() < 0.6, boots: R() < 0.7, pads: R() < 0.4
     };
+    t.clothL = hsl(hue + 140, 34, 66);
+    t.clothD = hsl(hue + 140, 38, 26);
+    /* Trousers get their own colour. When they shared one with the jacket the
+       whole body below the neck read as a single dark slab. */
+    t.pants = hsl(hue + 230 + R() * 60, 26 + R() * 22, 46 + R() * 14);
+    t.pantsL = hsl(hue + 230, 24, 66);
+    t.pantsD = hsl(hue + 230, 26, 19);
     if (t.eyeK === 'tri') t.eyes = 3;
     if (t.eyeK === 'stalk') t.eyes = Math.min(2, t.eyes);
-    t.bw = Math.round(12 * t.big) + (t.body === 'squat' ? 4 : 0);
-    t.bh = Math.round((t.body === 'tall' ? 16 : t.body === 'squat' ? 8 : 12) * t.big);
-    t.legLen = Math.round(9 * t.big);
+    if (t.build === 'hulk') t.big = Math.max(t.big, 1.2);
+    if (t.build === 'lanky') t.big = Math.min(t.big, 1.05);
+    // the measurements everything else is hung off
+    t.hr = Math.round(11 * t.big);                       // head radius
+    t.sw = Math.round((t.build === 'hulk' ? 13 : t.build === 'lanky' ? 8 : 10) * t.big);
+    t.th = Math.round((t.build === 'lanky' ? 17 : t.build === 'stout' ? 12 : 14) * t.big);
+    t.lh = Math.round((t.build === 'lanky' ? 24 : t.build === 'stout' ? 15 : 19) * t.big);
+    t.aw = Math.max(4, Math.round(5 * t.big));
+    t.legLen = 0;                                        // no tentacles any more
     return t;
   }
 
-  function buildAlien(t, face) {
-    const W = (t.bw * 2 + 24) & ~1, H = (t.bh * 2 + 30) & ~1;
-    const p = pix(W, H);
-    const cx = W >> 1, cy = H - t.bh - 3, top = cy - t.bh;
-    const kiss = face === 1, blink = face === 2, talk = face === 3;
-    const INK = '#140f26';
+  /* A tapered limb with a lit top and a dark underside, in whole pixels. */
+  function limb(p, x0, y0, x1, y1, w0, w1, c, l, d) {
+    const dx = x1 - x0, dy = y1 - y0;
+    const n = Math.max(1, Math.ceil(Math.hypot(dx, dy)));
+    for (let i = 0; i <= n; i++) {
+      const q = i / n;
+      const w = Math.max(1, Math.round(w0 + (w1 - w0) * q));
+      const cx = Math.round(x0 + dx * q), cy = Math.round(y0 + dy * q);
+      p.rect(cx - (w >> 1) - 1, cy - (w >> 1) - 1, w + 2, w + 2, d);
+      p.rect(cx - (w >> 1), cy - (w >> 1), w, w, c);
+      if (w > 2) p.rect(cx - (w >> 1), cy - (w >> 1), Math.max(1, w - 2), 1, l);
+    }
+  }
 
-    // ---- whatever is growing out of the head, laid down behind the body
+  function buildAlien(t, face) {
+    const HW = t.hr * 2 + 26, HH = t.hr * 2 + t.th + t.lh + 24;
+    const W = HW & ~1, H = HH & ~1;
+    const p = pix(W, H);
+    const cx = W >> 1;
+    const FOOT = H - 2;
+    const hipY = FOOT - t.lh;
+    const shY = hipY - t.th;
+    const neckY = shY - 3;
+    const headY = neckY - t.hr - 1;
+    const INK = '#140f26';
+    const kiss = face === 4, blink = face === 5, talk = face === 3;
+    const step = face === 1 ? 1 : (face === 2 ? -1 : 0);   // walk frames
+
+    // ---------------------------------------------------------------- legs
+    const kneeY = hipY + Math.round(t.lh * 0.5);
+    for (const side of [-1, 1]) {
+      const sw = side * (step * 4);
+      // far enough apart to leave daylight between them, or the two legs
+      // and the body read as one solid block from across the room
+      const hx = cx + side * (t.aw + 2);
+      const fx = hx + sw;
+      limb(p, hx, hipY, hx + sw * 0.5, kneeY, t.aw + 1, t.aw, t.pants, t.pantsL, INK);
+      limb(p, hx + sw * 0.5, kneeY, fx, FOOT - 3, t.aw, t.aw - 1,
+        t.wear === 'bare' ? t.skin : t.pants, t.wear === 'bare' ? t.lite : t.pantsL, INK);
+      p.rect(hx - 1, kneeY - 1, 3, 2, t.pantsD);
+      // a boot, or a foot with toes on it
+      if (t.boots) {
+        p.round(fx - t.aw, FOOT - 6, t.aw * 2 + 1, 7, 2, '#241f2e');
+        p.rect(fx - t.aw, FOOT - 6, t.aw * 2 + 1, 2, t.acc);
+      } else {
+        p.round(fx - t.aw, FOOT - 4, t.aw * 2 + 1, 5, 2, t.skin);
+        p.rect(fx - t.aw, FOOT - 1, t.aw * 2 + 1, 1, t.dark);
+        for (let k = 0; k < 3; k++) p.set(fx + t.aw, FOOT - 4 + k, t.dark);
+      }
+    }
+
+    // --------------------------------------------------------------- torso
+    p.round(cx - t.sw, shY, t.sw * 2, t.th + 4, Math.max(2, (t.sw / 2) | 0), t.skin);
+    p.round(cx - t.sw + 1, shY + 1, t.sw * 2 - 2, 4, 2, t.lite);          // lit shoulders
+    p.round(cx - t.sw + 2, shY + t.th - 2, t.sw * 2 - 4, 5, 2, t.dark);   // shadow under the ribs
+    // a belly, on the ones who have one
+    if (t.build === 'stout' || t.build === 'hulk') {
+      p.ellipse(cx, shY + t.th - 1, t.sw - 1, 5, t.skin);
+      p.ellipse(cx, shY + t.th - 2, t.sw - 3, 3, t.lite);
+    }
+
+    // ------------------------------------------------------------- clothing
+    const C = t.cloth, CL = t.clothL, CD = t.clothD;
+    if (t.wear === 'vest') {
+      p.round(cx - t.sw, shY + 1, 5, t.th + 2, 1, C);
+      p.round(cx + t.sw - 5, shY + 1, 5, t.th + 2, 1, C);
+      p.rect(cx - t.sw, shY + 1, 5, 1, CL); p.rect(cx + t.sw - 5, shY + 1, 5, 1, CL);
+    } else if (t.wear === 'jacket') {
+      p.round(cx - t.sw, shY, t.sw * 2, t.th + 3, 3, C);
+      p.round(cx - 4, shY + 2, 8, t.th + 1, 2, t.lite);          // the shirt under it
+      p.round(cx - t.sw, shY, 6, 9, 2, CL); p.round(cx + t.sw - 6, shY, 6, 9, 2, CL);
+      p.rect(cx - t.sw, shY + t.th, t.sw * 2, 2, CD);
+      p.rect(cx - 1, shY + 4, 2, t.th - 4, t.acc);                // and a tie on it
+    } else if (t.wear === 'tank') {
+      p.round(cx - t.sw + 2, shY + 4, t.sw * 2 - 4, t.th - 1, 2, C);
+      p.rect(cx - t.sw + 2, shY + 4, t.sw * 2 - 4, 1, CL);
+    } else if (t.wear === 'sash') {
+      for (let i = 0; i < t.th + 2; i++) {
+        p.rect(cx - t.sw + 1 + Math.round(i * 0.7), shY + 1 + i, 5, 1, i % 4 < 2 ? C : CL);
+      }
+    } else if (t.wear === 'coat') {
+      p.round(cx - t.sw - 1, shY, t.sw * 2 + 2, t.th + 8, 3, C);
+      p.rect(cx - 1, shY, 2, t.th + 8, CD);
+      p.round(cx - t.sw - 1, shY, 6, 9, 2, CL); p.round(cx + t.sw - 5, shY, 6, 9, 2, CL);
+    }
+    // a waist, always: it is the line that stops the body being one slab
+    p.rect(cx - t.sw + 1, shY + t.th + 1, t.sw * 2 - 2, 3, t.pantsD);
+    p.rect(cx - t.sw + 1, shY + t.th + 1, t.sw * 2 - 2, 1, t.pants);
+    if (t.belt) {
+      p.rect(cx - t.sw, shY + t.th - 1, t.sw * 2, 3, CD);
+      p.rect(cx - 2, shY + t.th - 1, 4, 3, t.acc);
+    }
+
+    // ---------------------------------------------------------------- arms
+    for (const side of [-1, 1]) {
+      const swing = side * (-step * 3);
+      const sx = cx + side * (t.sw + 1);
+      const ex = sx + side * 3 + swing;
+      const hy = shY + t.th + 2 + Math.abs(swing);
+      limb(p, sx, shY + 4, ex, shY + Math.round(t.th * 0.55), t.aw + 1, t.aw, t.skin, t.lite, INK);
+      limb(p, ex, shY + Math.round(t.th * 0.55), ex + side * 2, hy, t.aw, t.aw - 1, t.skin, t.lite, INK);
+      if (t.pads) p.round(sx - 2, shY + 2, 5, 4, 1, t.acc);
+      // a hand with a couple of fingers on it
+      p.round(ex + side * 2 - 3, hy, 6, 6, 2, t.lite);
+      p.rect(ex + side * 2 - 3, hy + 5, 2, 2, t.skin);
+      p.rect(ex + side * 2, hy + 5, 2, 2, t.skin);
+    }
+
+    // ---------------------------------------------------------------- head
+    p.rect(cx - 2, neckY - 2, 4, 5, t.dark);                          // neck
+    p.ellipse(cx, headY, t.hr, t.hr - 1, t.skin);
+    p.ellipse(cx, headY - Math.round(t.hr * 0.4), Math.round(t.hr * 0.72), Math.round(t.hr * 0.34), t.lite);
+    p.ellipse(cx, headY + Math.round(t.hr * 0.55), Math.round(t.hr * 0.8), Math.round(t.hr * 0.3), t.dark);
+    // a jaw, so the head is not a ball
+    p.round(cx - t.hr + 2, headY + 1, (t.hr - 2) * 2, t.hr, 3, t.skin);
+
+    // ------------------------------------------------- skin, close up
+    if (t.tex === 'speckle') {
+      for (let i = 0; i < 16; i++) {
+        const a = i * 1.7;
+        p.set(cx + Math.cos(a) * t.hr * 0.6, headY + Math.sin(a) * t.hr * 0.55, t.dark);
+        p.set(cx + Math.cos(a * 1.3) * t.sw * 0.6, shY + 4 + (i % t.th), t.dark);
+      }
+    } else if (t.tex === 'scale') {
+      for (let y = shY + 3; y < shY + t.th; y += 3) {
+        for (let x = cx - t.sw + 2; x < cx + t.sw - 1; x += 4) {
+          p.set(x + ((y / 3) | 0) % 2 * 2, y, t.dark);
+          p.set(x + ((y / 3) | 0) % 2 * 2 + 1, y, t.lite);
+        }
+      }
+      for (let y = headY - 2; y < headY + t.hr - 2; y += 3) p.rect(cx - t.hr + 3, y, 2, 1, t.dark);
+    } else if (t.tex === 'stripe') {
+      for (let i = 0; i < 4; i++) {
+        p.rect(cx - t.sw + 1, shY + 3 + i * 4, t.sw * 2 - 2, 1, t.dark);
+        p.rect(cx - t.hr + 3, headY - 4 + i * 3, (t.hr - 3) * 2, 1, t.dark);
+      }
+    } else if (t.tex === 'plate') {
+      p.round(cx - t.sw + 1, shY + 2, t.sw * 2 - 2, 5, 2, t.lite);
+      p.round(cx - t.sw + 2, shY + 8, t.sw * 2 - 4, 4, 1, t.lite);
+      p.round(cx - t.hr + 2, headY - t.hr + 2, (t.hr - 2) * 2, 5, 2, t.lite);
+    }
+
+    // ---------------------------------------------------- what is on the head
     if (t.crown === 'fin') {
-      for (let i = 0; i < 4; i++) p.spike(cx - 6 + i * 4, top - 11 + i * 2, 7, 13 - i * 2, -1, t.dark);
+      for (let i = 0; i < 4; i++) p.spike(cx - 5 + i * 3, headY - t.hr - 8 + i * 2, 6, 11 - i * 2, -1, t.acc);
     } else if (t.crown === 'horns') {
-      p.spike(cx - t.bw + 3, top - 9, 7, 11, -1, t.lite);
-      p.spike(cx + t.bw - 3, top - 9, 7, 11, -1, t.lite);
+      for (const s of [-1, 1]) {
+        p.spike(cx + s * (t.hr - 2), headY - t.hr - 5, 6, 9, -1, t.lite);
+        p.rect(cx + s * (t.hr - 3), headY - t.hr + 1, 3, 3, t.lite);
+      }
     } else if (t.crown === 'antenna') {
       for (let i = 0; i < t.ant; i++) {
-        const ax = cx + (i - (t.ant - 1) / 2) * 7;
+        const ax = cx + (i - (t.ant - 1) / 2) * 6;
         const hgt = 6 + ((t.seed >> (i + 2)) & 5);
-        p.rect(ax, top - hgt, 2, hgt + 4, t.dark);
-        p.disc(ax + 1, top - hgt, 2 + (i & 1), t.acc);
+        p.rect(ax, headY - t.hr - hgt, 2, hgt + 3, t.dark);
+        p.disc(ax + 1, headY - t.hr - hgt, 2 + (i & 1), t.acc);
       }
     } else if (t.crown === 'tuft') {
-      for (let i = 0; i < 3; i++) p.line(cx - 3 + i * 3, top + 3, cx - 7 + i * 7, top - 10, t.dark);
-    }
-
-    // ---- the body plan
-    if (t.body === 'pear') {
-      p.ellipse(cx, cy + 1, t.bw, t.bh - 1, t.skin);
-      p.ellipse(cx, top + 4, Math.max(4, t.bw - 4), Math.round(t.bh * 0.62), t.skin);
-    } else if (t.body === 'segment') {
-      p.ellipse(cx, cy + 2, t.bw, Math.round(t.bh * 0.62), t.skin);
-      p.ellipse(cx, cy - Math.round(t.bh * 0.5), Math.max(4, t.bw - 3), Math.round(t.bh * 0.55), t.skin);
-      p.ellipse(cx, top + 3, Math.max(3, t.bw - 6), Math.round(t.bh * 0.44), t.skin);
-    } else if (t.body === 'dome') {
-      p.ellipse(cx, cy, t.bw, t.bh, t.skin);
-      p.rect(cx - t.bw, cy, t.bw * 2, t.bh, t.skin);
-      for (let i = 0; i < 5; i++) p.rect(cx - t.bw + 2 + i * ((t.bw * 2 - 4) / 4), cy + t.bh - 4, 2, 5, t.dark);
-    } else {
-      p.ellipse(cx, cy, t.bw, t.bh, t.skin);
-    }
-    // the lit side of whatever shape that turned out to be
-    p.ellipse(cx, top + Math.round(t.bh * 0.42), Math.round(t.bw * 0.68), Math.max(2, Math.round(t.bh * 0.28)), t.lite);
-
-    // ---- markings
-    if (t.mark === 'spots') {
-      for (let i = 0; i < 5; i++) {
-        const a = i * 1.94 + t.hue;
-        p.disc(cx + Math.cos(a) * t.bw * 0.58, cy + Math.sin(a) * t.bh * 0.52, 2, t.dark);
+      for (let i = 0; i < 4; i++) p.line(cx - 4 + i * 3, headY - t.hr + 2, cx - 8 + i * 6, headY - t.hr - 9, t.acc);
+    } else if (t.crown === 'ears') {
+      for (const s of [-1, 1]) {
+        p.ellipse(cx + s * (t.hr + 1), headY - 2, 3, 5, t.skin);
+        p.ellipse(cx + s * (t.hr + 1), headY - 2, 1, 3, t.dark);
       }
-    } else if (t.mark === 'stripes') {
-      for (let i = 0; i < 3; i++) p.rect(cx - t.bw + 2, cy - Math.round(t.bh * 0.3) + i * 5, t.bw * 2 - 4, 2, t.dark);
-    } else if (t.mark === 'belly') {
-      p.ellipse(cx, cy + Math.round(t.bh * 0.34), Math.round(t.bw * 0.72), Math.round(t.bh * 0.44), t.lite);
+    } else if (t.crown === 'hat') {
+      p.round(cx - 8, headY - t.hr - 7, 16, 8, 2, '#2a2438');
+      p.rect(cx - 12, headY - t.hr - 1, 24, 2, '#2a2438');
+      p.rect(cx - 8, headY - t.hr - 4, 16, 1, t.acc);
     }
 
-    // ---- eyes, however many and wherever they go
-    const ey = cy - Math.round(t.bh * 0.14);
-    const er = t.big > 1.14 ? 4 : 3;
+    // ---------------------------------------------------------------- face
+    const ey = headY - Math.round(t.hr * 0.12);
+    const er = t.hr > 12 ? 3 : 2;
     const pos = [];
-    if (t.eyeK === 'stack') {
-      for (let i = 0; i < t.eyes; i++) pos.push([cx, ey - 5 + i * (er * 2 + 1)]);
-    } else if (t.eyeK === 'tri') {
-      pos.push([cx - 5, ey - 3], [cx + 5, ey - 3], [cx, ey + 4]);
-    } else if (t.eyeK === 'stalk') {
+    if (t.eyeK === 'stack') for (let i = 0; i < t.eyes; i++) pos.push([cx, ey - 4 + i * (er * 2 + 1)]);
+    else if (t.eyeK === 'tri') pos.push([cx - 4, ey - 2], [cx + 4, ey - 2], [cx, ey + 4]);
+    else if (t.eyeK === 'stalk') {
       for (let i = 0; i < t.eyes; i++) {
-        const sxp = cx + (t.eyes === 1 ? 0 : (i ? 6 : -6));
-        p.rect(sxp - 1, top - 8, 2, 12, t.dark);
-        pos.push([sxp, top - 9]);
+        const sxp = cx + (t.eyes === 1 ? 0 : (i ? 5 : -5));
+        p.rect(sxp - 1, headY - t.hr - 7, 2, 10, t.dark);
+        pos.push([sxp, headY - t.hr - 8]);
       }
-    } else {
-      for (let i = 0; i < t.eyes; i++) pos.push([cx + (i - (t.eyes - 1) / 2) * (er * 2 + 2), ey]);
-    }
+    } else for (let i = 0; i < t.eyes; i++) pos.push([cx + (i - (t.eyes - 1) / 2) * (er * 2 + 2), ey]);
+
     for (const q of pos) {
       const ex = Math.round(q[0]), eyy = Math.round(q[1]);
-      if (kiss || blink) {
-        p.rect(ex - er, eyy, er * 2, 2, INK);
-        p.rect(ex - er + 1, eyy - 1, er * 2 - 2, 1, t.dark);
-        continue;
-      }
+      // a socket, so the eye sits IN the face rather than on it
+      p.ellipse(ex, eyy, er + 1, er + 1, t.dark);
+      if (kiss || blink) { p.rect(ex - er, eyy, er * 2 + 1, 2, INK); p.rect(ex - er + 1, eyy - 1, er * 2 - 1, 1, t.dark); continue; }
       p.ellipse(ex, eyy, er, er + 1, '#ffffff');
-      p.ellipse(ex + t.lean, eyy + 1, Math.max(1, er - 2), Math.max(1, er - 1), INK);
+      p.ellipse(ex + t.lean, eyy + 1, Math.max(1, er - 1), Math.max(1, er - 1), INK);
       p.set(ex - 1, eyy - 2, '#ffffff');
+      p.rect(ex - er - 1, eyy - er - 2, er * 2 + 2, 1, t.dark);        // a brow
     }
 
-    // ---- and a mouth, of a sort
-    const my = cy + Math.round(t.bh * 0.54);
-    if (kiss) {
-      p.ellipse(cx, my, 4, 3, '#ff5fa8'); p.ellipse(cx, my - 1, 2, 2, '#ffd6f0');
-    } else if (talk) {
-      p.ellipse(cx, my, 4, 3, '#3a1226'); p.rect(cx - 3, my - 2, 7, 1, '#ffffff');
-    } else if (t.mouth === 'grin') {
-      p.rect(cx - 4, my, 9, 1, t.dark); p.set(cx - 5, my - 1, t.dark); p.set(cx + 5, my - 1, t.dark);
-    } else if (t.mouth === 'tusk') {
-      p.rect(cx - 5, my, 11, 1, t.dark);
+    const my = headY + Math.round(t.hr * 0.58);
+    if (kiss) { p.ellipse(cx, my, 4, 3, '#ff5fa8'); p.ellipse(cx, my - 1, 2, 2, '#ffd6f0'); }
+    else if (talk) { p.ellipse(cx, my, 4, 3, '#3a1226'); p.rect(cx - 3, my - 2, 7, 1, '#ffffff'); p.rect(cx - 2, my + 2, 5, 1, '#c4566f'); }
+    else if (t.mouth === 'grin') { p.rect(cx - 4, my, 9, 1, INK); p.set(cx - 5, my - 1, INK); p.set(cx + 5, my - 1, INK); }
+    else if (t.mouth === 'lips') { p.ellipse(cx, my, 4, 2, t.accD); p.rect(cx - 3, my - 1, 7, 1, INK); }
+    else if (t.mouth === 'tusk') {
+      p.rect(cx - 5, my, 11, 1, INK);
       p.spike(cx - 4, my - 5, 4, 6, -1, '#ffffff'); p.spike(cx + 4, my - 5, 4, 6, -1, '#ffffff');
-    } else if (t.mouth === 'beak') {
-      p.spike(cx, my - 3, 8, 7, 1, t.acc); p.rect(cx - 4, my - 3, 9, 1, t.dark);
-    } else if (t.mouth === 'straw') {
-      p.rect(cx - 1, my, 2, 9, t.dark); p.disc(cx, my + 9, 2, t.acc);
-    } else if (t.mouth === 'mandible') {
+    } else if (t.mouth === 'beak') { p.spike(cx, my - 3, 8, 7, 1, t.acc); p.rect(cx - 4, my - 3, 9, 1, INK); }
+    else if (t.mouth === 'straw') { p.rect(cx - 1, my, 2, 8, t.dark); p.disc(cx, my + 8, 2, t.acc); }
+    else if (t.mouth === 'mandible') {
       p.spike(cx - 5, my - 2, 5, 7, 1, t.dark); p.spike(cx + 5, my - 2, 5, 7, 1, t.dark);
-      p.rect(cx - 2, my, 5, 1, t.dark);
-    }
-
-    // ---- and whatever it turned up in
-    if (t.extra === 'gills') {
-      for (let i = 0; i < 3; i++) p.rect(cx + t.bw - 6 + i * 2, cy - 2, 1, 5, t.dark);
-    } else if (t.extra === 'specs') {
-      for (const q of pos) {
-        const ex = Math.round(q[0]), eyy = Math.round(q[1]);
-        p.rect(ex - er - 1, eyy - er - 1, er * 2 + 3, 1, '#2a2438');
-        p.rect(ex - er - 1, eyy + er + 1, er * 2 + 3, 1, '#2a2438');
-        p.rect(ex - er - 1, eyy - er, 1, er * 2 + 2, '#2a2438');
-        p.rect(ex + er + 1, eyy - er, 1, er * 2 + 2, '#2a2438');
-      }
-    } else if (t.extra === 'collar') {
-      p.rect(cx - t.bw + 1, cy + t.bh - 6, t.bw * 2 - 2, 3, t.acc);
-      p.disc(cx, cy + t.bh - 5, 2, P.gold);
-    } else if (t.extra === 'ring') {
-      const rx = cx + t.bw - 1;
-      p.rect(rx, cy - 1, 1, 1, P.gold); p.rect(rx - 1, cy, 1, 3, P.gold);
-      p.rect(rx + 1, cy, 1, 3, P.gold); p.rect(rx, cy + 3, 1, 1, P.gold);
-    }
-    if (t.crown === 'hat') {
-      p.round(cx - 8, top - 9, 16, 8, 2, '#2a2438');
-      p.rect(cx - 12, top - 2, 24, 2, '#2a2438');
-      p.rect(cx - 8, top - 4, 16, 1, t.acc);
+      p.rect(cx - 2, my, 5, 1, INK);
     }
     p.outline(P.ink);
     return p;
   }
 
-  /* Fourteen of them, built once at load. Each keeps its traits so the club
-     can hang the right number of tentacles off the right colour of alien. */
+  /* Six frames each: idle, two steps of a walk, talking, kissing, blinking. */
   const KIN = [];
   function makeKin(n) {
     for (let i = 0; i < n; i++) {
       const t = alienKin(i * 7717 + 13);
-      const frames = [0, 1, 2, 3].map(f => buildAlien(t, f));
+      const frames = [0, 1, 2, 3, 4, 5].map(f => buildAlien(t, f));
       const W = frames[0].w, H = frames[0].h;
       t.key = 'kin' + i;
       regRaw(t.key, frames, W / 2 / HD, H / HD);
@@ -1442,7 +1540,6 @@
   reg('dj', [djAlien(0), djAlien(1)]);
   reg('bouncer', [bouncer()]);
   regRaw('dancer', [0, 1, 2, 3].map(dancer), DPX / HD, DH / HD);
-  reg('hippie', [hippieSuit()], 15, 0);
   reg('flag', [flag(0), flag(1)], 3);
   reg('skull', [celestialHead()]);
   reg('tape', [tapeDeck(0), tapeDeck(1)]);

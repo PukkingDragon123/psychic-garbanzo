@@ -157,12 +157,10 @@
       ctx.globalAlpha = 1;
     }
     // whoever is in it
-    if (info) {
-      drawSpecimen(ctx, g, x, TY + TH - 16, t, i, on);
-    } else {
-      F.draw(ctx, 'EMPTY', x, TY + TH / 2 - 4, '#2b7a6a', { center: true, shadow: false });
-      F.draw(ctx, 'GROW ONE', x, TY + TH / 2 + 6, '#1d5a4e', { center: true, shadow: false });
-    }
+    // there is always a body in the tank. An empty file is a body that has
+    // not been out yet.
+    drawSpecimen(ctx, g, x, TY + TH - 16, t, i, on);
+    if (!info) F.draw(ctx, 'UNUSED', x, TY + 8, '#2b7a6a', { center: true, shadow: '#031014' });
     // bubbles
     for (const b of S.bub[i]) {
       ctx.globalAlpha = 0.5;

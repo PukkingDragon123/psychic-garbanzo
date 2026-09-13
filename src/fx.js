@@ -209,28 +209,69 @@
     }
     if (wipe.t >= wipe.dur) wipe = null;
   }
+  /* THE SLIME. Everything in this game is sticky, so the transition is too: a
+     ceiling of gloop comes down the screen in uneven columns, hangs there,
+     throws off drips and strings, and then peels back up. */
+  const SLIME_N = 24;
+  const SLIME = [];
+  for (let i = 0; i < SLIME_N; i++) SLIME.push({ o: U.hash2(i, 5), w: 0.7 + U.hash2(i, 9) * 0.6 });
+  const DRIP = [];
+  for (let i = 0; i < 16; i++) DRIP.push({ x: U.hash2(i, 17), d: U.hash2(i, 21), sp: 0.6 + U.hash2(i, 29) });
+
   function drawWipe(ctx, w, h) {
     if (!wipe) return;
     const half = wipe.dur * 0.5;
     const closing = wipe.t < half;
-    // k: 0 nothing covered, 1 everything covered
     const k = closing ? wipe.t / half : 1 - (wipe.t - half) / half;
-    const cw = w / WCOL, ch = h / WROW;
-    const maxD = Math.hypot(w, h) * 0.5;
-    ctx.fillStyle = wipe.col;
-    for (let j = 0; j < WROW; j++) {
-      for (let i = 0; i < WCOL; i++) {
-        const cx = (i + 0.5) * cw, cy = (j + 0.5) * ch;
-        // near the focus closes last and opens first, so the squares chase
-        // inwards and then blow back out
-        const d = U.clamp(U.dist(cx, cy, wipe.x, wipe.y) / maxD, 0, 1);
-        const lead = closing ? (1 - d) : d;
-        const local = U.clamp((k - lead * 0.48) / 0.52, 0, 1);
-        if (local <= 0) continue;
-        const sw = Math.ceil(cw * local), sh = Math.ceil(ch * local);
-        ctx.fillRect(Math.round(cx - sw / 2), Math.round(cy - sh / 2), sw, sh);
+    const e = k * k * (3 - 2 * k);
+    const cw = w / SLIME_N;
+    const dark = wipe.col;
+    const lite = shade(dark, 26);
+    const glow = shade(dark, 52);
+
+    for (let i = 0; i < SLIME_N; i++) {
+      const sl = SLIME[i];
+      // each column runs at its own speed and overshoots a little
+      const lead = 0.14 * sl.o;
+      const local = U.clamp((e - lead) / (1 - lead), 0, 1);
+      if (local <= 0) continue;
+      const x = Math.round(i * cw), cwi = Math.ceil(cw) + 1;
+      const drop = local * (h + 26) * sl.w;
+      const wob = Math.sin(wipe.t * 7 + i) * 2 * (1 - local);
+      const y = Math.round(drop + wob);
+      ctx.fillStyle = dark;
+      ctx.fillRect(x, 0, cwi, y);
+      // the bulge at the bottom of each run, and the highlight on top of it
+      ctx.fillStyle = lite;
+      const bw = Math.round(cw * (0.5 + 0.5 * Math.abs(Math.sin(i * 2.1))));
+      ctx.fillRect(x + Math.round((cw - bw) / 2), y - 2, bw, 7);
+      ctx.fillRect(x + 1, 0, 2, Math.max(0, y - 4));
+      ctx.fillStyle = glow;
+      ctx.fillRect(x + Math.round(cw / 2) - 1, y - 1, 3, 4);
+      // a string of it hanging off, thinning as it goes
+      const tl = 12 * (1 - Math.abs(local - 0.6) * 1.4);
+      if (tl > 1) {
+        ctx.fillStyle = dark;
+        for (let q = 0; q < tl; q++) {
+          ctx.fillRect(x + Math.round(cw / 2) - (q < tl * 0.6 ? 1 : 0), y + 4 + q, q < tl * 0.6 ? 3 : 1, 1);
+        }
       }
     }
+    // and loose drops falling ahead of the front
+    ctx.fillStyle = lite;
+    for (const d of DRIP) {
+      const f = (e * d.sp + d.d) % 1;
+      if (f > 0.92 || e < 0.08) continue;
+      const dx = Math.round(d.x * w), dy = Math.round(f * (h + 20) - 10);
+      ctx.fillRect(dx, dy, 3, 4);
+      ctx.fillRect(dx + 1, dy - 2, 1, 2);
+    }
+  }
+  /* Lighten a #rrggbb by n, for the highlight on the gloop. */
+  function shade(hex, n) {
+    const v = parseInt(hex.slice(1), 16);
+    const q = c => Math.min(255, ((v >> c) & 255) + n);
+    return 'rgb(' + q(16) + ',' + q(8) + ',' + q(0) + ')';
   }
 
   function shake(amount) { shakeAmt = Math.max(shakeAmt, amount); }

@@ -456,8 +456,6 @@
       'THERE IS SOMETHING UNDER THE LAST ONE. I CHECKED.'],
     club: ['A CLUB. ON MY MOON. UNDER MY BINS.',
       'GO IN. SPEND MONEY. TWENTY PER CENT OF IT WAS MINE ANYWAY.'],
-    suit: ['THAT SUIT IS THE FIRST GOOD DECISION YOU HAVE MADE.',
-      'IT WILL NOT PAY ME BACK. BUT IT LOOKS WELL.'],
     checkout: ['HUMANS DO NOT LET YOU BUY A THING. THEY LET YOU APPLY.',
       'SIGN IN. PROVE YOU ARE NOT A ROBOT. THEN THE CARD. THEN THE CODE.',
       'I HAVE DONE THIS. IT TAKES LONGER THAN THE MINING.'],
@@ -805,7 +803,6 @@
       'GO AND FIND IT. THAT IS WHAT YOU CAME FOR.'
     ] },
     { id: 'universal', dur: 999, lines: [] },      // interactive: the ten stars
-    { id: 'number', dur: 7, lines: ['THE MACHINE DID NOT WANT IT.', 'SOMEBODY BEHIND YOU DID.'] },
     { id: 'floor', dur: 10, lines: [
       'YOU GO DOWN ON THE CARPET.',
       'NOBODY IN THE ROOM STOPS DANCING.',
@@ -823,16 +820,6 @@
       'YOU: WHY ARE YOU GREY?',
       'DRAX: WHAT?',
       'YOU: I SAID WHY ARE YOU --'
-    ] },
-    { id: 'throne', dur: 30, lines: [
-      'YOU ARE LOOKING AT A CEILING. THE CEILING IS GOLD.',
-      'MR CHUM: HE IS AWAKE. GET HIM UP. NOT ALL THE WAY UP.',
-      'MR CHUM: YOU OWE ME ONE MILLION.',
-      'MR CHUM: YOU HAVE NO MONEY. NO SHIP. NO IDEAS.',
-      'MR CHUM: SO I BOUGHT YOU A SHIP. AND A DRILL. AND A MOON.',
-      'MR CHUM: GO AND EAT A PLANET. BRING ME MY MONEY.',
-      'MR CHUM: THIS IS A WATCH. I AM IN IT NOW.',
-      'MR CHUM: THAT IS THE ARRANGEMENT. NOD.'
     ] },
     { id: 'drop', dur: 6, lines: ['AND THAT IS HOW YOU CAME TO OWN A MOON.'] }
   ];
@@ -897,90 +884,183 @@
     if (poke) { UNI.spin = UNI.n < 8 ? 0.5 : 0.9; A.sfx.tone(260, { type: 'square', to: 520, dur: 0.14, vol: 0.07 }); }
   }
 
+  /* --------------------------------------------------- THE UNIVERSAL, up close
+     Shown the way the computer is shown: first person, hands in the bottom of
+     the frame, the thing filling everything else. It is a galaxy in a box. Ten
+     planets in a row takes the lot, and you are not getting ten. */
+  const SY = ['coin', 'ore', 'planet', 'skull', 'star'];
+  const WORLDS = [
+    { c: '#c9744a', d: '#7a3d22', l: '#ffb07a', ring: 0, spot: 1 },   // a rock
+    { c: '#4a8fd6', d: '#23507f', l: '#a8daff', ring: 0, spot: 2 },   // an ocean
+    { c: '#d6b44a', d: '#8a6a1e', l: '#ffe9a8', ring: 1, spot: 0 },   // a ringed one
+    { c: '#7a4ad6', d: '#3f2280', l: '#c9a8ff', ring: 0, spot: 3 },   // a void
+    { c: '#4ad69a', d: '#1e7a58', l: '#a8ffd8', ring: 1, spot: 1 }    // a living one
+  ];
+  /* One planet, drawn round and lit from the left, in a reel window. */
+  function reelWorld(ctx, x, y, r, k, t, blur) {
+    const w = WORLDS[k % WORLDS.length];
+    if (w.ring) {
+      ctx.globalAlpha = blur ? 0.4 : 0.75;
+      X.blob(ctx, x, y + Math.round(r * 0.25), Math.round(r * 1.65), Math.max(1, Math.round(r * 0.26)), w.d);
+      ctx.globalAlpha = 1;
+    }
+    X.blob(ctx, x, y, r + 1, r + 1, '#0a0614');
+    X.blob(ctx, x, y, r, r, w.c);
+    X.blob(ctx, x - Math.round(r * 0.32), y - Math.round(r * 0.32), Math.round(r * 0.55), Math.round(r * 0.5), w.l);
+    for (let i = 0; i < w.spot; i++) {
+      const a = i * 2.1 + t * 0.4;
+      X.blob(ctx, x + Math.cos(a) * r * 0.45, y + Math.sin(a) * r * 0.4,
+        Math.max(1, Math.round(r * 0.22)), Math.max(1, Math.round(r * 0.18)), w.d);
+    }
+    X.blob(ctx, x + Math.round(r * 0.4), y + Math.round(r * 0.4), Math.round(r * 0.5), Math.round(r * 0.45), 'rgba(10,6,20,0.35)');
+    if (w.ring) {
+      X.blob(ctx, x, y + Math.round(r * 0.25), Math.round(r * 1.65), Math.max(1, Math.round(r * 0.2)), w.l);
+      X.blob(ctx, x, y + Math.round(r * 0.25), Math.round(r * 1.1), Math.max(1, Math.round(r * 0.14)), '#0a0614');
+    }
+  }
+
+  /* the warp field behind the reels */
+  const WARP = [];
+  for (let i = 0; i < 70; i++) WARP.push({ a: U.hash2(i, 3) * U.TAU, r: U.hash2(i, 7), s: 0.4 + U.hash2(i, 11) });
+
   function drawUniversal(ctx, g, t) {
-    const sh = UNI.shake > 0 ? Math.round(Math.sin(t * 60) * UNI.shake * 5) : 0;
-    ctx.save(); ctx.translate(sh, 0);
-    // a black room with one machine lit in it
-    ctx.fillStyle = '#0a0410'; ctx.fillRect(-8, 0, VW + 16, VH);
-    for (let i = 0; i < 60; i++) {
-      const x = (U.hash2(i, 3) * VW) | 0, y = (U.hash2(i, 7) * VH) | 0;
+    const sh = UNI.shake > 0 ? Math.round(Math.sin(t * 60) * UNI.shake * 6) : 0;
+    ctx.save(); ctx.translate(sh, Math.round(sh * 0.4));
+
+    // ------------------------------------------------------------ the room
+    ctx.fillStyle = '#080414'; ctx.fillRect(-10, 0, VW + 20, VH);
+    for (let i = 0; i < 40; i++) {
+      const x = (U.hash2(i, 3) * VW) | 0, y = (U.hash2(i, 7) * 90) | 0;
       ctx.globalAlpha = 0.1 + U.hash2(i, 11) * 0.2;
       ctx.fillStyle = i % 3 ? '#4a1c3a' : '#12384a'; ctx.fillRect(x, y, 2, 1);
     }
     ctx.globalAlpha = 1;
-    ctx.globalAlpha = 0.1 + Math.abs(Math.sin(t * 2)) * 0.05;
-    X.poly(ctx, [[210, 0], [270, 0], [340, VH], [140, VH]], '#ffd34d');
-    ctx.globalAlpha = 1;
 
-    // the cabinet, which is enormous
-    X.plate(ctx, 148, 40, 184, 176, '#2a1a3a', '#4a3660', '#120a1c', 6);
-    X.plate(ctx, 158, 48, 164, 30, '#120a1c', '#3a2a52', '#000000', 4);
-    const lit = Math.sin(t * 6) > -0.3;
-    F.draw(ctx, 'THE UNIVERSAL', 240, 56, lit ? '#ffd34d' : '#6a5a1a', { center: true, scale: 2, shadow: '#3a0c30' });
-    F.draw(ctx, 'TEN IN A ROW TAKES THE LOT', 240, 70, lit ? '#ff5fa8' : '#4a1c3a', { center: true, shadow: false });
-
-    // the ten lamps along the top, one per star so far
-    for (let i = 0; i < 10; i++) {
-      const lx = 164 + i * 16;
-      const on = i < UNI.n;
-      X.plate(ctx, lx, 84, 13, 13, on ? '#ffd34d' : '#241636', on ? '#fff3b0' : '#3a2a52', '#120a1c', 3);
-      if (on) PD.glyph.draw(ctx, 'star', lx - 1, 83, '#c98a10', '#fff3b0');
-      else F.draw(ctx, String(i + 1), lx + 6, 87, '#5a4a70', { center: true, shadow: false });
+    // ------------------------------------------------------- the cabinet
+    // it fills the frame: you are standing at it with your face nearly on it
+    X.plate(ctx, 22, 2, 436, 214, '#2a1442', '#5e2a86', '#120722', 8);
+    X.plate(ctx, 30, 10, 420, 198, '#1c0c2e', '#4a2270', '#0a0414', 6);
+    // the arch over the window
+    for (let i = 0; i < 14; i++) {
+      const a = Math.PI + i * (Math.PI / 13);
+      const ax = 240 + Math.cos(a) * 176, ay = 118 + Math.sin(a) * 96;
+      const on = (Math.floor(t * 7) + i) % 4 !== 0;
+      X.blob(ctx, ax, ay, 5, 5, on ? '#ffd34d' : '#4a3a10');
+      X.blob(ctx, ax, ay, 2, 2, on ? '#fff3b0' : '#6a5a2a');
     }
+    // the name, in something approaching lights
+    const lit = Math.sin(t * 6) > -0.3;
+    F.draw(ctx, 'THE UNIVERSAL', 240, 14, lit ? '#ffd34d' : '#6a5a1a', { center: true, scale: 3, shadow: '#3a0c30' });
+    F.draw(ctx, 'TEN WORLDS IN A ROW TAKES THE LOT', 240, 38, lit ? '#ff5fa8' : '#4a1c3a', { center: true, shadow: '#1a0614' });
 
-    // the window
-    X.plate(ctx, 186, 102, 108, 44, '#0d0718', '#3a2a52', '#000000', 4);
-    const SY = ['coin', 'ore', 'planet', 'skull', 'star'];
+    // ----------------------------------------------- the window, and the void
+    const WX = 84, WY = 52, WW = 312, WH2 = 92;
+    X.plate(ctx, WX - 6, WY - 6, WW + 12, WH2 + 12, '#3a1a58', '#6e3a9e', '#150828', 5);
+    ctx.save();
+    ctx.beginPath(); ctx.rect(WX, WY, WW, WH2); ctx.clip();
+    // a nebula and a spiral turning behind the reels
+    ctx.fillStyle = '#0a0418'; ctx.fillRect(WX, WY, WW, WH2);
+    ctx.globalAlpha = 0.18;
+    X.blob(ctx, WX + 110, WY + 40, 90, 34, '#6a2ab0');
+    X.blob(ctx, WX + 220, WY + 56, 70, 26, '#2a5fb0');
+    ctx.globalAlpha = 1;
+    for (let i = 0; i < 46; i++) {
+      const a = i * 0.42 + t * 0.3, r = 4 + i * 2.2;
+      const px = WX + WW / 2 + Math.cos(a) * r * 1.6, py = WY + WH2 / 2 + Math.sin(a) * r * 0.6;
+      ctx.globalAlpha = 0.5 - i * 0.008;
+      X.rect(ctx, px, py, 1, 1, i % 3 ? '#c9a8ff' : '#ffffff');
+      ctx.globalAlpha = 1;
+    }
+    // stars, streaking while it spins
+    for (const w of WARP) {
+      const sp = UNI.spin > 0 ? 5 : 0.6;
+      const f = ((w.r + t * w.s * sp * 0.2) % 1);
+      const px = WX + WW / 2 + Math.cos(w.a) * f * WW * 0.7;
+      const py = WY + WH2 / 2 + Math.sin(w.a) * f * WH2 * 0.7;
+      const ln = UNI.spin > 0 ? 1 + f * 9 : 1;
+      ctx.globalAlpha = 0.25 + f * 0.6;
+      X.rect(ctx, px, py, Math.round(ln), 1, f > 0.7 ? '#ffffff' : '#a8c8ff');
+      ctx.globalAlpha = 1;
+    }
+    // three reel bands, each a window on to somewhere else
     for (let r = 0; r < 3; r++) {
-      const rx = 192 + r * 34;
-      X.rect(ctx, rx, 106, 30, 36, '#e8e4d0');
-      X.rect(ctx, rx, 106, 30, 1, '#8e8874');
-      const idx = Math.floor(UNI.reel) % 5;
-      if (UNI.spin > 0) {
+      const rx = WX + 16 + r * 100;
+      ctx.globalAlpha = 0.28;
+      X.rect(ctx, rx, WY, 84, WH2, '#160a26');
+      ctx.globalAlpha = 1;
+      X.rect(ctx, rx, WY, 1, WH2, '#6e3a9e');
+      X.rect(ctx, rx + 83, WY, 1, WH2, '#6e3a9e');
+      const spinning = UNI.spin > 0;
+      const idx = Math.floor(UNI.reel + r) % 5;
+      if (spinning) {
         for (let k = -1; k <= 1; k++) {
-          ctx.globalAlpha = k ? 0.28 : 0.85;
-          PD.glyph.draw(ctx, SY[(idx + k + r + 5) % 5], rx + 3, 108 + k * 15, '#3a2a52', '#8a7ab0', 2);
+          ctx.globalAlpha = k ? 0.3 : 0.9;
+          reelWorld(ctx, rx + 42, WY + WH2 / 2 + k * 46, 20, (idx + k + 5) % 5, t, 1);
+          ctx.globalAlpha = 1;
         }
+      } else if (UNI.lost) {
+        // and the one that is not a world at all
+        X.blob(ctx, rx + 42, WY + WH2 / 2, 23, 23, '#1a0a12');
+        X.blob(ctx, rx + 42, WY + WH2 / 2, 20, 20, '#2a1018');
+        PD.glyph.draw(ctx, 'skull', rx + 28, WY + WH2 / 2 - 14, '#c22a4a', '#ff8a9a', 2);
+        ctx.globalAlpha = 0.4 + Math.abs(Math.sin(t * 5)) * 0.3;
+        X.blob(ctx, rx + 42, WY + WH2 / 2, 30, 30, 'rgba(200,40,70,0.25)');
         ctx.globalAlpha = 1;
       } else {
-        const show = UNI.lost ? 'skull' : (UNI.n > 0 ? 'star' : SY[(idx + r) % 5]);
-        PD.glyph.draw(ctx, show, rx + 3, 112, show === 'skull' ? '#c22a4a' : '#c98a10',
-          show === 'skull' ? '#ff8a9a' : '#fff3b0', 2);
+        reelWorld(ctx, rx + 42, WY + WH2 / 2, 22, UNI.n > 0 ? 2 : (idx + r) % 5, t, 0);
+        if (UNI.n > 0) {
+          ctx.globalAlpha = 0.3 + Math.abs(Math.sin(t * 3 + r)) * 0.2;
+          X.blob(ctx, rx + 42, WY + WH2 / 2, 34, 34, 'rgba(255,211,77,0.2)');
+          ctx.globalAlpha = 1;
+        }
       }
     }
-    X.rect(ctx, 186, 123, 108, 1, UNI.lost ? '#ff5a4d' : '#8a2f4a');
-
-    // the lever
-    const lv = UNI.spin > 0 ? 16 : 0;
-    X.line(ctx, 340, 150 + lv, 340, 110 + lv, '#8a7ab0', 4);
-    X.blob(ctx, 340, 106 + lv, 7, 7, '#c22a4a');
-    X.blob(ctx, 338, 104 + lv, 3, 3, '#ff8a9a');
-
-    // our man, at the lever, in the worst moment of his life
-    const al = PD.art.sprites.alien;
-    const K = 1.1, bob = Math.sin(t * 3) * (UNI.lost ? 0 : 2);
-    const ax = 386, ay = 216 - (al.h - al.oy) * K + bob;
-    ctx.drawImage(al.frames[UNI.lost ? 0 : Math.floor(t * 6) % 4], 0, 0, al.frames[0].width, al.frames[0].height,
-      Math.round(ax - al.ox * K), Math.round(ay - al.oy * K), Math.round(al.w * K), Math.round(al.h * K));
-
-    X.rect(ctx, 0, 216, VW, VH - 216, '#1a1024');
-    X.rect(ctx, 0, 214, VW, 2, '#2a1c33');
-    for (let x = 0; x < VW; x += 16) X.rect(ctx, x, 216, 8, VH - 216, '#231430');
+    // the payline, straight through the middle of the universe
+    X.rect(ctx, WX, WY + WH2 / 2, WW, 1, UNI.lost ? '#ff5a4d' : 'rgba(255,95,168,0.5)');
     ctx.restore();
+
+    // -------------------------------------------------- the ten world lamps
+    for (let i = 0; i < 10; i++) {
+      const lx = 58 + i * 38;
+      const on = i < UNI.n;
+      X.plate(ctx, lx, 162, 30, 26, on ? '#3a2a08' : '#190c28', on ? '#ffd34d' : '#3a2252', '#0a0414', 4);
+      if (on) {
+        reelWorld(ctx, lx + 15, 175, 8, i % 5, t, 0);
+        ctx.globalAlpha = 0.3;
+        X.blob(ctx, lx + 15, 175, 15, 15, '#ffd34d');
+        ctx.globalAlpha = 1;
+      } else {
+        F.draw(ctx, String(i + 1), lx + 15, 171, '#4a3a66', { center: true, shadow: false, scale: 2 });
+      }
+    }
+    F.draw(ctx, UNI.n + ' / 10', 240, 194, UNI.n >= 9 ? '#ffd34d' : '#8a7ab0', { center: true, scale: 2, shadow: '#1a0614' });
+
+    // ------------------------------------------------------------ the lever
+    const lv = UNI.spin > 0 ? 30 : 0;
+    X.rect(ctx, 452, 60 + lv, 10, 110 - lv, '#3a3060');
+    X.rect(ctx, 454, 60 + lv, 3, 110 - lv, '#6a5a9c');
+    X.blob(ctx, 457, 54 + lv, 15, 15, '#7a1030');
+    X.blob(ctx, 457, 54 + lv, 11, 11, '#c22a4a');
+    X.blob(ctx, 452, 49 + lv, 5, 4, '#ff8a9a');
+
+    ctx.restore();
+
+    // --------------------------------------------------- your own two hands
+    drawUniHands(ctx, g, t, lv);
 
     if (UNI.flash > 0) {
       ctx.fillStyle = 'rgba(255,90,77,' + (UNI.flash * 0.5).toFixed(2) + ')';
       ctx.fillRect(0, 0, VW, VH);
     }
 
-    // and whatever the machine wants from you now
+    // ---------------------------------------------------------- what it wants
     if (UNI.lost) {
       captionCard(ctx, [IN_S.quit ? 'YOU WALKED AWAY. IT SPUN ANYWAY.' : 'NINE. AND THEN THIS.'],
         2, 1, t, UNI.t > 2.6 && Math.abs(Math.sin(t * 4)) > 0.4 ? 'E / TAP' : null);
     } else if (UNI.choice) {
       const m = PD.input.mouse;
       captionCard(ctx, ['NINE. ONE MORE TAKES EVERYTHING.'], 1, 1, t, null);
-      for (const [bx, lab, col] of [[120, 'ONE MORE', '#f2c23a'], [248, 'WALK AWAY', '#6b6480']]) {
+      for (const [bx, lab, col] of [[120, 'ONE MORE', '#f2c23a'], [248, 'WALK AWAY', '#8a7ab0']]) {
         const hot = m.inside && m.x > bx && m.x < bx + 112 && m.y > 196 && m.y < 218;
         X.plate(ctx, bx, 196, 112, 22, hot ? col : '#241636', col, '#120a1c', 4);
         F.draw(ctx, lab, bx + 56, 202, hot ? '#1a1024' : col, { center: true, scale: 2, shadow: '#000000' });
@@ -989,6 +1069,48 @@
       captionCard(ctx, [UNI.n === 0 ? 'PULL IT.' : 'AGAIN. ' + (10 - UNI.n) + ' TO GO.'], 2, 1, t,
         Math.abs(Math.sin(t * 4)) > 0.4 ? 'E / TAP' : null);
     }
+  }
+
+  /* His hands, in the bottom corners, the same way the computer scene does it.
+     One of them is on the lever and the other one has nothing to do. */
+  let uniHands = null;
+  function buildUniHands(P) {
+    const out = [];
+    for (let f = 0; f < 2; f++) {
+      const p = pix(112, 90);
+      p.round(20, 36, 72, 54, 18, P.skinD);
+      p.round(14, 46, 84, 44, 16, P.skin);
+      p.round(22, 56, 68, 34, 12, P.skinD);
+      // three fat fingers curled over whatever it is holding
+      for (let i = 0; i < 3; i++) {
+        const fy = 30 + i * 18 - (f ? 4 : 0);
+        p.round(8 + i * 2, fy, 40, 18, 8, P.skin);
+        p.round(8 + i * 2, fy, 40, 6, 5, P.skinL);
+        p.round(6 + i * 2, fy + 3, 12, 12, 5, P.skinL);
+      }
+      p.round(14, 18 - (f ? 5 : 0), 34, 22, 9, P.skin);
+      p.round(14, 18 - (f ? 5 : 0), 34, 7, 5, P.skinL);
+      p.outline('#120a1c');
+      out.push(p.toCanvas());
+    }
+    return out;
+  }
+  function drawUniHands(ctx, g, t, lv) {
+    const sk = PD.art.skinFor(g.save ? g.save.cos : null);
+    if (!uniHands) uniHands = buildUniHands(sk.P || { skin: '#6abf5a', skinD: '#3f7f3a', skinL: '#9fe88a' });
+    const br = Math.sin(t * 1.6) * 2;
+    // the one on the lever, riding it down when it is pulled
+    ctx.save();
+    ctx.translate(VW - 34, VH - 96 + lv * 0.9 + br);
+    ctx.scale(-0.85, 0.85);
+    ctx.drawImage(uniHands[UNI.spin > 0 ? 1 : 0], 0, 0);
+    ctx.restore();
+    // and the idle one, tapping on the glass
+    ctx.save();
+    ctx.translate(2, VH - 84 + Math.sin(t * 3.4) * 3);
+    ctx.scale(0.78, 0.78);
+    ctx.drawImage(uniHands[Math.floor(t * 4) % 2], 0, 0);
+    ctx.restore();
   }
 
   /* ---- the floor of the club, from very close to it ---- */
@@ -1128,59 +1250,117 @@
     }
   }
 
-  /* Drax: grey, covered in red, and not remotely joking. */
-  function drawDrax(ctx, x, y, t) {
-    const S1 = '#8d99a6', S2 = '#5d6874', RD = '#b04a52', DK = '#252a36';
-    const br = Math.sin(t * 3) * 1;
-    X.blob(ctx, x, y + 1, 14, 3, '#0a0614');
-    // legs
-    X.rect(ctx, x - 9, y - 24, 8, 24, DK);
-    X.rect(ctx, x + 2, y - 24, 8, 24, DK);
-    X.rect(ctx, x - 10, y - 4, 10, 4, '#1a1d26');
-    X.rect(ctx, x + 1, y - 4, 10, 4, '#1a1d26');
-    // torso
-    X.blob(ctx, x, y - 34, 13, 11 + br, S1);
-    X.rect(ctx, x - 13, y - 28, 26, 6, S2);
-    for (let i = 0; i < 7; i++) {
-      X.rect(ctx, x - 10 + (i % 4) * 6, y - 42 + ((i / 4) | 0) * 7, 5, 2, RD);
-      X.rect(ctx, x - 8 + (i % 3) * 7, y - 38 + (i % 2) * 6, 2, 5, RD);
+  /* Drax: grey, covered in red, bare to the waist, and not remotely joking.
+     Built out of the same parts as everything else -- pecs, arms with hands on
+     them, trousers with boots -- rather than a stack of rectangles. */
+  function limbPx(ctx, x0, y0, x1, y1, w0, w1, c, l, d) {
+    const dx = x1 - x0, dy = y1 - y0;
+    const n = Math.max(1, Math.ceil(Math.hypot(dx, dy)));
+    for (let i = 0; i <= n; i++) {
+      const q = i / n;
+      const w = Math.max(1, Math.round(w0 + (w1 - w0) * q));
+      const cx = Math.round(x0 + dx * q), cy = Math.round(y0 + dy * q);
+      X.rect(ctx, cx - (w >> 1) - 1, cy - (w >> 1) - 1, w + 2, w + 2, d);
+      X.rect(ctx, cx - (w >> 1), cy - (w >> 1), w, w, c);
+      if (w > 3) X.rect(ctx, cx - (w >> 1), cy - (w >> 1), w - 2, 1, l);
     }
-    // arms, one of them holding an ankle
-    X.rect(ctx, x - 18, y - 40, 7, 18, S1);
-    X.rect(ctx, x + 11, y - 40, 7, 14, S1);
-    X.rect(ctx, x + 14, y - 28, 12, 5, S1);
-    X.rect(ctx, x - 18, y - 38, 7, 3, RD);
-    // head
-    X.blob(ctx, x, y - 50, 8, 7, S1);
-    X.rect(ctx, x - 6, y - 55, 12, 2, RD);
-    X.rect(ctx, x - 5, y - 51, 3, 2, '#120f16');
-    X.rect(ctx, x + 2, y - 51, 3, 2, '#120f16');
-    X.rect(ctx, x - 3, y - 46, 6, 1, '#3a2028');
+  }
+  function drawDrax(ctx, x, y, t) {
+    const S1 = '#8d99a6', SL = '#b3bec9', SD = '#5d6874', RD = '#b04a52', RL = '#d4707a';
+    const TR = '#252a36', TL = '#39404f', INK = '#10131a';
+    const br = Math.sin(t * 3) * 1;
+    X.blob(ctx, x, y + 1, 16, 3, '#0a0614');
+    // legs, planted wide
+    for (const sgn of [-1, 1]) {
+      limbPx(ctx, x + sgn * 6, y - 26, x + sgn * 8, y - 13, 10, 9, TR, TL, INK);
+      limbPx(ctx, x + sgn * 8, y - 13, x + sgn * 9, y - 4, 9, 8, TR, TL, INK);
+      X.round ? 0 : 0;
+      X.rect(ctx, x + sgn * 9 - 6, y - 5, 12, 5, '#15181f');
+      X.rect(ctx, x + sgn * 9 - 6, y - 5, 12, 2, '#2a303c');
+    }
+    // the torso: a slab with a chest on it
+    X.blob(ctx, x, y - 36, 14, 12 + br, S1);
+    X.rect(ctx, x - 14, y - 30, 28, 6, SD);
+    X.blob(ctx, x - 6, y - 42, 7, 5, SL);              // pecs
+    X.blob(ctx, x + 6, y - 42, 7, 5, SL);
+    X.rect(ctx, x - 1, y - 45, 2, 12, SD);
+    for (let i = 0; i < 3; i++) X.rect(ctx, x - 7, y - 34 + i * 4, 14, 1, SD);   // abs
+    X.rect(ctx, x - 13, y - 28, 26, 4, TR);            // waistband
+    X.rect(ctx, x - 3, y - 28, 6, 4, '#7a6a3a');
+    // the red, everywhere
+    for (let i = 0; i < 9; i++) {
+      const a = i * 1.9;
+      X.rect(ctx, x + Math.cos(a) * 9, y - 40 + Math.sin(a) * 7, 4 + (i % 3), 2, i % 2 ? RD : RL);
+      X.rect(ctx, x + Math.cos(a * 1.4) * 6, y - 44 + (i % 5) * 3, 2, 4, RD);
+    }
+    // arms: one of them is holding your ankle
+    limbPx(ctx, x - 14, y - 44, x - 20, y - 33, 9, 8, S1, SL, INK);
+    limbPx(ctx, x - 20, y - 33, x - 24, y - 24, 8, 7, S1, SL, INK);
+    X.blob(ctx, x - 25, y - 21, 5, 5, SL);
+    limbPx(ctx, x + 14, y - 44, x + 20, y - 34, 9, 8, S1, SL, INK);
+    limbPx(ctx, x + 20, y - 34, x + 27, y - 29, 8, 7, S1, SL, INK);
+    X.blob(ctx, x + 29, y - 28, 5, 5, SL);
+    X.rect(ctx, x - 19, y - 42, 6, 2, RD);
+    X.rect(ctx, x + 16, y - 42, 6, 2, RD);
+    // head: a hard one
+    X.blob(ctx, x, y - 54, 9, 8, S1);
+    X.blob(ctx, x, y - 58, 7, 3, SL);
+    X.round && 0;
+    X.rect(ctx, x - 7, y - 60, 14, 2, RD);
+    X.rect(ctx, x - 8, y - 56, 5, 1, RD); X.rect(ctx, x + 3, y - 56, 5, 1, RD);
+    X.rect(ctx, x - 6, y - 55, 4, 3, '#ffffff'); X.rect(ctx, x + 2, y - 55, 4, 3, '#ffffff');
+    X.rect(ctx, x - 5, y - 54, 2, 2, INK); X.rect(ctx, x + 3, y - 54, 2, 2, INK);
+    X.rect(ctx, x - 4, y - 49, 8, 1, '#3a2028');
+    X.rect(ctx, x - 3, y - 48, 6, 1, SD);
   }
 
-  /* The big one. He has horns and nothing at all to say. */
+  /* The big one. Horns, a ring in his nose, and nothing at all to say. */
   function drawBull(ctx, x, y, t) {
-    const S1 = '#7a5a48', S2 = '#523a2e', H = '#e8dfc4';
+    const S1 = '#8a6650', SL = '#ab8468', SD = '#5c4234', H = '#e8dfc4', HD2 = '#b0a888';
+    const TR = '#2a2438', TL = '#3f3750', INK = '#140f26';
     const br = Math.sin(t * 2.4 + 1) * 1;
-    X.blob(ctx, x, y + 1, 17, 3, '#0a0614');
-    X.rect(ctx, x - 12, y - 26, 10, 26, '#2a2438');
-    X.rect(ctx, x + 3, y - 26, 10, 26, '#2a2438');
-    X.blob(ctx, x, y - 40, 17, 14 + br, S1);
-    X.rect(ctx, x - 17, y - 34, 34, 7, S2);
-    X.rect(ctx, x - 22, y - 48, 8, 22, S1);
-    X.rect(ctx, x + 14, y - 48, 8, 18, S1);
-    X.rect(ctx, x - 26, y - 32, 12, 6, S1);
-    X.blob(ctx, x + 1, y - 58, 10, 8, S1);
-    X.blob(ctx, x - 3, y - 54, 6, 4, '#a07a60');
-    X.rect(ctx, x - 4, y - 59, 3, 2, '#120f16');
-    X.rect(ctx, x + 3, y - 59, 3, 2, '#120f16');
-    // the horns
-    for (const s of [-1, 1]) {
-      X.rect(ctx, x + s * 9, y - 64, 4, 3, H);
-      X.rect(ctx, x + s * 12, y - 68, 4, 5, H);
-      X.rect(ctx, x + s * 14, y - 71, 3, 4, H);
+    X.blob(ctx, x, y + 1, 20, 4, '#0a0614');
+    for (const sgn of [-1, 1]) {
+      limbPx(ctx, x + sgn * 8, y - 28, x + sgn * 10, y - 14, 13, 11, TR, TL, INK);
+      limbPx(ctx, x + sgn * 10, y - 14, x + sgn * 11, y - 5, 11, 9, TR, TL, INK);
+      X.rect(ctx, x + sgn * 11 - 8, y - 6, 16, 6, '#15121c');
+      X.rect(ctx, x + sgn * 11 - 8, y - 6, 16, 2, '#2e2840');
     }
-    X.rect(ctx, x - 2, y - 50, 5, 2, '#c9c4b4');       // the ring
+    // a chest you could park on
+    X.blob(ctx, x, y - 42, 19, 15 + br, S1);
+    X.rect(ctx, x - 19, y - 34, 38, 7, SD);
+    X.blob(ctx, x - 8, y - 50, 9, 6, SL);
+    X.blob(ctx, x + 8, y - 50, 9, 6, SL);
+    X.rect(ctx, x - 1, y - 54, 2, 16, SD);
+    for (let i = 0; i < 3; i++) X.rect(ctx, x - 9, y - 38 + i * 4, 18, 1, SD);
+    // fur, along the edges
+    for (let i = 0; i < 14; i++) {
+      const a = i / 14 * Math.PI * 2;
+      X.rect(ctx, x + Math.cos(a) * 19, y - 42 + Math.sin(a) * 15, 2, 2, i % 2 ? SD : SL);
+    }
+    X.rect(ctx, x - 18, y - 30, 36, 4, '#3a2a1a');
+    X.rect(ctx, x - 4, y - 30, 8, 4, '#c9a02a');
+    // arms
+    limbPx(ctx, x - 19, y - 52, x - 26, y - 38, 12, 10, S1, SL, INK);
+    limbPx(ctx, x - 26, y - 38, x - 31, y - 30, 10, 8, S1, SL, INK);
+    X.blob(ctx, x - 33, y - 27, 6, 6, SL);
+    limbPx(ctx, x + 19, y - 52, x + 26, y - 40, 12, 10, S1, SL, INK);
+    limbPx(ctx, x + 26, y - 40, x + 32, y - 33, 10, 8, S1, SL, INK);
+    X.blob(ctx, x + 34, y - 31, 6, 6, SL);
+    // head, snout, ring, horns
+    X.blob(ctx, x + 1, y - 64, 11, 9, S1);
+    X.blob(ctx, x - 3, y - 60, 7, 5, SL);
+    X.rect(ctx, x - 5, y - 60, 2, 2, '#2a1810'); X.rect(ctx, x - 1, y - 60, 2, 2, '#2a1810');
+    X.rect(ctx, x - 5, y - 67, 4, 2, INK); X.rect(ctx, x + 3, y - 67, 4, 2, INK);
+    X.rect(ctx, x - 4, y - 56, 6, 2, '#c9c4b4');
+    for (const s of [-1, 1]) {
+      X.rect(ctx, x + 1 + s * 9, y - 70, 5, 4, H);
+      X.rect(ctx, x + 1 + s * 13, y - 75, 5, 6, H);
+      X.rect(ctx, x + 1 + s * 16, y - 79, 4, 5, HD2);
+      X.rect(ctx, x + 1 + s * 17, y - 82, 3, 4, H);
+    }
+    // and the ears, out sideways
+    for (const s of [-1, 1]) X.blob(ctx, x + 1 + s * 13, y - 62, 5, 3, S1);
   }
 
   /* ---- the fist ---- */
@@ -1283,7 +1463,6 @@
         PD.home.goClub(g, true);
       });
     }
-    if (BEATS[IN_S.beat].id === 'number') { IN_S.flash = 1; A.sfx.deny(); spillChips(); }
   }
 
   function spillChips() {
@@ -1537,11 +1716,9 @@
     const id = BEATS[IN_S.beat] ? BEATS[IN_S.beat].id : 'drop';
     if (id === 'wake') drawFloor(ctx, g, t);
     else if (id === 'universal') { drawUniversal(ctx, g, t); return; }
-    else if (id === 'number') drawDebtCard(ctx, g, t);
     else if (id === 'floor') drawFloor(ctx, g, t);
     else if (id === 'drag') drawDrag(ctx, g, t);
     else if (id === 'fist') drawFist(ctx, g, t);
-    else if (id === 'throne') drawThrone(ctx, g, t);
     else drawDrop(ctx, g, t);
 
     if (IN_S.flash > 0) {

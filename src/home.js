@@ -36,7 +36,7 @@
   const GRAV = 300;                  // low: everything here is bouncy
 
   const S = { scene: 'out', t: 0, ratSeen: 0, sleep: 0, swing: 0, beat: 0, dance: 0, kissT: 2,
-    tip: 0, pole: 0, chatT: 1.5 };
+    tip: 0, pole: 0, chatT: 1.5, drunk: 0 };
   let g0 = null;                     // the running game, for view() between frames
 
   function roomW() { return S.scene === 'out' ? OUT_W : (S.scene === 'club' ? CLUB_W : IN_W); }
@@ -150,7 +150,6 @@
     { id: 'clubout', x: 26, r: 24, name: 'THE WAY OUT', sub: 'BACK UP TO THE MOON' },
     /* Every spot stands a little to the LEFT of the thing it names. Put it on
        top and you walk into the middle of the prop and your own head hides it. */
-    { id: 'coat', x: 106, r: 22, name: 'THE COAT CHECK', sub: 'THAT IS YOUR SUIT NOW' },
     { id: 'dj', x: 132, r: 22, name: 'DJ GORB', sub: 'ASK HIM FOR SOMETHING' },
     { id: 'dance', x: 320, r: 52, name: 'THE DANCEFLOOR', sub: 'HAVE A GO' },
     { id: 'stage', x: 412, r: 28, name: 'THE DANCER', sub: 'TIP THEM. IT IS A TUESDAY' },
@@ -210,19 +209,8 @@
   function goClub(g, story) {
     S.scene = 'club';
     place(g, story ? 120 : CLUB_SPOTS[0].x + 30);
-    if (story) { UI.mode = null; say('YOU ARE UP. THE BACK OF THE ROOM IS THAT WAY.'); }
+    if (story) { UI.mode = null; S.drunk = 1; say('YOU ARE UP. YOU ARE NOT WELL. THE BACK OF THE ROOM IS THAT WAY.'); }
     A.sfx.tone(90, { type: 'square', to: 60, dur: 0.3, vol: 0.1 });
-    if (!g.save.suit) {
-      g.save.suit = 1; g.saveGame();
-      say('THEY WILL NOT LET YOU IN LIKE THAT. HERE. WEAR THIS.');
-      FX.text(P.x, P.y - 54, 'NICE SUIT', '#d67aff', 2);
-      for (let i = 0; i < 30; i++) {
-        FX.spawn({ x: P.x + U.rand(-14, 14), y: P.y - 24, vx: U.rand(-90, 90), vy: U.rand(-160, -30),
-          life: 1.2, size: 2, glow: 1, color: i % 2 ? '#d67aff' : '#ffd34d', grav: 160, drag: 1 });
-      }
-      A.sfx.fanfare && A.sfx.fanfare();
-      PD.chum.call(g, 'suit');
-    }
   }
   function leaveClub(g) {
     S.scene = 'out';
@@ -460,11 +448,7 @@
     if (s.id === 'stage') { tipTheDancer(g); return; }
     if (s.id.indexOf('slot') === 0) { playSlot(g, +s.id.slice(4)); return; }
     if (s.id === 'universal') { P.lock = 1; PD.chum.enterGamble(g); return; }
-    if (s.id === 'coat') {
-      g.save.suit = g.save.suit ? 0 : 1; g.saveGame();
-      say(g.save.suit ? 'THE SUIT IS BACK ON. THE SUIT IS ALWAYS RIGHT.' : 'YOU HAVE HUNG THE SUIT UP. COWARD.');
-      A.sfx.click(); return;
-    }
+
   }
 
   /* One heap, gone. He does not bend down; he sets about it with the drill,
@@ -588,6 +572,7 @@
     updateRat(dt, g);
     if (S.scene === 'club') updateClub(dt, g);
     P.sweep = Math.max(0, P.sweep - dt);
+    if (S.drunk > 0 && g.save.story !== 1) S.drunk = Math.max(0, S.drunk - dt * 0.4);
 
     const use_ = P.lock <= 0 && (IN.hit('KeyE') || IN.hit('space'));
     const m = IN.mouse;
@@ -979,7 +964,7 @@
     for (const c of CLUBBERS) drawClubber(ctx, c, t, cam);
     for (const c of CLUBBERS) if (c.say) {
       const K = AH.KIN[c.k % AH.KIN.length];
-      sayBubble(ctx, c.x - cam, FLOOR - K.legLen - K.h - 4, c.say, c.sayT);
+      sayBubble(ctx, c.x - cam, FLOOR - K.h - 4, c.say, c.sayT);
     }
 
     // haze, drifting
@@ -1008,8 +993,7 @@
     X.rect(ctx, 92 - cam, FLOOR - 74, 2, 74, '#5a5474');
     X.rect(ctx, 120 - cam, FLOOR - 74, 2, 74, '#5a5474');
     X.rect(ctx, 92 - cam, FLOOR - 74, 30, 2, '#8e86a8');
-    if (!g.save.suit) AH.blit(ctx, AH.S.hippie, 0, 107 - cam, FLOOR - 34);
-    else for (let i = 0; i < 3; i++) X.rect(ctx, 97 - cam + i * 8, FLOOR - 72, 3, 5, '#3a3348');
+    for (let i = 0; i < 4; i++) X.rect(ctx, 95 - cam + i * 7, FLOOR - 72, 3, 7, '#3a3348');
     F.draw(ctx, 'COATS', 107 - cam, FLOOR - 84, '#8e86a8', { center: true, shadow: '#0a0614' });
 
     // and the doors nobody wants to draw
@@ -1131,9 +1115,8 @@
     for (const q of [{ x: 636, k: 12 }, { x: 798, k: 13 }]) {
       const K = AH.KIN[q.k % AH.KIN.length];
       const bob = Math.sin(t * 1.4 + q.x) * 1;
-      const top = FLOOR - K.legLen + bob;
-      drawTents(ctx, q.x - cam, top, K, t * 2 + q.x, 3);
-      AH.blit(ctx, AH.S[K.key], (Math.floor(t * 1.1 + q.x) % 8) === 0 ? 2 : 0, q.x - cam, top, true);
+      kinShadow(ctx, q.x - cam, FLOOR, K);
+      AH.blit(ctx, AH.S[K.key], (Math.floor(t * 1.1 + q.x) % 8) === 0 ? 5 : 0, q.x - cam, FLOOR + bob, true);
     }
   }
 
@@ -1240,9 +1223,8 @@
     for (const st of SEATS) {
       const bob = Math.sin(t * 2.2 + st.x) * 1;
       const K = AH.KIN[st.k % AH.KIN.length];
-      drawTents(ctx, st.x - cam, FLOOR - 14 + bob, K, t * 2 + st.x, 3);
-      AH.blit(ctx, AH.S[K.key], (Math.floor(t * 1.7 + st.x) % 7) === 0 ? 2 : 0,
-        st.x - cam, FLOOR - 14 + bob, st.x > 400);
+      AH.blit(ctx, AH.S[K.key], (Math.floor(t * 1.7 + st.x) % 7) === 0 ? 5 : 0,
+        st.x - cam, FLOOR - 6 + bob, st.x > 400);
     }
   }
 
@@ -1327,7 +1309,7 @@
     }
     const bmb = Math.sin(t * 2.2) * 1.5;
     const BK = AH.KIN[7 % AH.KIN.length];
-    AH.blit(ctx, AH.S[BK.key], Math.floor(t * 1.3) % 6 === 0 ? 2 : 0, bx + 10, FLOOR - 34 + bmb, true);
+    AH.blit(ctx, AH.S[BK.key], Math.floor(t * 1.3) % 6 === 0 ? 5 : 0, bx + 10, FLOOR - 30 + bmb, true);
     X.plate(ctx, bx - 44, FLOOR - 32, 88, 32, '#4a2e1e', '#6b4530', '#241408', 3);
     X.rect(ctx, bx - 44, FLOOR - 32, 88, 3, '#8a5a3a');
     X.rect(ctx, bx - 44, FLOOR - 22, 88, 1, '#3a2414');
@@ -1366,17 +1348,9 @@
   /* One regular. The body is generated art; the tentacles are drawn live, in
      whatever number and colour that particular alien turned out to have, so
      they wave about and can wrap round each other. */
-  function drawTents(ctx, x, y, K, ph, spread) {
-    const n = K.arms, L = K.legLen;
-    for (let i = 0; i < n; i++) {
-      const w = c2(ph + i * 1.25);
-      const root = x + (i - (n - 1) / 2) * Math.max(2, (K.w * 0.7) / n);
-      const out = (i - (n - 1) / 2) * spread + w * (spread * 0.8);
-      X.curve(ctx, root, y - 1, root + out * 0.6, y + L * 0.5 + c2(ph + i) * 2,
-        x + out, y + L, K.dark, Math.max(2, Math.round(2 * K.big)), 7);
-    }
-  }
-  function c2(v) { return Math.sin(v); }
+  /* They have legs now, so the walk is in the sprite rather than drawn under
+     it. This is the shadow and nothing else. */
+  function kinShadow(ctx, x, y, K) { X.blob(ctx, x, y + 1, Math.round(K.w * 0.42), 3, '#0a0614'); }
 
   function drawClubber(ctx, c, t, cam) {
     const K = AH.KIN[c.k % AH.KIN.length];
@@ -1384,15 +1358,15 @@
     const fast = c.dance > 0 ? 11 : (Math.abs(c.vx) > 1 ? 7 : 3);
     const bob = Math.sin(c.t * fast) * (c.dance > 0 ? 4 : 1.4);
     const lean = c.kiss > 0 ? c.face * 5 : 0;
-    const top = y - K.legLen + bob;
-    X.blob(ctx, x, y + 1, Math.round(K.w * 0.55), 3, '#0a0614');
-    drawTents(ctx, x, top, K, c.t * fast, c.kiss > 0 ? 8 : 5);
-    const face = c.kiss > 0 ? 1 : (c.blink < 0 ? 2 : (c.say ? 3 : 0));
+    const top = y + bob;
+    kinShadow(ctx, x, y, K);
+    const moving = Math.abs(c.vx) > 1 || c.dance > 0;
+    const face = c.kiss > 0 ? 4 : (c.blink < 0 ? 5 : (c.say ? 3 : (moving ? (Math.floor(c.t * fast * 0.6) % 2 ? 1 : 2) : 0)));
     AH.blit(ctx, AH.S[K.key], face, x + lean, top, c.face < 0);
     // whatever they came in with, still in a tentacle
     if (c.drink >= 0 && c.kiss <= 0) {
       const dcol = ['#8affa0', '#ff8ad8', '#ffb03d', '#7ec8ff'][c.drink];
-      const hx = x + c.face * (K.w * 0.6 + 4), hy = top - K.h * 0.4 + Math.sin(c.t * fast + 1) * 2;
+      const hx = x + c.face * (K.w * 0.52 + 3), hy = top - K.h * 0.42 + Math.sin(c.t * fast + 1) * 2;
       X.rect(ctx, hx - 2, hy, 5, 7, 'rgba(220,235,255,0.35)');
       X.rect(ctx, hx - 2, hy + 2, 5, 5, dcol);
       X.rect(ctx, hx - 2, hy, 5, 1, '#d8fbff');
@@ -1401,7 +1375,7 @@
     // one big throbbing heart over whoever is getting on with it
     if (c.kiss > 0 && c.mate > CLUBBERS.indexOf(c)) {
       const m = CLUBBERS[c.mate];
-      const hx = (c.x + m.x) / 2 - cam, hy = y - K.h - 16 - Math.sin(t * 3) * 2;
+      const hx = (c.x + m.x) / 2 - cam, hy = y - K.h - 10 - Math.sin(t * 3) * 2;
       const r = 4 + Math.abs(Math.sin(t * 6)) * 1.6;
       X.blob(ctx, hx - r * 0.6, hy, r, r, '#ff5fa8');
       X.blob(ctx, hx + r * 0.6, hy, r, r, '#ff5fa8');
@@ -1852,7 +1826,6 @@
       drilling: false, twoHand: false, grip: null, aim: P.face < 0 ? Math.PI : 0,
       ground: !air, vx: P.vx, vy: P.vy, squash: sq
     }, skin.P, PD.art.BIZ);
-    if (g.save.suit) drawSuit(ctx, x, y, t, walking, P.face < 0);
     if (walking && !air && U.chance(0.2)) FX.dust(P.x - P.face * 5, P.y, 1, '#8e86a8', 10);
     // shifting a heap: a cloud of it, and him disappearing into the cloud
     if (P.sweep > 0) {
@@ -1867,38 +1840,8 @@
     }
   }
 
-  /* THE SUIT. Purple, a collar you could hang-glide with, a gold medallion,
-     and sequins that catch whatever light there is. It goes on over the rig
-     rather than into it, because the rig is a skeleton and this is an opinion. */
-  function drawSuit(ctx, x, y, t, walking, flip) {
-    const f = flip ? -1 : 1;
-    const sw = walking ? Math.sin(P.walk * 2.2) * 1.2 : Math.sin(t * 2.6) * 0.6;
-    /* The rig's anchor is his BELT -- shoulders sit thirteen above it and hips
-       ten below -- so everything here is hung off the neck rather than off the
-       top-left of anything. */
-    const sy = Math.round(y + sw * 0.3);
-    const nk = sy - 15;
-    // the waistcoat, then a hip band over the top of the tentacles
-    X.rect(ctx, x - 5, nk + 4, 10, 14, '#8a3fb0');
-    X.rect(ctx, x - 5, nk + 4, 10, 1, '#b04fd6');
-    X.rect(ctx, x - 7, nk + 16, 14, 4, '#5e2a7a');
-    X.rect(ctx, x - 7, nk + 16, 14, 1, '#b04fd6');
-    // two enormous points off the shoulders
-    X.poly(ctx, [[x, nk + 1], [x - 9 * f, nk + 6], [x - 3 * f, nk + 12]], '#d67aff');
-    X.poly(ctx, [[x, nk + 1], [x + 9 * f, nk + 6], [x + 3 * f, nk + 12]], '#b04fd6');
-    X.polyEdge(ctx, [[x, nk + 1], [x - 9 * f, nk + 6], [x - 3 * f, nk + 12]], '#5e2a7a', 1);
-    X.polyEdge(ctx, [[x, nk + 1], [x + 9 * f, nk + 6], [x + 3 * f, nk + 12]], '#5e2a7a', 1);
-    // the chain, and the medallion on the end of it
-    X.rect(ctx, x - 1, nk + 8, 2, 5, '#c99a1e');
-    X.blob(ctx, x, nk + 14, 3, 3, '#ffd34d');
-    X.blob(ctx, x - 1, nk + 13, 1, 1, '#fff3b0');
-    // and the sequins, one at a time, whenever they feel like it
-    for (let i = 0; i < 4; i++) {
-      if ((Math.floor(t * 6) + i) % 4) continue;
-      X.rect(ctx, x - 5 + i * 3, nk + 5 + (i % 3) * 4, 1, 1, '#ffffff');
-    }
-  }
 
-  PD.home = { enter, update, draw, drawScene, playSlot, SLOT, drawOverlay, view, toScreen, fromScreenX, closeScene, touchMode, leaveDesk, say, P, UI, S, groundY, ZW, ZH, ZK, ROOM_W: OUT_W, SPOTS,
+  PD.home = { enter, update, draw, drawScene, playSlot, SLOT,
+    drunk: () => (S.scene === 'club' ? S.drunk : 0), drawOverlay, view, toScreen, fromScreenX, closeScene, touchMode, leaveDesk, say, P, UI, S, groundY, ZW, ZH, ZK, ROOM_W: OUT_W, SPOTS,
     TRASH, CLUB_X, CLUB_SPOTS, CLUBBERS, moonClean, trashLeft, sweep, goClub, leaveClub, spots };
 })(window.PD);
