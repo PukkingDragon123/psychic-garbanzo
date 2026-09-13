@@ -568,32 +568,48 @@ the first:
 
 Escape aborts the trip and puts you back on the chart. It does not skip it.
 
-## You owe Mr Chum a million dollars
+## Three of you in jars
 
-The first time you play, before the moon and before the drill, you get four
-beats of cutscene:
+`START` does not start the game. It opens **DECANTING BAY 7**, a room with
+three tanks in it and one of you asleep in each. Each tank is a save file:
+pick one and it gets decanted. A tank with nothing in it says `NEW`; a tank
+with a body in it shows what that body is worth, how much of the galaxy it has
+eaten and what it still owes. There is a **FLUSH IT** button under the ones
+that are occupied, which asks once whether you are sure.
 
-1. **THE LUCKY VOID.** One machine, one lever, everything you had. The reels
-   land on nothing.
-2. **The receipt.** A number counts up on a red-ruled card to `$1,000,000`,
-   and a very wide shadow arrives behind you.
-3. **The deal.** **MR CHUM** — loan shark, evil alien shark man, small and
-   round and extremely pleased with himself, blue suit, red tie, a dorsal fin
-   no tailor has ever solved, and a briefcase with your future in it —
-   explains the arrangement at twice your size. Go and eat a planet. Bring him
-   his money. Near the end of it he straps a watch to your wrist, and it is
-   not a gift.
-4. **The drop.** He puts you out over a moon he has already paid for.
+**SETTINGS** is up in the corner: noises, the groove, screen wobble, and
+whether Mr Chum is allowed to stand in the corner of your screen at all.
 
-He does not mention what state it is in.
+## The night you lost it
 
-`E` or a tap advances a line; `ESC` skips the whole thing. It plays once —
-the save remembers, and `WIPE SAVE` in setup gives it back to you.
+The first time a body is decanted it gets the whole night, in eight beats with
+a playable stretch in the middle.
 
-The debt is real and it sits bottom-left of the moon on a little plate, with
-a bar that fills as you pay it down. **Every sale hands Mr Chum 20% off the
-top** before a credit reaches you — the toast says exactly how much he took.
-Clear it and the plate turns green.
+1. **You wake up on a carpet.** You do not know whose carpet. There is a
+   machine at the back of the room with your name on it.
+2. **Then the game hands you the club** and gets out of the way. Walk to the
+   back. Mr Chum's arrow points at the only thing that matters.
+3. **THE UNIVERSAL.** Twice the size of the other machines and always lit. Ten
+   stars in a row takes the lot. You pull the lever yourself, and the stars
+   come — one, two, three, all the way to **nine**. Then it asks you whether
+   you want to go on or walk away, and it does not matter which you pick,
+   because the tenth reel was always going to be a skull. That is what the
+   machine is for.
+4. **The number.** `$1,000,000`, counting up on a red-ruled receipt.
+5. **The floor.** You go down on the carpet, six inches from it, legs walking
+   past out of focus. Nobody stops dancing. Somebody steps over you to get to
+   the bar.
+6. **The drag.** Two of them pick you up and carry you out through the city:
+   three parallax layers of tower with lit windows, neon signs on every fifth
+   one, rain, flying traffic with tail-lights, and wet neon smeared across the
+   street. The big one has **horns** and does not say anything all night. The
+   other one is grey and covered in red and will not shut up — that is
+   **DRAX**, and he finds all of this extremely funny.
+7. **You ask him why he is grey.** He knocks you out. The fist arrives at the
+   speed the fist arrives at.
+8. **The throne.** You come round looking at a gold ceiling, up a flight of
+   steps, with two enormous silhouettes either side of the chair and the small
+   blue shark sitting in it. He explains the arrangement. He fits the watch.
 
 ## He arrives and he leaves
 
@@ -952,6 +968,7 @@ a line of history under its blurb.
 | `src/player.js` | Movement, the drill, weapons, dash, the ragdoll, air, cargo, damage, and the tether to the pod |
 | `src/fx.js` | Particles, floating numbers, shockwave rings, terrain chunks, bouncing debris, screen shake, hit-stop, and the block iris |
 | `src/ui.js` | The cardboard-and-masking-tape HUD (air tank, hull chips, sack tube), the action strip, the plank over the door, pause, victory and title screens |
+| `src/lab.js` | Decanting Bay 7: three tanks, three save files, and the settings panel |
 | `src/home.js` | All three parts of home: the lumpy moon surface outside with the house and the saucer standing on the curve of it, the very small room inside with the computer and the jar, Brenda, the tip you have to clear off the regolith, and and the club under the hatch with its dancefloor, its mirror ball, DJ Gorb, the act on the pole and its nine chattering regulars |
 | `src/desk.js` | First person at the computer: hands, keyboard, CRT, the loose-spring pointer, ZORB OS and ABAY |
 | `src/glyph.js` | The icon language that rides alongside the text, and the hex primitives |

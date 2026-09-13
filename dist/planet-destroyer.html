@@ -10268,10 +10268,44 @@ window.PD = window.PD || {};
   };
   const SYMS = ['coin', 'ore', 'planet', 'skull', 'star'];
 
+  /* =====================================================================
+     THE NIGHT YOU LOST IT
+
+     Eight beats with a playable club in the middle of them. You come round on
+     the carpet, you find THE UNIVERSAL at the back, you get nine stars, and
+     then the game does to you what the machine was always going to do. After
+     that it is out of your hands: the floor, the drag through the city, the
+     fist, and the room with the throne in it. */
   const BEATS = [
-    { dur: 7.5, lines: ['ONE MACHINE. ONE LEVER. EVERYTHING YOU HAD.'] },
-    { dur: 5.5, lines: ['THE MACHINE DID NOT WANT IT.', 'SOMEBODY BEHIND YOU DID.'] },
-    { dur: 26, lines: [
+    { id: 'wake', dur: 11, lines: [
+      'YOU WAKE UP ON A CARPET.',
+      'YOU DO NOT KNOW WHOSE CARPET.',
+      'THERE IS A MACHINE AT THE BACK OF THE ROOM WITH YOUR NAME ON IT.',
+      'GO AND FIND IT. THAT IS WHAT YOU CAME FOR.'
+    ] },
+    { id: 'universal', dur: 999, lines: [] },      // interactive: the ten stars
+    { id: 'number', dur: 7, lines: ['THE MACHINE DID NOT WANT IT.', 'SOMEBODY BEHIND YOU DID.'] },
+    { id: 'floor', dur: 10, lines: [
+      'YOU GO DOWN ON THE CARPET.',
+      'NOBODY IN THE ROOM STOPS DANCING.',
+      'SOMEBODY STEPS OVER YOU TO GET TO THE BAR.'
+    ] },
+    { id: 'drag', dur: 22, lines: [
+      'TWO OF THEM PICK YOU UP.',
+      'THE BIG ONE HAS HORNS. HE DOES NOT SAY ANYTHING ALL NIGHT.',
+      'THE OTHER ONE IS GREY AND COVERED IN RED, AND HE WILL NOT SHUT UP.',
+      'DRAX: I AM DRAX. I AM TAKING YOU TO THE MAN.',
+      'DRAX: DO NOT STRUGGLE. NOTHING IS FUNNIER THAN WHEN YOU STRUGGLE.',
+      'THE CITY GOES PAST UPSIDE DOWN. IT IS BEAUTIFUL. YOU ARE BLEEDING.'
+    ] },
+    { id: 'fist', dur: 7, lines: [
+      'YOU: WHY ARE YOU GREY?',
+      'DRAX: WHAT?',
+      'YOU: I SAID WHY ARE YOU --'
+    ] },
+    { id: 'throne', dur: 30, lines: [
+      'YOU ARE LOOKING AT A CEILING. THE CEILING IS GOLD.',
+      'MR CHUM: HE IS AWAKE. GET HIM UP. NOT ALL THE WAY UP.',
       'MR CHUM: YOU OWE ME ONE MILLION.',
       'MR CHUM: YOU HAVE NO MONEY. NO SHIP. NO IDEAS.',
       'MR CHUM: SO I BOUGHT YOU A SHIP. AND A DRILL. AND A MOON.',
@@ -10279,12 +10313,435 @@ window.PD = window.PD || {};
       'MR CHUM: THIS IS A WATCH. I AM IN IT NOW.',
       'MR CHUM: THAT IS THE ARRANGEMENT. NOD.'
     ] },
-    { dur: 6, lines: ['AND THAT IS HOW YOU CAME TO OWN A MOON.'] }
+    { id: 'drop', dur: 6, lines: ['AND THAT IS HOW YOU CAME TO OWN A MOON.'] }
   ];
+  const B_OF = {};
+  BEATS.forEach((b, i) => { B_OF[b.id] = i; });
+
+  /* ------------------------------------------------------ THE UNIVERSAL
+     Ten stars in a row. You get nine. At nine it asks you whether you want to
+     go on or walk away, and it does not matter: the tenth reel is a skull
+     either way, because that is what the machine is for. */
+  const UNI = { n: 0, spin: 0, reel: 0, choice: 0, lost: 0, t: 0, shake: 0, flash: 0 };
+  function enterGamble(g) {
+    IN_S.beat = B_OF.universal; IN_S.t = 0; IN_S.line = 0; IN_S.chars = 0; IN_S.pop = 1;
+    UNI.n = 0; UNI.spin = 0; UNI.reel = 0; UNI.choice = 0; UNI.lost = 0; UNI.t = 0;
+    UNI.shake = 0; UNI.flash = 0;
+    g.state = 'intro';
+    A.sfx.tone(160, { type: 'square', to: 90, dur: 0.6, vol: 0.1 });
+  }
+
+  function updateUniversal(dt, g) {
+    UNI.t += dt;
+    UNI.shake = Math.max(0, UNI.shake - dt * 2);
+    UNI.flash = Math.max(0, UNI.flash - dt * 1.6);
+    const IN = PD.input, m = IN.mouse;
+    const poke = IN.hit('KeyE') || IN.hit('Space') || IN.hit('Enter') || (m.inside && m.leftPressed);
+
+    if (UNI.spin > 0) {
+      UNI.spin -= dt;
+      UNI.reel = (UNI.reel + dt * 30) % 5;
+      if (UNI.spin <= 0) {
+        if (UNI.n < 9) {
+          UNI.n++; UNI.reel = 4;                 // another star
+          A.sfx.tone(500 + UNI.n * 70, { type: 'square', to: 900 + UNI.n * 80, dur: 0.12, vol: 0.07 });
+          FX.stars(240, 116, 6, '#ffd34d');
+          if (UNI.n === 9) { UNI.choice = 1; A.sfx.tone(200, { type: 'sine', to: 140, dur: 0.8, vol: 0.08 }); }
+        } else {
+          UNI.reel = 3;                          // and the skull
+          UNI.lost = 1; UNI.shake = 1; UNI.flash = 1;
+          A.sfx.deny();
+          A.sfx.tone(220, { type: 'square', to: 60, dur: 1.1, vol: 0.12 });
+          FX.ring(240, 116, 4, 120, 1.1, '#ff5a4d', 3);
+        }
+      }
+      return;
+    }
+    if (UNI.lost) {
+      if (UNI.t > 2.6 && poke) nextBeat(g);
+      return;
+    }
+    if (UNI.choice) {
+      // GO ON, or WALK AWAY. There is no walking away.
+      const go = m.inside && m.leftPressed && m.x > 120 && m.x < 232 && m.y > 196 && m.y < 218;
+      const out = m.inside && m.leftPressed && m.x > 248 && m.x < 360 && m.y > 196 && m.y < 218;
+      if (go || IN.hit('KeyE') || IN.hit('Enter')) { UNI.choice = 0; UNI.n = 9; UNI.spin = 1.4; A.sfx.click(); }
+      else if (out || IN.hit('Escape')) {
+        UNI.choice = 0; UNI.spin = 1.4;
+        IN_S.quit = 1;
+        A.sfx.click();
+      }
+      return;
+    }
+    if (poke) { UNI.spin = UNI.n < 8 ? 0.5 : 0.9; A.sfx.tone(260, { type: 'square', to: 520, dur: 0.14, vol: 0.07 }); }
+  }
+
+  function drawUniversal(ctx, g, t) {
+    const sh = UNI.shake > 0 ? Math.round(Math.sin(t * 60) * UNI.shake * 5) : 0;
+    ctx.save(); ctx.translate(sh, 0);
+    // a black room with one machine lit in it
+    ctx.fillStyle = '#0a0410'; ctx.fillRect(-8, 0, VW + 16, VH);
+    for (let i = 0; i < 60; i++) {
+      const x = (U.hash2(i, 3) * VW) | 0, y = (U.hash2(i, 7) * VH) | 0;
+      ctx.globalAlpha = 0.1 + U.hash2(i, 11) * 0.2;
+      ctx.fillStyle = i % 3 ? '#4a1c3a' : '#12384a'; ctx.fillRect(x, y, 2, 1);
+    }
+    ctx.globalAlpha = 1;
+    ctx.globalAlpha = 0.1 + Math.abs(Math.sin(t * 2)) * 0.05;
+    X.poly(ctx, [[210, 0], [270, 0], [340, VH], [140, VH]], '#ffd34d');
+    ctx.globalAlpha = 1;
+
+    // the cabinet, which is enormous
+    X.plate(ctx, 148, 40, 184, 176, '#2a1a3a', '#4a3660', '#120a1c', 6);
+    X.plate(ctx, 158, 48, 164, 30, '#120a1c', '#3a2a52', '#000000', 4);
+    const lit = Math.sin(t * 6) > -0.3;
+    F.draw(ctx, 'THE UNIVERSAL', 240, 56, lit ? '#ffd34d' : '#6a5a1a', { center: true, scale: 2, shadow: '#3a0c30' });
+    F.draw(ctx, 'TEN IN A ROW TAKES THE LOT', 240, 70, lit ? '#ff5fa8' : '#4a1c3a', { center: true, shadow: false });
+
+    // the ten lamps along the top, one per star so far
+    for (let i = 0; i < 10; i++) {
+      const lx = 164 + i * 16;
+      const on = i < UNI.n;
+      X.plate(ctx, lx, 84, 13, 13, on ? '#ffd34d' : '#241636', on ? '#fff3b0' : '#3a2a52', '#120a1c', 3);
+      if (on) PD.glyph.draw(ctx, 'star', lx - 1, 83, '#c98a10', '#fff3b0');
+      else F.draw(ctx, String(i + 1), lx + 6, 87, '#5a4a70', { center: true, shadow: false });
+    }
+
+    // the window
+    X.plate(ctx, 186, 102, 108, 44, '#0d0718', '#3a2a52', '#000000', 4);
+    const SY = ['coin', 'ore', 'planet', 'skull', 'star'];
+    for (let r = 0; r < 3; r++) {
+      const rx = 192 + r * 34;
+      X.rect(ctx, rx, 106, 30, 36, '#e8e4d0');
+      X.rect(ctx, rx, 106, 30, 1, '#8e8874');
+      const idx = Math.floor(UNI.reel) % 5;
+      if (UNI.spin > 0) {
+        for (let k = -1; k <= 1; k++) {
+          ctx.globalAlpha = k ? 0.28 : 0.85;
+          PD.glyph.draw(ctx, SY[(idx + k + r + 5) % 5], rx + 3, 108 + k * 15, '#3a2a52', '#8a7ab0', 2);
+        }
+        ctx.globalAlpha = 1;
+      } else {
+        const show = UNI.lost ? 'skull' : (UNI.n > 0 ? 'star' : SY[(idx + r) % 5]);
+        PD.glyph.draw(ctx, show, rx + 3, 112, show === 'skull' ? '#c22a4a' : '#c98a10',
+          show === 'skull' ? '#ff8a9a' : '#fff3b0', 2);
+      }
+    }
+    X.rect(ctx, 186, 123, 108, 1, UNI.lost ? '#ff5a4d' : '#8a2f4a');
+
+    // the lever
+    const lv = UNI.spin > 0 ? 16 : 0;
+    X.line(ctx, 340, 150 + lv, 340, 110 + lv, '#8a7ab0', 4);
+    X.blob(ctx, 340, 106 + lv, 7, 7, '#c22a4a');
+    X.blob(ctx, 338, 104 + lv, 3, 3, '#ff8a9a');
+
+    // our man, at the lever, in the worst moment of his life
+    const al = PD.art.sprites.alien;
+    const K = 1.1, bob = Math.sin(t * 3) * (UNI.lost ? 0 : 2);
+    const ax = 386, ay = 216 - (al.h - al.oy) * K + bob;
+    ctx.drawImage(al.frames[UNI.lost ? 0 : Math.floor(t * 6) % 4], 0, 0, al.frames[0].width, al.frames[0].height,
+      Math.round(ax - al.ox * K), Math.round(ay - al.oy * K), Math.round(al.w * K), Math.round(al.h * K));
+
+    X.rect(ctx, 0, 216, VW, VH - 216, '#1a1024');
+    X.rect(ctx, 0, 214, VW, 2, '#2a1c33');
+    for (let x = 0; x < VW; x += 16) X.rect(ctx, x, 216, 8, VH - 216, '#231430');
+    ctx.restore();
+
+    if (UNI.flash > 0) {
+      ctx.fillStyle = 'rgba(255,90,77,' + (UNI.flash * 0.5).toFixed(2) + ')';
+      ctx.fillRect(0, 0, VW, VH);
+    }
+
+    // and whatever the machine wants from you now
+    if (UNI.lost) {
+      captionCard(ctx, [IN_S.quit ? 'YOU WALKED AWAY. IT SPUN ANYWAY.' : 'NINE. AND THEN THIS.'],
+        2, 1, t, UNI.t > 2.6 && Math.abs(Math.sin(t * 4)) > 0.4 ? 'E / TAP' : null);
+    } else if (UNI.choice) {
+      const m = PD.input.mouse;
+      captionCard(ctx, ['NINE. ONE MORE TAKES EVERYTHING.'], 1, 1, t, null);
+      for (const [bx, lab, col] of [[120, 'ONE MORE', '#f2c23a'], [248, 'WALK AWAY', '#6b6480']]) {
+        const hot = m.inside && m.x > bx && m.x < bx + 112 && m.y > 196 && m.y < 218;
+        X.plate(ctx, bx, 196, 112, 22, hot ? col : '#241636', col, '#120a1c', 4);
+        F.draw(ctx, lab, bx + 56, 202, hot ? '#1a1024' : col, { center: true, scale: 2, shadow: '#000000' });
+      }
+    } else {
+      captionCard(ctx, [UNI.n === 0 ? 'PULL IT.' : 'AGAIN. ' + (10 - UNI.n) + ' TO GO.'], 2, 1, t,
+        Math.abs(Math.sin(t * 4)) > 0.4 ? 'E / TAP' : null);
+    }
+  }
+
+  /* ---- the floor of the club, from very close to it ---- */
+  function drawFloor(ctx, g, t) {
+    ctx.fillStyle = '#140820'; ctx.fillRect(0, 0, VW, VH);
+    // carpet, seen from about six inches up
+    for (let y = 120; y < VH; y += 6) {
+      const k = (y - 120) / (VH - 120);
+      X.rect(ctx, 0, y, VW, 6, k > 0.5 ? '#4a1230' : '#3a0e26');
+      for (let x = ((y * 7) % 18); x < VW; x += 18) X.rect(ctx, x, y + 2, 7, 3, k > 0.5 ? '#5c1a3c' : '#47122e');
+    }
+    X.rect(ctx, 0, 118, VW, 2, '#2a0a1c');
+    // legs going past, out of focus
+    for (let i = 0; i < 7; i++) {
+      const lx = ((i * 83 + t * (14 + i * 5)) % (VW + 80)) - 40;
+      ctx.globalAlpha = 0.55;
+      X.rect(ctx, lx, 66, 9, 54, '#1d0e28');
+      X.rect(ctx, lx + 13, 70, 9, 50, '#1d0e28');
+      X.blob(ctx, lx + 4, 120, 8, 3, '#0d0614');
+      ctx.globalAlpha = 1;
+    }
+    // the lights of the room, far away and not interested
+    for (let i = 0; i < 9; i++) {
+      const on = (Math.floor(t * 4) + i) % 3 !== 0;
+      X.rect(ctx, 10 + i * 52, 28, 34, 3, on ? '#7a2450' : '#2a0e1c');
+    }
+    ctx.globalAlpha = 0.12;
+    X.blob(ctx, 240, 50, 180, 40, '#ff5fa8');
+    ctx.globalAlpha = 1;
+
+    // you, down there
+    const sk = PD.art.skinFor(g.save.cos), spr = sk.alienCore;
+    const cv = spr.frames[0], k = spr.hd || 1;
+    ctx.save();
+    ctx.translate(200, 150 + Math.sin(t * 1.4) * 1);
+    ctx.rotate(-0.5);
+    ctx.drawImage(cv, -spr.ox, -spr.oy, cv.width / k, cv.height / k);
+    ctx.restore();
+    // and the tears, which are the only thing moving fast
+    for (let i = 0; i < 5; i++) {
+      const f = ((t * 1.4 + i * 0.2) % 1);
+      ctx.globalAlpha = 1 - f;
+      X.rect(ctx, 196 + i * 3 - f * 6, 132 + f * 26, 2, 3, '#9fe8ff');
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  /* ---- the city, going past upside down ---- */
+  const CITY = [];
+  for (let i = 0; i < 120; i++) {
+    CITY.push({ l: i % 3, x: U.hash2(i, 3) * 1600, w: 16 + U.hash2(i, 7) * 42, h: 40 + U.hash2(i, 11) * 130,
+      hue: U.hash2(i, 13) });
+  }
+  function drawDrag(ctx, g, t) {
+    const scroll = t * 58;
+    // a sky with a fat neon smear in it
+    const grd = ctx.createLinearGradient(0, 0, 0, VH);
+    grd.addColorStop(0, '#120428'); grd.addColorStop(0.55, '#2a0c3e'); grd.addColorStop(1, '#0a0418');
+    ctx.fillStyle = grd; ctx.fillRect(0, 0, VW, VH);
+    ctx.globalAlpha = 0.18;
+    X.blob(ctx, 300, 56, 150, 40, '#ff2f7a');
+    X.blob(ctx, 120, 40, 110, 26, '#2f7aff');
+    ctx.globalAlpha = 1;
+    // rain
+    for (let i = 0; i < 70; i++) {
+      const x = ((U.hash2(i, 5) * VW + t * 40) % (VW + 20)) - 10;
+      const y = ((U.hash2(i, 9) * VH + t * 420 + i * 13) % VH);
+      ctx.globalAlpha = 0.18 + U.hash2(i, 17) * 0.2;
+      X.rect(ctx, x, y, 1, 7, '#9fd8ff');
+      ctx.globalAlpha = 1;
+    }
+    // three layers of tower, each slower than the one in front
+    for (let L = 2; L >= 0; L--) {
+      const sp = [1, 0.55, 0.28][L];
+      const base = [186, 176, 168][L];
+      const col = ['#150a24', '#1d1030', '#28183f'][L];
+      const litc = ['#3a2050', '#4a2a66', '#5e3a80'][L];
+      for (const b of CITY) {
+        if (b.l !== L) continue;
+        const x = ((b.x - scroll * sp) % 1600 + 1600) % 1600 - 200;
+        if (x < -80 || x > VW + 20) continue;
+        const h = b.h * (0.6 + L * 0.2);
+        X.rect(ctx, x, base - h, b.w, h + 40, col);
+        X.rect(ctx, x, base - h, b.w, 2, litc);
+        // windows
+        for (let wy = base - h + 6; wy < base - 4; wy += 8) {
+          for (let wx = x + 3; wx < x + b.w - 3; wx += 7) {
+            const on = U.hash2((wx * 3) | 0, (wy * 5) | 0) > (0.35 + L * 0.12);
+            if (!on) continue;
+            X.rect(ctx, wx, wy, 3, 4, b.hue > 0.6 ? '#ffd34d' : (b.hue > 0.3 ? '#7ef9ff' : '#ff5fa8'));
+          }
+        }
+        // a sign on about one in five
+        if (b.hue > 0.78) {
+          const on = Math.sin(t * 5 + b.x) > -0.4;
+          X.rect(ctx, x + 2, base - h - 10, b.w - 4, 8, on ? '#ff2f7a' : '#3a0e26');
+          X.rect(ctx, x + 4, base - h - 8, b.w - 8, 4, on ? '#ffd6f0' : '#5a1a3a');
+        }
+      }
+    }
+    // traffic, in the gap between the layers
+    for (let i = 0; i < 5; i++) {
+      const x = ((i * 137 - t * (90 + i * 30)) % (VW + 120) + VW + 120) % (VW + 120) - 60;
+      const y = 60 + (i % 3) * 16;
+      X.rect(ctx, x, y, 18, 5, '#2a2140');
+      X.rect(ctx, x + 2, y - 2, 12, 3, '#3a3060');
+      X.rect(ctx, x + 17, y + 1, 4, 2, '#ff5a4d');
+      X.rect(ctx, x - 3, y + 1, 4, 2, '#7ef9ff');
+      ctx.globalAlpha = 0.25;
+      X.blob(ctx, x - 8, y + 2, 10, 2, '#7ef9ff');
+      ctx.globalAlpha = 1;
+    }
+    // the street
+    X.rect(ctx, 0, 200, VW, VH - 200, '#0f0a1a');
+    X.rect(ctx, 0, 198, VW, 3, '#1d1030');
+    for (let x = ((-scroll * 1.6) % 40 + 40) % 40 - 40; x < VW; x += 40) X.rect(ctx, x, 214, 22, 3, '#2a2140');
+    ctx.globalAlpha = 0.14;
+    for (let i = 0; i < 6; i++) X.blob(ctx, ((i * 96 - scroll * 1.6) % 600 + 600) % 600 - 60, 208, 30, 8, '#ff2f7a');
+    ctx.globalAlpha = 1;
+
+    // and the three of them, dead centre
+    const a = ensureArt();
+    const bob = Math.sin(t * 5) * 2;
+    drawBull(ctx, 300, 200 + bob, t);
+    drawDrax(ctx, 176, 200 - bob, t);
+    // you, between them, being dragged by the ankles
+    const sk = PD.art.skinFor(g.save.cos), spr = sk.alienCore;
+    const cv = spr.frames[0], k = spr.hd || 1;
+    ctx.save();
+    ctx.translate(238, 190 + bob);
+    ctx.rotate(1.5);
+    ctx.drawImage(cv, -spr.ox, -spr.oy, cv.width / k, cv.height / k);
+    ctx.restore();
+    for (let i = 0; i < 4; i++) {
+      if (!U.chance(0.5)) continue;
+      X.rect(ctx, 226 + U.rand(-14, 14), 198 + U.rand(-2, 4), 2, 1, '#c9bce8');
+    }
+  }
+
+  /* Drax: grey, covered in red, and not remotely joking. */
+  function drawDrax(ctx, x, y, t) {
+    const S1 = '#8d99a6', S2 = '#5d6874', RD = '#b04a52', DK = '#252a36';
+    const br = Math.sin(t * 3) * 1;
+    X.blob(ctx, x, y + 1, 14, 3, '#0a0614');
+    // legs
+    X.rect(ctx, x - 9, y - 24, 8, 24, DK);
+    X.rect(ctx, x + 2, y - 24, 8, 24, DK);
+    X.rect(ctx, x - 10, y - 4, 10, 4, '#1a1d26');
+    X.rect(ctx, x + 1, y - 4, 10, 4, '#1a1d26');
+    // torso
+    X.blob(ctx, x, y - 34, 13, 11 + br, S1);
+    X.rect(ctx, x - 13, y - 28, 26, 6, S2);
+    for (let i = 0; i < 7; i++) {
+      X.rect(ctx, x - 10 + (i % 4) * 6, y - 42 + ((i / 4) | 0) * 7, 5, 2, RD);
+      X.rect(ctx, x - 8 + (i % 3) * 7, y - 38 + (i % 2) * 6, 2, 5, RD);
+    }
+    // arms, one of them holding an ankle
+    X.rect(ctx, x - 18, y - 40, 7, 18, S1);
+    X.rect(ctx, x + 11, y - 40, 7, 14, S1);
+    X.rect(ctx, x + 14, y - 28, 12, 5, S1);
+    X.rect(ctx, x - 18, y - 38, 7, 3, RD);
+    // head
+    X.blob(ctx, x, y - 50, 8, 7, S1);
+    X.rect(ctx, x - 6, y - 55, 12, 2, RD);
+    X.rect(ctx, x - 5, y - 51, 3, 2, '#120f16');
+    X.rect(ctx, x + 2, y - 51, 3, 2, '#120f16');
+    X.rect(ctx, x - 3, y - 46, 6, 1, '#3a2028');
+  }
+
+  /* The big one. He has horns and nothing at all to say. */
+  function drawBull(ctx, x, y, t) {
+    const S1 = '#7a5a48', S2 = '#523a2e', H = '#e8dfc4';
+    const br = Math.sin(t * 2.4 + 1) * 1;
+    X.blob(ctx, x, y + 1, 17, 3, '#0a0614');
+    X.rect(ctx, x - 12, y - 26, 10, 26, '#2a2438');
+    X.rect(ctx, x + 3, y - 26, 10, 26, '#2a2438');
+    X.blob(ctx, x, y - 40, 17, 14 + br, S1);
+    X.rect(ctx, x - 17, y - 34, 34, 7, S2);
+    X.rect(ctx, x - 22, y - 48, 8, 22, S1);
+    X.rect(ctx, x + 14, y - 48, 8, 18, S1);
+    X.rect(ctx, x - 26, y - 32, 12, 6, S1);
+    X.blob(ctx, x + 1, y - 58, 10, 8, S1);
+    X.blob(ctx, x - 3, y - 54, 6, 4, '#a07a60');
+    X.rect(ctx, x - 4, y - 59, 3, 2, '#120f16');
+    X.rect(ctx, x + 3, y - 59, 3, 2, '#120f16');
+    // the horns
+    for (const s of [-1, 1]) {
+      X.rect(ctx, x + s * 9, y - 64, 4, 3, H);
+      X.rect(ctx, x + s * 12, y - 68, 4, 5, H);
+      X.rect(ctx, x + s * 14, y - 71, 3, 4, H);
+    }
+    X.rect(ctx, x - 2, y - 50, 5, 2, '#c9c4b4');       // the ring
+  }
+
+  /* ---- the fist ---- */
+  function drawFist(ctx, g, t) {
+    drawDrag(ctx, g, t);
+    const k = U.clamp((IN_S.t - 3.2) / 0.7, 0, 1);
+    if (IN_S.line >= 2 && k > 0) {
+      // it arrives very fast and it fills the screen
+      const r = 20 + k * k * 260;
+      X.blob(ctx, 240, 130, r, r * 0.85, '#8d99a6');
+      X.blob(ctx, 240 - r * 0.3, 130 - r * 0.3, r * 0.5, r * 0.4, '#a7b2be');
+      for (let i = 0; i < 5; i++) X.rect(ctx, 240 - r + i * r * 0.4, 130 - r * 0.2, r * 0.25, r * 0.5, '#6d7885');
+      if (k >= 1) { ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, VW, VH); }
+    }
+  }
+
+  /* ---- and the room with the throne in it, seen from the carpet ---- */
+  function drawThrone(ctx, g, t) {
+    const wake = U.clamp(IN_S.t / 1.6, 0, 1);
+    ctx.fillStyle = '#12060c'; ctx.fillRect(0, 0, VW, VH);
+    // a gold ceiling, way up, because you are looking up at it
+    for (let i = 0; i < 9; i++) {
+      const w = 60 + i * 6;
+      X.rect(ctx, 240 - w / 2, 4 + i * 4, w, 3, i % 2 ? '#6a5220' : '#8a6a2a');
+    }
+    ctx.globalAlpha = 0.14;
+    X.blob(ctx, 240, 30, 190, 30, '#ffd34d');
+    ctx.globalAlpha = 1;
+    // pillars either side, converging because of the angle
+    for (const s of [-1, 1]) {
+      X.poly(ctx, [[240 + s * 70, 30], [240 + s * 96, 30], [240 + s * 250, VH], [240 + s * 150, VH]], '#2a1018');
+      X.poly(ctx, [[240 + s * 70, 30], [240 + s * 78, 30], [240 + s * 170, VH], [240 + s * 150, VH]], '#3a1a24');
+    }
+    // the steps up to it
+    for (let i = 0; i < 6; i++) {
+      const w = 150 + i * 26, y = 150 + i * 14;
+      X.rect(ctx, 240 - w / 2, y, w, 14, i % 2 ? '#3a1a24' : '#451f2c');
+      X.rect(ctx, 240 - w / 2, y, w, 2, '#5e2c3c');
+    }
+    // the throne
+    X.plate(ctx, 206, 84, 68, 70, '#5e2c3c', '#8a4458', '#2a1018', 5);
+    for (let i = 0; i < 5; i++) X.spike(ctx, 0, 0, 0, 0, 0, '#000');
+    for (let i = 0; i < 7; i++) {
+      const sx = 208 + i * 10;
+      X.poly(ctx, [[sx, 84], [sx + 8, 84], [sx + 4, 84 - 8 - (i % 2) * 6]], '#8a6a2a');
+    }
+    X.rect(ctx, 206, 130, 68, 6, '#8a6a2a');
+    // and him on it, at a comfortable size for a man who owns the building
+    const a = ensureArt();
+    const K = 1.4;
+    ctx.save();
+    ctx.translate(Math.round(240 - MCX * K), Math.round(146 - MBASE * K));
+    ctx.scale(K, K);
+    ctx.drawImage(a.mini.walk[IN_S.chars < (BEATS[B_OF.throne].lines[IN_S.line] || '').length
+      && Math.floor(t * 9) % 2 === 0 ? 1 : 0][0], 0, 0);
+    ctx.restore();
+    // two very large silhouettes either side of him
+    for (const s of [-1, 1]) {
+      ctx.globalAlpha = 0.9;
+      X.blob(ctx, 240 + s * 62, 150, 16, 30, '#160a10');
+      X.blob(ctx, 240 + s * 62, 116, 11, 10, '#160a10');
+      ctx.globalAlpha = 1;
+    }
+    // the edge of your own eyelids, opening
+    const lid = (1 - wake) * (VH / 2);
+    if (lid > 0.5) {
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(0, 0, VW, lid);
+      ctx.fillRect(0, VH - lid, VW, lid);
+    }
+    // the watch, being fitted
+    if (IN_S.line >= 6) {
+      const bz = Math.round(U.rand(-1, 1));
+      X.plate(ctx, 40 + bz, VH - 52, 26, 16, '#2a2438', '#453c5c', '#0a0614', 3);
+      X.rect(ctx, 44 + bz, VH - 48, 18, 9, '#0d5a78');
+      X.rect(ctx, 46 + bz, VH - 46, 14, 5, '#7ef9ff');
+    }
+  }
 
   function enterIntro(g) {
     ensureArt();
-    IN_S.beat = 0; IN_S.t = 0; IN_S.line = 0; IN_S.chars = 0; IN_S.pop = 0;
+    IN_S.beat = 0; IN_S.t = 0; IN_S.line = 0; IN_S.chars = 0; IN_S.pop = 0; IN_S.quit = 0;
     IN_S.reel = [0, 0, 0]; IN_S.spin = 3.2; IN_S.chips.length = 0; IN_S.flash = 0;
     IN_S.done = 0;
     g.state = 'intro';
@@ -10293,15 +10750,26 @@ window.PD = window.PD || {};
 
   function nextBeat(g) {
     IN_S.beat++; IN_S.t = 0; IN_S.line = 0; IN_S.chars = 0; IN_S.pop = 0;
-    if (IN_S.beat === 1) {
-      IN_S.flash = 1;
-      A.sfx.deny();
-      for (let i = 0; i < 40; i++) {
-        IN_S.chips.push({ x: 240 + U.rand(-40, 40), y: 190, vx: U.rand(-180, 180), vy: U.rand(-220, -60),
-          a: U.rand(0, U.TAU), va: U.rand(-8, 8), life: U.rand(1.2, 2.6) });
-      }
+    if (IN_S.beat >= BEATS.length) { finishIntro(g); return; }
+    // after the first beat you are on your feet in the club, and it is yours
+    if (BEATS[IN_S.beat].id === 'universal' && !IN_S.inClub) {
+      IN_S.inClub = 1;
+      g.save.story = 1;
+      g.saveGame();
+      g.wipeTo(240, 135, '#1a1230', () => {
+        g.state = 'home';
+        PD.home.enter(g);
+        PD.home.goClub(g, true);
+      });
     }
-    if (IN_S.beat >= BEATS.length) finishIntro(g);
+    if (BEATS[IN_S.beat].id === 'number') { IN_S.flash = 1; A.sfx.deny(); spillChips(); }
+  }
+
+  function spillChips() {
+    for (let i = 0; i < 40; i++) {
+      IN_S.chips.push({ x: 240 + U.rand(-40, 40), y: 190, vx: U.rand(-180, 180), vy: U.rand(-220, -60),
+        a: U.rand(0, U.TAU), va: U.rand(-8, 8), life: U.rand(1.2, 2.6) });
+    }
   }
 
   function finishIntro(g) {
@@ -10324,8 +10792,13 @@ window.PD = window.PD || {};
   function updateIntro(dt, g) {
     if (IN_S.done) return;
     const IN = PD.input;
-    if (IN.hit('Escape')) { finishIntro(g); return; }
     IN_S.t += dt;
+    if (BEATS[IN_S.beat] && BEATS[IN_S.beat].id === 'universal') {
+      IN_S.pop = 1;
+      updateUniversal(dt, g);
+      return;
+    }
+    if (IN.hit('Escape')) { finishIntro(g); return; }
     IN_S.pop = Math.min(1, IN_S.pop + dt * 4.5);
     IN_S.flash = Math.max(0, IN_S.flash - dt * 2.2);
     if (IN_S.spin > 0) {
@@ -10426,7 +10899,7 @@ window.PD = window.PD || {};
 
   /* ---- the number, and the shadow that falls across it ---- */
   function drawDebtCard(ctx, g, t) {
-    drawCasino(ctx, g, t);
+    drawUniversal(ctx, g, t);
     ctx.fillStyle = 'rgba(6,3,14,0.88)'; ctx.fillRect(0, 0, VW, VH);
     const f = U.clamp(IN_S.t / 1.6, 0, 1);
     const n = Math.round(DEBT0 * f * f);
@@ -10540,9 +11013,14 @@ window.PD = window.PD || {};
   }
 
   function drawIntro(ctx, g, t) {
-    if (IN_S.beat === 0) drawCasino(ctx, g, t);
-    else if (IN_S.beat === 1) drawDebtCard(ctx, g, t);
-    else if (IN_S.beat === 2) drawDeal(ctx, g, t);
+    const id = BEATS[IN_S.beat] ? BEATS[IN_S.beat].id : 'drop';
+    if (id === 'wake') drawFloor(ctx, g, t);
+    else if (id === 'universal') { drawUniversal(ctx, g, t); return; }
+    else if (id === 'number') drawDebtCard(ctx, g, t);
+    else if (id === 'floor') drawFloor(ctx, g, t);
+    else if (id === 'drag') drawDrag(ctx, g, t);
+    else if (id === 'fist') drawFist(ctx, g, t);
+    else if (id === 'throne') drawThrone(ctx, g, t);
     else drawDrop(ctx, g, t);
 
     if (IN_S.flash > 0) {
@@ -10579,7 +11057,7 @@ window.PD = window.PD || {};
   }
 
   PD.chum = {
-    enterIntro, updateIntro, drawIntro,
+    enterIntro, updateIntro, drawIntro, enterGamble, B_OF,
     call, update, draw, active, takeCut, drawDebt, DEBT0, S, IN_S, HS, LESSONS,
     leadStep, drawMini, miniFrame, MS, MW, MH, MCX, MBASE,
     artFor: ensureArt, CW, CH, CCX, CBASE
@@ -13797,9 +14275,10 @@ window.PD = window.PD || {};
 
   function beatOf(t) { return ((t * 2.2) % 1); }
 
-  function goClub(g) {
+  function goClub(g, story) {
     S.scene = 'club';
-    place(g, CLUB_SPOTS[0].x + 30);
+    place(g, story ? 120 : CLUB_SPOTS[0].x + 30);
+    if (story) { UI.mode = null; say('YOU ARE UP. THE BACK OF THE ROOM IS THAT WAY.'); }
     A.sfx.tone(90, { type: 'square', to: 60, dur: 0.3, vol: 0.1 });
     if (!g.save.suit) {
       g.save.suit = 1; g.saveGame();
@@ -13988,7 +14467,12 @@ window.PD = window.PD || {};
   function say(m) { UI.msg = m; UI.msgT = 3.2; }
 
   function spots(g) {
-    if (S.scene === 'club') return CLUB_SPOTS;
+    if (S.scene === 'club') {
+      // the night the game opens there is one machine and one reason to be here
+      if (g.save.story === 1) return [{ id: 'universal', x: 796, r: 40,
+        name: 'THE UNIVERSAL', sub: 'TEN IN A ROW TAKES THE LOT' }];
+      return CLUB_SPOTS;
+    }
     if (S.scene === 'in') return g.save.pet ? IN_SPOTS : IN_SPOTS.concat([RAT_SPOT]);
     const out = OUT_SPOTS.slice();
     for (let i = 0; i < TRASH.length; i++) {
@@ -14043,6 +14527,7 @@ window.PD = window.PD || {};
     }
     if (s.id === 'stage') { tipTheDancer(g); return; }
     if (s.id.indexOf('slot') === 0) { playSlot(g, +s.id.slice(4)); return; }
+    if (s.id === 'universal') { P.lock = 1; PD.chum.enterGamble(g); return; }
     if (s.id === 'coat') {
       g.save.suit = g.save.suit ? 0 : 1; g.saveGame();
       say(g.save.suit ? 'THE SUIT IS BACK ON. THE SUIT IS ALWAYS RIGHT.' : 'YOU HAVE HUNG THE SUIT UP. COWARD.');
@@ -14126,6 +14611,9 @@ window.PD = window.PD || {};
      The list is rebuilt whenever the scene or the state of the tip changes,
      which starts the tour over from the top. */
   function leadGoals(g) {
+    if (S.scene === 'club' && g.save.story === 1) return [
+      { x: 796, line: 'THE BIG ONE. AT THE BACK. YOU KNOW THE ONE.' }
+    ];
     if (S.scene === 'club') return [
       { x: 320, line: 'DANCE. IT IS FREE. NOTHING ELSE IN HERE IS.' },
       { x: 412, line: 'TIP THEM. THEY ARE WORKING. UNLIKE YOU.' },
@@ -14518,6 +15006,7 @@ window.PD = window.PD || {};
     }
 
     drawBooths(ctx, g, t, cam);
+    drawRoomba(ctx, t, cam);
     drawStack(ctx, 236, cam, punch);
     drawStack(ctx, 394, cam, punch);
     drawDJ(ctx, g, t, cam, punch);
@@ -14705,6 +15194,7 @@ window.PD = window.PD || {};
     }
 
     for (let i = 0; i < 3; i++) drawMachine(ctx, g, t, cam, i);
+    drawUniversalCab(ctx, g, t, cam);
     // the two who have been here since before you arrived
     for (const q of [{ x: 636, k: 12 }, { x: 798, k: 13 }]) {
       const K = AH.KIN[q.k % AH.KIN.length];
@@ -14713,6 +15203,35 @@ window.PD = window.PD || {};
       drawTents(ctx, q.x - cam, top, K, t * 2 + q.x, 3);
       AH.blit(ctx, AH.S[K.key], (Math.floor(t * 1.1 + q.x) % 8) === 0 ? 2 : 0, q.x - cam, top, true);
     }
+  }
+
+  /* The machine the whole game is downstream of. It is twice the size of the
+     others and it is always lit. */
+  function drawUniversalCab(ctx, g, t, cam) {
+    const mx = 812 - cam, B = FLOOR - 20;
+    X.plate(ctx, mx - 38, B, 76, 20, '#1c0e18', '#3a1c30', '#0a0614', 4);
+    X.plate(ctx, mx - 34, B - 132, 68, 132, '#3a1a44', '#6a3a80', '#1a0a22', 6);
+    X.plate(ctx, mx - 28, B - 126, 56, 24, '#120a1c', '#5a2a70', '#000000', 4);
+    const lit = Math.sin(t * 6) > -0.3;
+    F.draw(ctx, 'THE', mx, B - 122, lit ? '#ffd34d' : '#6a5a1a', { center: true, shadow: false });
+    F.draw(ctx, 'UNIVERSAL', mx, B - 113, lit ? '#ff5fa8' : '#4a1c3a', { center: true, shadow: false });
+    for (let i = 0; i < 10; i++) {
+      const on = (Math.floor(t * 8) + i) % 10 < 4;
+      X.rect(ctx, mx - 30 + i * 6, B - 98, 4, 4, on ? '#ffd34d' : '#3a2a52');
+    }
+    X.plate(ctx, mx - 28, B - 90, 56, 34, '#0d0718', '#5a2a70', '#000000', 4);
+    for (let r = 0; r < 3; r++) {
+      const rx = mx - 25 + r * 17;
+      X.rect(ctx, rx, B - 87, 15, 28, '#e8e4d0');
+      PD.glyph.draw(ctx, 'star', rx, B - 82, '#c98a10', '#fff3b0');
+    }
+    F.draw(ctx, 'TEN TAKES THE LOT', mx, B - 50, '#8a7ab0', { center: true, shadow: false });
+    X.plate(ctx, mx - 22, B - 40, 44, 18, '#120a1c', '#3a2a52', '#000000', 3);
+    X.line(ctx, mx + 36, B - 46, mx + 36, B - 74, '#8a7ab0', 4);
+    X.blob(ctx, mx + 36, B - 78, 7, 7, '#c22a4a');
+    ctx.globalAlpha = 0.14 + Math.abs(Math.sin(t * 3)) * 0.06;
+    X.blob(ctx, mx, B - 70, 44, 64, '#ff5fa8');
+    ctx.globalAlpha = 1;
   }
 
   function drawMachine(ctx, g, t, cam, i) {
@@ -14752,6 +15271,26 @@ window.PD = window.PD || {};
     X.line(ctx, mx + 26, B - 30 + lv, mx + 26, B - 52 + lv, '#8a7ab0', 3);
     X.blob(ctx, mx + 26, B - 54 + lv, 5, 5, '#c22a4a');
     X.blob(ctx, mx + 25, B - 55 + lv, 2, 2, '#ff8a9a');
+  }
+
+  /* A cleaning robot that has been going round this room since before any of
+     them were born, and is not close to finished. */
+  const ROOMBA = { x: 300, dir: 1, t: 0 };
+  function drawRoomba(ctx, t, cam) {
+    ROOMBA.t = t;
+    const x = ((t * 26) % 620) + 60 - cam;
+    const y = FLOOR + 6;
+    X.blob(ctx, x, y + 3, 13, 2, '#0a0614');
+    X.plate(ctx, x - 12, y - 7, 24, 10, '#2e3a4a', '#4a5c74', '#12181f', 3);
+    X.rect(ctx, x - 12, y - 7, 24, 2, '#6a7e94');
+    const eye = Math.sin(t * 5) > 0 ? '#7ef9ff' : '#2a5f6a';
+    X.rect(ctx, x - 4, y - 5, 8, 3, eye);
+    for (let i = 0; i < 3; i++) X.rect(ctx, x - 9 + i * 7, y + 3, 4, 2, '#1a2028');
+    // the mess it is picking up, and the mess it is leaving
+    ctx.globalAlpha = 0.4;
+    X.rect(ctx, x - 20, y + 2, 8, 2, '#3a4a3a');
+    ctx.globalAlpha = 1;
+    if (U.chance(0.02)) FX.puff(x + cam, FLOOR + 4, 2, '#6a7e94', 0.5);
   }
 
   /* Booths along the back, with the ones who came to sit down in them. */
@@ -14847,6 +15386,9 @@ window.PD = window.PD || {};
       const col = ['#8affa0', '#ff8ad8', '#ffb03d', '#7ec8ff'][i % 4];
       X.rect(ctx, bx - 36 + i * 8, FLOOR - 58, 4, 14, col);
       X.rect(ctx, bx - 36 + i * 8, FLOOR - 60, 2, 3, '#c9bce8');
+      // there is an eye in every one of them and it is looking at you
+      X.rect(ctx, bx - 36 + i * 8, FLOOR - 50, 3, 3, '#ffffff');
+      X.rect(ctx, bx - 35 + i * 8 + (Math.sin(t * 2 + i) > 0 ? 1 : 0), FLOOR - 49, 1, 1, '#140f26');
       ctx.globalAlpha = 0.25;
       X.blob(ctx, bx - 34 + i * 8, FLOOR - 50, 5, 8, col);
       ctx.globalAlpha = 1;
@@ -15222,7 +15764,7 @@ window.PD = window.PD || {};
     // rather than scaled up with it.
     const LIFTS = { ufo: 78, door: 114, brain: 93, pc: 78, exit: 69, rat: 44,
       trash: 66, club: 118, clubout: 84, coat: 104, dance: 102, bar: 112, dj: 104, stage: 112,
-      slot0: 132, slot1: 132, slot2: 132 };
+      slot0: 132, slot1: 132, slot2: 132, universal: 150 };
     const lift = LIFTS[s.id] || 100;
     const sp = toScreen(s.x - cam, groundY(s.x));
     const x = U.clamp(Math.round(sp.x), 60, VW - 60);
@@ -15429,6 +15971,254 @@ window.PD = window.PD || {};
     TRASH, CLUB_X, CLUB_SPOTS, CLUBBERS, moonClean, trashLeft, sweep, goClub, leaveClub, spots };
 })(window.PD);
 
+/* ===== src/lab.js ===== */
+/* THE LAB.
+
+   Before the game there is a room with three tanks in it, and there is one of
+   you in each tank. They are not saves as far as anyone in the fiction is
+   concerned; they are stock. You pick one, it gets decanted, and whatever
+   happens to it after that is on the ledger under its own number.
+
+   Doubling as the save-slot picker means the menu never has to say the words
+   "save slot", and wiping a file is something you do to a body in a jar. */
+(function (PD) {
+  'use strict';
+  const U = PD.util;
+  const F = PD.font;
+  const X = PD.pxd;
+  const A = PD.audio;
+  const VW = 480, VH = 270;
+
+  const TUBE = [
+    { x: 110, name: 'SPECIMEN A' },
+    { x: 240, name: 'SPECIMEN B' },
+    { x: 370, name: 'SPECIMEN C' }
+  ];
+  const TW = 62, TH = 106, TY = 74;                 // one tank
+  const S = { t: 0, sel: -1, pick: -1, open: 0, wipe: -1, hum: 0, bub: [] };
+
+  function enter(g) {
+    S.t = 0; S.sel = -1; S.pick = -1; S.open = 0; S.wipe = -1;
+    if (!S.bub.length) {
+      for (let i = 0; i < 3; i++) {
+        S.bub[i] = [];
+        for (let k = 0; k < 14; k++) {
+          S.bub[i].push({ x: U.rand(-22, 22), y: U.rand(0, TH), r: U.rand(1, 3), sp: U.rand(8, 26) });
+        }
+      }
+    }
+    A.sfx.tone(90, { type: 'sine', to: 150, dur: 0.7, vol: 0.06 });
+  }
+
+  function update(dt, g) {
+    S.t += dt;
+    const IN = PD.input, m = IN.mouse;
+    for (const set of S.bub) {
+      for (const b of set) { b.y -= b.sp * dt; if (b.y < 0) { b.y = TH; b.x = U.rand(-22, 22); } }
+    }
+    if (S.open) { updateSettings(dt, g); return; }
+    if (S.pick >= 0) return;
+
+    S.sel = -1;
+    for (let i = 0; i < TUBE.length; i++) {
+      const x = TUBE[i].x;
+      if (m.inside && Math.abs(m.x - x) < TW / 2 + 4 && m.y > TY - 12 && m.y < TY + TH + 30) S.sel = i;
+    }
+    if (IN.hit('left')) S.sel = Math.max(0, (S.sel < 0 ? 1 : S.sel) - 1);
+    if (IN.hit('right')) S.sel = Math.min(2, (S.sel < 0 ? 1 : S.sel) + 1);
+
+    // the little bin under a tank that already has something in it
+    if (m.leftPressed && S.sel >= 0) {
+      const x = TUBE[S.sel].x;
+      if (m.y > TY + TH + 16 && m.y < TY + TH + 30 && Math.abs(m.x - x) < 26 && g.slotInfo(S.sel)) {
+        if (S.wipe === S.sel) { g.wipeSlot(S.sel); S.wipe = -1; A.sfx.deny(); }
+        else { S.wipe = S.sel; A.sfx.click(); }
+        return;
+      }
+      choose(g, S.sel);
+      return;
+    }
+    if ((IN.hit('KeyE') || IN.hit('enter') || IN.hit('space')) && S.sel >= 0) choose(g, S.sel);
+    if (m.leftPressed && m.inside && m.x > VW - 82 && m.y < 22) { S.open = 1; A.sfx.click(); }
+    if (IN.hit('esc')) { g.state = 'title'; A.sfx.click(); }
+  }
+
+  function choose(g, i) {
+    S.pick = i;
+    A.sfx.tone(320, { type: 'square', to: 900, dur: 0.3, vol: 0.09 });
+    PD.fx.ring(TUBE[i].x, TY + TH / 2, 4, 70, 0.8, '#8affd0', 3);
+    g.wipeTo(TUBE[i].x, TY + TH / 2, '#0a1a18', () => { g.decant(i); });
+  }
+
+  /* ------------------------------------------------------------- the settings
+     Four switches and a very serious button. */
+  const ROWS = [
+    { id: 'sfx', name: 'NOISES', get: () => A.state.sfx, set: v => A.sfx.toggle ? A.sfx.toggle(v) : (A.state.sfx = v) },
+    { id: 'music', name: 'THE GROOVE', get: () => A.state.music, set: v => A.music(v) },
+    { id: 'shake', name: 'SCREEN WOBBLE', get: () => !PD.fx.noShake, set: v => { PD.fx.noShake = !v; } },
+    { id: 'chum', name: 'MR CHUM IN THE CORNER', get: () => !PD.chum.muted, set: v => { PD.chum.muted = !v; } }
+  ];
+  function updateSettings(dt, g) {
+    const IN = PD.input, m = IN.mouse;
+    if (IN.hit('esc')) { S.open = 0; A.sfx.click(); return; }
+    if (!m.leftPressed) return;
+    for (let i = 0; i < ROWS.length; i++) {
+      const y = 86 + i * 24;
+      if (m.x > 128 && m.x < 352 && m.y > y && m.y < y + 18) {
+        ROWS[i].set(!ROWS[i].get());
+        A.sfx.click();
+        return;
+      }
+    }
+    if (m.x > 190 && m.x < 290 && m.y > 190 && m.y < 208) { S.open = 0; A.sfx.click(); }
+  }
+
+  /* ------------------------------------------------------------------- draw */
+  function draw(ctx, g, t) {
+    // the room: a floor, a back wall of panels, one strip light per tank
+    X.rect(ctx, 0, 0, VW, VH, '#0a1420');
+    for (let x = 0; x < VW; x += 30) {
+      X.rect(ctx, x, 0, 28, VH - 44, ((x / 30) | 0) % 2 ? '#0d1a28' : '#0b1622');
+    }
+    for (let x = 0; x < VW; x += 30) X.rect(ctx, x, 40, 28, 1, '#16283c');
+    X.rect(ctx, 0, VH - 44, VW, 44, '#111c2a');
+    X.rect(ctx, 0, VH - 44, VW, 2, '#1d3350');
+    for (let x = 0; x < VW; x += 18) X.rect(ctx, x, VH - 42, 9, 42, '#0e1824');
+    // pipes along the ceiling, and the cables that feed the tanks
+    X.rect(ctx, 0, 10, VW, 4, '#16283c');
+    X.rect(ctx, 0, 18, VW, 2, '#16283c');
+    for (const tb of TUBE) {
+      X.rect(ctx, tb.x - 3, 14, 6, TY - 14, '#16283c');
+      X.rect(ctx, tb.x - 1, 14, 2, TY - 14, '#1d3350');
+    }
+
+    F.draw(ctx, 'DECANTING BAY 7', 12, 8, '#4fd0b0', { shadow: '#031014' });
+    F.draw(ctx, 'PICK ONE. THEY ARE ALL YOU.', 12, 20, '#2b7a6a', { shadow: false });
+
+    for (let i = 0; i < TUBE.length; i++) drawTube(ctx, g, t, i);
+
+    // the settings button, top right
+    const m = PD.input.mouse;
+    const sHot = m.inside && m.x > VW - 82 && m.y < 22;
+    X.plate(ctx, VW - 78, 4, 74, 16, sHot ? '#1d4a44' : '#123029', '#2b7a6a', '#04100e', 4);
+    PD.glyph.draw(ctx, 'machine', VW - 74, 3, sHot ? '#8affd0' : '#4fd0b0', '#2b7a6a');
+    F.draw(ctx, 'SETTINGS', VW - 58, 8, sHot ? '#ffffff' : '#8affd0', { shadow: false });
+
+    F.draw(ctx, 'ESC  BACK', 12, VH - 14, '#2b7a6a', { shadow: false });
+
+    if (S.open) drawSettings(ctx, g, t);
+  }
+
+  function drawTube(ctx, g, t, i) {
+    const tb = TUBE[i], x = tb.x, on = S.sel === i;
+    const info = g.slotInfo(i);
+    const lit = on ? 1 : 0.72;
+    // the light over it
+    ctx.globalAlpha = 0.1 * lit;
+    X.poly(ctx, [[x - 8, 20], [x + 8, 20], [x + 40, TY + TH], [x - 40, TY + TH]], '#8affd0');
+    ctx.globalAlpha = 1;
+
+    // base and cap
+    X.plate(ctx, x - TW / 2 - 6, TY + TH - 4, TW + 12, 14, '#1d3350', '#2e4e78', '#08111c', 4);
+    X.plate(ctx, x - TW / 2 - 5, TY - 12, TW + 10, 13, '#1d3350', '#2e4e78', '#08111c', 4);
+
+    // the fluid
+    const fl = on ? '#1a6a58' : '#14483f';
+    X.rect(ctx, x - TW / 2, TY, TW, TH, fl);
+    for (let k = 0; k < TH; k += 3) {
+      ctx.globalAlpha = 0.08;
+      X.rect(ctx, x - TW / 2, TY + k, TW, 1, '#8affd0');
+      ctx.globalAlpha = 1;
+    }
+    // whoever is in it
+    if (info) {
+      drawSpecimen(ctx, g, x, TY + TH - 16, t, i, on);
+    } else {
+      F.draw(ctx, 'EMPTY', x, TY + TH / 2 - 4, '#2b7a6a', { center: true, shadow: false });
+      F.draw(ctx, 'GROW ONE', x, TY + TH / 2 + 6, '#1d5a4e', { center: true, shadow: false });
+    }
+    // bubbles
+    for (const b of S.bub[i]) {
+      ctx.globalAlpha = 0.5;
+      X.blob(ctx, x + b.x, TY + b.y, b.r, b.r, '#8affd0');
+      ctx.globalAlpha = 1;
+    }
+    // the glass: a bright edge and a highlight down one side
+    X.rect(ctx, x - TW / 2 - 2, TY - 2, 2, TH + 4, '#3e6e9a');
+    X.rect(ctx, x + TW / 2, TY - 2, 2, TH + 4, '#3e6e9a');
+    ctx.globalAlpha = 0.18;
+    X.rect(ctx, x - TW / 2 + 6, TY, 4, TH, '#ffffff');
+    X.rect(ctx, x + TW / 2 - 14, TY, 2, TH, '#ffffff');
+    ctx.globalAlpha = 1;
+    if (on) { X.rect(ctx, x - TW / 2 - 2, TY - 2, TW + 4, 2, '#8affd0'); X.rect(ctx, x - TW / 2 - 2, TY + TH, TW + 4, 2, '#8affd0'); }
+
+    // the label plate
+    const ly = TY + TH + 12;
+    X.plate(ctx, x - 44, ly - 2, 88, 16, on ? '#1d4a44' : '#102a26', '#2b7a6a', '#04100e', 3);
+    F.draw(ctx, tb.name, x, ly + 2, on ? '#ffffff' : '#4fd0b0', { center: true, shadow: false });
+    if (info) {
+      F.draw(ctx, '$' + U.fmt(info.credits) + '  ' + info.dominion.toFixed(0) + '%', x, ly + 18, '#4fd0b0', { center: true, shadow: '#031014' });
+      F.draw(ctx, info.debt > 0 ? 'OWES $' + U.fmt(info.debt) : 'PAID UP', x, ly + 28, info.debt > 0 ? '#ff8a9a' : '#8affa0', { center: true, shadow: '#031014' });
+      // and the bin
+      const wipeArmed = S.wipe === i;
+      X.plate(ctx, x - 26, ly + 40, 52, 13, wipeArmed ? '#6a1c2c' : '#1a2430', wipeArmed ? '#c22a4a' : '#2e4e78', '#08111c', 3);
+      F.draw(ctx, wipeArmed ? 'SURE?' : 'FLUSH IT', x, ly + 43, wipeArmed ? '#ffd0d8' : '#6a7e94', { center: true, shadow: false });
+    } else {
+      F.draw(ctx, 'NEW', x, ly + 20, '#8affd0', { center: true, scale: 2, shadow: '#031014' });
+    }
+  }
+
+  /* The thing in the jar: your own sprite, floating, eyes shut, with a wash of
+     the tank over it. */
+  function drawSpecimen(ctx, g, x, y, t, i, on) {
+    const sk = PD.art.skinFor(g.save ? g.save.cos : null);
+    const spr = sk.alienCore;
+    const fl = Math.sin(t * 0.9 + i * 2) * 4;
+    const cv = spr.frames[0];
+    const k = spr.hd || 1;
+    ctx.save();
+    ctx.globalAlpha = on ? 0.95 : 0.7;
+    ctx.translate(Math.round(x), Math.round(y + fl));
+    ctx.rotate(Math.sin(t * 0.5 + i) * 0.06);
+    ctx.drawImage(cv, -spr.ox, -spr.oy, cv.width / k, cv.height / k);
+    ctx.restore();
+    // limp arms and legs, because he is asleep in a jar
+    for (let a = 0; a < 4; a++) {
+      const sx = x + (a % 2 ? 7 : -7), sy = y + fl - (a < 2 ? 14 : 2);
+      X.curve(ctx, sx, sy, sx + Math.sin(t + a) * 5, sy + 9, sx + Math.sin(t * 0.7 + a) * 8, sy + 18,
+        sk.P && sk.P.skin ? sk.P.skin : '#6abf5a', 3, 6);
+    }
+    ctx.globalAlpha = 0.22;
+    X.rect(ctx, x - 30, y - 44, 60, 46, '#1a6a58');
+    ctx.globalAlpha = 1;
+  }
+
+  function drawSettings(ctx, g, t) {
+    ctx.fillStyle = 'rgba(4,12,18,0.86)';
+    ctx.fillRect(0, 0, VW, VH);
+    X.plate(ctx, 112, 52, 256, 176, '#0e2620', '#2b7a6a', '#04100e', 6);
+    X.rect(ctx, 112, 52, 256, 2, '#4fd0b0');
+    F.draw(ctx, 'SETTINGS', 240, 62, '#8affd0', { center: true, scale: 2, shadow: '#031014' });
+    const m = PD.input.mouse;
+    for (let i = 0; i < ROWS.length; i++) {
+      const y = 86 + i * 24;
+      const hot = m.inside && m.x > 128 && m.x < 352 && m.y > y && m.y < y + 18;
+      const on = ROWS[i].get();
+      X.plate(ctx, 128, y, 224, 18, hot ? '#16443c' : '#10322c', '#2b7a6a', '#04100e', 3);
+      F.draw(ctx, ROWS[i].name, 136, y + 5, hot ? '#ffffff' : '#8affd0', { shadow: false });
+      X.plate(ctx, 312, y + 3, 32, 12, on ? '#2f8f6a' : '#3a2230', on ? '#8dff5a' : '#8a2f4a', '#04100e', 3);
+      X.rect(ctx, on ? 332 : 314, y + 5, 10, 8, on ? '#d8ffd0' : '#c9bce8');
+      F.draw(ctx, on ? 'ON' : 'OFF', on ? 316 : 324, y + 6, '#04100e', { shadow: false });
+    }
+    F.draw(ctx, 'THE WOBBLE IS THERE ON PURPOSE. SO IS THE SHARK.', 240, 166, '#2b7a6a', { center: true, shadow: false });
+    const bHot = m.inside && m.x > 190 && m.x < 290 && m.y > 190 && m.y < 208;
+    X.plate(ctx, 190, 190, 100, 18, bHot ? '#2f8f6a' : '#1d4a44', '#4fd0b0', '#04100e', 4);
+    F.draw(ctx, 'DONE', 240, 195, '#ffffff', { center: true, scale: 2, shadow: '#031014' });
+  }
+
+  PD.lab = { enter, update, draw, S, TUBE };
+})(window.PD);
+
 /* ===== src/game.js ===== */
 /* Planet Destroyer -- main game module. Owns the loop, the camera, the ship,
    progression and the world-cracking finale. */
@@ -15443,10 +16233,15 @@ window.PD = window.PD || {};
   const TILE = PD.world.TILE;
 
   const VW = UI.VW, VH = UI.VH;
-  const SAVE_KEY = 'planet-destroyer-save-v1';
+  /* Three save files. Slot 0 keeps the original key so anybody who was already
+     playing keeps their moon. */
+  const SLOTS = 3;
+  const SLOT_KEY = i => i ? 'planet-destroyer-save-v1-s' + i : 'planet-destroyer-save-v1';
+  const SAVE_KEY = SLOT_KEY(0);
 
   const g = {
     state: 'title',
+    slot: 0,
     time: 0,
     save: null,
     world: null,
@@ -15472,6 +16267,7 @@ window.PD = window.PD || {};
     ambT: 0
   };
   PD.game = g;
+  g.SLOTS = 3;
 
   /* ------------------------------------------------------------------- saves */
   function blankSave() {
@@ -15486,14 +16282,33 @@ window.PD = window.PD || {};
       thots: 0, thotFrac: 0, neur: {},            // what the brain in the jar has grown
       artifacts: 0,                               // relics hauled home
       debt: PD.chum.DEBT0,                        // what you owe Mr Chum
-      seenIntro: 0, trash: 0, suit: 0, spun: 0
+      seenIntro: 0, trash: 0, suit: 0, spun: 0,
+      story: 0                                   // how far through the night you are
     };
   }
 
-  function loadGame() {
+  /* What the tube is showing, without loading it: enough for the label. */
+  g.slotInfo = function (i) {
+    try {
+      const raw = localStorage.getItem(SLOT_KEY(i));
+      if (!raw) return null;
+      const s = JSON.parse(raw);
+      return {
+        credits: +s.credits || 0,
+        dominion: +s.dominion || 0,
+        debt: s.debt === undefined ? 0 : Math.max(0, +s.debt || 0),
+        destroyed: (s.destroyed || []).filter(Boolean).length,
+        started: !!(s.seenIntro || s.totalEarned)
+      };
+    } catch (e) { return null; }
+  };
+  g.wipeSlot = function (i) { try { localStorage.removeItem(SLOT_KEY(i)); } catch (e) {} };
+
+  function loadGame(slot) {
+    if (slot !== undefined) g.slot = U.clamp(slot | 0, 0, SLOTS - 1);
     let s = null;
     try {
-      const raw = localStorage.getItem(SAVE_KEY);
+      const raw = localStorage.getItem(SLOT_KEY(g.slot));
       if (raw) s = JSON.parse(raw);
     } catch (e) { s = null; }
     const base = blankSave();
@@ -15512,6 +16327,7 @@ window.PD = window.PD || {};
       base.trash = Math.max(0, +s.trash || 0);
       base.suit = s.suit ? 1 : 0;
       base.spun = Math.max(0, +s.spun || 0);
+      base.story = Math.max(0, +s.story || 0);
       if (s.vault) for (const k in s.vault) { const n = +s.vault[k]; if (n > 0 && D.MAT[k]) base.vault[k] = n; }
       if (s.owned) base.owned = s.owned;
       if (s.cos) for (const k in base.cos) if (s.cos[k]) base.cos[k] = s.cos[k];
@@ -15539,10 +16355,10 @@ window.PD = window.PD || {};
   g.recompute = recompute;
 
   function saveGame() {
-    try { localStorage.setItem(SAVE_KEY, JSON.stringify(Object.assign({}, g.save))); } catch (e) { /* private mode */ }
+    try { localStorage.setItem(SLOT_KEY(g.slot), JSON.stringify(Object.assign({}, g.save))); } catch (e) { /* private mode */ }
   }
   function wipeSave() {
-    try { localStorage.removeItem(SAVE_KEY); } catch (e) {}
+    try { localStorage.removeItem(SLOT_KEY(g.slot)); } catch (e) {}
     g.save = blankSave();
     recompute();
     startBody(0, true);
@@ -15551,6 +16367,15 @@ window.PD = window.PD || {};
   }
   g.saveGame = saveGame;
   g.wipeSave = wipeSave;
+
+  /* Out of the tank and into the night. A body that has never been decanted
+     gets the whole story; one that has been picks up where it left off. */
+  g.decant = function (slot) {
+    loadGame(slot);
+    startBody(g.save.bodyIndex || 0, false);
+    if (!g.save.seenIntro) { g.player.docked = true; PD.chum.enterIntro(g); }
+    else dock(true);
+  };
 
   /* Change screens through the iris rather than cutting. */
   g.wipeTo = function (sx, sy, col, fn) {
@@ -16256,6 +17081,12 @@ window.PD = window.PD || {};
       return;
     }
 
+    if (g.state === 'lab') {
+      PD.lab.update(dt, g);
+      FX.update(dt, null);
+      return;
+    }
+
     if (g.state === 'intro') {
       PD.chum.updateIntro(dt, g);
       FX.update(dt, null);
@@ -16641,6 +17472,15 @@ window.PD = window.PD || {};
       return;
     }
 
+    if (g.state === 'lab') {
+      PD.lab.draw(ctx, g, g.time);
+      FX.drawOverlay(ctx, VW, VH);
+      PD.touch.draw(ctx, 'ui', g);
+      UI.endFrame();
+      blit();
+      return;
+    }
+
     if (g.state === 'home') {
       /* HOME IS ZOOMED. The scene is painted into its own buffer at the usual
          size, then a 240x135 window of it is blown up by exactly two to fill
@@ -16673,12 +17513,9 @@ window.PD = window.PD || {};
       const r = UI.title(ctx, g, g.time, g.dt);
       if (r.start) {
         A.resume(); A.music(true);
-        startBody(g.save.bodyIndex || 0, false);
-        // a first-timer gets the night they lost it; everyone else goes home
-        if (!g.save.seenIntro) { g.player.docked = true; PD.chum.enterIntro(g); }
-        else dock(true);
+        g.state = 'lab';
+        PD.lab.enter(g);
       }
-      if (r.wipe) wipeSave();
       PD.touch.draw(ctx, 'ui');
       blit();
       return;

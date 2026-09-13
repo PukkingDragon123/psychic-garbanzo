@@ -11,10 +11,15 @@
   const TILE = PD.world.TILE;
 
   const VW = UI.VW, VH = UI.VH;
-  const SAVE_KEY = 'planet-destroyer-save-v1';
+  /* Three save files. Slot 0 keeps the original key so anybody who was already
+     playing keeps their moon. */
+  const SLOTS = 3;
+  const SLOT_KEY = i => i ? 'planet-destroyer-save-v1-s' + i : 'planet-destroyer-save-v1';
+  const SAVE_KEY = SLOT_KEY(0);
 
   const g = {
     state: 'title',
+    slot: 0,
     time: 0,
     save: null,
     world: null,
@@ -40,6 +45,7 @@
     ambT: 0
   };
   PD.game = g;
+  g.SLOTS = 3;
 
   /* ------------------------------------------------------------------- saves */
   function blankSave() {
@@ -54,14 +60,33 @@
       thots: 0, thotFrac: 0, neur: {},            // what the brain in the jar has grown
       artifacts: 0,                               // relics hauled home
       debt: PD.chum.DEBT0,                        // what you owe Mr Chum
-      seenIntro: 0, trash: 0, suit: 0, spun: 0
+      seenIntro: 0, trash: 0, suit: 0, spun: 0,
+      story: 0                                   // how far through the night you are
     };
   }
 
-  function loadGame() {
+  /* What the tube is showing, without loading it: enough for the label. */
+  g.slotInfo = function (i) {
+    try {
+      const raw = localStorage.getItem(SLOT_KEY(i));
+      if (!raw) return null;
+      const s = JSON.parse(raw);
+      return {
+        credits: +s.credits || 0,
+        dominion: +s.dominion || 0,
+        debt: s.debt === undefined ? 0 : Math.max(0, +s.debt || 0),
+        destroyed: (s.destroyed || []).filter(Boolean).length,
+        started: !!(s.seenIntro || s.totalEarned)
+      };
+    } catch (e) { return null; }
+  };
+  g.wipeSlot = function (i) { try { localStorage.removeItem(SLOT_KEY(i)); } catch (e) {} };
+
+  function loadGame(slot) {
+    if (slot !== undefined) g.slot = U.clamp(slot | 0, 0, SLOTS - 1);
     let s = null;
     try {
-      const raw = localStorage.getItem(SAVE_KEY);
+      const raw = localStorage.getItem(SLOT_KEY(g.slot));
       if (raw) s = JSON.parse(raw);
     } catch (e) { s = null; }
     const base = blankSave();
@@ -80,6 +105,7 @@
       base.trash = Math.max(0, +s.trash || 0);
       base.suit = s.suit ? 1 : 0;
       base.spun = Math.max(0, +s.spun || 0);
+      base.story = Math.max(0, +s.story || 0);
       if (s.vault) for (const k in s.vault) { const n = +s.vault[k]; if (n > 0 && D.MAT[k]) base.vault[k] = n; }
       if (s.owned) base.owned = s.owned;
       if (s.cos) for (const k in base.cos) if (s.cos[k]) base.cos[k] = s.cos[k];
@@ -107,10 +133,10 @@
   g.recompute = recompute;
 
   function saveGame() {
-    try { localStorage.setItem(SAVE_KEY, JSON.stringify(Object.assign({}, g.save))); } catch (e) { /* private mode */ }
+    try { localStorage.setItem(SLOT_KEY(g.slot), JSON.stringify(Object.assign({}, g.save))); } catch (e) { /* private mode */ }
   }
   function wipeSave() {
-    try { localStorage.removeItem(SAVE_KEY); } catch (e) {}
+    try { localStorage.removeItem(SLOT_KEY(g.slot)); } catch (e) {}
     g.save = blankSave();
     recompute();
     startBody(0, true);
@@ -119,6 +145,15 @@
   }
   g.saveGame = saveGame;
   g.wipeSave = wipeSave;
+
+  /* Out of the tank and into the night. A body that has never been decanted
+     gets the whole story; one that has been picks up where it left off. */
+  g.decant = function (slot) {
+    loadGame(slot);
+    startBody(g.save.bodyIndex || 0, false);
+    if (!g.save.seenIntro) { g.player.docked = true; PD.chum.enterIntro(g); }
+    else dock(true);
+  };
 
   /* Change screens through the iris rather than cutting. */
   g.wipeTo = function (sx, sy, col, fn) {
@@ -824,6 +859,12 @@
       return;
     }
 
+    if (g.state === 'lab') {
+      PD.lab.update(dt, g);
+      FX.update(dt, null);
+      return;
+    }
+
     if (g.state === 'intro') {
       PD.chum.updateIntro(dt, g);
       FX.update(dt, null);
@@ -1209,6 +1250,15 @@
       return;
     }
 
+    if (g.state === 'lab') {
+      PD.lab.draw(ctx, g, g.time);
+      FX.drawOverlay(ctx, VW, VH);
+      PD.touch.draw(ctx, 'ui', g);
+      UI.endFrame();
+      blit();
+      return;
+    }
+
     if (g.state === 'home') {
       /* HOME IS ZOOMED. The scene is painted into its own buffer at the usual
          size, then a 240x135 window of it is blown up by exactly two to fill
@@ -1241,12 +1291,9 @@
       const r = UI.title(ctx, g, g.time, g.dt);
       if (r.start) {
         A.resume(); A.music(true);
-        startBody(g.save.bodyIndex || 0, false);
-        // a first-timer gets the night they lost it; everyone else goes home
-        if (!g.save.seenIntro) { g.player.docked = true; PD.chum.enterIntro(g); }
-        else dock(true);
+        g.state = 'lab';
+        PD.lab.enter(g);
       }
-      if (r.wipe) wipeSave();
       PD.touch.draw(ctx, 'ui');
       blit();
       return;

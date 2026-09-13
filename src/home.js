@@ -207,9 +207,10 @@
 
   function beatOf(t) { return ((t * 2.2) % 1); }
 
-  function goClub(g) {
+  function goClub(g, story) {
     S.scene = 'club';
-    place(g, CLUB_SPOTS[0].x + 30);
+    place(g, story ? 120 : CLUB_SPOTS[0].x + 30);
+    if (story) { UI.mode = null; say('YOU ARE UP. THE BACK OF THE ROOM IS THAT WAY.'); }
     A.sfx.tone(90, { type: 'square', to: 60, dur: 0.3, vol: 0.1 });
     if (!g.save.suit) {
       g.save.suit = 1; g.saveGame();
@@ -398,7 +399,12 @@
   function say(m) { UI.msg = m; UI.msgT = 3.2; }
 
   function spots(g) {
-    if (S.scene === 'club') return CLUB_SPOTS;
+    if (S.scene === 'club') {
+      // the night the game opens there is one machine and one reason to be here
+      if (g.save.story === 1) return [{ id: 'universal', x: 796, r: 40,
+        name: 'THE UNIVERSAL', sub: 'TEN IN A ROW TAKES THE LOT' }];
+      return CLUB_SPOTS;
+    }
     if (S.scene === 'in') return g.save.pet ? IN_SPOTS : IN_SPOTS.concat([RAT_SPOT]);
     const out = OUT_SPOTS.slice();
     for (let i = 0; i < TRASH.length; i++) {
@@ -453,6 +459,7 @@
     }
     if (s.id === 'stage') { tipTheDancer(g); return; }
     if (s.id.indexOf('slot') === 0) { playSlot(g, +s.id.slice(4)); return; }
+    if (s.id === 'universal') { P.lock = 1; PD.chum.enterGamble(g); return; }
     if (s.id === 'coat') {
       g.save.suit = g.save.suit ? 0 : 1; g.saveGame();
       say(g.save.suit ? 'THE SUIT IS BACK ON. THE SUIT IS ALWAYS RIGHT.' : 'YOU HAVE HUNG THE SUIT UP. COWARD.');
@@ -536,6 +543,9 @@
      The list is rebuilt whenever the scene or the state of the tip changes,
      which starts the tour over from the top. */
   function leadGoals(g) {
+    if (S.scene === 'club' && g.save.story === 1) return [
+      { x: 796, line: 'THE BIG ONE. AT THE BACK. YOU KNOW THE ONE.' }
+    ];
     if (S.scene === 'club') return [
       { x: 320, line: 'DANCE. IT IS FREE. NOTHING ELSE IN HERE IS.' },
       { x: 412, line: 'TIP THEM. THEY ARE WORKING. UNLIKE YOU.' },
@@ -928,6 +938,7 @@
     }
 
     drawBooths(ctx, g, t, cam);
+    drawRoomba(ctx, t, cam);
     drawStack(ctx, 236, cam, punch);
     drawStack(ctx, 394, cam, punch);
     drawDJ(ctx, g, t, cam, punch);
@@ -1115,6 +1126,7 @@
     }
 
     for (let i = 0; i < 3; i++) drawMachine(ctx, g, t, cam, i);
+    drawUniversalCab(ctx, g, t, cam);
     // the two who have been here since before you arrived
     for (const q of [{ x: 636, k: 12 }, { x: 798, k: 13 }]) {
       const K = AH.KIN[q.k % AH.KIN.length];
@@ -1123,6 +1135,35 @@
       drawTents(ctx, q.x - cam, top, K, t * 2 + q.x, 3);
       AH.blit(ctx, AH.S[K.key], (Math.floor(t * 1.1 + q.x) % 8) === 0 ? 2 : 0, q.x - cam, top, true);
     }
+  }
+
+  /* The machine the whole game is downstream of. It is twice the size of the
+     others and it is always lit. */
+  function drawUniversalCab(ctx, g, t, cam) {
+    const mx = 812 - cam, B = FLOOR - 20;
+    X.plate(ctx, mx - 38, B, 76, 20, '#1c0e18', '#3a1c30', '#0a0614', 4);
+    X.plate(ctx, mx - 34, B - 132, 68, 132, '#3a1a44', '#6a3a80', '#1a0a22', 6);
+    X.plate(ctx, mx - 28, B - 126, 56, 24, '#120a1c', '#5a2a70', '#000000', 4);
+    const lit = Math.sin(t * 6) > -0.3;
+    F.draw(ctx, 'THE', mx, B - 122, lit ? '#ffd34d' : '#6a5a1a', { center: true, shadow: false });
+    F.draw(ctx, 'UNIVERSAL', mx, B - 113, lit ? '#ff5fa8' : '#4a1c3a', { center: true, shadow: false });
+    for (let i = 0; i < 10; i++) {
+      const on = (Math.floor(t * 8) + i) % 10 < 4;
+      X.rect(ctx, mx - 30 + i * 6, B - 98, 4, 4, on ? '#ffd34d' : '#3a2a52');
+    }
+    X.plate(ctx, mx - 28, B - 90, 56, 34, '#0d0718', '#5a2a70', '#000000', 4);
+    for (let r = 0; r < 3; r++) {
+      const rx = mx - 25 + r * 17;
+      X.rect(ctx, rx, B - 87, 15, 28, '#e8e4d0');
+      PD.glyph.draw(ctx, 'star', rx, B - 82, '#c98a10', '#fff3b0');
+    }
+    F.draw(ctx, 'TEN TAKES THE LOT', mx, B - 50, '#8a7ab0', { center: true, shadow: false });
+    X.plate(ctx, mx - 22, B - 40, 44, 18, '#120a1c', '#3a2a52', '#000000', 3);
+    X.line(ctx, mx + 36, B - 46, mx + 36, B - 74, '#8a7ab0', 4);
+    X.blob(ctx, mx + 36, B - 78, 7, 7, '#c22a4a');
+    ctx.globalAlpha = 0.14 + Math.abs(Math.sin(t * 3)) * 0.06;
+    X.blob(ctx, mx, B - 70, 44, 64, '#ff5fa8');
+    ctx.globalAlpha = 1;
   }
 
   function drawMachine(ctx, g, t, cam, i) {
@@ -1162,6 +1203,26 @@
     X.line(ctx, mx + 26, B - 30 + lv, mx + 26, B - 52 + lv, '#8a7ab0', 3);
     X.blob(ctx, mx + 26, B - 54 + lv, 5, 5, '#c22a4a');
     X.blob(ctx, mx + 25, B - 55 + lv, 2, 2, '#ff8a9a');
+  }
+
+  /* A cleaning robot that has been going round this room since before any of
+     them were born, and is not close to finished. */
+  const ROOMBA = { x: 300, dir: 1, t: 0 };
+  function drawRoomba(ctx, t, cam) {
+    ROOMBA.t = t;
+    const x = ((t * 26) % 620) + 60 - cam;
+    const y = FLOOR + 6;
+    X.blob(ctx, x, y + 3, 13, 2, '#0a0614');
+    X.plate(ctx, x - 12, y - 7, 24, 10, '#2e3a4a', '#4a5c74', '#12181f', 3);
+    X.rect(ctx, x - 12, y - 7, 24, 2, '#6a7e94');
+    const eye = Math.sin(t * 5) > 0 ? '#7ef9ff' : '#2a5f6a';
+    X.rect(ctx, x - 4, y - 5, 8, 3, eye);
+    for (let i = 0; i < 3; i++) X.rect(ctx, x - 9 + i * 7, y + 3, 4, 2, '#1a2028');
+    // the mess it is picking up, and the mess it is leaving
+    ctx.globalAlpha = 0.4;
+    X.rect(ctx, x - 20, y + 2, 8, 2, '#3a4a3a');
+    ctx.globalAlpha = 1;
+    if (U.chance(0.02)) FX.puff(x + cam, FLOOR + 4, 2, '#6a7e94', 0.5);
   }
 
   /* Booths along the back, with the ones who came to sit down in them. */
@@ -1257,6 +1318,9 @@
       const col = ['#8affa0', '#ff8ad8', '#ffb03d', '#7ec8ff'][i % 4];
       X.rect(ctx, bx - 36 + i * 8, FLOOR - 58, 4, 14, col);
       X.rect(ctx, bx - 36 + i * 8, FLOOR - 60, 2, 3, '#c9bce8');
+      // there is an eye in every one of them and it is looking at you
+      X.rect(ctx, bx - 36 + i * 8, FLOOR - 50, 3, 3, '#ffffff');
+      X.rect(ctx, bx - 35 + i * 8 + (Math.sin(t * 2 + i) > 0 ? 1 : 0), FLOOR - 49, 1, 1, '#140f26');
       ctx.globalAlpha = 0.25;
       X.blob(ctx, bx - 34 + i * 8, FLOOR - 50, 5, 8, col);
       ctx.globalAlpha = 1;
@@ -1632,7 +1696,7 @@
     // rather than scaled up with it.
     const LIFTS = { ufo: 78, door: 114, brain: 93, pc: 78, exit: 69, rat: 44,
       trash: 66, club: 118, clubout: 84, coat: 104, dance: 102, bar: 112, dj: 104, stage: 112,
-      slot0: 132, slot1: 132, slot2: 132 };
+      slot0: 132, slot1: 132, slot2: 132, universal: 150 };
     const lift = LIFTS[s.id] || 100;
     const sp = toScreen(s.x - cam, groundY(s.x));
     const x = U.clamp(Math.round(sp.x), 60, VW - 60);

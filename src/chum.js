@@ -789,10 +789,44 @@
   };
   const SYMS = ['coin', 'ore', 'planet', 'skull', 'star'];
 
+  /* =====================================================================
+     THE NIGHT YOU LOST IT
+
+     Eight beats with a playable club in the middle of them. You come round on
+     the carpet, you find THE UNIVERSAL at the back, you get nine stars, and
+     then the game does to you what the machine was always going to do. After
+     that it is out of your hands: the floor, the drag through the city, the
+     fist, and the room with the throne in it. */
   const BEATS = [
-    { dur: 7.5, lines: ['ONE MACHINE. ONE LEVER. EVERYTHING YOU HAD.'] },
-    { dur: 5.5, lines: ['THE MACHINE DID NOT WANT IT.', 'SOMEBODY BEHIND YOU DID.'] },
-    { dur: 26, lines: [
+    { id: 'wake', dur: 11, lines: [
+      'YOU WAKE UP ON A CARPET.',
+      'YOU DO NOT KNOW WHOSE CARPET.',
+      'THERE IS A MACHINE AT THE BACK OF THE ROOM WITH YOUR NAME ON IT.',
+      'GO AND FIND IT. THAT IS WHAT YOU CAME FOR.'
+    ] },
+    { id: 'universal', dur: 999, lines: [] },      // interactive: the ten stars
+    { id: 'number', dur: 7, lines: ['THE MACHINE DID NOT WANT IT.', 'SOMEBODY BEHIND YOU DID.'] },
+    { id: 'floor', dur: 10, lines: [
+      'YOU GO DOWN ON THE CARPET.',
+      'NOBODY IN THE ROOM STOPS DANCING.',
+      'SOMEBODY STEPS OVER YOU TO GET TO THE BAR.'
+    ] },
+    { id: 'drag', dur: 22, lines: [
+      'TWO OF THEM PICK YOU UP.',
+      'THE BIG ONE HAS HORNS. HE DOES NOT SAY ANYTHING ALL NIGHT.',
+      'THE OTHER ONE IS GREY AND COVERED IN RED, AND HE WILL NOT SHUT UP.',
+      'DRAX: I AM DRAX. I AM TAKING YOU TO THE MAN.',
+      'DRAX: DO NOT STRUGGLE. NOTHING IS FUNNIER THAN WHEN YOU STRUGGLE.',
+      'THE CITY GOES PAST UPSIDE DOWN. IT IS BEAUTIFUL. YOU ARE BLEEDING.'
+    ] },
+    { id: 'fist', dur: 7, lines: [
+      'YOU: WHY ARE YOU GREY?',
+      'DRAX: WHAT?',
+      'YOU: I SAID WHY ARE YOU --'
+    ] },
+    { id: 'throne', dur: 30, lines: [
+      'YOU ARE LOOKING AT A CEILING. THE CEILING IS GOLD.',
+      'MR CHUM: HE IS AWAKE. GET HIM UP. NOT ALL THE WAY UP.',
       'MR CHUM: YOU OWE ME ONE MILLION.',
       'MR CHUM: YOU HAVE NO MONEY. NO SHIP. NO IDEAS.',
       'MR CHUM: SO I BOUGHT YOU A SHIP. AND A DRILL. AND A MOON.',
@@ -800,12 +834,435 @@
       'MR CHUM: THIS IS A WATCH. I AM IN IT NOW.',
       'MR CHUM: THAT IS THE ARRANGEMENT. NOD.'
     ] },
-    { dur: 6, lines: ['AND THAT IS HOW YOU CAME TO OWN A MOON.'] }
+    { id: 'drop', dur: 6, lines: ['AND THAT IS HOW YOU CAME TO OWN A MOON.'] }
   ];
+  const B_OF = {};
+  BEATS.forEach((b, i) => { B_OF[b.id] = i; });
+
+  /* ------------------------------------------------------ THE UNIVERSAL
+     Ten stars in a row. You get nine. At nine it asks you whether you want to
+     go on or walk away, and it does not matter: the tenth reel is a skull
+     either way, because that is what the machine is for. */
+  const UNI = { n: 0, spin: 0, reel: 0, choice: 0, lost: 0, t: 0, shake: 0, flash: 0 };
+  function enterGamble(g) {
+    IN_S.beat = B_OF.universal; IN_S.t = 0; IN_S.line = 0; IN_S.chars = 0; IN_S.pop = 1;
+    UNI.n = 0; UNI.spin = 0; UNI.reel = 0; UNI.choice = 0; UNI.lost = 0; UNI.t = 0;
+    UNI.shake = 0; UNI.flash = 0;
+    g.state = 'intro';
+    A.sfx.tone(160, { type: 'square', to: 90, dur: 0.6, vol: 0.1 });
+  }
+
+  function updateUniversal(dt, g) {
+    UNI.t += dt;
+    UNI.shake = Math.max(0, UNI.shake - dt * 2);
+    UNI.flash = Math.max(0, UNI.flash - dt * 1.6);
+    const IN = PD.input, m = IN.mouse;
+    const poke = IN.hit('KeyE') || IN.hit('Space') || IN.hit('Enter') || (m.inside && m.leftPressed);
+
+    if (UNI.spin > 0) {
+      UNI.spin -= dt;
+      UNI.reel = (UNI.reel + dt * 30) % 5;
+      if (UNI.spin <= 0) {
+        if (UNI.n < 9) {
+          UNI.n++; UNI.reel = 4;                 // another star
+          A.sfx.tone(500 + UNI.n * 70, { type: 'square', to: 900 + UNI.n * 80, dur: 0.12, vol: 0.07 });
+          FX.stars(240, 116, 6, '#ffd34d');
+          if (UNI.n === 9) { UNI.choice = 1; A.sfx.tone(200, { type: 'sine', to: 140, dur: 0.8, vol: 0.08 }); }
+        } else {
+          UNI.reel = 3;                          // and the skull
+          UNI.lost = 1; UNI.shake = 1; UNI.flash = 1;
+          A.sfx.deny();
+          A.sfx.tone(220, { type: 'square', to: 60, dur: 1.1, vol: 0.12 });
+          FX.ring(240, 116, 4, 120, 1.1, '#ff5a4d', 3);
+        }
+      }
+      return;
+    }
+    if (UNI.lost) {
+      if (UNI.t > 2.6 && poke) nextBeat(g);
+      return;
+    }
+    if (UNI.choice) {
+      // GO ON, or WALK AWAY. There is no walking away.
+      const go = m.inside && m.leftPressed && m.x > 120 && m.x < 232 && m.y > 196 && m.y < 218;
+      const out = m.inside && m.leftPressed && m.x > 248 && m.x < 360 && m.y > 196 && m.y < 218;
+      if (go || IN.hit('KeyE') || IN.hit('Enter')) { UNI.choice = 0; UNI.n = 9; UNI.spin = 1.4; A.sfx.click(); }
+      else if (out || IN.hit('Escape')) {
+        UNI.choice = 0; UNI.spin = 1.4;
+        IN_S.quit = 1;
+        A.sfx.click();
+      }
+      return;
+    }
+    if (poke) { UNI.spin = UNI.n < 8 ? 0.5 : 0.9; A.sfx.tone(260, { type: 'square', to: 520, dur: 0.14, vol: 0.07 }); }
+  }
+
+  function drawUniversal(ctx, g, t) {
+    const sh = UNI.shake > 0 ? Math.round(Math.sin(t * 60) * UNI.shake * 5) : 0;
+    ctx.save(); ctx.translate(sh, 0);
+    // a black room with one machine lit in it
+    ctx.fillStyle = '#0a0410'; ctx.fillRect(-8, 0, VW + 16, VH);
+    for (let i = 0; i < 60; i++) {
+      const x = (U.hash2(i, 3) * VW) | 0, y = (U.hash2(i, 7) * VH) | 0;
+      ctx.globalAlpha = 0.1 + U.hash2(i, 11) * 0.2;
+      ctx.fillStyle = i % 3 ? '#4a1c3a' : '#12384a'; ctx.fillRect(x, y, 2, 1);
+    }
+    ctx.globalAlpha = 1;
+    ctx.globalAlpha = 0.1 + Math.abs(Math.sin(t * 2)) * 0.05;
+    X.poly(ctx, [[210, 0], [270, 0], [340, VH], [140, VH]], '#ffd34d');
+    ctx.globalAlpha = 1;
+
+    // the cabinet, which is enormous
+    X.plate(ctx, 148, 40, 184, 176, '#2a1a3a', '#4a3660', '#120a1c', 6);
+    X.plate(ctx, 158, 48, 164, 30, '#120a1c', '#3a2a52', '#000000', 4);
+    const lit = Math.sin(t * 6) > -0.3;
+    F.draw(ctx, 'THE UNIVERSAL', 240, 56, lit ? '#ffd34d' : '#6a5a1a', { center: true, scale: 2, shadow: '#3a0c30' });
+    F.draw(ctx, 'TEN IN A ROW TAKES THE LOT', 240, 70, lit ? '#ff5fa8' : '#4a1c3a', { center: true, shadow: false });
+
+    // the ten lamps along the top, one per star so far
+    for (let i = 0; i < 10; i++) {
+      const lx = 164 + i * 16;
+      const on = i < UNI.n;
+      X.plate(ctx, lx, 84, 13, 13, on ? '#ffd34d' : '#241636', on ? '#fff3b0' : '#3a2a52', '#120a1c', 3);
+      if (on) PD.glyph.draw(ctx, 'star', lx - 1, 83, '#c98a10', '#fff3b0');
+      else F.draw(ctx, String(i + 1), lx + 6, 87, '#5a4a70', { center: true, shadow: false });
+    }
+
+    // the window
+    X.plate(ctx, 186, 102, 108, 44, '#0d0718', '#3a2a52', '#000000', 4);
+    const SY = ['coin', 'ore', 'planet', 'skull', 'star'];
+    for (let r = 0; r < 3; r++) {
+      const rx = 192 + r * 34;
+      X.rect(ctx, rx, 106, 30, 36, '#e8e4d0');
+      X.rect(ctx, rx, 106, 30, 1, '#8e8874');
+      const idx = Math.floor(UNI.reel) % 5;
+      if (UNI.spin > 0) {
+        for (let k = -1; k <= 1; k++) {
+          ctx.globalAlpha = k ? 0.28 : 0.85;
+          PD.glyph.draw(ctx, SY[(idx + k + r + 5) % 5], rx + 3, 108 + k * 15, '#3a2a52', '#8a7ab0', 2);
+        }
+        ctx.globalAlpha = 1;
+      } else {
+        const show = UNI.lost ? 'skull' : (UNI.n > 0 ? 'star' : SY[(idx + r) % 5]);
+        PD.glyph.draw(ctx, show, rx + 3, 112, show === 'skull' ? '#c22a4a' : '#c98a10',
+          show === 'skull' ? '#ff8a9a' : '#fff3b0', 2);
+      }
+    }
+    X.rect(ctx, 186, 123, 108, 1, UNI.lost ? '#ff5a4d' : '#8a2f4a');
+
+    // the lever
+    const lv = UNI.spin > 0 ? 16 : 0;
+    X.line(ctx, 340, 150 + lv, 340, 110 + lv, '#8a7ab0', 4);
+    X.blob(ctx, 340, 106 + lv, 7, 7, '#c22a4a');
+    X.blob(ctx, 338, 104 + lv, 3, 3, '#ff8a9a');
+
+    // our man, at the lever, in the worst moment of his life
+    const al = PD.art.sprites.alien;
+    const K = 1.1, bob = Math.sin(t * 3) * (UNI.lost ? 0 : 2);
+    const ax = 386, ay = 216 - (al.h - al.oy) * K + bob;
+    ctx.drawImage(al.frames[UNI.lost ? 0 : Math.floor(t * 6) % 4], 0, 0, al.frames[0].width, al.frames[0].height,
+      Math.round(ax - al.ox * K), Math.round(ay - al.oy * K), Math.round(al.w * K), Math.round(al.h * K));
+
+    X.rect(ctx, 0, 216, VW, VH - 216, '#1a1024');
+    X.rect(ctx, 0, 214, VW, 2, '#2a1c33');
+    for (let x = 0; x < VW; x += 16) X.rect(ctx, x, 216, 8, VH - 216, '#231430');
+    ctx.restore();
+
+    if (UNI.flash > 0) {
+      ctx.fillStyle = 'rgba(255,90,77,' + (UNI.flash * 0.5).toFixed(2) + ')';
+      ctx.fillRect(0, 0, VW, VH);
+    }
+
+    // and whatever the machine wants from you now
+    if (UNI.lost) {
+      captionCard(ctx, [IN_S.quit ? 'YOU WALKED AWAY. IT SPUN ANYWAY.' : 'NINE. AND THEN THIS.'],
+        2, 1, t, UNI.t > 2.6 && Math.abs(Math.sin(t * 4)) > 0.4 ? 'E / TAP' : null);
+    } else if (UNI.choice) {
+      const m = PD.input.mouse;
+      captionCard(ctx, ['NINE. ONE MORE TAKES EVERYTHING.'], 1, 1, t, null);
+      for (const [bx, lab, col] of [[120, 'ONE MORE', '#f2c23a'], [248, 'WALK AWAY', '#6b6480']]) {
+        const hot = m.inside && m.x > bx && m.x < bx + 112 && m.y > 196 && m.y < 218;
+        X.plate(ctx, bx, 196, 112, 22, hot ? col : '#241636', col, '#120a1c', 4);
+        F.draw(ctx, lab, bx + 56, 202, hot ? '#1a1024' : col, { center: true, scale: 2, shadow: '#000000' });
+      }
+    } else {
+      captionCard(ctx, [UNI.n === 0 ? 'PULL IT.' : 'AGAIN. ' + (10 - UNI.n) + ' TO GO.'], 2, 1, t,
+        Math.abs(Math.sin(t * 4)) > 0.4 ? 'E / TAP' : null);
+    }
+  }
+
+  /* ---- the floor of the club, from very close to it ---- */
+  function drawFloor(ctx, g, t) {
+    ctx.fillStyle = '#140820'; ctx.fillRect(0, 0, VW, VH);
+    // carpet, seen from about six inches up
+    for (let y = 120; y < VH; y += 6) {
+      const k = (y - 120) / (VH - 120);
+      X.rect(ctx, 0, y, VW, 6, k > 0.5 ? '#4a1230' : '#3a0e26');
+      for (let x = ((y * 7) % 18); x < VW; x += 18) X.rect(ctx, x, y + 2, 7, 3, k > 0.5 ? '#5c1a3c' : '#47122e');
+    }
+    X.rect(ctx, 0, 118, VW, 2, '#2a0a1c');
+    // legs going past, out of focus
+    for (let i = 0; i < 7; i++) {
+      const lx = ((i * 83 + t * (14 + i * 5)) % (VW + 80)) - 40;
+      ctx.globalAlpha = 0.55;
+      X.rect(ctx, lx, 66, 9, 54, '#1d0e28');
+      X.rect(ctx, lx + 13, 70, 9, 50, '#1d0e28');
+      X.blob(ctx, lx + 4, 120, 8, 3, '#0d0614');
+      ctx.globalAlpha = 1;
+    }
+    // the lights of the room, far away and not interested
+    for (let i = 0; i < 9; i++) {
+      const on = (Math.floor(t * 4) + i) % 3 !== 0;
+      X.rect(ctx, 10 + i * 52, 28, 34, 3, on ? '#7a2450' : '#2a0e1c');
+    }
+    ctx.globalAlpha = 0.12;
+    X.blob(ctx, 240, 50, 180, 40, '#ff5fa8');
+    ctx.globalAlpha = 1;
+
+    // you, down there
+    const sk = PD.art.skinFor(g.save.cos), spr = sk.alienCore;
+    const cv = spr.frames[0], k = spr.hd || 1;
+    ctx.save();
+    ctx.translate(200, 150 + Math.sin(t * 1.4) * 1);
+    ctx.rotate(-0.5);
+    ctx.drawImage(cv, -spr.ox, -spr.oy, cv.width / k, cv.height / k);
+    ctx.restore();
+    // and the tears, which are the only thing moving fast
+    for (let i = 0; i < 5; i++) {
+      const f = ((t * 1.4 + i * 0.2) % 1);
+      ctx.globalAlpha = 1 - f;
+      X.rect(ctx, 196 + i * 3 - f * 6, 132 + f * 26, 2, 3, '#9fe8ff');
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  /* ---- the city, going past upside down ---- */
+  const CITY = [];
+  for (let i = 0; i < 120; i++) {
+    CITY.push({ l: i % 3, x: U.hash2(i, 3) * 1600, w: 16 + U.hash2(i, 7) * 42, h: 40 + U.hash2(i, 11) * 130,
+      hue: U.hash2(i, 13) });
+  }
+  function drawDrag(ctx, g, t) {
+    const scroll = t * 58;
+    // a sky with a fat neon smear in it
+    const grd = ctx.createLinearGradient(0, 0, 0, VH);
+    grd.addColorStop(0, '#120428'); grd.addColorStop(0.55, '#2a0c3e'); grd.addColorStop(1, '#0a0418');
+    ctx.fillStyle = grd; ctx.fillRect(0, 0, VW, VH);
+    ctx.globalAlpha = 0.18;
+    X.blob(ctx, 300, 56, 150, 40, '#ff2f7a');
+    X.blob(ctx, 120, 40, 110, 26, '#2f7aff');
+    ctx.globalAlpha = 1;
+    // rain
+    for (let i = 0; i < 70; i++) {
+      const x = ((U.hash2(i, 5) * VW + t * 40) % (VW + 20)) - 10;
+      const y = ((U.hash2(i, 9) * VH + t * 420 + i * 13) % VH);
+      ctx.globalAlpha = 0.18 + U.hash2(i, 17) * 0.2;
+      X.rect(ctx, x, y, 1, 7, '#9fd8ff');
+      ctx.globalAlpha = 1;
+    }
+    // three layers of tower, each slower than the one in front
+    for (let L = 2; L >= 0; L--) {
+      const sp = [1, 0.55, 0.28][L];
+      const base = [186, 176, 168][L];
+      const col = ['#150a24', '#1d1030', '#28183f'][L];
+      const litc = ['#3a2050', '#4a2a66', '#5e3a80'][L];
+      for (const b of CITY) {
+        if (b.l !== L) continue;
+        const x = ((b.x - scroll * sp) % 1600 + 1600) % 1600 - 200;
+        if (x < -80 || x > VW + 20) continue;
+        const h = b.h * (0.6 + L * 0.2);
+        X.rect(ctx, x, base - h, b.w, h + 40, col);
+        X.rect(ctx, x, base - h, b.w, 2, litc);
+        // windows
+        for (let wy = base - h + 6; wy < base - 4; wy += 8) {
+          for (let wx = x + 3; wx < x + b.w - 3; wx += 7) {
+            const on = U.hash2((wx * 3) | 0, (wy * 5) | 0) > (0.35 + L * 0.12);
+            if (!on) continue;
+            X.rect(ctx, wx, wy, 3, 4, b.hue > 0.6 ? '#ffd34d' : (b.hue > 0.3 ? '#7ef9ff' : '#ff5fa8'));
+          }
+        }
+        // a sign on about one in five
+        if (b.hue > 0.78) {
+          const on = Math.sin(t * 5 + b.x) > -0.4;
+          X.rect(ctx, x + 2, base - h - 10, b.w - 4, 8, on ? '#ff2f7a' : '#3a0e26');
+          X.rect(ctx, x + 4, base - h - 8, b.w - 8, 4, on ? '#ffd6f0' : '#5a1a3a');
+        }
+      }
+    }
+    // traffic, in the gap between the layers
+    for (let i = 0; i < 5; i++) {
+      const x = ((i * 137 - t * (90 + i * 30)) % (VW + 120) + VW + 120) % (VW + 120) - 60;
+      const y = 60 + (i % 3) * 16;
+      X.rect(ctx, x, y, 18, 5, '#2a2140');
+      X.rect(ctx, x + 2, y - 2, 12, 3, '#3a3060');
+      X.rect(ctx, x + 17, y + 1, 4, 2, '#ff5a4d');
+      X.rect(ctx, x - 3, y + 1, 4, 2, '#7ef9ff');
+      ctx.globalAlpha = 0.25;
+      X.blob(ctx, x - 8, y + 2, 10, 2, '#7ef9ff');
+      ctx.globalAlpha = 1;
+    }
+    // the street
+    X.rect(ctx, 0, 200, VW, VH - 200, '#0f0a1a');
+    X.rect(ctx, 0, 198, VW, 3, '#1d1030');
+    for (let x = ((-scroll * 1.6) % 40 + 40) % 40 - 40; x < VW; x += 40) X.rect(ctx, x, 214, 22, 3, '#2a2140');
+    ctx.globalAlpha = 0.14;
+    for (let i = 0; i < 6; i++) X.blob(ctx, ((i * 96 - scroll * 1.6) % 600 + 600) % 600 - 60, 208, 30, 8, '#ff2f7a');
+    ctx.globalAlpha = 1;
+
+    // and the three of them, dead centre
+    const a = ensureArt();
+    const bob = Math.sin(t * 5) * 2;
+    drawBull(ctx, 300, 200 + bob, t);
+    drawDrax(ctx, 176, 200 - bob, t);
+    // you, between them, being dragged by the ankles
+    const sk = PD.art.skinFor(g.save.cos), spr = sk.alienCore;
+    const cv = spr.frames[0], k = spr.hd || 1;
+    ctx.save();
+    ctx.translate(238, 190 + bob);
+    ctx.rotate(1.5);
+    ctx.drawImage(cv, -spr.ox, -spr.oy, cv.width / k, cv.height / k);
+    ctx.restore();
+    for (let i = 0; i < 4; i++) {
+      if (!U.chance(0.5)) continue;
+      X.rect(ctx, 226 + U.rand(-14, 14), 198 + U.rand(-2, 4), 2, 1, '#c9bce8');
+    }
+  }
+
+  /* Drax: grey, covered in red, and not remotely joking. */
+  function drawDrax(ctx, x, y, t) {
+    const S1 = '#8d99a6', S2 = '#5d6874', RD = '#b04a52', DK = '#252a36';
+    const br = Math.sin(t * 3) * 1;
+    X.blob(ctx, x, y + 1, 14, 3, '#0a0614');
+    // legs
+    X.rect(ctx, x - 9, y - 24, 8, 24, DK);
+    X.rect(ctx, x + 2, y - 24, 8, 24, DK);
+    X.rect(ctx, x - 10, y - 4, 10, 4, '#1a1d26');
+    X.rect(ctx, x + 1, y - 4, 10, 4, '#1a1d26');
+    // torso
+    X.blob(ctx, x, y - 34, 13, 11 + br, S1);
+    X.rect(ctx, x - 13, y - 28, 26, 6, S2);
+    for (let i = 0; i < 7; i++) {
+      X.rect(ctx, x - 10 + (i % 4) * 6, y - 42 + ((i / 4) | 0) * 7, 5, 2, RD);
+      X.rect(ctx, x - 8 + (i % 3) * 7, y - 38 + (i % 2) * 6, 2, 5, RD);
+    }
+    // arms, one of them holding an ankle
+    X.rect(ctx, x - 18, y - 40, 7, 18, S1);
+    X.rect(ctx, x + 11, y - 40, 7, 14, S1);
+    X.rect(ctx, x + 14, y - 28, 12, 5, S1);
+    X.rect(ctx, x - 18, y - 38, 7, 3, RD);
+    // head
+    X.blob(ctx, x, y - 50, 8, 7, S1);
+    X.rect(ctx, x - 6, y - 55, 12, 2, RD);
+    X.rect(ctx, x - 5, y - 51, 3, 2, '#120f16');
+    X.rect(ctx, x + 2, y - 51, 3, 2, '#120f16');
+    X.rect(ctx, x - 3, y - 46, 6, 1, '#3a2028');
+  }
+
+  /* The big one. He has horns and nothing at all to say. */
+  function drawBull(ctx, x, y, t) {
+    const S1 = '#7a5a48', S2 = '#523a2e', H = '#e8dfc4';
+    const br = Math.sin(t * 2.4 + 1) * 1;
+    X.blob(ctx, x, y + 1, 17, 3, '#0a0614');
+    X.rect(ctx, x - 12, y - 26, 10, 26, '#2a2438');
+    X.rect(ctx, x + 3, y - 26, 10, 26, '#2a2438');
+    X.blob(ctx, x, y - 40, 17, 14 + br, S1);
+    X.rect(ctx, x - 17, y - 34, 34, 7, S2);
+    X.rect(ctx, x - 22, y - 48, 8, 22, S1);
+    X.rect(ctx, x + 14, y - 48, 8, 18, S1);
+    X.rect(ctx, x - 26, y - 32, 12, 6, S1);
+    X.blob(ctx, x + 1, y - 58, 10, 8, S1);
+    X.blob(ctx, x - 3, y - 54, 6, 4, '#a07a60');
+    X.rect(ctx, x - 4, y - 59, 3, 2, '#120f16');
+    X.rect(ctx, x + 3, y - 59, 3, 2, '#120f16');
+    // the horns
+    for (const s of [-1, 1]) {
+      X.rect(ctx, x + s * 9, y - 64, 4, 3, H);
+      X.rect(ctx, x + s * 12, y - 68, 4, 5, H);
+      X.rect(ctx, x + s * 14, y - 71, 3, 4, H);
+    }
+    X.rect(ctx, x - 2, y - 50, 5, 2, '#c9c4b4');       // the ring
+  }
+
+  /* ---- the fist ---- */
+  function drawFist(ctx, g, t) {
+    drawDrag(ctx, g, t);
+    const k = U.clamp((IN_S.t - 3.2) / 0.7, 0, 1);
+    if (IN_S.line >= 2 && k > 0) {
+      // it arrives very fast and it fills the screen
+      const r = 20 + k * k * 260;
+      X.blob(ctx, 240, 130, r, r * 0.85, '#8d99a6');
+      X.blob(ctx, 240 - r * 0.3, 130 - r * 0.3, r * 0.5, r * 0.4, '#a7b2be');
+      for (let i = 0; i < 5; i++) X.rect(ctx, 240 - r + i * r * 0.4, 130 - r * 0.2, r * 0.25, r * 0.5, '#6d7885');
+      if (k >= 1) { ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, VW, VH); }
+    }
+  }
+
+  /* ---- and the room with the throne in it, seen from the carpet ---- */
+  function drawThrone(ctx, g, t) {
+    const wake = U.clamp(IN_S.t / 1.6, 0, 1);
+    ctx.fillStyle = '#12060c'; ctx.fillRect(0, 0, VW, VH);
+    // a gold ceiling, way up, because you are looking up at it
+    for (let i = 0; i < 9; i++) {
+      const w = 60 + i * 6;
+      X.rect(ctx, 240 - w / 2, 4 + i * 4, w, 3, i % 2 ? '#6a5220' : '#8a6a2a');
+    }
+    ctx.globalAlpha = 0.14;
+    X.blob(ctx, 240, 30, 190, 30, '#ffd34d');
+    ctx.globalAlpha = 1;
+    // pillars either side, converging because of the angle
+    for (const s of [-1, 1]) {
+      X.poly(ctx, [[240 + s * 70, 30], [240 + s * 96, 30], [240 + s * 250, VH], [240 + s * 150, VH]], '#2a1018');
+      X.poly(ctx, [[240 + s * 70, 30], [240 + s * 78, 30], [240 + s * 170, VH], [240 + s * 150, VH]], '#3a1a24');
+    }
+    // the steps up to it
+    for (let i = 0; i < 6; i++) {
+      const w = 150 + i * 26, y = 150 + i * 14;
+      X.rect(ctx, 240 - w / 2, y, w, 14, i % 2 ? '#3a1a24' : '#451f2c');
+      X.rect(ctx, 240 - w / 2, y, w, 2, '#5e2c3c');
+    }
+    // the throne
+    X.plate(ctx, 206, 84, 68, 70, '#5e2c3c', '#8a4458', '#2a1018', 5);
+    for (let i = 0; i < 5; i++) X.spike(ctx, 0, 0, 0, 0, 0, '#000');
+    for (let i = 0; i < 7; i++) {
+      const sx = 208 + i * 10;
+      X.poly(ctx, [[sx, 84], [sx + 8, 84], [sx + 4, 84 - 8 - (i % 2) * 6]], '#8a6a2a');
+    }
+    X.rect(ctx, 206, 130, 68, 6, '#8a6a2a');
+    // and him on it, at a comfortable size for a man who owns the building
+    const a = ensureArt();
+    const K = 1.4;
+    ctx.save();
+    ctx.translate(Math.round(240 - MCX * K), Math.round(146 - MBASE * K));
+    ctx.scale(K, K);
+    ctx.drawImage(a.mini.walk[IN_S.chars < (BEATS[B_OF.throne].lines[IN_S.line] || '').length
+      && Math.floor(t * 9) % 2 === 0 ? 1 : 0][0], 0, 0);
+    ctx.restore();
+    // two very large silhouettes either side of him
+    for (const s of [-1, 1]) {
+      ctx.globalAlpha = 0.9;
+      X.blob(ctx, 240 + s * 62, 150, 16, 30, '#160a10');
+      X.blob(ctx, 240 + s * 62, 116, 11, 10, '#160a10');
+      ctx.globalAlpha = 1;
+    }
+    // the edge of your own eyelids, opening
+    const lid = (1 - wake) * (VH / 2);
+    if (lid > 0.5) {
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(0, 0, VW, lid);
+      ctx.fillRect(0, VH - lid, VW, lid);
+    }
+    // the watch, being fitted
+    if (IN_S.line >= 6) {
+      const bz = Math.round(U.rand(-1, 1));
+      X.plate(ctx, 40 + bz, VH - 52, 26, 16, '#2a2438', '#453c5c', '#0a0614', 3);
+      X.rect(ctx, 44 + bz, VH - 48, 18, 9, '#0d5a78');
+      X.rect(ctx, 46 + bz, VH - 46, 14, 5, '#7ef9ff');
+    }
+  }
 
   function enterIntro(g) {
     ensureArt();
-    IN_S.beat = 0; IN_S.t = 0; IN_S.line = 0; IN_S.chars = 0; IN_S.pop = 0;
+    IN_S.beat = 0; IN_S.t = 0; IN_S.line = 0; IN_S.chars = 0; IN_S.pop = 0; IN_S.quit = 0;
     IN_S.reel = [0, 0, 0]; IN_S.spin = 3.2; IN_S.chips.length = 0; IN_S.flash = 0;
     IN_S.done = 0;
     g.state = 'intro';
@@ -814,15 +1271,26 @@
 
   function nextBeat(g) {
     IN_S.beat++; IN_S.t = 0; IN_S.line = 0; IN_S.chars = 0; IN_S.pop = 0;
-    if (IN_S.beat === 1) {
-      IN_S.flash = 1;
-      A.sfx.deny();
-      for (let i = 0; i < 40; i++) {
-        IN_S.chips.push({ x: 240 + U.rand(-40, 40), y: 190, vx: U.rand(-180, 180), vy: U.rand(-220, -60),
-          a: U.rand(0, U.TAU), va: U.rand(-8, 8), life: U.rand(1.2, 2.6) });
-      }
+    if (IN_S.beat >= BEATS.length) { finishIntro(g); return; }
+    // after the first beat you are on your feet in the club, and it is yours
+    if (BEATS[IN_S.beat].id === 'universal' && !IN_S.inClub) {
+      IN_S.inClub = 1;
+      g.save.story = 1;
+      g.saveGame();
+      g.wipeTo(240, 135, '#1a1230', () => {
+        g.state = 'home';
+        PD.home.enter(g);
+        PD.home.goClub(g, true);
+      });
     }
-    if (IN_S.beat >= BEATS.length) finishIntro(g);
+    if (BEATS[IN_S.beat].id === 'number') { IN_S.flash = 1; A.sfx.deny(); spillChips(); }
+  }
+
+  function spillChips() {
+    for (let i = 0; i < 40; i++) {
+      IN_S.chips.push({ x: 240 + U.rand(-40, 40), y: 190, vx: U.rand(-180, 180), vy: U.rand(-220, -60),
+        a: U.rand(0, U.TAU), va: U.rand(-8, 8), life: U.rand(1.2, 2.6) });
+    }
   }
 
   function finishIntro(g) {
@@ -845,8 +1313,13 @@
   function updateIntro(dt, g) {
     if (IN_S.done) return;
     const IN = PD.input;
-    if (IN.hit('Escape')) { finishIntro(g); return; }
     IN_S.t += dt;
+    if (BEATS[IN_S.beat] && BEATS[IN_S.beat].id === 'universal') {
+      IN_S.pop = 1;
+      updateUniversal(dt, g);
+      return;
+    }
+    if (IN.hit('Escape')) { finishIntro(g); return; }
     IN_S.pop = Math.min(1, IN_S.pop + dt * 4.5);
     IN_S.flash = Math.max(0, IN_S.flash - dt * 2.2);
     if (IN_S.spin > 0) {
@@ -947,7 +1420,7 @@
 
   /* ---- the number, and the shadow that falls across it ---- */
   function drawDebtCard(ctx, g, t) {
-    drawCasino(ctx, g, t);
+    drawUniversal(ctx, g, t);
     ctx.fillStyle = 'rgba(6,3,14,0.88)'; ctx.fillRect(0, 0, VW, VH);
     const f = U.clamp(IN_S.t / 1.6, 0, 1);
     const n = Math.round(DEBT0 * f * f);
@@ -1061,9 +1534,14 @@
   }
 
   function drawIntro(ctx, g, t) {
-    if (IN_S.beat === 0) drawCasino(ctx, g, t);
-    else if (IN_S.beat === 1) drawDebtCard(ctx, g, t);
-    else if (IN_S.beat === 2) drawDeal(ctx, g, t);
+    const id = BEATS[IN_S.beat] ? BEATS[IN_S.beat].id : 'drop';
+    if (id === 'wake') drawFloor(ctx, g, t);
+    else if (id === 'universal') { drawUniversal(ctx, g, t); return; }
+    else if (id === 'number') drawDebtCard(ctx, g, t);
+    else if (id === 'floor') drawFloor(ctx, g, t);
+    else if (id === 'drag') drawDrag(ctx, g, t);
+    else if (id === 'fist') drawFist(ctx, g, t);
+    else if (id === 'throne') drawThrone(ctx, g, t);
     else drawDrop(ctx, g, t);
 
     if (IN_S.flash > 0) {
@@ -1100,7 +1578,7 @@
   }
 
   PD.chum = {
-    enterIntro, updateIntro, drawIntro,
+    enterIntro, updateIntro, drawIntro, enterGamble, B_OF,
     call, update, draw, active, takeCut, drawDebt, DEBT0, S, IN_S, HS, LESSONS,
     leadStep, drawMini, miniFrame, MS, MW, MH, MCX, MBASE,
     artFor: ensureArt, CW, CH, CCX, CBASE
