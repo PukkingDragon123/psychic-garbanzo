@@ -1113,10 +1113,11 @@
 
   const BUILDK = ['lanky', 'stout', 'normal', 'normal', 'hulk'];
   const EYEK = ['row', 'row', 'row', 'stack', 'tri', 'stalk'];
-  const MOUTHK = ['grin', 'grin', 'tusk', 'beak', 'straw', 'mandible', 'lips'];
-  const CROWNK = ['none', 'antenna', 'antenna', 'horns', 'fin', 'hat', 'tuft', 'ears'];
-  const SKINK = ['plain', 'plain', 'speckle', 'scale', 'stripe', 'plate'];
-  const WEARK = ['vest', 'jacket', 'tank', 'sash', 'coat', 'bare'];
+  const MOUTHK = ['grin', 'grin', 'tusk', 'beak', 'straw', 'mandible', 'lips', 'grill', 'sucker'];
+  const CROWNK = ['none', 'antenna', 'antenna', 'horns', 'fin', 'hat', 'tuft', 'ears',
+    'mohawk', 'tendrils', 'cap', 'crest'];
+  const SKINK = ['plain', 'plain', 'speckle', 'scale', 'stripe', 'plate', 'spot', 'glow'];
+  const WEARK = ['vest', 'jacket', 'tank', 'sash', 'coat', 'bare', 'sequin', 'shirt'];
 
   function alienKin(seed) {
     const R = PD.util.mulberry32(seed * 2654435761 + 12345);
@@ -1134,7 +1135,12 @@
       build: pick(BUILDK), eyes: ri(1, 4), eyeK: pick(EYEK),
       mouth: pick(MOUTHK), crown: pick(CROWNK), tex: pick(SKINK), wear: pick(WEARK),
       big: 0.9 + R() * 0.42, lean: R() < 0.5 ? -1 : 1, ant: ri(1, 3),
-      belt: R() < 0.6, boots: R() < 0.7, pads: R() < 0.4
+      belt: R() < 0.6, boots: R() < 0.7, pads: R() < 0.4,
+      /* the things that make a room of them read as a NIGHT OUT rather than a
+         line-up: eyewear, jewellery, something lit in the mouth */
+      shades: R() < 0.26 ? (R() < 0.5 ? 'visor' : 'specs') : null,
+      chain: R() < 0.3, ring: R() < 0.22, smoke: R() < 0.16,
+      glowCol: hsl(hue + 160 + R() * 120, 84, 62)
     };
     t.clothL = hsl(hue + 140, 34, 66);
     t.clothD = hsl(hue + 140, 38, 26);
@@ -1242,6 +1248,32 @@
       p.round(cx - t.sw - 1, shY, t.sw * 2 + 2, t.th + 8, 3, C);
       p.rect(cx - 1, shY, 2, t.th + 8, CD);
       p.round(cx - t.sw - 1, shY, 6, 9, 2, CL); p.round(cx + t.sw - 5, shY, 6, 9, 2, CL);
+    } else if (t.wear === 'sequin') {
+      // a shirt that is entirely sequins, because it is that kind of room
+      p.round(cx - t.sw, shY, t.sw * 2, t.th + 4, 2, C);
+      for (let y = shY + 1; y < shY + t.th + 3; y += 2) {
+        for (let x = cx - t.sw + 1; x < cx + t.sw - 1; x += 3) {
+          const q = (x * 7 + y * 13) % 5;
+          p.set(x + ((y >> 1) % 2), y, q === 0 ? '#ffffff' : (q === 1 ? CL : (q === 2 ? t.acc : CD)));
+        }
+      }
+      p.rect(cx - t.sw, shY, t.sw * 2, 1, '#ffffff');
+    } else if (t.wear === 'shirt') {
+      // an open shirt with a collar and a triangle of chest
+      p.round(cx - t.sw, shY, t.sw * 2, t.th + 4, 2, C);
+      p.spike(cx, shY, 9, Math.round(t.th * 0.7), 1, t.skin);
+      p.round(cx - t.sw, shY, 5, 6, 1, CL);
+      p.round(cx + t.sw - 5, shY, 5, 6, 1, CL);
+      for (let i = 0; i < 3; i++) p.set(cx, shY + Math.round(t.th * 0.7) + i * 3, t.acc);
+    }
+    // a chain, worn over whatever that was
+    if (t.chain) {
+      for (let i = -3; i <= 3; i++) {
+        p.set(cx + i * 2, shY + 5 + Math.abs(i), t.acc);
+        p.set(cx + i * 2 + 1, shY + 5 + Math.abs(i), t.accD);
+      }
+      p.round(cx - 2, shY + 9, 4, 4, 1, t.acc);
+      p.set(cx - 1, shY + 10, '#ffffff');
     }
     // a waist, always: it is the line that stops the body being one slab
     p.rect(cx - t.sw + 1, shY + t.th + 1, t.sw * 2 - 2, 3, t.pantsD);
@@ -1300,6 +1332,23 @@
       p.round(cx - t.sw + 1, shY + 2, t.sw * 2 - 2, 5, 2, t.lite);
       p.round(cx - t.sw + 2, shY + 8, t.sw * 2 - 4, 4, 1, t.lite);
       p.round(cx - t.hr + 2, headY - t.hr + 2, (t.hr - 2) * 2, 5, 2, t.lite);
+    } else if (t.tex === 'spot') {
+      // big soft blotches, like a cow that got into space
+      for (let i = 0; i < 5; i++) {
+        const a = i * 1.9 + t.seed % 3;
+        p.ellipse(cx + Math.cos(a) * t.hr * 0.5, headY + Math.sin(a) * t.hr * 0.45,
+          2 + (i % 2), 2, t.dark);
+        p.ellipse(cx + Math.cos(a * 1.6) * t.sw * 0.55, shY + 5 + (i * 3) % (t.th - 2),
+          3, 2, t.dark);
+      }
+    } else if (t.tex === 'glow') {
+      // lit from inside: a row of lamps down each side
+      for (let i = 0; i < 4; i++) {
+        for (const sd of [-1, 1]) {
+          p.set(cx + sd * Math.round(t.hr * 0.66), headY - 3 + i * 3, t.glowCol);
+          p.set(cx + sd * (t.sw - 2), shY + 4 + i * 3, t.glowCol);
+        }
+      }
     }
 
     // ---------------------------------------------------- what is on the head
@@ -1328,6 +1377,38 @@
       p.round(cx - 8, headY - t.hr - 7, 16, 8, 2, '#2a2438');
       p.rect(cx - 12, headY - t.hr - 1, 24, 2, '#2a2438');
       p.rect(cx - 8, headY - t.hr - 4, 16, 1, t.acc);
+    } else if (t.crown === 'mohawk') {
+      // a hard ridge of spines down the middle, tallest at the front
+      for (let i = 0; i < 6; i++) {
+        const hgt = 12 - Math.abs(i - 1) * 2;
+        p.spike(cx - 6 + i * 2.4, headY - t.hr - hgt + 2, 4, hgt, -1, i % 2 ? t.acc : t.accD);
+      }
+      p.rect(cx - 7, headY - t.hr, 15, 2, t.accD);
+    } else if (t.crown === 'tendrils') {
+      // a crown of little feelers, each curling its own way
+      for (let i = 0; i < 5; i++) {
+        const sd = i % 2 ? 1 : -1, off = (i - 2) * 3;
+        let px = cx + off, py = headY - t.hr + 1;
+        for (let k = 0; k < 5; k++) {
+          p.rect(px - 1, py, 2, 2, k > 2 ? t.acc : t.dark);
+          px += sd * (k > 1 ? 1 : 0); py -= 2;
+        }
+        p.disc(px, py, 1.6, t.acc);
+      }
+    } else if (t.crown === 'cap') {
+      // a flat cap with the peak pulled down over one eye
+      p.round(cx - 9, headY - t.hr - 6, 18, 8, 3, t.clothD);
+      p.rect(cx - 9, headY - t.hr - 1, 18, 2, t.cloth);
+      p.round(cx + t.lean * 6 - 7, headY - t.hr + 1, 14, 3, 1, t.clothD);
+      p.rect(cx - 2, headY - t.hr - 7, 4, 2, t.acc);
+    } else if (t.crown === 'crest') {
+      // one blade of bone, swept back and up off the skull
+      const sd = t.lean > 0 ? -1 : 1;
+      for (let i = 0; i < 12; i++) {
+        const w = Math.max(1, 9 - i * 0.68);
+        p.rect(cx + sd * i * 1.15 - w / 2, headY - t.hr - 1 - i, w, 2, i < 3 ? t.skin : t.lite);
+      }
+      p.rect(cx - 5, headY - t.hr - 1, 11, 2, t.dark);
     }
 
     // ---------------------------------------------------------------- face
@@ -1368,6 +1449,45 @@
     else if (t.mouth === 'mandible') {
       p.spike(cx - 5, my - 2, 5, 7, 1, t.dark); p.spike(cx + 5, my - 2, 5, 7, 1, t.dark);
       p.rect(cx - 2, my, 5, 1, INK);
+    } else if (t.mouth === 'grill') {
+      // every tooth gold, and he knows it
+      p.rect(cx - 5, my - 1, 11, 4, INK);
+      for (let i = 0; i < 5; i++) p.rect(cx - 4 + i * 2, my, 2, 3, i === 2 ? '#fff3b0' : '#ffd34d');
+      p.rect(cx - 5, my - 1, 11, 1, '#c99a1e');
+    } else if (t.mouth === 'sucker') {
+      p.ellipse(cx, my, 4, 4, t.dark);
+      p.ellipse(cx, my, 3, 3, '#3a1226');
+      for (let i = 0; i < 6; i++) p.set(cx + Math.cos(i * 1.05) * 3, my + Math.sin(i * 1.05) * 3, t.lite);
+    }
+
+    // ------------------------------------------------- what he came out in
+    if (t.shades === 'visor') {
+      // one band across the whole face, lit along the top edge
+      p.round(cx - t.hr + 1, ey - er - 1, (t.hr - 1) * 2, er * 2 + 3, 2, '#140f26');
+      p.rect(cx - t.hr + 2, ey - er, (t.hr - 2) * 2, 1, t.acc);
+      p.rect(cx - t.hr + 3, ey - er + 2, 4, 1, '#ffffff');
+      p.rect(cx - t.hr, ey - 1, 2, 2, t.accD); p.rect(cx + t.hr - 2, ey - 1, 2, 2, t.accD);
+    } else if (t.shades === 'specs') {
+      // two round lenses and a bridge
+      for (const sd of [-1, 1]) {
+        p.ellipse(cx + sd * (er + 2), ey, er + 1, er + 1, '#241b3a');
+        p.ellipse(cx + sd * (er + 2), ey, er, er, '#3a2a58');
+        p.set(cx + sd * (er + 2) - 1, ey - 1, '#c9bce8');
+      }
+      p.rect(cx - 1, ey, 3, 1, t.acc);
+    }
+    if (t.smoke) {
+      // a cigar, jammed in the corner, still lit
+      const sdx = t.lean > 0 ? 1 : -1;
+      p.rect(cx + Math.min(sdx * 4, sdx * 12), my + 1, 8, 3, '#5a3a22');
+      p.rect(cx + Math.min(sdx * 4, sdx * 12), my + 1, 8, 1, '#7a5230');
+      p.rect(cx + sdx * 11, my + 1, 2, 3, '#ff7a2a');
+      p.set(cx + sdx * 12, my + 2, '#ffe08a');
+    }
+    if (t.ring) {
+      // a stone the size of a thumb, on the hand that is doing the pointing
+      p.disc(cx + t.sw + 5, shY + t.th + 7, 2, t.acc);
+      p.set(cx + t.sw + 5, shY + t.th + 6, '#ffffff');
     }
     p.outline(P.ink);
     return p;
@@ -1539,7 +1659,7 @@
   for (let i = 0; i < 4; i++) reg('litter' + i, [litter(i)]);
   for (let i = 0; i < 4; i++) reg('moonjunk' + i, [moonJunk(i)]);
   reg('clubsign', [clubSign(false), clubSign(true)]);
-  makeKin(14);
+  makeKin(20);
   reg('dj', [djAlien(0), djAlien(1)]);
   reg('bouncer', [bouncer()]);
   regRaw('dancer', [0, 1, 2, 3].map(dancer), DPX / HD, DH / HD);

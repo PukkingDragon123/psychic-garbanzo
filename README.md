@@ -577,6 +577,18 @@ with a body in it shows what that body is worth, how much of the galaxy it has
 eaten and what it still owes. There is a **FLUSH IT** button under the ones
 that are occupied, which asks once whether you are sure.
 
+He is not in there alone, and he is not in there whole. Turning slowly in the
+fluid with him are **his own arms** — in his own colours, so there is no doubt
+whose they are. Each one hangs off a torn stump: bone standing out of the middle
+of it, a ring of meat round that, and three tendons trailing out of the back
+that wave as it drifts. The elbows still bend and the fingers still close on
+nothing, very slowly. There is a loose hand, there are pieces too small to name,
+there is a shoulder on the body they came off, and what has come off him over
+the years has settled in the bottom of the jar. A feed hose comes down out of
+the cap and screws into his chest, and something thin and red is going back up
+it. Every so often the whole thing **kicks**, all at once, and stops. And every
+so often it opens an eye and finds you.
+
 **SETTINGS** is up in the corner: noises, the groove, screen wobble, and
 whether Mr Chum is allowed to stand in the corner of your screen at all.
 
@@ -592,22 +604,49 @@ The gamble is a **third-person casino hall**, not a first-person cabinet. You
 are in the shot the whole time, a fully-rigged body standing at the lever with
 one hand on the ball.
 
-The scene opens hard on the marquee and then **pulls all the way back** to show
-what you have walked into: a hall of machines running off both edges of the
-frame, a mezzanine with the cheap seats leaning over the rail, five chandeliers,
-four sweeping ceiling spots, three ranks of neon arches on the back wall, a
-banner over the middle of the room reading `THE GALAXY ROOM — NO CREDIT, NO
-REFUNDS, NO PITY`, patterned carpet with a velvet rope holding the crowd back,
-and a lit `EXIT` a long way off to the left.
+The hall is **the Galaxy Room**, and it is a room rather than a backdrop. A
+coffered vault with a gold rose window at either end of it; two full tiers of
+gallery, each an arcade of lit rooms with its own rank of machines glowing
+inside; a long bar down the left-hand end with three shelves of backlit bottles,
+a brass rail and eight stools; a roulette pit at the other end with two tables,
+a wheel and stacks of chips; ranks of machines across the back and down both
+sides of the floor; two chandeliers the size of a car; sweeping house lights;
+patterned carpet with a velvet rope holding the crowd back; and a lit `EXIT`
+right across the room.
 
-Around seventy-odd people watch you do it. Four ranks of procedurally generated
-aliens — the balcony, a far rank behind the machines, the rank at the rope, and
-a rank of near-black silhouettes across the bottom of the frame that the camera
-looks over. They have a **cheer pose** of their own (arms straight up, mouth
-open), and a cheer does not happen all at once: it **ripples outward** from the
-machine, everyone getting a head start proportional to how far away they are.
-The hotter the room gets the less any of them stay on the ground. They shout —
-`GO ON`, `TEN`, `ONE MORE` — in speech bubbles that refuse to sit on top of each
+The way in is **keyframed, not eased**, because an eased camera never actually
+arrives and the one shot that has to land is the shot that shows you the size of
+the place. It opens hard on the marquee, cranes all the way out until the whole
+hall is in frame, then drops in over the floor.
+
+**THE UNIVERSAL** itself is four times your height. A takings meter across the
+top counting real money out of the room; a glass dome with a world slowly
+turning inside it and a rim of lamps round the glass; the marquee; three reel
+windows on to open space with a nebula behind them and stars that streak when it
+spins; ten lamps along the front that fill in as you go; and a pillar of chasing
+gold lamps up each cheek with a beacon on top of it.
+
+**About a hundred and forty people** watch you do it, in five ranks — the top
+gallery, the mezzanine, the back of the floor, the rank at the rope, and a rank
+of near-black silhouettes across the bottom of the frame that the camera looks
+over. They are not wallpaper. Some of them hold **placards** up (`TEN!`,
+`PULL IT`, `ONE MORE`) that swing harder the louder the room gets; some are
+**up on a friend's shoulders**; some hold a **camera** over the heads in front
+and the flash goes off when something happens; two **cocktail servers** work the
+floor all night with a tray of drinks held flat and high; and six of the house's
+own stand **on the rope with their backs to the best show in town**, in black
+jackets with a wire behind the ear, and they do not jump and they do not leave.
+
+The aliens themselves got another pass: twelve kinds of crown (antennae, horns,
+fins, tufts, ears, hats, flat caps, mohawks, tendril crowns, swept-back bone
+crests), nine mouths including a full set of **gold teeth**, eight skin
+treatments including blotches and bioluminescence, sequinned shirts and open
+collars, chains, rings, **visors and spectacles**, and a lit cigar jammed in the
+corner of the mouth. Twenty generated kinds, seven poses each.
+
+A cheer does not happen all at once: it **ripples outward** from the machine,
+everyone getting a head start proportional to how far away they are. They shout
+— `GO ON`, `TEN`, `ONE MORE` — in bubbles that refuse to sit on top of each
 other, they throw whatever they were holding, and they spill their drinks
 mid-jump.
 
@@ -617,16 +656,14 @@ down and back because the hand is genuinely pinned to the ball by the rig's
 grip, and your whole body leans into the pull. The camera pushes in on the
 window while it spins and back out when it stops.
 
-The machine itself is a galaxy in a box. Three reel windows on to open space
-with a nebula and a turning spiral behind them, stars that streak when it spins,
-and **planets instead of symbols** — a rock, an ocean, two ringed gas giants and
-a living one, each drawn round and lit from the left. The three reels **stop one
-at a time**, each with its own thump, its own screen-shake and its own settle
-bounce, so the third one always arrives on its own. Ten worlds in a row takes
-the lot; ten lamps along the front fill in as you go.
+There are **planets instead of symbols** — a rock, an ocean, two ringed gas
+giants and a living one, each drawn round and lit from the left. The three reels
+**stop one at a time**, each with its own thump, its own screen-shake and its
+own settle bounce, so the third one always arrives on its own.
 
 You get to **nine**. At nine the room comes apart — the camera whips out to the
-widest shot in the scene, the marquee doubles its flash rate, and nobody sits
+widest shot in the scene, every lamp on the machine doubles its flash rate, the
+silhouettes across the foreground put both fists in the air, and nobody sits
 down again. It asks whether you want to go on or walk away, and it asks
 diegetically: pull again, or go and stand at the `EXIT`, which is a real lit
 door in the room that you can click. It does not matter which you pick. The

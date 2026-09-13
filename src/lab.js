@@ -156,10 +156,22 @@
       X.rect(ctx, x - TW / 2, TY + k, TW, 1, '#8affd0');
       ctx.globalAlpha = 1;
     }
+    // what has come off him over the years has settled in the bottom of it
+    ctx.globalAlpha = 0.5;
+    X.rect(ctx, x - TW / 2, TY + TH - 11, TW, 11, '#3a1020');
+    X.rect(ctx, x - TW / 2, TY + TH - 11, TW, 1, '#5e1a30');
+    ctx.globalAlpha = 0.26;
+    for (let k = 0; k < 4; k++) {
+      const a = t * 0.13 + k * 1.7;
+      X.blob(ctx, x + Math.cos(a) * 18, TY + 30 + k * 22 + Math.sin(a * 1.7) * 10,
+        13 + k * 3, 7 + k * 2, '#4a0a18');
+    }
+    ctx.globalAlpha = 1;
     // whoever is in it
     // there is always a body in the tank. An empty file is a body that has
     // not been out yet.
     drawSpecimen(ctx, g, x, TY + TH - 16, t, i, on);
+    drawGore(ctx, x, i, t, on);
     if (!info) F.draw(ctx, 'UNUSED', x, TY + 8, '#2b7a6a', { center: true, shadow: '#031014' });
     // bubbles
     for (const b of S.bub[i]) {
@@ -192,20 +204,187 @@
     }
   }
 
-  /* The thing in the jar: your own sprite, floating, eyes shut, with a wash of
-     the tank over it. */
+  /* ------------------------------------------------------------- the gore
+     Nothing comes out of a tank in one piece, and nothing that went wrong in
+     one ever got taken out. What is left of the last few attempts is still in
+     there with him, turning slowly: two arms, a hand, and the bits nobody
+     bothered naming. They are HIS arms, in his colours, which is the part
+     that is supposed to bother you. */
+  const MEAT = '#7e1226', MEATL = '#c4304a', MEATD = '#4a0a18';
+  const BONE = '#f0e4c8', BONED = '#b0a184';
+
+  const GORE = [];
+  (function buildGore() {
+    for (let i = 0; i < 3; i++) {
+      const set = [];
+      for (let k = 0; k < 5; k++) {
+        const h = (n) => U.hash2(i * 37 + k * 5, n);
+        const side = k % 2 ? 1 : -1;
+        set.push({
+          kind: k < 2 ? 0 : (k === 2 ? 1 : 2),        // an arm, a hand, a scrap
+          // they drift round the glass rather than across him, so he is never
+          // buried by his own arms
+          rx: 6 + h(3) * 5,
+          ry: 12 + h(7) * 16,
+          cx: side * (15 + h(11) * 6),
+          cy: 12 + k * 17 + h(13) * 9,
+          sp: 0.10 + h(17) * 0.14,
+          ph: h(19) * U.TAU,
+          s: (k < 2 ? 0.6 : 0.44) + h(23) * 0.22,
+          spin: (h(29) - 0.5) * 0.7,
+          roll: h(31) * U.TAU
+        });
+      }
+      GORE.push(set);
+    }
+  })();
+
+  /* One arm, pivoting on its stump, pointing right. The elbow and the fingers
+     both keep working, very slowly, which is the bit that is not funny. */
+  const GINK = '#16221f';                 // the ink everything in the fluid wears
+  function severedArm(ctx, t, ph, skin, lite, dark) {
+    const curl = 0.3 + Math.sin(t * 0.9 + ph) * 0.5;
+    const ex = 15, ey = Math.sin(t * 0.7 + ph) * 3;
+    const hx = ex + Math.cos(curl) * 13, hy = ey + Math.sin(curl) * 13;
+    // tendons first, so they trail out of the back of the stump
+    for (let k = -1; k <= 1; k++) {
+      const wob = Math.sin(t * 2.2 + ph + k * 1.6);
+      X.curve(ctx, -2, k * 1.6, -9 + wob * 2, k * 3 + wob * 3, -17 - Math.abs(wob) * 3,
+        k * 4 + wob * 5, k ? MEATD : MEAT, 1, 8);
+    }
+    X.limb(ctx, 0, 0, ex, ey, 6, 5, skin, lite, GINK);
+    X.limb(ctx, ex, ey, hx, hy, 5, 4, skin, lite, GINK);
+    X.knob(ctx, ex, ey, 2.5, skin, lite);
+    // the hand: a narrow palm and three long fingers half closed on nothing
+    X.limb(ctx, hx, hy, hx + Math.cos(curl) * 4, hy + Math.sin(curl) * 4, 5, 4, skin, lite, GINK);
+    for (let f = -1; f <= 1; f++) {
+      const fa = curl + f * 0.46 + Math.sin(t * 1.7 + ph + f * 2) * 0.18;
+      const kx = hx + Math.cos(fa) * 7, ky = hy + Math.sin(fa) * 7;
+      X.limb(ctx, hx + Math.cos(curl) * 3, hy + Math.sin(curl) * 3, kx, ky, 3, 2, skin, lite, GINK);
+      X.limb(ctx, kx, ky, kx + Math.cos(fa + 0.7) * 5, ky + Math.sin(fa + 0.7) * 5, 2, 2, skin, lite, GINK);
+    }
+    // the stump: torn meat, the ring of it, and the bone standing out of it
+    X.blob(ctx, 0, 0, 4.5, 4.5, GINK);
+    X.blob(ctx, 0, 0, 3.6, 3.6, MEAT);
+    X.blob(ctx, -1, 0, 2.4, 2.4, MEATL);
+    X.rect(ctx, -4, -1, 4, 2, BONE);
+    X.rect(ctx, -5, -1, 1, 2, BONED);
+  }
+
+  function severedHand(ctx, t, ph, skin, lite, dark) {
+    const curl = Math.sin(t * 1.1 + ph) * 0.4;
+    X.curve(ctx, -2, 0, -8, Math.sin(t * 2 + ph) * 3, -14, Math.sin(t * 2 + ph) * 5, MEAT, 1, 7);
+    X.limb(ctx, -1, 0, 4, 0, 6, 5, skin, lite, GINK);
+    for (let f = -1; f <= 2; f++) {
+      const fa = curl + f * 0.44 - 0.24;
+      const kx = 4 + Math.cos(fa) * 6, ky = Math.sin(fa) * 6;
+      X.limb(ctx, 3, 0, kx, ky, 3, 2, skin, lite, GINK);
+      X.limb(ctx, kx, ky, kx + Math.cos(fa + 0.8) * 4, ky + Math.sin(fa + 0.8) * 4, 2, 2, skin, lite, GINK);
+    }
+    X.blob(ctx, -3, 0, 3, 3.2, MEAT);
+    X.rect(ctx, -6, -1, 3, 2, BONE);
+  }
+
+  /* Fluid moves. A clot in it wobbles as it goes rather than sliding about
+     like a sticker. */
+  function drawGore(ctx, x, i, t, on) {
+    const sk = PD.art.skinFor(null);
+    const skin = sk.P.skin, lite = sk.P.skinL, dark = sk.P.skinD;
+    ctx.save();
+    ctx.beginPath(); ctx.rect(x - TW / 2, TY, TW, TH); ctx.clip();
+    ctx.globalAlpha = on ? 0.95 : 0.68;
+    for (const q of GORE[i]) {
+      const a = q.roll + t * q.sp;
+      const px = x + q.cx + Math.cos(a) * q.rx;
+      const py = TY + q.cy + Math.sin(a * 1.3 + q.ph) * q.ry * 0.5;
+      // whatever has come off it hangs in the fluid behind it
+      const back = Math.atan2(Math.sin(a * 1.3 + q.ph), Math.cos(a));
+      for (let b = 1; b <= 3; b++) {
+        ctx.globalAlpha = (on ? 0.1 : 0.06) / b;
+        X.blob(ctx, px - Math.cos(back) * b * 4, py - Math.sin(back) * b * 2.5,
+          1.4 + b * 1.1, 1 + b * 0.8, MEATD);
+      }
+      ctx.globalAlpha = on ? 0.95 : 0.68;
+      ctx.save();
+      ctx.translate(Math.round(px), Math.round(py));
+      ctx.rotate(a * q.spin + Math.sin(t * 0.6 + q.ph) * 0.3);
+      ctx.scale(q.s, q.s);
+      if (q.kind === 0) severedArm(ctx, t, q.ph, skin, lite, dark);
+      else if (q.kind === 1) severedHand(ctx, t, q.ph, skin, lite, dark);
+      else {
+        // a scrap: a knuckle of meat with a shard of bone through it
+        X.blob(ctx, 0, 0, 3.4, 2.6, MEAT);
+        X.blob(ctx, -1, -1, 1.8, 1.4, MEATL);
+        X.rect(ctx, -3, 0, 6, 1, BONED);
+        X.curve(ctx, 2, 0, 6, Math.sin(t * 2.6 + q.ph) * 3, 10,
+          Math.sin(t * 2.6 + q.ph) * 5, MEATD, 1, 6);
+      }
+      ctx.restore();
+    }
+    ctx.globalAlpha = 1;
+    ctx.restore();
+  }
+
+  /* The thing in the jar: your own sprite, floating, eyes shut -- except when
+     they are not. */
   function drawSpecimen(ctx, g, x, y, t, i, on) {
     const sk = PD.art.skinFor(g.save ? g.save.cos : null);
     const spr = sk.alienCore;
     const fl = Math.sin(t * 0.9 + i * 2) * 4;
     const cv = spr.frames[0];
-    const k = spr.hd || 1;
+    const hd = spr.hd || 1;
+    // once in a while the whole thing kicks, all at once, and then stops
+    const tw = (U.hash2(Math.floor(t * 0.5) + i * 13, 7) > 0.94)
+      ? Math.sin(t * 41) * (1 - ((t * 0.5) % 1)) : 0;
+
+    // the feed: four straight lengths of hose out of the cap and into his
+    // chest, drawn before him so he hangs in front of it
+    const cy0 = y + fl - 24;
+    ctx.globalAlpha = on ? 0.85 : 0.62;
+    const HOSE = [[x + 20, TY], [x + 22, TY + 24], [x + 18, cy0 - 22], [x + 14, cy0 - 6], [x + 10, cy0]];
+    for (let q = 0; q < HOSE.length - 1; q++) {
+      X.limb(ctx, HOSE[q][0], HOSE[q][1], HOSE[q + 1][0], HOSE[q + 1][1],
+        4 - q * 0.5, 3.5 - q * 0.5, '#2c5e58', '#68b0a0', '#0e1e20');
+      if (q) X.rect(ctx, HOSE[q][0] - 3, HOSE[q][1] - 1, 6, 3, '#7fc4b0');
+    }
+    ctx.globalAlpha = 0.55;
+    for (let q = 0; q < 5; q++) {                  // and what is going back up it
+      const f = ((t * 0.24 + q * 0.2) % 1) * (HOSE.length - 1);
+      const j = Math.min(HOSE.length - 2, Math.floor(f)), u = f - j;
+      X.rect(ctx, U.lerp(HOSE[j][0], HOSE[j + 1][0], u), U.lerp(HOSE[j][1], HOSE[j + 1][1], u),
+        1, 2, u > 0.5 ? MEATL : MEATD);
+    }
+    ctx.globalAlpha = 1;
+
     ctx.save();
     ctx.globalAlpha = on ? 0.95 : 0.7;
-    ctx.translate(Math.round(x), Math.round(y + fl));
-    ctx.rotate(Math.sin(t * 0.5 + i) * 0.06);
-    ctx.drawImage(cv, -spr.ox, -spr.oy, cv.width / k, cv.height / k);
+    ctx.translate(Math.round(x + tw * 2), Math.round(y + fl));
+    ctx.rotate(Math.sin(t * 0.5 + i) * 0.06 + tw * 0.06);
+    ctx.drawImage(cv, -spr.ox, -spr.oy, cv.width / hd, cv.height / hd);
+    // the shoulder one of those arms came off
+    X.blob(ctx, -9, -30, 4, 3.4, MEATD);
+    X.blob(ctx, -9, -30, 2.6, 2.2, MEAT);
+    X.blob(ctx, -10, -30, 1.2, 1.2, BONE);
+    for (let q = 0; q < 3; q++) {
+      X.curve(ctx, -10, -30 + q, -15, -28 + Math.sin(t * 1.8 + q) * 3,
+        -19, -24 + Math.sin(t * 1.8 + q) * 5, q & 1 ? MEAT : MEATD, 1, 7);
+    }
+    // and the socket the hose is screwed into
+    X.blob(ctx, 10, -24, 3.4, 3, '#0e1e20');
+    X.blob(ctx, 10, -24, 2.4, 2.2, MEAT);
+    X.rect(ctx, 8, -25, 5, 2, '#7fc4b0');
     ctx.restore();
+    // and every so often it opens an eye and finds you
+    const look = U.hash2(Math.floor(t * 0.34) + i * 7, 23);
+    if (look > 0.82) {
+      const f = 1 - ((t * 0.34) % 1);
+      ctx.globalAlpha = (on ? 1 : 0.8) * Math.min(1, f * 3);
+      for (const s2 of [-1, 1]) {
+        X.blob(ctx, x + s2 * 4, y + fl - 41, 2, 1.4, '#ff3a4a');
+        X.blob(ctx, x + s2 * 4, y + fl - 41, 4, 3, 'rgba(255,58,74,0.18)');
+      }
+      ctx.globalAlpha = 1;
+    }
     ctx.globalAlpha = 0.22;
     X.rect(ctx, x - 30, y - 44, 60, 46, '#1a6a58');
     ctx.globalAlpha = 1;
