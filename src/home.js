@@ -35,11 +35,16 @@
   const CEIL = 124;                  // the underside of the rock roof, inside
   const GRAV = 300;                  // low: everything here is bouncy
 
-  const S = { scene: 'out', t: 0, ratSeen: 0, sleep: 0, swing: 0, beat: 0, dance: 0, kissT: 2,
+  const S = { scene: 'out', deck: 0, t: 0, ratSeen: 0, sleep: 0, swing: 0, beat: 0, dance: 0, kissT: 2,
     tip: 0, pole: 0, chatT: 1.5, drunk: 0 };
   let g0 = null;                     // the running game, for view() between frames
 
-  function roomW() { return S.scene === 'out' ? OUT_W : (S.scene === 'club' ? CLUB_W : IN_W); }
+  function roomW() {
+    if (S.scene === 'out') return OUT_W;
+    if (S.scene === 'club') return CLUB_W;
+    if (S.scene === 'hub') return HUB_W;
+    return IN_W;
+  }
   /* A room narrower than the screen sits in the middle of it. */
   function camWant() {
     const w = roomW();
@@ -48,7 +53,9 @@
   }
   function bounds() {
     if (S.scene === 'out') return [MOON.cx - WALK, MOON.cx + 400];
-    return S.scene === 'club' ? [16, CLUB_W - 16] : [20, IN_W - 20];
+    if (S.scene === 'club') return [16, CLUB_W - 16];
+    if (S.scene === 'hub') return [30, HUB_W - 30];
+    return [20, IN_W - 20];
   }
 
   /* Flat indoors. Outside it is the top of a big circle plus a stack of
@@ -61,6 +68,7 @@
       + Math.sin(x * 0.0713 + 2.9) * 2;
   }
   function groundY(x) {
+    if (S.scene === 'hub') return DECK_Y[S.deck];
     if (S.scene !== 'out') return FLOOR;
     const dx = x - MOON.cx;
     if (Math.abs(dx) >= MOON.r) return 1e4;
@@ -390,6 +398,7 @@
   function say(m) { UI.msg = m; UI.msgT = 3.2; }
 
   function spots(g) {
+    if (S.scene === 'hub') return hubSpots(g);
     if (S.scene === 'club') {
       // the night the game opens there is one machine and one reason to be here
       if (g.save.story === 1) return [{ id: 'universal', x: 1344, r: 66,
@@ -398,6 +407,9 @@
     }
     if (S.scene === 'in') return g.save.pet ? IN_SPOTS : IN_SPOTS.concat([RAT_SPOT]);
     const out = OUT_SPOTS.slice().concat(buildPads(g));
+    // the shuttle pad is poured the moment the tip is gone, same as the others
+    if (moonClean(g)) out.push({ id: 'port', x: 366, r: 28,
+      name: 'THE PORT SHUTTLE', sub: 'SOMEBODY ELSE\'S PLANET' });
     for (let i = 0; i < TRASH.length; i++) {
       if (cleaned(g, i)) continue;
       out.push({ id: 'trash', i, x: TRASH[i].x, r: 17,
@@ -452,6 +464,11 @@
     if (s.id.indexOf('slot') === 0) { playSlot(g, +s.id.slice(4)); return; }
     if (s.id === 'universal') { P.lock = 1; PD.chum.enterGamble(g); return; }
     if (s.bid) { openBuild(g, s.bid); return; }
+    if (s.id === 'tele') { openTele(g); return; }
+    if (s.sid) { openStall(g, s.sid); return; }
+    if (s.zip) { startZip(g, s.zip); return; }
+    if (s.id === 'hubout') { P.lock = 1; g.wipeTo(240, 135, '#0a0614', () => leaveHub(g)); return; }
+    if (s.id === 'port') { P.lock = 1; g.wipeTo(240, 135, '#0a0614', () => goHub(g)); return; }
 
   }
 
@@ -543,6 +560,543 @@
       if (!cleaned(g, i)) out.push({ x: TRASH[i].x, line: 'THAT ONE. I HAVE WAITED BEFORE.' });
     }
     return out;
+  }
+
+  /* ====================================================================== THE PORT
+     Somebody else's planet, and the only place in reach where the money goes
+     the other way. Three decks stacked in the same frame so you can always see
+     the one above and the one below you: the DOCKS at the bottom with the
+     freighters on them, the MARKET in the middle, and the TERRACE on top where
+     the people who own the freighters stand and look at them.
+
+     You do not jump between decks. There is a teleporter at the west end that
+     goes up, and two ziplines that go down, and that asymmetry is the whole
+     shape of the place: getting up costs you a walk, getting down is free and
+     quick and slightly frightening. */
+  const HUB_W = 1240;
+  const DECK_Y = [238, 158, 78];
+  const DECK_NAME = ['THE DOCKS', 'THE MARKET', 'THE TERRACE'];
+  const TELE_X = 96;
+  const ZIPS = [
+    { from: 2, x0: 940, to: 1, x1: 660 },
+    { from: 1, x0: 1040, to: 0, x1: 740 }
+  ];
+
+  /* What you can buy up there. Three of them are a one-off that never comes
+     off again; the fourth takes the whole vault off your hands on the spot and
+     pays over the odds for the privilege of not having to list it. */
+  const STALLS = [
+    { id: 'lungs', deck: 1, x: 300, name: 'THE BREATH MERCHANT', glyph: 'o2',
+      tag: 'A BIGGER PAIR. THEY ARE NOT YOURS. NOBODY ASKS.',
+      cost: 62000, once: 1, effect: 'PERMANENT +40 AIR' },
+    { id: 'grip', deck: 1, x: 430, name: 'THE GRAB HOUSE', glyph: 'hand',
+      tag: 'MAGNETS. VERY ILLEGAL MAGNETS.',
+      cost: 88000, once: 1, effect: 'PERMANENT +22 PICKUP REACH' },
+    { id: 'papers', deck: 2, x: 430, name: 'THE PERMIT OFFICE', glyph: 'build',
+      tag: 'A STAMP. IT MAKES THE BUILDING CHEAPER. DO NOT ASK WHY.',
+      cost: 120000, once: 1, effect: 'BASE COSTS DROP BY A FIFTH' },
+    { id: 'fence', deck: 1, x: 560, name: 'THE FENCE', glyph: 'sell',
+      tag: 'NO LISTING. NO WAITING. NO QUESTIONS.',
+      cost: 0, once: 0, effect: 'SELLS YOUR WHOLE VAULT, +10%' }
+  ];
+  const STALL_OF = {};
+  for (const q of STALLS) STALL_OF[q.id] = q;
+
+  /* The rest of it is people doing business you are not part of. */
+  const HUB_PROPS = [
+    { deck: 0, x: 240, kind: 'cantina', name: 'THE WET DECK' },
+    { deck: 0, x: 520, kind: 'crate' }, { deck: 0, x: 566, kind: 'crate' },
+    { deck: 0, x: 860, kind: 'freighter' },
+    { deck: 1, x: 690, kind: 'stallX' }, { deck: 1, x: 780, kind: 'stallX' },
+    { deck: 1, x: 900, kind: 'stallX' },
+    { deck: 2, x: 620, kind: 'bank', name: 'THE FIRST BANK OF NOWHERE' },
+    { deck: 2, x: 860, kind: 'scope' }
+  ];
+
+  const HUBC = [];                                  // everybody else
+  (function buildHubCrowd() {
+    for (let d = 0; d < 3; d++) {
+      const n = [13, 17, 9][d];
+      for (let i = 0; i < n; i++) {
+        HUBC.push({
+          deck: d, x: 60 + (HUB_W - 140) * ((i + 0.5) / n) + (U.hash2(d * 31 + i, 5) - 0.5) * 50,
+          k: (d * 7 + i * 3) % 20, ph: U.hash2(i * 5 + d, 19) * U.TAU,
+          dir: U.hash2(i, 7) > 0.5 ? 1 : -1, sp: 7 + U.hash2(i, 11) * 13,
+          wait: U.hash2(i, 13) * 5, t: 0
+        });
+      }
+    }
+  })();
+  function updateHubCrowd(dt) {
+    for (const c of HUBC) {
+      c.t += dt;
+      if (c.wait > 0) { c.wait -= dt; continue; }
+      c.x += c.dir * c.sp * dt;
+      if (c.x < 50) { c.x = 50; c.dir = 1; c.wait = U.rand(0.6, 3); }
+      if (c.x > HUB_W - 50) { c.x = HUB_W - 50; c.dir = -1; c.wait = U.rand(0.6, 3); }
+      if (U.chance(dt * 0.14)) { c.wait = U.rand(0.8, 3.4); c.dir = -c.dir; }
+    }
+  }
+
+  const HUB = { ride: null, t: 0, arrive: 0, panel: null, sel: 0 };
+
+  function goHub(g) {
+    S.scene = 'hub'; S.deck = 0; S.t = 0;
+    HUB.ride = null; HUB.panel = null; HUB.arrive = 0;
+    UI.mode = null;
+    place(g, 150);
+    g.intCam = camWant();
+    PD.chum.call(g, 'hub');
+    A.sfx.tone(240, { type: 'triangle', to: 520, dur: 0.4, vol: 0.08 });
+  }
+  function leaveHub(g) {
+    S.scene = 'out'; S.deck = 0;
+    place(g, OUT_SPOTS[1].x + 30);
+    g.intCam = camWant();
+    A.sfx.tone(420, { type: 'triangle', to: 180, dur: 0.35, vol: 0.08 });
+  }
+
+  function hubSpots(g) {
+    const out = [];
+    out.push({ id: 'tele', x: TELE_X, r: 26, deck: S.deck,
+      name: 'THE LIFT', sub: DECK_NAME[S.deck] + '  -  GO UP OR DOWN' });
+    if (S.deck === 0) out.push({ id: 'hubout', x: 172, r: 24, deck: 0,
+      name: 'YOUR SHUTTLE', sub: 'BACK TO THE MOON' });
+    for (const q of STALLS) {
+      if (q.deck !== S.deck) continue;
+      const bought = q.once && g.save.bought && g.save.bought[q.id];
+      out.push({ id: 'stall_' + q.id, sid: q.id, x: q.x, r: 24, deck: q.deck,
+        name: q.name, sub: bought ? 'ALREADY YOURS' : (q.cost ? '$' + U.fmt(q.cost) : 'SELL THE LOT') });
+    }
+    for (const z of ZIPS) {
+      if (z.from !== S.deck) continue;
+      out.push({ id: 'zip_' + z.from, zip: z, x: z.x0, r: 22, deck: z.from,
+        name: 'THE ZIPLINE', sub: 'DOWN TO ' + DECK_NAME[z.to] });
+    }
+    return out;
+  }
+
+  /* ------------------------------------------------------------ the lift
+     It does not move. You stand on the plate, it takes the floor out from
+     under you, and you are somewhere else. */
+  function openTele(g) { HUB.panel = { kind: 'tele', sel: S.deck }; UI.mode = 'hub'; A.sfx.click(); }
+  function openStall(g, sid) { HUB.panel = { kind: 'stall', sid: sid }; UI.mode = 'hub'; A.sfx.click(); }
+  function closeHubPanel() { HUB.panel = null; UI.mode = null; P.lock = 0.2; A.sfx.click(); }
+
+  function teleportTo(g, d) {
+    if (d === S.deck) { closeHubPanel(); return; }
+    S.deck = d;
+    P.y = groundY(P.x); P.vy = 0; P.air = 0;
+    HUB.arrive = 0.6;
+    FX.ring(TELE_X, DECK_Y[d] - 18, 4, 46, 0.7, '#7ef9ff', 3);
+    FX.stars(TELE_X, DECK_Y[d] - 20, 12, '#7ef9ff');
+    A.sfx.tone(180, { type: 'sine', to: 900, dur: 0.3, vol: 0.09 });
+    closeHubPanel();
+  }
+
+  function buyStall(g, sid) {
+    const q = STALL_OF[sid];
+    if (!q) return;
+    if (q.id === 'fence') {
+      const total = Math.round(g.vaultValue() * 1.1 * (1 + g.baseBonus('refinery')));
+      if (!total) { A.sfx.deny(); say('NOTHING IN THE SACK. COME BACK HEAVY.'); return; }
+      g.save.vault = {};
+      const cut = PD.chum.takeCut(g, total);
+      g.save.credits += total - cut;
+      g.save.totalEarned += total - cut;
+      FX.text(q.x, DECK_Y[q.deck] - 54, '+$' + U.fmt(total - cut), '#8affa0', 1);
+      if (cut > 0) FX.text(q.x, DECK_Y[q.deck] - 40, '-$' + U.fmt(cut) + ' MR CHUM', '#ff5fa8', 0);
+      A.sfx.sell();
+      g.saveGame();
+      return;
+    }
+    if (!g.save.bought) g.save.bought = {};
+    if (g.save.bought[q.id]) { A.sfx.deny(); return; }
+    if (g.save.credits < q.cost) { A.sfx.deny(); say('NOT ENOUGH. HE CAN TELL.'); return; }
+    g.save.credits -= q.cost;
+    g.save.bought[q.id] = 1;
+    FX.text(q.x, DECK_Y[q.deck] - 54, 'BOUGHT', '#ffd34d', 1);
+    A.sfx.sell();
+    g.saveGame();
+  }
+
+  function updateHubPanel(dt, g) {
+    const IN = PD.input, m = IN.mouse;
+    if (IN.hit('esc') || IN.hit('KeyE')) { closeHubPanel(); return; }
+    const pn = HUB.panel;
+    if (pn.kind === 'tele') {
+      if (IN.hit('up')) pn.sel = Math.min(2, pn.sel + 1);
+      if (IN.hit('down')) pn.sel = Math.max(0, pn.sel - 1);
+      for (let d = 0; d < 3; d++) {
+        const y = 156 - d * 30;
+        if (m.inside && m.x > 150 && m.x < 330 && m.y > y && m.y < y + 24) {
+          pn.sel = d;
+          if (m.leftPressed) { teleportTo(g, d); return; }
+        }
+      }
+      if (IN.hit('enter')) { teleportTo(g, pn.sel); return; }
+      return;
+    }
+    const q = STALL_OF[pn.sid];
+    const hitGo = m.inside && m.x > 148 && m.x < 268 && m.y > 176 && m.y < 196;
+    const hitNo = m.inside && m.x > 280 && m.x < 348 && m.y > 176 && m.y < 196;
+    if (m.leftPressed && hitNo) { closeHubPanel(); return; }
+    if ((m.leftPressed && hitGo) || IN.hit('enter')) buyStall(g, q.id);
+  }
+
+  function drawHubPanel(ctx, g, t) {
+    const pn = HUB.panel;
+    ctx.fillStyle = 'rgba(6,4,14,0.82)'; ctx.fillRect(0, 0, VW, VH);
+    if (pn.kind === 'tele') {
+      X.plate(ctx, 130, 56, 220, 152, '#132436', '#2e5a74', '#06121c', 6);
+      X.rect(ctx, 130, 56, 220, 2, '#7ef9ff');
+      F.draw(ctx, 'THE LIFT', 240, 66, '#d8fbff', { center: true, shadow: '#06121c' });
+      for (let d = 2; d >= 0; d--) {
+        const y = 156 - d * 30, here = d === S.deck, on = d === pn.sel;
+        X.plate(ctx, 150, y, 180, 24, here ? '#1d3a2a' : (on ? '#1d4a5c' : '#0f1e2a'),
+          here ? '#4fd0b0' : (on ? '#7ef9ff' : '#2e4456'), '#06121c', 4);
+        F.draw(ctx, DECK_NAME[d], 240, y + 6, here ? '#8affd0' : (on ? '#ffffff' : '#6a8498'),
+          { center: true, shadow: false });
+        F.draw(ctx, here ? 'YOU ARE HERE' : 'DECK ' + (d + 1), 240, y + 15,
+          here ? '#4fd0b0' : '#4a6a80', { center: true, shadow: false });
+      }
+      F.draw(ctx, 'PICK ONE  -  ESC TO STAY', 240, 190, '#4a6a80', { center: true, shadow: false });
+      return;
+    }
+    const q = STALL_OF[pn.sid];
+    const bought = q.once && g.save.bought && g.save.bought[q.id];
+    const vault = q.id === 'fence' ? Math.round(g.vaultValue() * 1.1 * (1 + g.baseBonus('refinery'))) : 0;
+    const can = q.id === 'fence' ? vault > 0 : (!bought && g.save.credits >= q.cost);
+    X.plate(ctx, 120, 62, 240, 146, '#1d1836', '#453c5c', '#0a0614', 6);
+    X.rect(ctx, 120, 62, 240, 2, '#ff8ad8');
+    PD.glyph.draw(ctx, q.glyph, 130, 70, '#ff8ad8', '#8a3a6a');
+    F.draw(ctx, q.name, 240, 74, '#ffd6f0', { center: true, shadow: '#0a0614' });
+    F.draw(ctx, q.tag, 240, 92, '#8a86a8', { center: true, shadow: false });
+    F.draw(ctx, q.effect, 240, 116, '#ffd34d', { center: true, shadow: false });
+    if (q.id === 'fence') {
+      F.draw(ctx, vault ? 'THE SACK IS WORTH $' + U.fmt(vault) : 'THE SACK IS EMPTY',
+        240, 136, vault ? '#8affa0' : '#8a5a68', { center: true, shadow: false });
+    } else {
+      F.draw(ctx, bought ? 'YOU ALREADY HAVE THIS' : 'YOU HAVE $' + U.fmt(g.save.credits),
+        240, 136, bought ? '#8affd0' : (can ? '#8a86a8' : '#ff8a9a'), { center: true, shadow: false });
+    }
+    const m = PD.input.mouse;
+    const hotGo = m.inside && m.x > 148 && m.x < 268 && m.y > 176 && m.y < 196;
+    const hotNo = m.inside && m.x > 280 && m.x < 348 && m.y > 176 && m.y < 196;
+    const label = bought ? 'YOURS' : (q.id === 'fence' ? 'SELL THE LOT' : 'BUY  $' + U.fmt(q.cost));
+    X.plate(ctx, 148, 176, 120, 20, can ? (hotGo ? '#2f8f6a' : '#1d4a44') : '#2a1a24',
+      can ? '#4fd0b0' : '#6a3040', '#04100e', 4);
+    F.draw(ctx, label, 208, 182, can ? '#ffffff' : '#8a5a68', { center: true, shadow: false });
+    X.plate(ctx, 280, 176, 68, 20, hotNo ? '#3a3060' : '#241f3e', '#6b5a9c', '#0a0614', 4);
+    F.draw(ctx, 'LEAVE', 314, 182, '#c9bce8', { center: true, shadow: false });
+  }
+
+  /* ---------------------------------------------------------- the zipline
+     You hold the handle and gravity does the rest. It is the fastest thing in
+     the game and the only one with no button on it. */
+  function startZip(g, z) {
+    HUB.ride = { z: z, f: 0 };
+    P.lock = 9;
+    A.sfx.tone(900, { type: 'sawtooth', to: 260, dur: 0.9, vol: 0.07 });
+  }
+  function updateZip(dt, g) {
+    const r = HUB.ride;
+    r.f += dt * 0.85;
+    const z = r.z;
+    const k = U.smoothstep(0, 1, Math.min(1, r.f));
+    P.x = U.lerp(z.x0, z.x1, k);
+    P.y = U.lerp(DECK_Y[z.from], DECK_Y[z.to], k) - 14 + Math.sin(k * Math.PI) * 6;
+    P.face = z.x1 > z.x0 ? 1 : -1;
+    if (U.chance(dt * 30)) FX.stars(P.x, P.y - 10, 1, '#7ef9ff');
+    if (r.f >= 1) {
+      S.deck = z.to;
+      P.y = groundY(P.x); P.vy = 0; P.air = 0; P.lock = 0.25;
+      HUB.ride = null;
+      FX.dust(P.x, P.y, 6, '#8e86a8', 18);
+      A.sfx.tone(160, { type: 'triangle', to: 90, dur: 0.12, vol: 0.07 });
+    }
+  }
+
+  /* ------------------------------------------------------------- drawing it
+     The decks are drawn back to front: the city behind, then the deck above
+     you with its underside showing, then yours, then the one below with its
+     crowd small and dim. You can always see where you are going next. */
+  function hubCity(ctx, t, cam) {
+    const grd = ctx.createLinearGradient(0, 0, 0, VH);
+    grd.addColorStop(0, '#0e0824'); grd.addColorStop(0.5, '#2a1246'); grd.addColorStop(1, '#4a1a44');
+    ctx.fillStyle = grd; ctx.fillRect(0, 0, VW, VH);
+    // a gas giant with a ring, low and enormous
+    const px = 360 - cam * 0.04;
+    X.blob(ctx, px, 40, 96, 72, '#6a3a86');
+    X.blob(ctx, px - 22, 20, 52, 30, '#8a52a6');
+    X.blob(ctx, px + 30, 58, 34, 20, '#52286a');
+    ctx.globalAlpha = 0.5;
+    X.blob(ctx, px, 52, 150, 8, '#c9a0ff');
+    X.blob(ctx, px, 52, 110, 4, '#2a1246');
+    ctx.globalAlpha = 1;
+    // towers, two ranks, running off both ends
+    for (let L = 0; L < 2; L++) {
+      const sp = [0.1, 0.24][L], col = ['#1a0e30', '#261444'][L], lit = ['#2e1a4e', '#3e2266'][L];
+      for (let i = 0; i < 26; i++) {
+        const x = ((i * 97 + L * 41 - cam * sp) % 900 + 900) % 900 - 130;
+        if (x < -70 || x > VW + 40) continue;
+        const w = 22 + U.hash2(i * 3 + L, 7) * 34;
+        const h = 80 + U.hash2(i * 5 + L, 11) * 130;
+        X.rect(ctx, x, VH - h, w, h, col);
+        X.rect(ctx, x, VH - h, w, 2, lit);
+        for (let wy = VH - h + 8; wy < VH - 10; wy += 9) {
+          for (let wx = x + 3; wx < x + w - 4; wx += 7) {
+            if (U.hash2((wx * 3) | 0, (wy * 5) | 0) < 0.45 + L * 0.1) continue;
+            X.rect(ctx, wx, wy, 3, 4, U.hash2(wx | 0, wy | 0) > 0.7 ? '#ffd34d' : '#9a86d8');
+          }
+        }
+      }
+    }
+    // ships, coming in and going out on their own lanes
+    for (let i = 0; i < 7; i++) {
+      const dir = i % 2 ? -1 : 1, span = VW + 160;
+      const raw = ((i * 151 + t * (24 + i * 9)) % span + span) % span;
+      const x = dir > 0 ? raw - 80 : span - raw - 80;
+      const y = 18 + (i % 4) * 14;
+      X.rect(ctx, x - 7, y, 15, 4, '#241a3a');
+      X.rect(ctx, x - 4, y - 2, 9, 2, '#3a3060');
+      X.rect(ctx, x + dir * 8, y + 1, 3, 2, '#ff5a4d');
+      ctx.globalAlpha = 0.24;
+      X.blob(ctx, x - dir * 12, y + 2, 12, 1.5, '#7ef9ff');
+      ctx.globalAlpha = 1;
+    }
+    ctx.globalAlpha = 0.1;
+    X.rect(ctx, 0, 60, VW, VH - 60, '#6a3ab0');
+    ctx.globalAlpha = 1;
+  }
+
+  /* One deck: the plate, its underside, the rail along the front, and the
+     lamps hanging off it. */
+  function hubDeck(ctx, g, t, cam, d, dim) {
+    const y = DECK_Y[d];
+    ctx.globalAlpha = dim ? 0.55 : 1;
+    // the underside, with girders
+    X.rect(ctx, -cam, y, HUB_W, 14, '#1d1030');
+    X.rect(ctx, -cam, y, HUB_W, 3, '#3c2058');
+    X.rect(ctx, -cam, y + 12, HUB_W, 2, '#120a22');
+    for (let i = 0; i < 40; i++) {
+      const gx = i * 34 - cam;
+      if (gx < -40 || gx > VW + 40) continue;
+      X.poly(ctx, [[gx, y + 14], [gx + 18, y + 14], [gx + 9, y + 26]], '#170c28');
+      X.rect(ctx, gx + 7, y + 14, 4, 20, '#241440');
+    }
+    // the plate you walk on
+    X.rect(ctx, -cam, y - 4, HUB_W, 5, '#3a3450');
+    X.rect(ctx, -cam, y - 4, HUB_W, 1, '#6b6480');
+    for (let i = 0; i < 62; i++) {
+      const gx = i * 21 - cam;
+      if (gx < -24 || gx > VW + 24) continue;
+      X.rect(ctx, gx, y - 3, 1, 3, '#2a2438');
+      if (i % 3 === 0) X.rect(ctx, gx + 4, y - 2, 9, 1, '#4a4460');
+    }
+    // the rail along the front, and lamps on posts
+    for (let i = 0; i < 42; i++) {
+      const gx = i * 32 - cam;
+      if (gx < -30 || gx > VW + 30) continue;
+      X.rect(ctx, gx, y - 20, 2, 17, '#2e2640');
+      const on = (Math.floor(t * 2.4) + i) % 5 !== 0;
+      X.blob(ctx, gx + 1, y - 23, 3, 3, on ? '#ffd34d' : '#4a3a10');
+      if (on && !dim) {
+        ctx.globalAlpha = 0.14; X.blob(ctx, gx + 1, y - 21, 12, 10, '#ffd34d');
+        ctx.globalAlpha = dim ? 0.55 : 1;
+      }
+    }
+    X.rect(ctx, -cam, y - 14, HUB_W, 2, '#453c5c');
+    X.rect(ctx, -cam, y - 14, HUB_W, 1, '#6b6480');
+    // the name of the deck, painted on the plate at the west end
+    F.draw(ctx, DECK_NAME[d], 40 - cam, y - 30, dim ? '#4a4460' : '#8a86a8', { shadow: '#0a0614' });
+    ctx.globalAlpha = 1;
+  }
+
+  function hubTele(ctx, t, cam, d, dim) {
+    const x = TELE_X - cam, y = DECK_Y[d];
+    ctx.globalAlpha = dim ? 0.55 : 1;
+    X.plate(ctx, x - 20, y - 6, 40, 7, '#2a3444', '#5a7a94', '#12181f', 3);
+    for (const sd of [-1, 1]) {
+      X.rect(ctx, x + sd * 17 - 2, y - 44, 4, 38, '#2e3a4a');
+      X.rect(ctx, x + sd * 17 - 2, y - 44, 1, 38, '#5a7a94');
+    }
+    X.rect(ctx, x - 20, y - 48, 40, 5, '#2e3a4a');
+    X.rect(ctx, x - 20, y - 48, 40, 1, '#7ef9ff');
+    const pulse = 0.22 + Math.abs(Math.sin(t * 2.2)) * 0.3;
+    ctx.globalAlpha = (dim ? 0.55 : 1) * pulse;
+    X.rect(ctx, x - 16, y - 42, 32, 38, '#7ef9ff');
+    ctx.globalAlpha = dim ? 0.55 : 1;
+    for (let i = 0; i < 4; i++) {
+      const f = ((t * 0.7 + i / 4) % 1);
+      ctx.globalAlpha = (dim ? 0.55 : 1) * (1 - f) * 0.7;
+      X.rect(ctx, x - 14, y - 6 - f * 36, 28, 1, '#d8fbff');
+    }
+    ctx.globalAlpha = dim ? 0.55 : 1;
+    F.draw(ctx, 'LIFT', x, y - 58, dim ? '#3a5a6a' : '#7ef9ff', { center: true, shadow: '#06121c' });
+    ctx.globalAlpha = 1;
+  }
+
+  function hubZips(ctx, t, cam, dim) {
+    for (const z of ZIPS) {
+      const x0 = z.x0 - cam, y0 = DECK_Y[z.from] - 26;
+      const x1 = z.x1 - cam, y1 = DECK_Y[z.to] - 14;
+      if (Math.max(x0, x1) < -40 || Math.min(x0, x1) > VW + 40) continue;
+      ctx.globalAlpha = dim ? 0.5 : 1;
+      X.line(ctx, x0, y0 + 1, x1, y1 + 1, '#120a22', 2);
+      X.line(ctx, x0, y0, x1, y1, '#8e86a8', 1);
+      // the gantry it is bolted to
+      X.rect(ctx, x0 - 3, y0, 7, 26, '#2e2640');
+      X.rect(ctx, x0 - 3, y0, 7, 2, '#5a5474');
+      X.rect(ctx, x1 - 3, y1, 7, 14, '#2e2640');
+      // and the handle, parked at the top unless somebody is on it
+      const onIt = HUB.ride && HUB.ride.z === z;
+      const k = onIt ? U.smoothstep(0, 1, Math.min(1, HUB.ride.f)) : 0;
+      const hx = U.lerp(x0, x1, k), hy = U.lerp(y0, y1, k);
+      X.rect(ctx, hx - 4, hy - 2, 9, 4, '#6b6480');
+      X.rect(ctx, hx - 2, hy + 2, 4, 5, '#453c5c');
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  function hubProps(ctx, g, t, cam, d, dim) {
+    const y = DECK_Y[d];
+    ctx.globalAlpha = dim ? 0.55 : 1;
+    for (const q of HUB_PROPS) {
+      if (q.deck !== d) continue;
+      const x = q.x - cam;
+      if (x < -80 || x > VW + 80) continue;
+      if (q.kind === 'cantina') {
+        X.plate(ctx, x - 44, y - 52, 88, 52, '#2a1a3a', '#4a3660', '#120a1c', 5);
+        X.rect(ctx, x - 38, y - 44, 76, 22, '#0d0718');
+        for (let i = 0; i < 6; i++) {
+          X.rect(ctx, x - 34 + i * 12, y - 40, 5, 14, ['#8affa0', '#ff8ad8', '#ffb03d'][i % 3]);
+        }
+        const on = Math.sin(t * 4) > -0.4;
+        X.plate(ctx, x - 30, y - 68, 60, 14, '#170a28', on ? '#ff5fa8' : '#4a1c3a', '#080312', 3);
+        F.draw(ctx, q.name, x, y - 64, on ? '#ffd6f0' : '#7a4a68', { center: true, shadow: '#180510' });
+        X.rect(ctx, x - 26, y - 16, 52, 4, '#4a3020');
+      } else if (q.kind === 'crate') {
+        X.plate(ctx, x - 14, y - 26, 28, 26, '#4a3c2e', '#6b5a44', '#241c14', 3);
+        X.rect(ctx, x - 14, y - 18, 28, 2, '#8a6a3a');
+        X.rect(ctx, x - 6, y - 24, 12, 6, '#2a2018');
+        X.plate(ctx, x - 10, y - 44, 20, 18, '#4a3c2e', '#6b5a44', '#241c14', 3);
+      } else if (q.kind === 'freighter') {
+        X.blob(ctx, x, y - 40, 62, 22, '#2a2438');
+        X.blob(ctx, x, y - 44, 56, 16, '#453c5c');
+        X.blob(ctx, x - 20, y - 48, 22, 8, '#6b6480');
+        for (let i = 0; i < 5; i++) X.rect(ctx, x - 34 + i * 16, y - 46, 8, 5, '#0d0718');
+        X.rect(ctx, x + 40, y - 42, 16, 8, '#2e2640');
+        const fl = Math.sin(t * 8) > 0;
+        X.blob(ctx, x + 56, y - 38, 4, 3, fl ? '#ff9b3d' : '#7a4a20');
+        for (const lx of [-30, 0, 30]) X.rect(ctx, x + lx - 2, y - 22, 5, 22, '#2e2640');
+        F.draw(ctx, 'LOADING', x, y - 60, '#6a6484', { center: true, shadow: '#0a0614' });
+      } else if (q.kind === 'stallX') {
+        const hue = ['#ff5fa8', '#7ef9ff', '#ffd34d'][(q.x / 30 | 0) % 3];
+        X.rect(ctx, x - 22, y - 28, 44, 28, '#241a3a');
+        for (let i = 0; i * 9 < 44; i++) {
+          X.rect(ctx, x - 22 + i * 9, y - 36, 9, 8, i % 2 ? hue : '#2a1a3a');
+        }
+        X.rect(ctx, x - 22, y - 28, 44, 2, '#4a3660');
+        for (let i = 0; i < 4; i++) X.blob(ctx, x - 15 + i * 10, y - 20, 4, 3, ['#8affa0', '#ffb03d', '#ff8ad8', '#7ec8ff'][i]);
+      } else if (q.kind === 'bank') {
+        X.plate(ctx, x - 46, y - 62, 92, 62, '#2a2438', '#6b5a9c', '#0a0614', 5);
+        for (let i = 0; i < 4; i++) {
+          X.rect(ctx, x - 36 + i * 22, y - 56, 7, 50, '#453c5c');
+          X.rect(ctx, x - 36 + i * 22, y - 56, 7, 2, '#8e86a8');
+        }
+        X.poly(ctx, [[x - 50, y - 62], [x + 50, y - 62], [x, y - 84]], '#453c5c');
+        X.poly(ctx, [[x - 42, y - 64], [x + 42, y - 64], [x, y - 79]], '#2a2438');
+        X.blob(ctx, x, y - 72, 7, 6, '#ffd34d');
+        F.draw(ctx, q.name, x, y - 94, '#ffd34d', { center: true, shadow: '#0a0614' });
+      } else {
+        X.rect(ctx, x - 3, y - 30, 7, 30, '#2e3a4a');
+        X.blob(ctx, x, y - 38, 14, 10, '#2a3444');
+        X.rect(ctx, x + 8, y - 44, 18, 6, '#5a7a94');
+        X.blob(ctx, x + 26, y - 41, 4, 4, '#7ef9ff');
+        ctx.globalAlpha = (dim ? 0.55 : 1) * 0.18;
+        X.poly(ctx, [[x + 28, y - 45], [x + 28, y - 37], [x + 90, y - 62], [x + 90, y - 20]], '#7ef9ff');
+        ctx.globalAlpha = dim ? 0.55 : 1;
+      }
+    }
+    // the four that actually sell you something
+    for (const q of STALLS) {
+      if (q.deck !== d) continue;
+      const x = q.x - cam;
+      if (x < -70 || x > VW + 70) continue;
+      const bought = q.once && g.save.bought && g.save.bought[q.id];
+      X.plate(ctx, x - 26, y - 34, 52, 34, '#2a1a3a', '#6a3a80', '#120a1c', 4);
+      X.rect(ctx, x - 20, y - 28, 40, 18, '#0d0718');
+      PD.glyph.draw(ctx, q.glyph, x - 7, y - 26, bought ? '#4fd0b0' : '#ff8ad8', '#8a3a6a');
+      // the canopy
+      for (let i = 0; i * 9 < 60; i++) {
+        X.rect(ctx, x - 30 + i * 9, y - 44, 9, 10, i % 2 ? '#7a2450' : '#3a0e26');
+      }
+      X.rect(ctx, x - 30, y - 35, 60, 2, '#a8265a');
+      const on = bought || Math.sin(t * 3 + q.x) > -0.4;
+      X.plate(ctx, x - 30, y - 58, 60, 13, '#170a28', on ? '#ffd34d' : '#5a4418', '#080312', 3);
+      F.draw(ctx, q.name.replace('THE ', ''), x, y - 55, on ? '#ffd34d' : '#6a5a1a',
+        { center: true, shadow: '#180510' });
+      // and the one behind the counter
+      const K = AH.KIN[(q.x / 7 | 0) % AH.KIN.length];
+      AH.blit(ctx, AH.S[K.key], Math.floor(t * 1.2 + q.x) % 9 === 0 ? 5 : 0, x + 16, y + Math.sin(t * 1.6) * 1);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function hubCrowd(ctx, g, t, cam, d, dim) {
+    const y = DECK_Y[d];
+    ctx.globalAlpha = dim ? 0.5 : 1;
+    for (const c of HUBC) {
+      if (c.deck !== d) continue;
+      const x = c.x - cam;
+      if (x < -30 || x > VW + 30) continue;
+      const K = AH.KIN[c.k % AH.KIN.length];
+      const moving = c.wait <= 0;
+      const bob = Math.sin(t * 2.4 + c.ph) * 0.8;
+      ctx.globalAlpha = (dim ? 0.5 : 1) * 0.4;
+      X.blob(ctx, x, y + 1, K.w * 0.42, 3, '#0a0614');
+      ctx.globalAlpha = dim ? 0.5 : 1;
+      AH.blit(ctx, AH.S[K.key], moving ? (Math.floor(t * 6 + c.ph) % 2 ? 1 : 2)
+        : (Math.floor(t * 1.3 + c.ph) % 11 === 0 ? 5 : 0), x, y + bob, c.dir < 0);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function drawHub(ctx, g, t, cam) {
+    hubCity(ctx, t, cam);
+    // everything above you first, dimmed, then your deck, then what is below
+    const order = [2, 1, 0].filter(d => d !== S.deck);
+    for (const d of order) {
+      if (d < S.deck) continue;                      // the ones below go after
+      hubDeck(ctx, g, t, cam, d, true);
+      hubProps(ctx, g, t, cam, d, true);
+      hubCrowd(ctx, g, t, cam, d, true);
+      hubTele(ctx, t, cam, d, true);
+    }
+    hubZips(ctx, t, cam, true);
+    hubDeck(ctx, g, t, cam, S.deck, false);
+    hubProps(ctx, g, t, cam, S.deck, false);
+    hubTele(ctx, t, cam, S.deck, false);
+    hubCrowd(ctx, g, t, cam, S.deck, false);
+    for (const d of order) {
+      if (d > S.deck) continue;
+      hubDeck(ctx, g, t, cam, d, true);
+      hubProps(ctx, g, t, cam, d, true);
+      hubCrowd(ctx, g, t, cam, d, true);
+      hubTele(ctx, t, cam, d, true);
+    }
+    // your shuttle, parked on the docks
+    if (S.deck === 0) {
+      const sx = 172 - cam, sy = DECK_Y[0];
+      X.blob(ctx, sx, sy + 1, 24, 3, '#0a0614');
+      AH.blit(ctx, AH.S.saucer, Math.floor(t * 3) % 2, sx, sy + Math.sin(t * 1.6) * 1);
+    }
+    if (HUB.arrive > 0) {
+      ctx.globalAlpha = HUB.arrive;
+      X.rect(ctx, 0, 0, VW, VH, '#7ef9ff');
+      ctx.globalAlpha = 1;
+    }
   }
 
   /* ------------------------------------------------------------ the base
@@ -730,6 +1284,12 @@
   function update(dt, g) {
     const IN = PD.input;
     if (UI.mode === 'build') { S.t += dt; updateBuild(dt, g); return; }
+    if (UI.mode === 'hub') { S.t += dt; updateHubPanel(dt, g); return; }
+    if (S.scene === 'hub') {
+      HUB.arrive = Math.max(0, HUB.arrive - dt * 2.2);
+      updateHubCrowd(dt);
+      if (HUB.ride) { S.t += dt; updateZip(dt, g); g.intCam = U.damp(g.intCam, camWant(), 0.2, dt); return; }
+    }
     g0 = g;
     S.t += dt;
     if (FX.wipeActive()) { view(dt); return; }
@@ -804,7 +1364,9 @@
     P.y += P.vy * dt;
 
     // the ceiling is out of reach, but the junk hanging off the beam is not
-    const roof = S.scene === 'in' ? CEIL + 14 : (S.scene === 'club' ? CLUB_CEIL + 18 : -600);
+    const roof = S.scene === 'in' ? CEIL + 14
+      : (S.scene === 'club' ? CLUB_CEIL + 18
+        : (S.scene === 'hub' ? DECK_Y[S.deck] - 72 : -600));
     if (P.y < roof) {
       P.y = roof;
       if (P.vy < 0) {
@@ -2169,6 +2731,7 @@
     const cam = Math.round(g.intCam);
     if (S.scene === 'out') drawOutside(ctx, g, t, cam);
     else if (S.scene === 'club') drawClub(ctx, g, t, cam);
+    else if (S.scene === 'hub') drawHub(ctx, g, t, cam);
     else drawInside(ctx, g, t, cam);
 
     for (const m of MOTES) {
@@ -2187,6 +2750,7 @@
      the zoom does not turn the lettering into billboards. */
   function drawOverlay(ctx, g, t) {
     if (UI.mode === 'build') { drawBuildPanel(ctx, g, t); return; }
+    if (UI.mode === 'hub') { drawHubPanel(ctx, g, t); return; }
     if (S.sleep <= 0) prompt(ctx, g, t, Math.round(g.intCam));
 
     if (S.sleep > 0) {
@@ -2281,5 +2845,6 @@
 
   PD.home = { enter, update, draw, drawScene, playSlot, SLOT,
     drunk: () => (S.scene === 'club' ? S.drunk : 0), drawOverlay, view, toScreen, fromScreenX, closeScene, touchMode, leaveDesk, say, P, UI, S, groundY, ZW, ZH, ZK, ROOM_W: OUT_W, SPOTS,
-    TRASH, CLUB_X, CLUB_SPOTS, CLUBBERS, moonClean, trashLeft, sweep, goClub, leaveClub, spots };
+    TRASH, CLUB_X, CLUB_SPOTS, CLUBBERS, moonClean, trashLeft, sweep, goClub, leaveClub, spots,
+    goHub, leaveHub, HUB, HUB_W, DECK_Y, STALLS };
 })(window.PD);

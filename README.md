@@ -812,6 +812,50 @@ game comes out of the ground, not out of the bins.
 Under the last heap is a hatch, and the hatch has a **neon sign on it**, and the
 sign still works.
 
+## THE PORT
+
+Once the tip is clear there is a shuttle pad on the moon, and the shuttle goes
+to somebody else's planet. **Three decks stacked in the same frame**, so you can
+always see the one above and the one below: the **DOCKS** at the bottom with a
+freighter being loaded and a bar called THE WET DECK, the **MARKET** in the
+middle, and the **TERRACE** on top where the people who own the freighters
+stand and look at them, next to the bank and the permit office.
+
+You do not jump between decks. There is a **lift** at the west end that goes up
+and **two ziplines** that go down, and that asymmetry is the shape of the place:
+getting up costs you a walk, getting down is free and quick and slightly
+frightening. The zipline is the fastest thing in the game and the only one with
+no button on it — you grab the handle and gravity does the rest.
+
+Four of the stalls sell you something real. **THE BREATH MERCHANT** does a
+permanent forty air, and does not say whose. **THE GRAB HOUSE** does very
+illegal magnets. **THE PERMIT OFFICE**, up on the terrace, sells a stamp that
+knocks a fifth off everything you build for the rest of the game. And **THE
+FENCE** takes your entire sack on the spot at ten per cent over the desk, with
+no listing and no waiting — Mr Chum still takes his cut, because Mr Chum can
+see the watch.
+
+Behind all of it: a gas giant with a ring, two ranks of tower with lit windows,
+and ships coming in and going out on their own lanes. Thirty-nine people walk
+the decks, stop, turn round and walk back.
+
+## THE BASE
+
+Five pads along the eastern curve of your moon, poured by somebody before you
+owned the place. Each thing you put on one has **three levels**, and every level
+is a flat number you can feel in the hole:
+
+- **THE REFINERY** — ore goes in dirty and comes out worth more. Up to +45% on
+  every sale.
+- **THE AIR FARM** — green things in a tube, breathing so you do not have to.
+- **THE DRONE BAY** — they pick up what you drop. They do not ask why. The
+  drones are actually there, hovering over the pad, one per level.
+- **THE RADAR MAST** — it sees through rock, and the dish turns faster the more
+  you have paid for it.
+- **THE REACTOR** — it hums. The rat will not go near it.
+
+Twelve purchases in all. The permit office makes every one of them cheaper.
+
 ## The club
 
 It is a **big** room — nearly four screens of it, and it takes twelve seconds

@@ -56,6 +56,7 @@
       totalMined: 0, totalEarned: 0, bodyIndex: 0, seen: {},
       vault: {},                                  // ore waiting on the moon
       base: {},                                   // what you have put on the pads
+      bought: {},                                 // one-off perks from the port
       cos: { suit: 'rose', skin: 'green', glass: 'sky', drill: 'steel', trim: 'stock' },
       pet: 0,                                     // whether the rat is yours yet
       thots: 0, thotFrac: 0, neur: {},            // what the brain in the jar has grown
@@ -400,12 +401,16 @@
   };
   g.baseCost = function (id) {
     const b = D.BUILD_OF[id], lvl = g.baseLvl(id);
-    return lvl >= b.max ? 0 : b.cost[lvl];
+    if (lvl >= b.max) return 0;
+    // the permit office knocks a fifth off, which is the only honest thing
+    // anybody up there sells
+    const off = g.save.bought && g.save.bought.papers ? 0.8 : 1;
+    return Math.round(b.cost[lvl] * off);
   };
   g.build = function (id) {
     const b = D.BUILD_OF[id], lvl = g.baseLvl(id);
     if (!b || lvl >= b.max) { A.sfx.deny(); return false; }
-    const cost = b.cost[lvl];
+    const cost = g.baseCost(id);
     if (g.save.credits < cost) { A.sfx.deny(); return false; }
     g.save.credits -= cost;
     if (!g.save.base) g.save.base = {};

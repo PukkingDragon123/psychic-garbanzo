@@ -78,6 +78,12 @@
       else if (id === 'scanner') v *= 1 + g.baseBonus('mast');
       else if (id === 'drill') v *= 1 + g.baseBonus('reactor');
     }
+    // and whatever you came back from the port with
+    const bo = g.save.bought;
+    if (bo) {
+      if (id === 'oxygen' && bo.lungs) v += 40;
+      else if (id === 'magnet' && bo.grip) v += 22;
+    }
     // and then whatever the brain in the jar has grown on top of it
     const b = g.brain;
     if (!b) return v;
