@@ -60,7 +60,7 @@
     g.wipeTo(CX, CY, '#12503a', () => {
       g.state = 'home';
       PD.home.P.lock = 0.3;
-    });
+    }, 'static', 0.7);
   }
 
   function buy(g, n) {

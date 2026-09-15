@@ -265,6 +265,30 @@ START button that does nothing, a clock stuck at 88:88, and a folder called
 | **MESSAGES** | Six unread. Six bad. His mum is one of them |
 | **SETUP** | Sound, full screen, and a button that throws everything away |
 
+## Six ways out of a room
+
+A cut is the punctuation of a game and one mark is not enough. There were only
+ever the slime curtains; there are six now, and which one you get tells you
+where you are going before you get there.
+
+- **THE SLIME** — a ceiling of gloop comes down in uneven columns, hangs,
+  throws strings and drips, and peels back up. The moon's own punctuation.
+- **THE IRIS** — a hard-edged octagon closes on a point with a lit rim, so it
+  reads as an aperture rather than a hole. The tanks use it, closing on the jar
+  you picked.
+- **THE SHUTTERS** — eleven slats slam shut, alternate ones from opposite
+  sides. Doors: the house, the club, the computer.
+- **THE DISSOLVE** — a blocky teleport, every cell on its own threshold with a
+  bright edge as it flips. The lift at the port, because it takes the floor out
+  from under you.
+- **THE SWEEP** — one diagonal blade across the screen with a bright leading
+  edge. Anything that goes somewhere: the star chart, the shuttle.
+- **THE TEAR** — the picture rolls and tears in twenty-six bands with scanlines
+  flickering through it. Anything that goes through the brain.
+
+All six run on the same clock — close, fire the callback at the midpoint, open
+back up — so a caller only has to name the one it wants.
+
 ## Getting out of a scene
 
 Every screen that used to only say `ESC` now has **a button** in the top left
@@ -745,9 +769,15 @@ bottom-left corner**, standing on the book of what you owe him. He used to walk
 about in the middle of the scene and get in front of whatever you were trying
 to look at. He does not do that any more.
 
-What he does instead is **point**. He picks the thing you ought to be doing,
-turns to face it, sticks a fin out, and a little arrow beside him says which
-way it is. The states are: **lead** (he bounces on the spot and tells you what
+He is also **not there most of the time**. He used to stand in that corner
+permanently, watching you walk about your own moon, which is a lot of shark for
+a man who has already been paid — now he only appears while he actually has
+somewhere to point, and once there is nothing left to lead you to the corner is
+yours.
+
+What he does when he is there is **point**. He picks the thing you ought to be
+doing, turns to face it, sticks a fin out, and a little arrow beside him says
+which way it is. The states are: **lead** (he bounces on the spot and tells you what
 it is), **wait** (he stands there), **beckon** after nine seconds of you not
 going, **scold** after another three, and **arrived** — which fires when *you*
 reach the thing, not when he does, and is the only nice thing he says.
@@ -896,22 +926,47 @@ own head hides what you came to look at.
 
 ## Who is in — every one of them generated
 
-Nobody in the club is a drawing, and none of them are blobs any more. Each
-regular is **generated from a seed** as an actual person: a head on a neck, a
-torso with clothes on it, two arms with hands on the ends, two legs with boots.
+Nobody in the club is a drawing. Each regular is **generated from a seed** as an
+actual character, and the thing that makes that work is the **proportions**. The
+first version was a realistic seven-and-a-half heads tall, which at forty pixels
+meant a head eleven pixels across and a face you could not draw an eye on — so
+everybody was a smudge with legs. They are character proportions now: the head
+is nearly forty per cent of him and everything else got out of its way.
+
+Which buys the face room to be a face.
+
+### An eye is six things
+
+A dot is not an eye. Every eye here is a **socket** so it sits *in* the head, a
+**white**, an **iris in a colour that is never his skin colour** (a green man
+with green eyes has no eyes), a **pupil**, a **catchlight** that is always
+up-and-left on every eye on every character so the light in the room is
+consistent, and a **lid** in skin that cuts the top off the white. Take any one
+of those away and it goes back to being a dot.
+
+Over it goes a **brow**, which is where all the mood lives — flat, arched,
+angry, sad or bushy, and angled per side so an angry brow actually slants. Under
+it, a nose with two nostrils, and cheeks, because a face without them is a mask.
+
+And then **facial hair**, which is the single cheapest way to turn a generated
+body into somebody you would recognise again across a crowded room: a walrus, a
+handlebar with waxed tips, a pencil, a plain tache, a goatee, a full beard that
+takes over the jaw, or mutton chops.
 
 | | |
 | --- | --- |
-| **Build** | lanky, stout, normal or hulk — which changes the shoulders, the torso and the leg length, not just the scale |
-| **Colour** | a hue off the wheel turned into skin, shade, highlight and a clashing accent, plus its own clothes and its own trousers, because when the top and the bottom shared a colour the whole body read as one dark slab |
-| **Eyes** | one to four, in a row, stacked, in a triangle or out on stalks, each set in a socket with a brow over it |
-| **Mouth** | a grin, lips, tusks, a beak, a proboscis or mandibles |
-| **Head** | antennae, horns, a dorsal crest, a tuft, ears, a small top hat, or bare |
-| **Skin** | plain, speckled, scaled, striped or plated — drawn into the face and the torso both |
-| **Wearing** | a vest, an open jacket with a shirt and a tie under it, a tank, a sash, a long coat, or nothing |
+| **Body** | lanky, stout, normal, hulk or pear — shoulders, hips, torso and leg length all move independently, so a pear is genuinely pear-shaped and a hulk is genuinely wide |
+| **Plan** | biped, fungal (a cap with gills under it, on a stalk with a face on the front of it), beast (snout, brow, fur along the jaw, tail) or arthropod (plated collar, spiracles, wing cases) |
+| **Eyes** | one to four, in a row, stacked, in a triangle or out on stalks — all six elements each |
+| **Mouth** | a grin, a smirk, lips, tusks, a beak, a proboscis, mandibles, a full set of gold teeth or a sucker |
+| **Head** | antennae, horns, a dorsal crest, a tuft, a quiff, ears, a top hat, a flat cap, a mohawk, a crown of tendrils, bald |
+| **Skin** | plain, speckled, scaled, striped, plated, blotched or bioluminescent |
+| **Wearing** | a vest, a jacket with lapels and a tie, a tank, a sash, a long coat, a sequinned shirt, an open collar, or nothing — every garment leaves a collar of skin at the neck and has a lit edge, so nobody is a black slab |
+| **Boots** | their own colour, so two feet do not merge into one dark bar |
 
-Six frames each: idle, two steps of a walk, talking, kissing and blinking. The
-walk is in the sprite now rather than drawn under it, because they have legs.
+Seven frames each: idle, two steps of a walk, talking, kissing, blinking and a
+cheer. Twenty of them are generated at boot and the body plans are **dealt out
+rather than rolled**, so a room of twenty always has mushrooms in it.
 
 ## The dancer
 

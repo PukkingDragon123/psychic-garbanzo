@@ -85,7 +85,7 @@
     S.pick = i;
     A.sfx.tone(320, { type: 'square', to: 900, dur: 0.3, vol: 0.09 });
     PD.fx.ring(TUBE[i].x, TY + TH / 2, 4, 70, 0.8, '#8affd0', 3);
-    g.wipeTo(TUBE[i].x, TY + TH / 2, '#0a1a18', () => { g.decant(i); });
+    g.wipeTo(TUBE[i].x, TY + TH / 2, '#0a1a18', () => { g.decant(i); }, 'iris', 0.72);
   }
 
   /* ------------------------------------------------------------- the settings

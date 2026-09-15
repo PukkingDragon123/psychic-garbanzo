@@ -189,7 +189,7 @@
 
   function close(g) {
     if (PD.fx.wipeActive()) return;
-    g.wipeTo(SX + SW / 2, SY + SH / 2, '#1b2430', () => { PD.home.leaveDesk(g); });
+    g.wipeTo(SX + SW / 2, SY + SH / 2, '#1b2430', () => { PD.home.leaveDesk(g); }, 'bars');
   }
 
   function say(s) { S.status = s; }
@@ -500,7 +500,7 @@
     if (id === 'map') {
       say('GOING TO THE SKY.');
       if (PD.fx.wipeActive()) return;
-      g.wipeTo(SX + SW / 2, SY + SH / 2, '#1b2430', () => { PD.home.leaveDesk(g); g.openChart(); });
+      g.wipeTo(SX + SW / 2, SY + SH / 2, '#1b2430', () => { PD.home.leaveDesk(g); g.openChart(); }, 'sweep');
       return;
     }
     S.app = id;

@@ -435,23 +435,25 @@
     // where on the screen the iris should close on: the thing he pressed E at
     const at = toScreen(s.x - Math.round(g.intCam), groundY(s.x) - 20);
     const fx2 = U.clamp(at.x, 0, VW), fy2 = U.clamp(at.y, 0, VH);
-    if (s.id === 'door') { goIn(g); return; }
-    if (s.id === 'exit') { goOut(g); return; }
+    // a door is a door: the same shutter both ways, so the house has its own
+    // punctuation and the moon has the slime
+    if (s.id === 'door') { P.lock = 1; g.wipeTo(240, 135, '#2a2438', () => goIn(g), 'bars', 0.56); return; }
+    if (s.id === 'exit') { P.lock = 1; g.wipeTo(240, 135, '#2a2438', () => goOut(g), 'bars', 0.56); return; }
     if (s.id === 'ufo') { A.sfx.dock(); g.openChart(); return; }
     if (s.id === 'pc') {
       P.lock = 1;
-      g.wipeTo(fx2, fy2, '#1b2430', () => { g.state = 'desk'; PD.desk.enter(g); });
+      g.wipeTo(fx2, fy2, '#1b2430', () => { g.state = 'desk'; PD.desk.enter(g); }, 'bars');
       return;
     }
     if (s.id === 'brain') {
       P.lock = 1;
-      g.wipeTo(fx2, fy2, '#12503a', () => { PD.mind.open(g); });
+      g.wipeTo(fx2, fy2, '#12503a', () => { PD.mind.open(g); }, 'static', 0.7);
       return;
     }
     if (s.id === 'rat') { feedRat(g); return; }
     if (s.id === 'trash') { sweep(g, s.i); return; }
-    if (s.id === 'club') { goClub(g); return; }
-    if (s.id === 'clubout') { leaveClub(g); return; }
+    if (s.id === 'club') { P.lock = 1; g.wipeTo(240, 135, '#2a0c30', () => goClub(g), 'bars', 0.62); return; }
+    if (s.id === 'clubout') { P.lock = 1; g.wipeTo(240, 135, '#2a0c30', () => leaveClub(g), 'bars', 0.62); return; }
     if (s.id === 'dance') { haveADance(g); return; }
     if (s.id === 'bar') { buyADrink(g); return; }
     if (s.id === 'dj') {
@@ -467,8 +469,8 @@
     if (s.id === 'tele') { openTele(g); return; }
     if (s.sid) { openStall(g, s.sid); return; }
     if (s.zip) { startZip(g, s.zip); return; }
-    if (s.id === 'hubout') { P.lock = 1; g.wipeTo(240, 135, '#0a0614', () => leaveHub(g)); return; }
-    if (s.id === 'port') { P.lock = 1; g.wipeTo(240, 135, '#0a0614', () => goHub(g)); return; }
+    if (s.id === 'hubout') { P.lock = 1; g.wipeTo(240, 135, '#0a1a2a', () => leaveHub(g), 'sweep', 0.66); return; }
+    if (s.id === 'port') { P.lock = 1; g.wipeTo(240, 135, '#0a1a2a', () => goHub(g), 'sweep', 0.66); return; }
 
   }
 
@@ -685,13 +687,17 @@
 
   function teleportTo(g, d) {
     if (d === S.deck) { closeHubPanel(); return; }
-    S.deck = d;
-    P.y = groundY(P.x); P.vy = 0; P.air = 0;
-    HUB.arrive = 0.6;
-    FX.ring(TELE_X, DECK_Y[d] - 18, 4, 46, 0.7, '#7ef9ff', 3);
-    FX.stars(TELE_X, DECK_Y[d] - 20, 12, '#7ef9ff');
-    A.sfx.tone(180, { type: 'sine', to: 900, dur: 0.3, vol: 0.09 });
     closeHubPanel();
+    P.lock = 1;
+    A.sfx.tone(180, { type: 'sine', to: 900, dur: 0.3, vol: 0.09 });
+    // it takes the floor out from under you, so the cut is the floor going
+    g.wipeTo(240, 135, '#0d3a4a', () => {
+      S.deck = d;
+      P.y = groundY(P.x); P.vy = 0; P.air = 0;
+      HUB.arrive = 0.5;
+      FX.ring(TELE_X, DECK_Y[d] - 18, 4, 46, 0.7, '#7ef9ff', 3);
+      FX.stars(TELE_X, DECK_Y[d] - 20, 12, '#7ef9ff');
+    }, 'pixel', 0.62);
   }
 
   function buyStall(g, sid) {
@@ -2773,11 +2779,14 @@
     }
     // what you still owe the shark, where the top bar used to be
     PD.chum.drawDebt(ctx, g, 8, VH - 30);
-    /* And the small one, standing on it. He does not walk about in the scene
-       any more -- he lives in this corner, points at whatever you ought to be
-       doing, and is rude about how long it is taking. */
-    if (g.save.seenIntro && !PD.chum.active() && !UI.mode && S.sleep <= 0) {
-      PD.chum.leadStep(g.dt, g, { px: P.x, goals: leadGoals(g), key: S.scene + ':' + (g.save.trash || 0) });
+    /* And the small one, standing on it -- but ONLY while he has somewhere to
+       point. He used to live in that corner permanently, watching you walk
+       about your own moon, which is a lot of shark for a man who has already
+       been paid. Once there is nothing left to lead you to he goes away and
+       the corner is yours. */
+    const goals = g.save.seenIntro ? leadGoals(g) : null;
+    if (goals && goals.length && !PD.chum.active() && !UI.mode && S.sleep <= 0) {
+      PD.chum.leadStep(g.dt, g, { px: P.x, goals: goals, key: S.scene + ':' + (g.save.trash || 0) });
       PD.chum.drawMini(ctx, 28, VH - 34, t, 4, VW - 4);
     }
   }

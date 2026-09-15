@@ -157,8 +157,8 @@
   };
 
   /* Change screens through the iris rather than cutting. */
-  g.wipeTo = function (sx, sy, col, fn) {
-    FX.beginWipe(sx, sy, col, fn);
+  g.wipeTo = function (sx, sy, col, fn, kind, dur) {
+    FX.beginWipe(sx, sy, col, fn, kind, dur);
     A.sfx.tone(180, { type: 'square', to: 900, dur: 0.16, vol: 0.07 });
     A.sfx.tone(900, { type: 'triangle', to: 300, dur: 0.2, vol: 0.05, delay: 0.26 });
   };

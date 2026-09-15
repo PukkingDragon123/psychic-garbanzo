@@ -429,22 +429,12 @@
      interesting thing he could be doing. What is left is the half-dozen
      moments where he has something to SAY -- and the debt, which he will
      always find time for. */
+  /* He is a loan shark, not a tutorial. He turns up for the debt, for the
+     moment a world comes apart, and to tell you your air is going -- and for
+     nothing else. Everything he used to say about doors, shops, machines and
+     bins is gone: those were things you could already see. */
   const LESSONS = {
-    welcome: ['THIS ROCK IS YOURS NOW. I PAID FOR IT.'],
-    dig: ['AIR IS THE BLUE ONE. WHEN IT RUNS OUT, SO DO YOU.'],
     air: ['YOUR AIR IS LOW. I AM NOT SENTIMENTAL BUT YOU OWE ME MONEY.'],
-    sell: ['I TAKE A FIFTH UNTIL WE ARE SQUARE. READ THE PAPERWORK.'],
-    brain: ['FEED IT. IT IS THE ONLY THING ON THIS MOON CLEVERER THAN THE RAT.'],
-    tip: ['YES. IT IS A TIP. THAT IS WHY IT WAS CHEAP.',
-      'THERE IS SOMETHING UNDER THE LAST ONE. I CHECKED.'],
-    club: ['A CLUB. ON MY MOON. UNDER MY BINS.'],
-    hub: ['THE PORT. EVERYTHING FOR SALE AND NOTHING WORTH BUYING.',
-      'DO NOT SIGN ANYTHING. THAT IS MY JOB.'],
-    build: ['YOU ARE BUILDING. ON MY MOON. WITH MY MONEY.',
-      'IT IS NOT MY MONEY UNTIL YOU MAKE SOME. GO ON THEN.'],
-    gamble: ['I CAN SEE THE WATCH. I CAN SEE WHERE THE WATCH IS.',
-      'GO ON THEN. IT IS YOUR MONEY. IT IS MY MONEY.'],
-    jackpot: ['THREE THE SAME. IN TWENTY YEARS I HAVE NEVER SEEN IT.'],
     core: ['THAT IS A WHOLE WORLD GONE. THE BOUNTY IS ENORMOUS. DO IT AGAIN.'],
     debt75: ['A QUARTER DOWN. I HAVE STOPPED CIRCLING YOUR HOUSE.'],
     debt50: ['HALF. I TOLD MY MOTHER ABOUT YOU. SHE WAS NOT INTERESTED.'],
@@ -468,10 +458,17 @@
 
   /* Ring him through. Lessons only ever play once; `force` is for the debt
      milestones, which want to interrupt. */
+  let lastCall = -1e9;
   function call(g, id, force) {
     if (!LESSONS[id]) return;
     if (!force && g.save.seen && g.save.seen['chum_' + id]) return;
+    /* Two of him inside a minute is nagging whatever he is saying. The debt
+       milestones and the end of the book are the only things allowed to jump
+       the queue. */
+    const big = id === 'debt0' || id === 'core';
+    if (!big && g.time - lastCall < 75) return;
     if (g.save.seen) g.save.seen['chum_' + id] = 1;
+    lastCall = g.time;
     if (S.call === id) return;
     if (S.call) { S.queue.push(id); return; }
     S.call = id; S.t = 0; S.lines = LESSONS[id]; S.line = 0; S.chars = 0; S.buzz = 1.2;

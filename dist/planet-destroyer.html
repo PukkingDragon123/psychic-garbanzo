@@ -4535,13 +4535,18 @@ window.PD = window.PD || {};
      skeleton underneath is the same one, which is why they can all wear a
      jacket and hold a drink. */
   const PLANK = ['biped', 'biped', 'biped', 'biped', 'fungal', 'fungal', 'beast', 'beast', 'bug'];
-  const BUILDK = ['lanky', 'stout', 'normal', 'normal', 'hulk'];
-  const EYEK = ['row', 'row', 'row', 'stack', 'tri', 'stalk'];
-  const MOUTHK = ['grin', 'grin', 'tusk', 'beak', 'straw', 'mandible', 'lips', 'grill', 'sucker'];
+  const BUILDK = ['lanky', 'stout', 'normal', 'normal', 'hulk', 'pear'];
+  const EYEK = ['row', 'row', 'row', 'row', 'stack', 'tri', 'stalk'];
+  const MOUTHK = ['grin', 'grin', 'smirk', 'tusk', 'beak', 'straw', 'mandible', 'lips', 'grill', 'sucker'];
   const CROWNK = ['none', 'antenna', 'antenna', 'horns', 'fin', 'hat', 'tuft', 'ears',
-    'mohawk', 'tendrils', 'cap', 'crest'];
+    'mohawk', 'tendrils', 'cap', 'crest', 'quiff', 'bald'];
   const SKINK = ['plain', 'plain', 'speckle', 'scale', 'stripe', 'plate', 'spot', 'glow'];
   const WEARK = ['vest', 'jacket', 'tank', 'sash', 'coat', 'bare', 'sequin', 'shirt'];
+  /* What is on his face, which is the single biggest thing that turns a
+     generated body into somebody you would recognise again. */
+  const HAIRK = ['none', 'none', 'none', 'walrus', 'walrus', 'handlebar', 'pencil',
+    'goatee', 'beard', 'chops', 'tache'];
+  const BROWK = ['flat', 'flat', 'arch', 'angry', 'sad', 'bushy'];
 
   function alienKin(seed, forcePlan) {
     const R = PD.util.mulberry32(seed * 2654435761 + 12345);
@@ -4559,11 +4564,12 @@ window.PD = window.PD || {};
       plan: pick(PLANK),
       build: pick(BUILDK), eyes: ri(1, 4), eyeK: pick(EYEK),
       mouth: pick(MOUTHK), crown: pick(CROWNK), tex: pick(SKINK), wear: pick(WEARK),
+      hair: pick(HAIRK), brow: pick(BROWK),
       big: 0.9 + R() * 0.42, lean: R() < 0.5 ? -1 : 1, ant: ri(1, 3),
       belt: R() < 0.6, boots: R() < 0.7, pads: R() < 0.4,
       /* the things that make a room of them read as a NIGHT OUT rather than a
          line-up: eyewear, jewellery, something lit in the mouth */
-      shades: R() < 0.26 ? (R() < 0.5 ? 'visor' : 'specs') : null,
+      shades: R() < 0.18 ? (R() < 0.4 ? 'visor' : 'specs') : null,
       chain: R() < 0.3, ring: R() < 0.22, smoke: R() < 0.16,
       glowCol: hsl(hue + 160 + R() * 120, 84, 62)
     };
@@ -4571,27 +4577,48 @@ window.PD = window.PD || {};
     t.clothD = hsl(hue + 140, 38, 26);
     /* Trousers get their own colour. When they shared one with the jacket the
        whole body below the neck read as a single dark slab. */
-    t.pants = hsl(hue + 230 + R() * 60, 26 + R() * 22, 46 + R() * 14);
-    t.pantsL = hsl(hue + 230, 24, 66);
-    t.pantsD = hsl(hue + 230, 26, 19);
+    t.pants = hsl(hue + 230 + R() * 60, 26 + R() * 22, 52 + R() * 14);
+    t.pantsL = hsl(hue + 230, 24, 70);
+    t.pantsD = hsl(hue + 230, 28, 24);
+    /* The iris is never the skin colour. A green man with green eyes has no
+       eyes; the whole point of a real eye is that it is a different thing
+       sitting in the face. */
+    t.bootC = hsl(hue + 20 + R() * 300, 22 + R() * 26, 30 + R() * 16);
+    t.bootL = hsl(hue + 20, 20, 52);
+    t.iris = hsl(hue + 150 + R() * 120, 66 + R() * 24, 44 + R() * 12);
+    t.irisL = hsl(hue + 150 + R() * 120, 70, 66);
+    // and the hair is its own colour too, or it is not hair
+    t.hairC = R() < 0.3 ? hsl(hue + 30, 14 + R() * 20, 18 + R() * 16)
+      : hsl(hue + 200 + R() * 120, 30 + R() * 34, 26 + R() * 24);
+    t.hairL = hsl(hue + 200, 26, 52);
     if (forcePlan) t.plan = forcePlan;
     /* the plan overrules the trimmings: a mushroom does not wear a hat, and a
        beast's ears are its ears rather than a choice */
-    if (t.plan === 'fungal') { t.crown = 'none'; t.tex = R() < 0.5 ? 'spot' : 'plain'; t.eyes = ri(2, 3); }
+    if (t.plan === 'fungal') { t.crown = 'none'; t.tex = R() < 0.5 ? 'spot' : 'plain'; t.eyes = ri(2, 2); }
     if (t.plan === 'beast') { t.crown = 'ears'; t.eyes = 2; t.mouth = R() < 0.5 ? 'tusk' : 'grin'; }
-    if (t.plan === 'bug') { t.crown = 'antenna'; t.mouth = 'mandible'; t.tex = 'plate'; }
+    if (t.plan === 'bug') { t.crown = 'antenna'; t.mouth = 'mandible'; t.tex = 'plate'; t.eyes = 2; }
+    // three eyes in a row across a face this size is a crowd; keep it to two
+    // unless the layout is deliberately a stack or a triangle
+    if (t.eyeK === 'row') t.eyes = R() < 0.82 ? 2 : 1;
     t.capW = 1.5 + R() * 0.7;                       // how wide the cap sits
     t.snout = 4 + Math.round(R() * 4);              // how far the face sticks out
     if (t.eyeK === 'tri') t.eyes = 3;
     if (t.eyeK === 'stalk') t.eyes = Math.min(2, t.eyes);
     if (t.build === 'hulk') t.big = Math.max(t.big, 1.2);
     if (t.build === 'lanky') t.big = Math.min(t.big, 1.05);
-    // the measurements everything else is hung off
-    t.hr = Math.round(11 * t.big);                       // head radius
-    t.sw = Math.round((t.build === 'hulk' ? 13 : t.build === 'lanky' ? 8 : 10) * t.big);
-    t.th = Math.round((t.build === 'lanky' ? 17 : t.build === 'stout' ? 12 : 14) * t.big);
-    t.lh = Math.round((t.build === 'lanky' ? 24 : t.build === 'stout' ? 15 : 19) * t.big);
-    t.aw = Math.max(4, Math.round(5 * t.big));
+    /* THE PROPORTIONS. The old ones were a realistic seven-and-a-half heads
+       tall, which at forty pixels meant a head eleven pixels across and a face
+       you could not draw an eye on. These are character proportions: the head
+       is nearly forty per cent of him and everything else got out of its way.
+       That one change is what turns the crowd from a line of smudges into a
+       room full of people. */
+    const B = { lanky: 0, stout: 1, normal: 2, hulk: 3, pear: 4 }[t.build];
+    t.hr = Math.round([13, 15, 14, 14, 14][B] * (0.94 + t.big * 0.1));
+    t.sw = Math.round([9, 13, 11, 15, 12][B] * t.big);
+    t.hw = Math.round([8, 14, 11, 13, 15][B] * t.big);   // hips, which need not match
+    t.th = Math.round([20, 15, 17, 17, 17][B] * t.big);
+    t.lh = Math.round([20, 14, 17, 17, 16][B] * t.big);
+    t.aw = Math.max(4, Math.round([4, 6, 5, 7, 5][B] * t.big));
     t.legLen = 0;                                        // no tentacles any more
     return t;
   }
@@ -4610,26 +4637,37 @@ window.PD = window.PD || {};
     }
   }
 
+  /* ====================================================================== A PERSON
+     Built from the feet up, in this order, because every layer needs the one
+     under it to be already there: tail, legs, torso, clothes, arms, neck,
+     head, face, hair, and whatever he went out wearing.
+
+     The face is the part that matters. An eye here is a socket, a white, an
+     iris that is never the colour of his skin, a pupil, a catchlight that is
+     always up-and-left, and a lid that cuts the top off the white -- six
+     elements, on a head big enough to hold them. Everything above the eyes is
+     brow and everything below is moustache, and between them that is a
+     character rather than a colour swatch with legs. */
   function buildAlien(t, face) {
-    const HW = t.hr * 2 + 26, HH = t.hr * 2 + t.th + t.lh + 26;
-    const W = HW & ~1, H = HH & ~1;
+    const HW = (t.hr * 2 + 34) & ~1;
+    const HH = (t.hr * 2 + t.th + t.lh + 34) & ~1;
+    const W = HW, H = HH;
     const p = pix(W, H);
     const cx = W >> 1;
     const FOOT = H - 2;
     const hipY = FOOT - t.lh;
     const shY = hipY - t.th;
-    const neckY = shY - 3;
-    const headY = neckY - t.hr - 1;
+    const neckY = shY - 2;
+    const headY = neckY - t.hr + 1;                  // the centre of the head
     const INK = '#140f26';
     const kiss = face === 4, blink = face === 5, cheer = face === 6;
     const talk = face === 3 || cheer;
-    const step = face === 1 ? 1 : (face === 2 ? -1 : 0);   // walk frames
+    const step = face === 1 ? 1 : (face === 2 ? -1 : 0);
 
     // ------------------------------------------------------------- the tail
-    // drawn first, so it reads as coming out from behind rather than stuck on
     if (t.plan === 'beast') {
       const sweep = step * 2;
-      let tx = cx - t.sw + 1, ty = hipY - 5;
+      let tx = cx - t.hw + 1, ty = hipY - 4;
       for (let i = 0; i < 6; i++) {
         const w = 6 - i * 0.7;
         tx -= 1.7 + i * 0.2; ty += (i < 2 ? 2.2 : -1.8) + sweep * 0.4;
@@ -4637,347 +4675,468 @@ window.PD = window.PD || {};
       }
       p.round(tx - 2.5, ty - 2.5, 5, 5, 2, t.acc);
     } else if (t.plan === 'bug') {
-      // wing cases, folded down the back
       for (const side of [-1, 1]) {
-        p.round(cx + side * (t.sw - 1) - 4, shY + 2, 9, t.th + 6, 4, t.accD);
-        p.round(cx + side * (t.sw - 1) - 3, shY + 3, 7, t.th + 3, 3, t.acc);
-        p.rect(cx + side * (t.sw - 1) - 1, shY + 4, 1, t.th, t.accD);
+        p.round(cx + side * (t.sw - 1) - 4, shY + 3, 9, t.th + 4, 4, t.accD);
+        p.round(cx + side * (t.sw - 1) - 3, shY + 4, 7, t.th + 1, 3, t.acc);
       }
     }
 
-    // ---------------------------------------------------------------- legs
-    const kneeY = hipY + Math.round(t.lh * 0.5);
+    // ------------------------------------------------------------- the legs
+    // short, apart, and with a foot on the end that points somewhere
+    const kneeY = hipY + Math.round(t.lh * 0.52);
     for (const side of [-1, 1]) {
-      const sw = side * (step * 4);
-      // far enough apart to leave daylight between them, or the two legs
-      // and the body read as one solid block from across the room
-      const hx = cx + side * (t.aw + 2);
+      const sw = side * (step * 3);
+      const hx = cx + side * Math.max(4, Math.round(t.hw * 0.66));
       const fx = hx + sw;
-      limb(p, hx, hipY, hx + sw * 0.5, kneeY, t.aw + 1, t.aw, t.pants, t.pantsL, INK);
-      limb(p, hx + sw * 0.5, kneeY, fx, FOOT - 3, t.aw, t.aw - 1,
-        t.wear === 'bare' ? t.skin : t.pants, t.wear === 'bare' ? t.lite : t.pantsL, INK);
+      const bare = t.wear === 'bare';
+      limb(p, hx, hipY - 1, hx + sw * 0.5, kneeY, t.aw + 2, t.aw + 1,
+        bare ? t.skin : t.pants, bare ? t.lite : t.pantsL, INK);
+      limb(p, hx + sw * 0.5, kneeY, fx, FOOT - 4, t.aw + 1, t.aw,
+        bare ? t.skin : t.pants, bare ? t.lite : t.pantsL, INK);
       p.rect(hx - 1, kneeY - 1, 3, 2, t.pantsD);
-      // a boot, or a foot with toes on it
+      const fd = side * (t.lean > 0 ? 1 : -1) > 0 ? 1 : -1;
       if (t.boots) {
-        p.round(fx - t.aw, FOOT - 6, t.aw * 2 + 1, 7, 2, '#241f2e');
-        p.rect(fx - t.aw, FOOT - 6, t.aw * 2 + 1, 2, t.acc);
+        p.round(fx - t.aw, FOOT - 7, t.aw * 2 + 1, 8, 3, t.bootC);
+        p.round(fx - t.aw + (fd > 0 ? 2 : -2), FOOT - 4, t.aw * 2 + 1, 5, 2, t.bootC);
+        p.rect(fx - t.aw, FOOT - 7, t.aw * 2 + 1, 2, t.acc);
+        p.rect(fx - t.aw + 1, FOOT - 6, t.aw * 2 - 1, 1, t.bootL);
+        p.rect(fx - t.aw, FOOT - 1, t.aw * 2 + 1, 1, '#12101a');
       } else {
-        p.round(fx - t.aw, FOOT - 4, t.aw * 2 + 1, 5, 2, t.skin);
-        p.rect(fx - t.aw, FOOT - 1, t.aw * 2 + 1, 1, t.dark);
-        for (let k = 0; k < 3; k++) p.set(fx + t.aw, FOOT - 4 + k, t.dark);
+        p.round(fx - t.aw + 1, FOOT - 5, t.aw * 2 - 1, 6, 2, t.skin);
+        p.round(fx - t.aw + 1 + (fd > 0 ? 2 : -2), FOOT - 3, t.aw * 2 - 1, 4, 2, t.skin);
+        p.rect(fx - t.aw + 1, FOOT - 5, t.aw * 2 - 1, 1, t.lite);
+        p.rect(fx - t.aw + 1, FOOT - 1, t.aw * 2 - 1, 1, t.dark);
+        for (let k = 0; k < 3; k++) p.set(fx + fd * t.aw, FOOT - 4 + k, t.dark);
       }
     }
 
-    // --------------------------------------------------------------- torso
-    p.round(cx - t.sw, shY, t.sw * 2, t.th + 4, Math.max(2, (t.sw / 2) | 0), t.skin);
-    p.round(cx - t.sw + 1, shY + 1, t.sw * 2 - 2, 4, 2, t.lite);          // lit shoulders
-    p.round(cx - t.sw + 2, shY + t.th - 2, t.sw * 2 - 4, 5, 2, t.dark);   // shadow under the ribs
-    // a belly, on the ones who have one
-    if (t.build === 'stout' || t.build === 'hulk') {
-      p.ellipse(cx, shY + t.th - 1, t.sw - 1, 5, t.skin);
-      p.ellipse(cx, shY + t.th - 2, t.sw - 3, 3, t.lite);
+    // ------------------------------------------------------------ the torso
+    // a proper taper from shoulder to hip instead of a rectangle
+    for (let y = 0; y <= t.th + 3; y++) {
+      const f = y / (t.th + 3);
+      const wAt = Math.round(t.sw + (t.hw - t.sw) * f);
+      p.rect(cx - wAt, shY + y, wAt * 2, 1, t.skin);
+    }
+    p.round(cx - t.sw, shY - 1, t.sw * 2, 6, 3, t.skin);          // shoulder cap
+    p.round(cx - t.sw + 1, shY, t.sw * 2 - 2, 4, 2, t.lite);      // and the light on it
+    p.round(cx - t.hw + 1, shY + t.th, t.hw * 2 - 2, 5, 2, t.dark);
+    if (t.build === 'stout' || t.build === 'hulk' || t.build === 'pear') {
+      p.ellipse(cx, shY + t.th - 1, t.hw - 1, 5, t.skin);
+      p.ellipse(cx, shY + t.th - 2, t.hw - 3, 3, t.lite);
     }
 
-    // ------------------------------------------------------------- clothing
+    // --------------------------------------------------------- the clothing
+    // nothing is a black slab any more: every garment leaves a collar of skin
+    // at the neck and has a lit edge, so the body reads in three tones
     const C = t.cloth, CL = t.clothL, CD = t.clothD;
+    const colY = shY + 3;
     if (t.wear === 'vest') {
-      p.round(cx - t.sw, shY + 1, 5, t.th + 2, 1, C);
-      p.round(cx + t.sw - 5, shY + 1, 5, t.th + 2, 1, C);
-      p.rect(cx - t.sw, shY + 1, 5, 1, CL); p.rect(cx + t.sw - 5, shY + 1, 5, 1, CL);
+      p.round(cx - t.sw, shY + 1, 6, t.th + 3, 2, C);
+      p.round(cx + t.sw - 6, shY + 1, 6, t.th + 3, 2, C);
+      p.rect(cx - t.sw, shY + 1, 6, 1, CL); p.rect(cx + t.sw - 6, shY + 1, 6, 1, CL);
+      for (let i = 0; i < 3; i++) p.set(cx + t.sw - 3, shY + 6 + i * 4, t.acc);
     } else if (t.wear === 'jacket') {
-      p.round(cx - t.sw, shY, t.sw * 2, t.th + 3, 3, C);
-      p.round(cx - 4, shY + 2, 8, t.th + 1, 2, t.lite);          // the shirt under it
-      p.round(cx - t.sw, shY, 6, 9, 2, CL); p.round(cx + t.sw - 6, shY, 6, 9, 2, CL);
-      p.rect(cx - t.sw, shY + t.th, t.sw * 2, 2, CD);
-      p.rect(cx - 1, shY + 4, 2, t.th - 4, t.acc);                // and a tie on it
+      p.round(cx - t.sw, colY, t.sw * 2, t.th + 1, 3, C);
+      p.round(cx - 4, colY, 8, t.th + 1, 2, t.lite);              // shirt under it
+      p.poly = null;
+      p.round(cx - t.sw, colY - 2, 7, 8, 2, CL);                  // lapels
+      p.round(cx + t.sw - 7, colY - 2, 7, 8, 2, CL);
+      p.rect(cx - t.sw, colY + t.th - 2, t.sw * 2, 2, CD);
+      p.rect(cx - 1, colY + 3, 2, t.th - 5, t.acc);               // a tie
+      p.round(cx - 2, colY + 1, 5, 4, 1, t.acc);
     } else if (t.wear === 'tank') {
-      p.round(cx - t.sw + 2, shY + 4, t.sw * 2 - 4, t.th - 1, 2, C);
-      p.rect(cx - t.sw + 2, shY + 4, t.sw * 2 - 4, 1, CL);
+      p.round(cx - t.sw + 2, colY + 1, t.sw * 2 - 4, t.th, 2, C);
+      p.rect(cx - t.sw + 2, colY + 1, t.sw * 2 - 4, 1, CL);
+      p.rect(cx - t.sw + 2, colY + 5, t.sw * 2 - 4, 1, CD);
     } else if (t.wear === 'sash') {
       for (let i = 0; i < t.th + 2; i++) {
-        p.rect(cx - t.sw + 1 + Math.round(i * 0.7), shY + 1 + i, 5, 1, i % 4 < 2 ? C : CL);
+        p.rect(cx - t.sw + 1 + Math.round(i * 0.7), colY + i, 6, 1, i % 4 < 2 ? C : CL);
       }
     } else if (t.wear === 'coat') {
-      p.round(cx - t.sw - 1, shY, t.sw * 2 + 2, t.th + 8, 3, C);
-      p.rect(cx - 1, shY, 2, t.th + 8, CD);
-      p.round(cx - t.sw - 1, shY, 6, 9, 2, CL); p.round(cx + t.sw - 5, shY, 6, 9, 2, CL);
+      p.round(cx - t.sw - 1, colY, t.sw * 2 + 2, t.th + 6, 3, C);
+      p.rect(cx - 1, colY, 2, t.th + 6, CD);
+      p.round(cx - t.sw - 1, colY - 2, 7, 9, 2, CL);
+      p.round(cx + t.sw - 6, colY - 2, 7, 9, 2, CL);
+      for (let i = 0; i < 3; i++) p.set(cx + 2, colY + 5 + i * 4, t.acc);
     } else if (t.wear === 'sequin') {
-      // a shirt that is entirely sequins, because it is that kind of room
-      p.round(cx - t.sw, shY, t.sw * 2, t.th + 4, 2, C);
-      for (let y = shY + 1; y < shY + t.th + 3; y += 2) {
+      p.round(cx - t.sw, colY, t.sw * 2, t.th + 2, 2, C);
+      for (let y = colY + 1; y < colY + t.th + 2; y += 2) {
         for (let x = cx - t.sw + 1; x < cx + t.sw - 1; x += 3) {
           const q = (x * 7 + y * 13) % 5;
           p.set(x + ((y >> 1) % 2), y, q === 0 ? '#ffffff' : (q === 1 ? CL : (q === 2 ? t.acc : CD)));
         }
       }
-      p.rect(cx - t.sw, shY, t.sw * 2, 1, '#ffffff');
+      p.rect(cx - t.sw, colY, t.sw * 2, 1, '#ffffff');
     } else if (t.wear === 'shirt') {
-      // an open shirt with a collar and a triangle of chest
-      p.round(cx - t.sw, shY, t.sw * 2, t.th + 4, 2, C);
-      p.spike(cx, shY, 9, Math.round(t.th * 0.7), 1, t.skin);
-      p.round(cx - t.sw, shY, 5, 6, 1, CL);
-      p.round(cx + t.sw - 5, shY, 5, 6, 1, CL);
-      for (let i = 0; i < 3; i++) p.set(cx, shY + Math.round(t.th * 0.7) + i * 3, t.acc);
+      p.round(cx - t.sw, colY, t.sw * 2, t.th + 2, 2, C);
+      p.spike(cx, colY, 10, Math.round(t.th * 0.7), 1, t.skin);   // an open collar
+      p.round(cx - t.sw, colY - 2, 6, 7, 2, CL);
+      p.round(cx + t.sw - 6, colY - 2, 6, 7, 2, CL);
+      for (let i = 0; i < 3; i++) p.set(cx, colY + Math.round(t.th * 0.7) + i * 3, t.acc);
     }
-    // a chain, worn over whatever that was
+    // a waist, always, so the body is not one shape
+    p.rect(cx - t.hw + 1, shY + t.th + 2, t.hw * 2 - 2, 3, t.pantsD);
+    p.rect(cx - t.hw + 1, shY + t.th + 2, t.hw * 2 - 2, 1, t.pants);
+    if (t.belt) {
+      p.rect(cx - t.hw, shY + t.th + 1, t.hw * 2, 3, CD);
+      p.round(cx - 3, shY + t.th, 6, 5, 1, t.acc);
+      p.set(cx, shY + t.th + 2, t.accD);
+    }
     if (t.chain) {
       for (let i = -3; i <= 3; i++) {
-        p.set(cx + i * 2, shY + 5 + Math.abs(i), t.acc);
-        p.set(cx + i * 2 + 1, shY + 5 + Math.abs(i), t.accD);
+        p.set(cx + i * 2, colY + 4 + Math.abs(i), t.acc);
+        p.set(cx + i * 2 + 1, colY + 4 + Math.abs(i), t.accD);
       }
-      p.round(cx - 2, shY + 9, 4, 4, 1, t.acc);
-      p.set(cx - 1, shY + 10, '#ffffff');
-    }
-    // a waist, always: it is the line that stops the body being one slab
-    p.rect(cx - t.sw + 1, shY + t.th + 1, t.sw * 2 - 2, 3, t.pantsD);
-    p.rect(cx - t.sw + 1, shY + t.th + 1, t.sw * 2 - 2, 1, t.pants);
-    if (t.belt) {
-      p.rect(cx - t.sw, shY + t.th - 1, t.sw * 2, 3, CD);
-      p.rect(cx - 2, shY + t.th - 1, 4, 3, t.acc);
+      p.round(cx - 2, colY + 8, 5, 5, 1, t.acc);
+      p.set(cx - 1, colY + 9, '#ffffff');
     }
 
-    // ---------------------------------------------------------------- arms
+    // ------------------------------------------------------------- the arms
     for (const side of [-1, 1]) {
       const swing = side * (-step * 3);
       const sx = cx + side * (t.sw + 1);
-      // both arms straight up when the room is going mad
-      const ex = cheer ? sx + side * 2 : sx + side * 3 + swing;
-      const hy = cheer ? shY - t.th + 2 : shY + t.th + 2 + Math.abs(swing);
-      const mid = cheer ? shY - Math.round(t.th * 0.3) : shY + Math.round(t.th * 0.55);
+      const ex = cheer ? sx + side * 3 : sx + side * 4 + swing;
+      const hy = cheer ? shY - t.th - 1 : shY + t.th + 3 + Math.abs(swing);
+      const mid = cheer ? shY - Math.round(t.th * 0.4) : shY + Math.round(t.th * 0.55);
       limb(p, sx, shY + 4, ex, mid, t.aw + 1, t.aw, t.skin, t.lite, INK);
       limb(p, ex, mid, ex + side * 2, hy, t.aw, t.aw - 1, t.skin, t.lite, INK);
-      if (t.pads) p.round(sx - 2, shY + 2, 5, 4, 1, t.acc);
-      // a hand with a couple of fingers on it
-      p.round(ex + side * 2 - 3, hy, 6, 6, 2, t.lite);
-      p.rect(ex + side * 2 - 3, hy + 5, 2, 2, t.skin);
-      p.rect(ex + side * 2, hy + 5, 2, 2, t.skin);
+      if (t.pads) p.round(sx - 3, shY + 1, 7, 5, 2, t.acc);
+      // a hand with fingers on it, curled or open
+      const hx2 = ex + side * 2;
+      p.round(hx2 - 3, hy, 7, 7, 2, t.lite);
+      p.round(hx2 - 3, hy, 7, 3, 2, t.skin);
+      for (let f = 0; f < 3; f++) p.rect(hx2 - 3 + f * 2, hy + 5, 2, 3, t.skin);
+      p.set(hx2 - 3, hy + 3, t.dark);
+      if (t.ring && side > 0) { p.disc(hx2 + 2, hy + 3, 2, t.acc); p.set(hx2 + 2, hy + 2, '#ffffff'); }
     }
 
-    // ---------------------------------------------------------------- head
-    p.rect(cx - 2, neckY - 2, 4, 5, t.dark);                          // neck
+    // ------------------------------------------------------------- the neck
+    p.rect(cx - 3, neckY - 3, 7, 6, t.dark);
+    p.rect(cx - 3, neckY - 3, 7, 2, t.skin);
+
+    // ------------------------------------------------------------- the head
+    const HR = t.hr;
     if (t.plan === 'fungal') {
-      // a stalk with a cap on it: the gills underneath are the giveaway
-      const cw = Math.round(t.hr * t.capW), ch = Math.round(t.hr * 0.9);
-      p.round(cx - Math.round(t.hr * 0.55), headY - 1, Math.round(t.hr * 1.1), t.hr + 6, 3, t.lite);
-      p.round(cx - Math.round(t.hr * 0.4), headY, Math.round(t.hr * 0.5), t.hr + 5, 2, '#fff6e0');
-      p.ellipse(cx, headY - 1, cw, ch, t.dark);                       // the gills
-      for (let i = -4; i <= 4; i++) p.line(cx + i * 2, headY - 1, cx + i * 3, headY - ch, t.skin);
-      p.ellipse(cx, headY - 3, cw, ch, t.skin);                       // and the cap over them
-      p.ellipse(cx, headY - 5, Math.round(cw * 0.8), Math.round(ch * 0.7), t.lite);
+      const cw = Math.round(HR * t.capW * 0.86), ch = Math.round(HR * 0.62);
+      // the stalk is his face, so it is wide enough to have one on it
+      p.round(cx - Math.round(HR * 0.82), headY - 6, Math.round(HR * 1.64), HR + 12, 6, t.lite);
+      p.round(cx - Math.round(HR * 0.7), headY - 4, Math.round(HR * 1.4), HR + 9, 5, '#fff6e0');
+      p.ellipse(cx, headY - 8, cw, ch, t.dark);                    // the gills
+      for (let i = -5; i <= 5; i++) p.line(cx + i * 2, headY - 8, cx + i * 3, headY - 8 - ch, t.skin);
+      p.ellipse(cx, headY - 11, cw, ch, t.skin);                   // and the cap over them
+      p.ellipse(cx, headY - 13, Math.round(cw * 0.78), Math.round(ch * 0.66), t.lite);
       for (let i = 0; i < 6; i++) {
         const a = 0.5 + i * 0.7;
-        p.disc(cx + Math.cos(a) * cw * 0.6, headY - 4 + Math.sin(a) * ch * 0.4,
-          1 + (i % 2), i % 2 ? '#fff6e0' : t.acc);
+        p.disc(cx + Math.cos(a) * cw * 0.6, headY - 13 + Math.sin(a) * ch * 0.4,
+          1.4 + (i % 2), i % 2 ? '#fff6e0' : t.acc);
       }
-      p.rect(cx - cw, headY - 1, cw * 2, 1, t.dark);
+      p.rect(cx - cw, headY - 8, cw * 2, 1, t.dark);
     } else if (t.plan === 'beast') {
-      // a skull with a snout on the front of it and a brow over the eyes
-      p.ellipse(cx, headY, t.hr, t.hr - 1, t.skin);
-      p.ellipse(cx, headY - Math.round(t.hr * 0.4), Math.round(t.hr * 0.72), Math.round(t.hr * 0.34), t.lite);
+      p.ellipse(cx, headY, HR, HR - 1, t.skin);
+      p.ellipse(cx, headY - Math.round(HR * 0.42), Math.round(HR * 0.76), Math.round(HR * 0.36), t.lite);
       const sd = t.lean > 0 ? 1 : -1;
-      p.round(cx + sd * (t.hr - 2) - 3, headY + 1, t.snout + 5, Math.round(t.hr * 0.72), 3, t.skin);
-      p.round(cx + sd * (t.hr - 2) - 2, headY + 1, t.snout + 3, Math.round(t.hr * 0.36), 2, t.lite);
-      p.disc(cx + sd * (t.hr + t.snout - 2), headY + 3, 2, t.dark);   // the nose
-      p.rect(cx - t.hr + 1, headY - Math.round(t.hr * 0.3), (t.hr - 1) * 2, 2, t.dark);
-      // fur along the jaw
-      for (let i = -3; i <= 3; i++) p.line(cx + i * 3, headY + t.hr - 3, cx + i * 3 + 1, headY + t.hr + 2, t.dark);
+      const snY = headY + Math.round(HR * 0.28);
+      p.round(cx + sd * (HR - 3) - 3, snY - 3, t.snout + 7, Math.round(HR * 0.62), 4, t.skin);
+      p.round(cx + sd * (HR - 3) - 2, snY - 3, t.snout + 5, Math.round(HR * 0.3), 3, t.lite);
+      p.round(cx + sd * (HR + t.snout - 1) - 2, snY - 1, 5, 4, 2, t.dark);      // the nose
+      p.set(cx + sd * (HR + t.snout - 1), snY - 1, '#ffffff');
+      for (let i = -3; i <= 3; i++) p.line(cx + i * 3, headY + HR - 4, cx + i * 3 + 1, headY + HR + 1, t.dark);
     } else {
-      p.ellipse(cx, headY, t.hr, t.hr - 1, t.skin);
-      p.ellipse(cx, headY - Math.round(t.hr * 0.4), Math.round(t.hr * 0.72), Math.round(t.hr * 0.34), t.lite);
-      p.ellipse(cx, headY + Math.round(t.hr * 0.55), Math.round(t.hr * 0.8), Math.round(t.hr * 0.3), t.dark);
-      // a jaw, so the head is not a ball
-      p.round(cx - t.hr + 2, headY + 1, (t.hr - 2) * 2, t.hr, 3, t.skin);
+      p.ellipse(cx, headY, HR, HR - 1, t.skin);
+      p.ellipse(cx, headY - Math.round(HR * 0.42), Math.round(HR * 0.76), Math.round(HR * 0.34), t.lite);
+      p.ellipse(cx, headY + Math.round(HR * 0.58), Math.round(HR * 0.84), Math.round(HR * 0.3), t.dark);
+      p.round(cx - HR + 3, headY + 2, (HR - 3) * 2, HR - 1, 4, t.skin);         // the jaw
+      // cheeks, which is most of what makes a face look like it has a person in it
+      p.ellipse(cx - Math.round(HR * 0.62), headY + Math.round(HR * 0.3), 3, 2, t.lite);
+      p.ellipse(cx + Math.round(HR * 0.62), headY + Math.round(HR * 0.3), 3, 2, t.lite);
     }
     if (t.plan === 'bug') {
-      // a plated collar and a pair of spiracles down each side
-      p.round(cx - t.sw + 1, shY - 1, t.sw * 2 - 2, 6, 2, t.accD);
-      p.round(cx - t.sw + 2, shY, t.sw * 2 - 4, 3, 1, t.acc);
-      for (let i = 0; i < 3; i++) {
-        p.set(cx - t.sw + 1, shY + 7 + i * 4, t.dark);
-        p.set(cx + t.sw - 1, shY + 7 + i * 4, t.dark);
-      }
+      p.round(cx - t.sw + 1, shY - 2, t.sw * 2 - 2, 6, 2, t.accD);
+      p.round(cx - t.sw + 2, shY - 1, t.sw * 2 - 4, 3, 1, t.acc);
     }
 
     // ------------------------------------------------- skin, close up
     if (t.tex === 'speckle') {
-      for (let i = 0; i < 16; i++) {
+      for (let i = 0; i < 14; i++) {
         const a = i * 1.7;
-        p.set(cx + Math.cos(a) * t.hr * 0.6, headY + Math.sin(a) * t.hr * 0.55, t.dark);
-        p.set(cx + Math.cos(a * 1.3) * t.sw * 0.6, shY + 4 + (i % t.th), t.dark);
+        p.set(cx + Math.cos(a) * HR * 0.62, headY + Math.sin(a) * HR * 0.55, t.dark);
+        p.set(cx + Math.cos(a * 1.3) * t.sw * 0.6, shY + 5 + (i % Math.max(1, t.th)), t.dark);
       }
     } else if (t.tex === 'scale') {
-      for (let y = shY + 3; y < shY + t.th; y += 3) {
+      for (let y = shY + 4; y < shY + t.th; y += 3) {
         for (let x = cx - t.sw + 2; x < cx + t.sw - 1; x += 4) {
           p.set(x + ((y / 3) | 0) % 2 * 2, y, t.dark);
-          p.set(x + ((y / 3) | 0) % 2 * 2 + 1, y, t.lite);
         }
       }
-      for (let y = headY - 2; y < headY + t.hr - 2; y += 3) p.rect(cx - t.hr + 3, y, 2, 1, t.dark);
+      for (let y = headY - 2; y < headY + HR - 3; y += 3) p.rect(cx - HR + 3, y, 2, 1, t.dark);
     } else if (t.tex === 'stripe') {
       for (let i = 0; i < 4; i++) {
-        p.rect(cx - t.sw + 1, shY + 3 + i * 4, t.sw * 2 - 2, 1, t.dark);
-        p.rect(cx - t.hr + 3, headY - 4 + i * 3, (t.hr - 3) * 2, 1, t.dark);
+        p.rect(cx - t.sw + 1, shY + 4 + i * 4, t.sw * 2 - 2, 1, t.dark);
+        p.rect(cx - HR + 4, headY - HR + 5 + i * 3, (HR - 4) * 2, 1, t.dark);
       }
-    } else if (t.tex === 'plate') {
-      p.round(cx - t.sw + 1, shY + 2, t.sw * 2 - 2, 5, 2, t.lite);
-      p.round(cx - t.sw + 2, shY + 8, t.sw * 2 - 4, 4, 1, t.lite);
-      p.round(cx - t.hr + 2, headY - t.hr + 2, (t.hr - 2) * 2, 5, 2, t.lite);
     } else if (t.tex === 'spot') {
-      // big soft blotches, like a cow that got into space
       for (let i = 0; i < 5; i++) {
         const a = i * 1.9 + t.seed % 3;
-        p.ellipse(cx + Math.cos(a) * t.hr * 0.5, headY + Math.sin(a) * t.hr * 0.45,
-          2 + (i % 2), 2, t.dark);
-        p.ellipse(cx + Math.cos(a * 1.6) * t.sw * 0.55, shY + 5 + (i * 3) % (t.th - 2),
-          3, 2, t.dark);
+        p.ellipse(cx + Math.cos(a) * HR * 0.5, headY + Math.sin(a) * HR * 0.45, 2 + (i % 2), 2, t.dark);
       }
     } else if (t.tex === 'glow') {
-      // lit from inside: a row of lamps down each side
       for (let i = 0; i < 4; i++) {
         for (const sd of [-1, 1]) {
-          p.set(cx + sd * Math.round(t.hr * 0.66), headY - 3 + i * 3, t.glowCol);
-          p.set(cx + sd * (t.sw - 2), shY + 4 + i * 3, t.glowCol);
+          p.set(cx + sd * Math.round(HR * 0.72), headY - 4 + i * 3, t.glowCol);
+          p.set(cx + sd * (t.sw - 2), shY + 5 + i * 3, t.glowCol);
         }
+      }
+    } else if (t.tex === 'plate') {
+      p.round(cx - HR + 3, headY - HR + 3, (HR - 3) * 2, 6, 3, t.lite);
+    }
+
+    // ========================================================== THE FACE
+    const HRr = t.hr;
+    const faceY = t.plan === 'beast' ? headY - Math.round(HRr * 0.18)
+      : (t.plan === 'fungal' ? headY + Math.round(HRr * 0.42) : headY + Math.round(HRr * 0.06));
+    const er = Math.max(3, Math.round(HRr * 0.30));               // eye radius
+    const gap = Math.round(HRr * 0.40);                           // half the spacing
+
+    /* ONE EYE. A socket so it sits in the head, a white, an iris that is never
+       the colour of his skin, a pupil, a catchlight always up-and-left, and a
+       lid cutting the top off the white. Six things, and any one of them
+       missing and it goes back to being a dot. */
+    function eye(ex, ey, r, shut) {
+      const rx = Math.max(2, Math.round(r)), ry = Math.max(2, Math.round(r * 1.16));
+      p.ellipse(ex, ey, rx + 1, ry + 1, t.dark);
+      if (shut) {
+        p.rect(ex - rx, ey, rx * 2 + 1, 2, INK);
+        p.rect(ex - rx + 1, ey - 2, rx * 2 - 1, 2, t.skin);
+        for (let k = -1; k <= 1; k++) p.set(ex + k * Math.round(rx * 0.7), ey + 2, t.dark);
+        return;
+      }
+      p.ellipse(ex, ey, rx, ry, '#f6f8ff');
+      p.ellipse(ex, ey + 1, rx, Math.max(1, ry - 1), '#ffffff');
+      const ix = ex + Math.round(t.lean * rx * 0.3);
+      const iy = ey + Math.round(ry * 0.16);
+      p.ellipse(ix, iy, Math.max(2, Math.round(rx * 0.66)), Math.max(2, Math.round(ry * 0.66)), t.iris);
+      p.ellipse(ix, iy + 1, Math.max(1, Math.round(rx * 0.5)), Math.max(1, Math.round(ry * 0.4)), t.irisL);
+      p.ellipse(ix, iy, Math.max(1, Math.round(rx * 0.34)), Math.max(1, Math.round(ry * 0.42)), INK);
+      p.rect(ix - Math.round(rx * 0.62), iy - Math.round(ry * 0.56), 2, 2, '#ffffff');
+      p.set(ix + Math.round(rx * 0.44), iy + Math.round(ry * 0.34), '#ffffff');
+      // the lid, in skin, over the top quarter
+      p.ellipse(ex, ey - ry - 1, rx + 1, Math.max(1, Math.round(ry * 0.72)), t.skin);
+      p.rect(ex - rx, ey - ry, rx * 2 + 1, 1, t.dark);
+    }
+
+    /* And a brow over it, which is where all the mood lives. */
+    function brow(ex, ey, r, side) {
+      const w = Math.round(r * 2.1), th2 = t.brow === 'bushy' ? 4 : 2;
+      const top = ey - Math.round(r * 1.9);
+      let tilt = 0;
+      if (t.brow === 'angry') tilt = side * 2;
+      else if (t.brow === 'sad') tilt = -side * 2;
+      else if (t.brow === 'arch') tilt = -1;
+      const col = t.hair === 'none' ? t.dark : t.hairC;
+      for (let i = 0; i < w; i++) {
+        const f = i / Math.max(1, w - 1);
+        const yy = top + Math.round(tilt * (side > 0 ? f : 1 - f)) - (t.brow === 'arch' ? Math.round(Math.sin(f * Math.PI) * 1.5) : 0);
+        p.rect(ex - Math.round(w / 2) + i, yy, 1, th2, col);
       }
     }
 
-    // ---------------------------------------------------- what is on the head
-    if (t.crown === 'fin') {
-      for (let i = 0; i < 4; i++) p.spike(cx - 5 + i * 3, headY - t.hr - 8 + i * 2, 6, 11 - i * 2, -1, t.acc);
-    } else if (t.crown === 'horns') {
-      for (const s of [-1, 1]) {
-        p.spike(cx + s * (t.hr - 2), headY - t.hr - 5, 6, 9, -1, t.lite);
-        p.rect(cx + s * (t.hr - 3), headY - t.hr + 1, 3, 3, t.lite);
-      }
-    } else if (t.crown === 'antenna') {
-      for (let i = 0; i < t.ant; i++) {
-        const ax = cx + (i - (t.ant - 1) / 2) * 6;
-        const hgt = 6 + ((t.seed >> (i + 2)) & 5);
-        p.rect(ax, headY - t.hr - hgt, 2, hgt + 3, t.dark);
-        p.disc(ax + 1, headY - t.hr - hgt, 2 + (i & 1), t.acc);
-      }
-    } else if (t.crown === 'tuft') {
-      for (let i = 0; i < 4; i++) p.line(cx - 4 + i * 3, headY - t.hr + 2, cx - 8 + i * 6, headY - t.hr - 9, t.acc);
-    } else if (t.crown === 'ears') {
-      for (const s of [-1, 1]) {
-        p.ellipse(cx + s * (t.hr + 1), headY - 2, 3, 5, t.skin);
-        p.ellipse(cx + s * (t.hr + 1), headY - 2, 1, 3, t.dark);
-      }
-    } else if (t.crown === 'hat') {
-      p.round(cx - 8, headY - t.hr - 7, 16, 8, 2, '#2a2438');
-      p.rect(cx - 12, headY - t.hr - 1, 24, 2, '#2a2438');
-      p.rect(cx - 8, headY - t.hr - 4, 16, 1, t.acc);
-    } else if (t.crown === 'mohawk') {
-      // a hard ridge of spines down the middle, tallest at the front
-      for (let i = 0; i < 6; i++) {
-        const hgt = 12 - Math.abs(i - 1) * 2;
-        p.spike(cx - 6 + i * 2.4, headY - t.hr - hgt + 2, 4, hgt, -1, i % 2 ? t.acc : t.accD);
-      }
-      p.rect(cx - 7, headY - t.hr, 15, 2, t.accD);
-    } else if (t.crown === 'tendrils') {
-      // a crown of little feelers, each curling its own way
-      for (let i = 0; i < 5; i++) {
-        const sd = i % 2 ? 1 : -1, off = (i - 2) * 3;
-        let px = cx + off, py = headY - t.hr + 1;
-        for (let k = 0; k < 5; k++) {
-          p.rect(px - 1, py, 2, 2, k > 2 ? t.acc : t.dark);
-          px += sd * (k > 1 ? 1 : 0); py -= 2;
-        }
-        p.disc(px, py, 1.6, t.acc);
-      }
-    } else if (t.crown === 'cap') {
-      // a flat cap with the peak pulled down over one eye
-      p.round(cx - 9, headY - t.hr - 6, 18, 8, 3, t.clothD);
-      p.rect(cx - 9, headY - t.hr - 1, 18, 2, t.cloth);
-      p.round(cx + t.lean * 6 - 7, headY - t.hr + 1, 14, 3, 1, t.clothD);
-      p.rect(cx - 2, headY - t.hr - 7, 4, 2, t.acc);
-    } else if (t.crown === 'crest') {
-      // one blade of bone, swept back and up off the skull
-      const sd = t.lean > 0 ? -1 : 1;
-      for (let i = 0; i < 12; i++) {
-        const w = Math.max(1, 9 - i * 0.68);
-        p.rect(cx + sd * i * 1.15 - w / 2, headY - t.hr - 1 - i, w, 2, i < 3 ? t.skin : t.lite);
-      }
-      p.rect(cx - 5, headY - t.hr - 1, 11, 2, t.dark);
-    }
-
-    // ---------------------------------------------------------------- face
-    const ey = headY - Math.round(t.hr * 0.12);
-    const er = t.hr > 12 ? 3 : 2;
     const pos = [];
-    if (t.eyeK === 'stack') for (let i = 0; i < t.eyes; i++) pos.push([cx, ey - 4 + i * (er * 2 + 1)]);
-    else if (t.eyeK === 'tri') pos.push([cx - 4, ey - 2], [cx + 4, ey - 2], [cx, ey + 4]);
+    if (t.eyeK === 'stack') for (let i = 0; i < t.eyes; i++) pos.push([cx, faceY - Math.round(er * 1.2) + i * (er * 2 + 2)]);
+    else if (t.eyeK === 'tri') pos.push([cx - gap, faceY - 2], [cx + gap, faceY - 2], [cx, faceY + er + 3]);
     else if (t.eyeK === 'stalk') {
       for (let i = 0; i < t.eyes; i++) {
-        const sxp = cx + (t.eyes === 1 ? 0 : (i ? 5 : -5));
-        p.rect(sxp - 1, headY - t.hr - 7, 2, 10, t.dark);
-        pos.push([sxp, headY - t.hr - 8]);
+        const sxp = cx + (t.eyes === 1 ? 0 : (i ? gap : -gap));
+        p.rect(sxp - 2, headY - HRr - 8, 4, 12, t.dark);
+        p.rect(sxp - 2, headY - HRr - 8, 1, 12, t.lite);
+        pos.push([sxp, headY - HRr - 9]);
       }
-    } else for (let i = 0; i < t.eyes; i++) pos.push([cx + (i - (t.eyes - 1) / 2) * (er * 2 + 2), ey]);
+    } else if (t.eyes === 1) pos.push([cx, faceY]);
+    else for (let i = 0; i < t.eyes; i++) pos.push([cx + (i - (t.eyes - 1) / 2) * (gap * 2), faceY]);
 
-    for (const q of pos) {
-      const ex = Math.round(q[0]), eyy = Math.round(q[1]);
-      // a socket, so the eye sits IN the face rather than on it
-      p.ellipse(ex, eyy, er + 1, er + 1, t.dark);
-      if (kiss || blink) { p.rect(ex - er, eyy, er * 2 + 1, 2, INK); p.rect(ex - er + 1, eyy - 1, er * 2 - 1, 1, t.dark); continue; }
-      p.ellipse(ex, eyy, er, er + 1, '#ffffff');
-      p.ellipse(ex + t.lean, eyy + 1, Math.max(1, er - 1), Math.max(1, er - 1), INK);
-      p.set(ex - 1, eyy - 2, '#ffffff');
-      p.rect(ex - er - 1, eyy - er - 2, er * 2 + 2, 1, t.dark);        // a brow
+    const shut = kiss || blink;
+    const bigEye = t.eyes <= 2 ? er : Math.max(3, Math.round(er * 0.72));
+    for (let i = 0; i < pos.length; i++) {
+      const q = pos[i];
+      eye(Math.round(q[0]), Math.round(q[1]), bigEye, shut);
+    }
+    if (!shut && t.eyeK !== 'stalk' && t.eyes <= 2) {
+      for (let i = 0; i < pos.length; i++) {
+        brow(Math.round(pos[i][0]), Math.round(pos[i][1]), bigEye, pos.length === 1 ? 1 : (i ? 1 : -1));
+      }
     }
 
-    const my = headY + Math.round(t.hr * 0.58);
+    // a nose, because a face without one is a mask
+    const noseY = faceY + Math.round(er * 1.6);
+    if (t.plan !== 'beast' && t.plan !== 'bug') {
+      p.round(cx - 2, noseY - 1, 5, 4, 2, t.dark);
+      p.round(cx - 2, noseY - 2, 5, 3, 2, t.skin);
+      p.set(cx - 2, noseY + 1, t.dark); p.set(cx + 2, noseY + 1, t.dark);
+    }
+
+    // ------------------------------------------------------------ the mouth
+    const my = faceY + Math.round(HRr * 0.56);
     if (kiss) { p.ellipse(cx, my, 4, 3, '#ff5fa8'); p.ellipse(cx, my - 1, 2, 2, '#ffd6f0'); }
-    else if (talk) { p.ellipse(cx, my, 4, 3, '#3a1226'); p.rect(cx - 3, my - 2, 7, 1, '#ffffff'); p.rect(cx - 2, my + 2, 5, 1, '#c4566f'); }
-    else if (t.mouth === 'grin') { p.rect(cx - 4, my, 9, 1, INK); p.set(cx - 5, my - 1, INK); p.set(cx + 5, my - 1, INK); }
-    else if (t.mouth === 'lips') { p.ellipse(cx, my, 4, 2, t.accD); p.rect(cx - 3, my - 1, 7, 1, INK); }
+    else if (talk) {
+      p.ellipse(cx, my, 5, 4, '#3a1226');
+      p.rect(cx - 4, my - 2, 9, 1, '#ffffff');
+      p.rect(cx - 3, my + 2, 7, 1, '#c4566f');
+    } else if (t.mouth === 'grin') {
+      p.rect(cx - 5, my, 11, 1, INK);
+      p.set(cx - 6, my - 1, INK); p.set(cx + 6, my - 1, INK);
+      p.rect(cx - 3, my + 1, 7, 1, t.dark);
+    } else if (t.mouth === 'smirk') {
+      p.rect(cx - 4, my, 9, 1, INK);
+      p.set(cx + 5, my - 1, INK); p.set(cx + 6, my - 2, INK);
+    } else if (t.mouth === 'lips') { p.ellipse(cx, my, 5, 2, t.accD); p.rect(cx - 4, my - 1, 9, 1, INK); }
     else if (t.mouth === 'tusk') {
       p.rect(cx - 5, my, 11, 1, INK);
-      p.spike(cx - 4, my - 5, 4, 6, -1, '#ffffff'); p.spike(cx + 4, my - 5, 4, 6, -1, '#ffffff');
-    } else if (t.mouth === 'beak') { p.spike(cx, my - 3, 8, 7, 1, t.acc); p.rect(cx - 4, my - 3, 9, 1, INK); }
-    else if (t.mouth === 'straw') { p.rect(cx - 1, my, 2, 8, t.dark); p.disc(cx, my + 8, 2, t.acc); }
+      p.spike(cx - 4, my - 6, 4, 7, -1, '#ffffff'); p.spike(cx + 5, my - 6, 4, 7, -1, '#ffffff');
+    } else if (t.mouth === 'beak') { p.spike(cx, my - 3, 9, 8, 1, t.acc); p.rect(cx - 5, my - 3, 11, 1, INK); }
+    else if (t.mouth === 'straw') { p.rect(cx - 1, my, 2, 9, t.dark); p.disc(cx, my + 9, 2, t.acc); }
     else if (t.mouth === 'mandible') {
-      p.spike(cx - 5, my - 2, 5, 7, 1, t.dark); p.spike(cx + 5, my - 2, 5, 7, 1, t.dark);
+      p.spike(cx - 6, my - 2, 5, 8, 1, t.dark); p.spike(cx + 6, my - 2, 5, 8, 1, t.dark);
       p.rect(cx - 2, my, 5, 1, INK);
     } else if (t.mouth === 'grill') {
-      // every tooth gold, and he knows it
       p.rect(cx - 5, my - 1, 11, 4, INK);
       for (let i = 0; i < 5; i++) p.rect(cx - 4 + i * 2, my, 2, 3, i === 2 ? '#fff3b0' : '#ffd34d');
-      p.rect(cx - 5, my - 1, 11, 1, '#c99a1e');
     } else if (t.mouth === 'sucker') {
       p.ellipse(cx, my, 4, 4, t.dark);
       p.ellipse(cx, my, 3, 3, '#3a1226');
       for (let i = 0; i < 6; i++) p.set(cx + Math.cos(i * 1.05) * 3, my + Math.sin(i * 1.05) * 3, t.lite);
     }
 
-    // ------------------------------------------------- what he came out in
-    if (t.shades === 'visor') {
-      // one band across the whole face, lit along the top edge
-      p.round(cx - t.hr + 1, ey - er - 1, (t.hr - 1) * 2, er * 2 + 3, 2, '#140f26');
-      p.rect(cx - t.hr + 2, ey - er, (t.hr - 2) * 2, 1, t.acc);
-      p.rect(cx - t.hr + 3, ey - er + 2, 4, 1, '#ffffff');
-      p.rect(cx - t.hr, ey - 1, 2, 2, t.accD); p.rect(cx + t.hr - 2, ey - 1, 2, 2, t.accD);
-    } else if (t.shades === 'specs') {
-      // two round lenses and a bridge
+    // -------------------------------------------------------- facial hair
+    // the single cheapest way to turn a generated body into somebody you
+    // would recognise again across a crowded room
+    const HC = t.hairC, HL = t.hairL;
+    if (t.hair === 'walrus') {
+      p.round(cx - 8, my - 4, 17, 6, 2, HC);
+      p.round(cx - 8, my - 4, 17, 2, 2, HL);
+      p.round(cx - 10, my - 3, 5, 8, 2, HC);
+      p.round(cx + 6, my - 3, 5, 8, 2, HC);
+      p.rect(cx - 2, my - 4, 5, 2, t.dark);
+    } else if (t.hair === 'handlebar') {
+      p.round(cx - 7, my - 4, 15, 4, 1, HC);
       for (const sd of [-1, 1]) {
-        p.ellipse(cx + sd * (er + 2), ey, er + 1, er + 1, '#241b3a');
-        p.ellipse(cx + sd * (er + 2), ey, er, er, '#3a2a58');
-        p.set(cx + sd * (er + 2) - 1, ey - 1, '#c9bce8');
+        p.round(cx + sd * 8 - 2, my - 5, 4, 4, 1, HC);
+        p.round(cx + sd * 10 - 2, my - 8, 4, 4, 2, HC);
+        p.set(cx + sd * 11, my - 9, HL);
       }
-      p.rect(cx - 1, ey, 3, 1, t.acc);
+    } else if (t.hair === 'pencil') {
+      p.rect(cx - 6, my - 3, 13, 2, HC);
+      p.rect(cx - 6, my - 3, 13, 1, HL);
+    } else if (t.hair === 'tache') {
+      p.round(cx - 6, my - 4, 13, 4, 2, HC);
+      p.round(cx - 6, my - 4, 13, 2, 2, HL);
+    } else if (t.hair === 'goatee') {
+      p.round(cx - 5, my - 4, 11, 3, 1, HC);
+      p.round(cx - 4, my + 2, 9, 7, 3, HC);
+      p.round(cx - 3, my + 3, 7, 3, 2, HL);
+    } else if (t.hair === 'beard') {
+      p.round(cx - 6, my - 4, 13, 4, 2, HC);
+      p.round(cx - HRr + 3, my - 1, (HRr - 3) * 2, HRr - 1, 5, HC);
+      p.round(cx - HRr + 5, my, (HRr - 5) * 2, 4, 3, HL);
+      p.ellipse(cx, my, 5, 3, '#3a1226');
+      for (let i = -2; i <= 2; i++) p.set(cx + i * 3, my + HRr - 3, HL);
+    } else if (t.hair === 'chops') {
+      for (const sd of [-1, 1]) {
+        p.round(cx + sd * (HRr - 3) - 3, faceY - 2, 7, HRr - 1, 3, HC);
+        p.round(cx + sd * (HRr - 3) - 2, faceY - 1, 5, 4, 2, HL);
+      }
+    }
+
+    // ---------------------------------------------------- what is on top
+    const crownY = headY - HRr;
+    if (t.crown === 'fin') {
+      for (let i = 0; i < 5; i++) p.spike(cx - 7 + i * 4, crownY - 11 + i * 2, 7, 13 - i * 2, -1, t.acc);
+    } else if (t.crown === 'horns') {
+      for (const s of [-1, 1]) {
+        p.spike(cx + s * (HRr - 3), crownY - 7, 7, 11, -1, t.lite);
+        p.round(cx + s * (HRr - 4) - 2, crownY - 1, 5, 5, 2, t.lite);
+      }
+    } else if (t.crown === 'antenna') {
+      for (let i = 0; i < t.ant; i++) {
+        const ax = cx + (i - (t.ant - 1) / 2) * 7;
+        const hgt = 8 + ((t.seed >> (i + 2)) & 5);
+        p.rect(ax - 1, crownY - hgt, 3, hgt + 4, t.dark);
+        p.rect(ax - 1, crownY - hgt, 1, hgt + 4, t.lite);
+        p.disc(ax, crownY - hgt, 2.5 + (i & 1), t.acc);
+        p.set(ax - 1, crownY - hgt - 1, '#ffffff');
+      }
+    } else if (t.crown === 'tuft' || t.crown === 'quiff') {
+      const n = t.crown === 'quiff' ? 3 : 5;
+      p.round(cx - HRr + 3, crownY - 1, (HRr - 3) * 2, 7, 4, HC);
+      for (let i = 0; i < n; i++) {
+        const sx2 = cx - (n - 1) * 3 + i * 6;
+        p.round(sx2 - 3, crownY - 7 - (t.crown === 'quiff' ? 4 : 0), 7, 9, 3, HC);
+        p.round(sx2 - 2, crownY - 6 - (t.crown === 'quiff' ? 4 : 0), 4, 4, 2, HL);
+      }
+    } else if (t.crown === 'ears') {
+      for (const s of [-1, 1]) {
+        p.ellipse(cx + s * (HRr + 1), headY - 3, 4, 7, t.skin);
+        p.ellipse(cx + s * (HRr + 1), headY - 3, 2, 4, t.dark);
+        p.ellipse(cx + s * (HRr + 1), headY - 4, 1, 2, t.lite);
+      }
+    } else if (t.crown === 'hat') {
+      p.round(cx - 10, crownY - 10, 21, 11, 3, '#2a2438');
+      p.rect(cx - 15, crownY - 1, 31, 3, '#2a2438');
+      p.rect(cx - 10, crownY - 5, 21, 2, t.acc);
+      p.rect(cx - 15, crownY - 1, 31, 1, '#453c5c');
+    } else if (t.crown === 'cap') {
+      p.round(cx - 11, crownY - 8, 23, 10, 4, t.clothD);
+      p.rect(cx - 11, crownY - 1, 23, 3, t.cloth);
+      p.round(cx + t.lean * 8 - 9, crownY + 1, 18, 4, 2, t.clothD);
+      p.round(cx - 3, crownY - 10, 6, 3, 1, t.acc);
+    } else if (t.crown === 'mohawk') {
+      for (let i = 0; i < 6; i++) {
+        const hgt = 14 - Math.abs(i - 1) * 2;
+        p.spike(cx - 7 + i * 3, crownY - hgt + 2, 5, hgt, -1, i % 2 ? t.acc : t.accD);
+      }
+      p.rect(cx - 8, crownY, 17, 2, t.accD);
+    } else if (t.crown === 'tendrils') {
+      for (let i = 0; i < 5; i++) {
+        const sd = i % 2 ? 1 : -1, off = (i - 2) * 4;
+        let px2 = cx + off, py2 = crownY + 1;
+        for (let k = 0; k < 5; k++) {
+          p.rect(px2 - 1, py2, 3, 3, k > 2 ? t.acc : t.dark);
+          px2 += sd * (k > 1 ? 1 : 0); py2 -= 3;
+        }
+        p.disc(px2, py2, 2, t.acc);
+      }
+    } else if (t.crown === 'crest') {
+      const sd = t.lean > 0 ? -1 : 1;
+      for (let i = 0; i < 13; i++) {
+        const w = Math.max(1, 11 - i * 0.78);
+        p.rect(cx + sd * i * 1.25 - w / 2, crownY - 1 - i, w, 2, i < 3 ? t.skin : t.lite);
+      }
+      p.rect(cx - 6, crownY - 1, 13, 2, t.dark);
+    } else if (t.crown === 'bald') {
+      p.ellipse(cx, headY - Math.round(HRr * 0.5), Math.round(HRr * 0.5), 3, t.lite);
+    }
+
+    // ------------------------------------------------- and what he went out in
+    if (t.shades === 'visor') {
+      const vw = gap + er + 2;
+      p.round(cx - vw, faceY - er - 1, vw * 2, er * 2 + 2, 3, '#1b1430');
+      p.round(cx - vw + 1, faceY - er, vw * 2 - 2, er + 1, 2, '#2e2450');
+      p.rect(cx - vw + 1, faceY - er, vw * 2 - 2, 1, t.acc);
+      p.rect(cx - vw + 3, faceY - er + 2, 4, 2, '#ffffff');
+      p.rect(cx - HRr, faceY - 1, 3, 3, t.accD); p.rect(cx + HRr - 3, faceY - 1, 3, 3, t.accD);
+    } else if (t.shades === 'specs') {
+      for (const sd of [-1, 1]) {
+        p.ellipse(cx + sd * gap, faceY, er + 2, er + 2, '#241b3a');
+        p.ellipse(cx + sd * gap, faceY, er + 1, er + 1, 'rgba(0,0,0,0)');
+        p.ellipse(cx + sd * gap, faceY - 1, Math.round(er * 0.6), 2, '#c9bce8');
+      }
+      p.rect(cx - 2, faceY, 5, 2, t.acc);
+      p.rect(cx - HRr, faceY - 1, 3, 2, t.acc); p.rect(cx + HRr - 2, faceY - 1, 3, 2, t.acc);
     }
     if (t.smoke) {
-      // a cigar, jammed in the corner, still lit
       const sdx = t.lean > 0 ? 1 : -1;
-      p.rect(cx + Math.min(sdx * 4, sdx * 12), my + 1, 8, 3, '#5a3a22');
-      p.rect(cx + Math.min(sdx * 4, sdx * 12), my + 1, 8, 1, '#7a5230');
-      p.rect(cx + sdx * 11, my + 1, 2, 3, '#ff7a2a');
-      p.set(cx + sdx * 12, my + 2, '#ffe08a');
-    }
-    if (t.ring) {
-      // a stone the size of a thumb, on the hand that is doing the pointing
-      p.disc(cx + t.sw + 5, shY + t.th + 7, 2, t.acc);
-      p.set(cx + t.sw + 5, shY + t.th + 6, '#ffffff');
+      p.rect(cx + Math.min(sdx * 5, sdx * 14), my + 2, 10, 3, '#5a3a22');
+      p.rect(cx + Math.min(sdx * 5, sdx * 14), my + 2, 10, 1, '#7a5230');
+      p.rect(cx + sdx * 14, my + 2, 2, 3, '#ff7a2a');
+      p.set(cx + sdx * 15, my + 3, '#ffe08a');
     }
     p.outline(P.ink);
     return p;
@@ -6484,8 +6643,9 @@ window.PD = window.PD || {};
      reads as being pulled INTO the thing rather than a curtain dropping. */
   let wipe = null;
   const WCOL = 24, WROW = 14;
-  function beginWipe(x, y, col, onMid) {
-    wipe = { x: x, y: y, t: 0, dur: 0.54, col: col || '#0b0718', mid: onMid, fired: false };
+  function beginWipe(x, y, col, onMid, kind, dur) {
+    wipe = { x: x, y: y, t: 0, dur: dur || 0.54, col: col || '#0b0718',
+      mid: onMid, fired: false, kind: kind || 'slime' };
   }
   function wipeActive() { return !!wipe; }
   function wipeBusy() { return !!wipe && !wipe.fired; }
@@ -6508,12 +6668,128 @@ window.PD = window.PD || {};
   const DRIP = [];
   for (let i = 0; i < 16; i++) DRIP.push({ x: U.hash2(i, 17), d: U.hash2(i, 21), sp: 0.6 + U.hash2(i, 29) });
 
+  /* Five more of them. A cut is the punctuation of a game and one mark is not
+     enough: the slime belongs to the moon, but a lift is not a slime, a
+     computer is not a slime, and neither is a brain. Every one of these runs
+     on the same clock -- close to `k` = 1 at the midpoint, fire the callback,
+     open back up -- so a caller only has to name the one it wants. */
+  function wipeIris(ctx, w, h, k, col) {
+    // a hard-edged octagon closing on the point the caller asked for
+    const maxR = Math.hypot(w, h) * 0.62;
+    const r = Math.max(0, maxR * (1 - k));
+    const X = PD.pxd;
+    ctx.fillStyle = col;
+    if (r <= 1) { ctx.fillRect(0, 0, w, h); return; }
+    // four slabs outside the box, then the corners knocked off by the octagon
+    const x0 = wipe.x - r, x1 = wipe.x + r, y0 = wipe.y - r, y1 = wipe.y + r;
+    ctx.fillRect(0, 0, w, Math.max(0, y0));
+    ctx.fillRect(0, Math.min(h, y1), w, h);
+    ctx.fillRect(0, Math.max(0, y0), Math.max(0, x0), Math.max(0, y1 - y0));
+    ctx.fillRect(Math.min(w, x1), Math.max(0, y0), w, Math.max(0, y1 - y0));
+    const c = Math.round(r * 0.42);
+    for (let i = 0; i < c; i++) {
+      const q = c - i;
+      ctx.fillRect(x0, y0 + i, q, 1); ctx.fillRect(x1 - q, y0 + i, q, 1);
+      ctx.fillRect(x0, y1 - i - 1, q, 1); ctx.fillRect(x1 - q, y1 - i - 1, q, 1);
+    }
+    // a lit rim on the hole so the edge reads as an aperture and not a hole
+    X.ring(ctx, wipe.x, wipe.y, r + 1, shade(col, 70), 2);
+  }
+
+  function wipeBars(ctx, w, h, k, col) {
+    // shutters: every other slat comes from the left, the rest from the right
+    const n = 11, bh = h / n;
+    const lite = shade(col, 30);
+    for (let i = 0; i < n; i++) {
+      const lead = (i % 2 ? 0.12 : 0) + (i / n) * 0.1;
+      const local = U.clamp((k - lead) / (1 - lead), 0, 1);
+      const bw = Math.ceil(w * local) + 1;
+      const y = Math.round(i * bh);
+      const hh = Math.ceil(bh) + 1;
+      const x = i % 2 ? 0 : w - bw;
+      ctx.fillStyle = col; ctx.fillRect(x, y, bw, hh);
+      ctx.fillStyle = lite;
+      ctx.fillRect(x, y, bw, 1);
+      ctx.fillRect(i % 2 ? x + bw - 2 : x, y, 2, hh);
+    }
+  }
+
+  const PIXN = 40;
+  const PIXO = [];
+  for (let i = 0; i < PIXN * PIXN; i++) PIXO.push(U.hash2(i % PIXN, (i / PIXN) | 0));
+  function wipePixel(ctx, w, h, k, col) {
+    // a blocky dissolve, each cell on its own threshold: the teleporter
+    const cw = w / PIXN, ch = h / (PIXN >> 1);
+    ctx.fillStyle = col;
+    for (let y = 0; y < (PIXN >> 1); y++) {
+      for (let x = 0; x < PIXN; x++) {
+        if (PIXO[y * PIXN + x] > k) continue;
+        ctx.fillRect(Math.round(x * cw), Math.round(y * ch), Math.ceil(cw) + 1, Math.ceil(ch) + 1);
+      }
+    }
+    if (k > 0.05 && k < 0.98) {
+      ctx.fillStyle = shade(col, 90);
+      for (let i = 0; i < 18; i++) {
+        const x = (U.hash2(i, 3) * PIXN) | 0, y = (U.hash2(i, 7) * (PIXN >> 1)) | 0;
+        if (Math.abs(PIXO[y * PIXN + x] - k) > 0.06) continue;
+        ctx.fillRect(Math.round(x * cw), Math.round(y * ch), Math.ceil(cw) + 1, Math.ceil(ch) + 1);
+      }
+    }
+  }
+
+  function wipeSweep(ctx, w, h, k, col) {
+    // one diagonal blade across the screen, with a bright leading edge
+    const span = w + h * 0.6;
+    const front = k * (span + 40) - 20;
+    ctx.fillStyle = col;
+    for (let y = 0; y < h; y += 2) {
+      const x = front - (y / h) * h * 0.6;
+      if (x <= 0) continue;
+      ctx.fillRect(0, y, Math.min(w, Math.ceil(x)), 2);
+    }
+    ctx.fillStyle = shade(col, 80);
+    for (let y = 0; y < h; y += 2) {
+      const x = front - (y / h) * h * 0.6;
+      if (x <= 0 || x > w) continue;
+      ctx.fillRect(Math.max(0, x - 4), y, 4, 2);
+    }
+  }
+
+  function wipeStatic(ctx, w, h, k, col) {
+    // the picture tears and rolls: for anything that goes through the brain
+    ctx.fillStyle = col;
+    const bands = 26;
+    for (let i = 0; i < bands; i++) {
+      const y = Math.round(i * h / bands);
+      const bh = Math.ceil(h / bands) + 1;
+      const lead = U.hash2(i, 11) * 0.34;
+      const local = U.clamp((k - lead) / (1 - lead), 0, 1);
+      if (local <= 0) continue;
+      const off = Math.round((1 - local) * (U.hash2(i, 5) - 0.5) * 90);
+      ctx.fillRect(off, y, w, bh);
+      ctx.fillRect(off - w, y, w, bh);
+      ctx.fillRect(off + w, y, w, bh);
+    }
+    if (k > 0.04 && k < 0.99) {
+      ctx.fillStyle = shade(col, 100);
+      for (let i = 0; i < 20; i++) {
+        const y = ((U.hash2(i + ((k * 40) | 0), 13) * h) | 0);
+        ctx.fillRect(0, y, w, 1);
+      }
+    }
+  }
+
   function drawWipe(ctx, w, h) {
     if (!wipe) return;
     const half = wipe.dur * 0.5;
     const closing = wipe.t < half;
     const k = closing ? wipe.t / half : 1 - (wipe.t - half) / half;
     const e = k * k * (3 - 2 * k);
+    if (wipe.kind !== 'slime') {
+      const fn = { iris: wipeIris, bars: wipeBars, pixel: wipePixel,
+        sweep: wipeSweep, static: wipeStatic }[wipe.kind];
+      if (fn) { fn(ctx, w, h, e, wipe.col); return; }
+    }
     const cw = w / SLIME_N;
     const dark = wipe.col;
     const lite = shade(dark, 26);
@@ -10433,22 +10709,12 @@ window.PD = window.PD || {};
      interesting thing he could be doing. What is left is the half-dozen
      moments where he has something to SAY -- and the debt, which he will
      always find time for. */
+  /* He is a loan shark, not a tutorial. He turns up for the debt, for the
+     moment a world comes apart, and to tell you your air is going -- and for
+     nothing else. Everything he used to say about doors, shops, machines and
+     bins is gone: those were things you could already see. */
   const LESSONS = {
-    welcome: ['THIS ROCK IS YOURS NOW. I PAID FOR IT.'],
-    dig: ['AIR IS THE BLUE ONE. WHEN IT RUNS OUT, SO DO YOU.'],
     air: ['YOUR AIR IS LOW. I AM NOT SENTIMENTAL BUT YOU OWE ME MONEY.'],
-    sell: ['I TAKE A FIFTH UNTIL WE ARE SQUARE. READ THE PAPERWORK.'],
-    brain: ['FEED IT. IT IS THE ONLY THING ON THIS MOON CLEVERER THAN THE RAT.'],
-    tip: ['YES. IT IS A TIP. THAT IS WHY IT WAS CHEAP.',
-      'THERE IS SOMETHING UNDER THE LAST ONE. I CHECKED.'],
-    club: ['A CLUB. ON MY MOON. UNDER MY BINS.'],
-    hub: ['THE PORT. EVERYTHING FOR SALE AND NOTHING WORTH BUYING.',
-      'DO NOT SIGN ANYTHING. THAT IS MY JOB.'],
-    build: ['YOU ARE BUILDING. ON MY MOON. WITH MY MONEY.',
-      'IT IS NOT MY MONEY UNTIL YOU MAKE SOME. GO ON THEN.'],
-    gamble: ['I CAN SEE THE WATCH. I CAN SEE WHERE THE WATCH IS.',
-      'GO ON THEN. IT IS YOUR MONEY. IT IS MY MONEY.'],
-    jackpot: ['THREE THE SAME. IN TWENTY YEARS I HAVE NEVER SEEN IT.'],
     core: ['THAT IS A WHOLE WORLD GONE. THE BOUNTY IS ENORMOUS. DO IT AGAIN.'],
     debt75: ['A QUARTER DOWN. I HAVE STOPPED CIRCLING YOUR HOUSE.'],
     debt50: ['HALF. I TOLD MY MOTHER ABOUT YOU. SHE WAS NOT INTERESTED.'],
@@ -10472,10 +10738,17 @@ window.PD = window.PD || {};
 
   /* Ring him through. Lessons only ever play once; `force` is for the debt
      milestones, which want to interrupt. */
+  let lastCall = -1e9;
   function call(g, id, force) {
     if (!LESSONS[id]) return;
     if (!force && g.save.seen && g.save.seen['chum_' + id]) return;
+    /* Two of him inside a minute is nagging whatever he is saying. The debt
+       milestones and the end of the book are the only things allowed to jump
+       the queue. */
+    const big = id === 'debt0' || id === 'core';
+    if (!big && g.time - lastCall < 75) return;
     if (g.save.seen) g.save.seen['chum_' + id] = 1;
+    lastCall = g.time;
     if (S.call === id) return;
     if (S.call) { S.queue.push(id); return; }
     S.call = id; S.t = 0; S.lines = LESSONS[id]; S.line = 0; S.chars = 0; S.buzz = 1.2;
@@ -14294,7 +14567,7 @@ window.PD = window.PD || {};
 
   function close(g) {
     if (PD.fx.wipeActive()) return;
-    g.wipeTo(SX + SW / 2, SY + SH / 2, '#1b2430', () => { PD.home.leaveDesk(g); });
+    g.wipeTo(SX + SW / 2, SY + SH / 2, '#1b2430', () => { PD.home.leaveDesk(g); }, 'bars');
   }
 
   function say(s) { S.status = s; }
@@ -14605,7 +14878,7 @@ window.PD = window.PD || {};
     if (id === 'map') {
       say('GOING TO THE SKY.');
       if (PD.fx.wipeActive()) return;
-      g.wipeTo(SX + SW / 2, SY + SH / 2, '#1b2430', () => { PD.home.leaveDesk(g); g.openChart(); });
+      g.wipeTo(SX + SW / 2, SY + SH / 2, '#1b2430', () => { PD.home.leaveDesk(g); g.openChart(); }, 'sweep');
       return;
     }
     S.app = id;
@@ -15667,7 +15940,7 @@ window.PD = window.PD || {};
     g.wipeTo(CX, CY, '#12503a', () => {
       g.state = 'home';
       PD.home.P.lock = 0.3;
-    });
+    }, 'static', 0.7);
   }
 
   function buy(g, n) {
@@ -16368,23 +16641,25 @@ window.PD = window.PD || {};
     // where on the screen the iris should close on: the thing he pressed E at
     const at = toScreen(s.x - Math.round(g.intCam), groundY(s.x) - 20);
     const fx2 = U.clamp(at.x, 0, VW), fy2 = U.clamp(at.y, 0, VH);
-    if (s.id === 'door') { goIn(g); return; }
-    if (s.id === 'exit') { goOut(g); return; }
+    // a door is a door: the same shutter both ways, so the house has its own
+    // punctuation and the moon has the slime
+    if (s.id === 'door') { P.lock = 1; g.wipeTo(240, 135, '#2a2438', () => goIn(g), 'bars', 0.56); return; }
+    if (s.id === 'exit') { P.lock = 1; g.wipeTo(240, 135, '#2a2438', () => goOut(g), 'bars', 0.56); return; }
     if (s.id === 'ufo') { A.sfx.dock(); g.openChart(); return; }
     if (s.id === 'pc') {
       P.lock = 1;
-      g.wipeTo(fx2, fy2, '#1b2430', () => { g.state = 'desk'; PD.desk.enter(g); });
+      g.wipeTo(fx2, fy2, '#1b2430', () => { g.state = 'desk'; PD.desk.enter(g); }, 'bars');
       return;
     }
     if (s.id === 'brain') {
       P.lock = 1;
-      g.wipeTo(fx2, fy2, '#12503a', () => { PD.mind.open(g); });
+      g.wipeTo(fx2, fy2, '#12503a', () => { PD.mind.open(g); }, 'static', 0.7);
       return;
     }
     if (s.id === 'rat') { feedRat(g); return; }
     if (s.id === 'trash') { sweep(g, s.i); return; }
-    if (s.id === 'club') { goClub(g); return; }
-    if (s.id === 'clubout') { leaveClub(g); return; }
+    if (s.id === 'club') { P.lock = 1; g.wipeTo(240, 135, '#2a0c30', () => goClub(g), 'bars', 0.62); return; }
+    if (s.id === 'clubout') { P.lock = 1; g.wipeTo(240, 135, '#2a0c30', () => leaveClub(g), 'bars', 0.62); return; }
     if (s.id === 'dance') { haveADance(g); return; }
     if (s.id === 'bar') { buyADrink(g); return; }
     if (s.id === 'dj') {
@@ -16400,8 +16675,8 @@ window.PD = window.PD || {};
     if (s.id === 'tele') { openTele(g); return; }
     if (s.sid) { openStall(g, s.sid); return; }
     if (s.zip) { startZip(g, s.zip); return; }
-    if (s.id === 'hubout') { P.lock = 1; g.wipeTo(240, 135, '#0a0614', () => leaveHub(g)); return; }
-    if (s.id === 'port') { P.lock = 1; g.wipeTo(240, 135, '#0a0614', () => goHub(g)); return; }
+    if (s.id === 'hubout') { P.lock = 1; g.wipeTo(240, 135, '#0a1a2a', () => leaveHub(g), 'sweep', 0.66); return; }
+    if (s.id === 'port') { P.lock = 1; g.wipeTo(240, 135, '#0a1a2a', () => goHub(g), 'sweep', 0.66); return; }
 
   }
 
@@ -16618,13 +16893,17 @@ window.PD = window.PD || {};
 
   function teleportTo(g, d) {
     if (d === S.deck) { closeHubPanel(); return; }
-    S.deck = d;
-    P.y = groundY(P.x); P.vy = 0; P.air = 0;
-    HUB.arrive = 0.6;
-    FX.ring(TELE_X, DECK_Y[d] - 18, 4, 46, 0.7, '#7ef9ff', 3);
-    FX.stars(TELE_X, DECK_Y[d] - 20, 12, '#7ef9ff');
-    A.sfx.tone(180, { type: 'sine', to: 900, dur: 0.3, vol: 0.09 });
     closeHubPanel();
+    P.lock = 1;
+    A.sfx.tone(180, { type: 'sine', to: 900, dur: 0.3, vol: 0.09 });
+    // it takes the floor out from under you, so the cut is the floor going
+    g.wipeTo(240, 135, '#0d3a4a', () => {
+      S.deck = d;
+      P.y = groundY(P.x); P.vy = 0; P.air = 0;
+      HUB.arrive = 0.5;
+      FX.ring(TELE_X, DECK_Y[d] - 18, 4, 46, 0.7, '#7ef9ff', 3);
+      FX.stars(TELE_X, DECK_Y[d] - 20, 12, '#7ef9ff');
+    }, 'pixel', 0.62);
   }
 
   function buyStall(g, sid) {
@@ -18706,11 +18985,14 @@ window.PD = window.PD || {};
     }
     // what you still owe the shark, where the top bar used to be
     PD.chum.drawDebt(ctx, g, 8, VH - 30);
-    /* And the small one, standing on it. He does not walk about in the scene
-       any more -- he lives in this corner, points at whatever you ought to be
-       doing, and is rude about how long it is taking. */
-    if (g.save.seenIntro && !PD.chum.active() && !UI.mode && S.sleep <= 0) {
-      PD.chum.leadStep(g.dt, g, { px: P.x, goals: leadGoals(g), key: S.scene + ':' + (g.save.trash || 0) });
+    /* And the small one, standing on it -- but ONLY while he has somewhere to
+       point. He used to live in that corner permanently, watching you walk
+       about your own moon, which is a lot of shark for a man who has already
+       been paid. Once there is nothing left to lead you to he goes away and
+       the corner is yours. */
+    const goals = g.save.seenIntro ? leadGoals(g) : null;
+    if (goals && goals.length && !PD.chum.active() && !UI.mode && S.sleep <= 0) {
+      PD.chum.leadStep(g.dt, g, { px: P.x, goals: goals, key: S.scene + ':' + (g.save.trash || 0) });
       PD.chum.drawMini(ctx, 28, VH - 34, t, 4, VW - 4);
     }
   }
@@ -18870,7 +19152,7 @@ window.PD = window.PD || {};
     S.pick = i;
     A.sfx.tone(320, { type: 'square', to: 900, dur: 0.3, vol: 0.09 });
     PD.fx.ring(TUBE[i].x, TY + TH / 2, 4, 70, 0.8, '#8affd0', 3);
-    g.wipeTo(TUBE[i].x, TY + TH / 2, '#0a1a18', () => { g.decant(i); });
+    g.wipeTo(TUBE[i].x, TY + TH / 2, '#0a1a18', () => { g.decant(i); }, 'iris', 0.72);
   }
 
   /* ------------------------------------------------------------- the settings
@@ -19334,8 +19616,8 @@ window.PD = window.PD || {};
   };
 
   /* Change screens through the iris rather than cutting. */
-  g.wipeTo = function (sx, sy, col, fn) {
-    FX.beginWipe(sx, sy, col, fn);
+  g.wipeTo = function (sx, sy, col, fn, kind, dur) {
+    FX.beginWipe(sx, sy, col, fn, kind, dur);
     A.sfx.tone(180, { type: 'square', to: 900, dur: 0.16, vol: 0.07 });
     A.sfx.tone(900, { type: 'triangle', to: 300, dur: 0.2, vol: 0.05, delay: 0.26 });
   };

@@ -194,8 +194,9 @@
      reads as being pulled INTO the thing rather than a curtain dropping. */
   let wipe = null;
   const WCOL = 24, WROW = 14;
-  function beginWipe(x, y, col, onMid) {
-    wipe = { x: x, y: y, t: 0, dur: 0.54, col: col || '#0b0718', mid: onMid, fired: false };
+  function beginWipe(x, y, col, onMid, kind, dur) {
+    wipe = { x: x, y: y, t: 0, dur: dur || 0.54, col: col || '#0b0718',
+      mid: onMid, fired: false, kind: kind || 'slime' };
   }
   function wipeActive() { return !!wipe; }
   function wipeBusy() { return !!wipe && !wipe.fired; }
@@ -218,12 +219,128 @@
   const DRIP = [];
   for (let i = 0; i < 16; i++) DRIP.push({ x: U.hash2(i, 17), d: U.hash2(i, 21), sp: 0.6 + U.hash2(i, 29) });
 
+  /* Five more of them. A cut is the punctuation of a game and one mark is not
+     enough: the slime belongs to the moon, but a lift is not a slime, a
+     computer is not a slime, and neither is a brain. Every one of these runs
+     on the same clock -- close to `k` = 1 at the midpoint, fire the callback,
+     open back up -- so a caller only has to name the one it wants. */
+  function wipeIris(ctx, w, h, k, col) {
+    // a hard-edged octagon closing on the point the caller asked for
+    const maxR = Math.hypot(w, h) * 0.62;
+    const r = Math.max(0, maxR * (1 - k));
+    const X = PD.pxd;
+    ctx.fillStyle = col;
+    if (r <= 1) { ctx.fillRect(0, 0, w, h); return; }
+    // four slabs outside the box, then the corners knocked off by the octagon
+    const x0 = wipe.x - r, x1 = wipe.x + r, y0 = wipe.y - r, y1 = wipe.y + r;
+    ctx.fillRect(0, 0, w, Math.max(0, y0));
+    ctx.fillRect(0, Math.min(h, y1), w, h);
+    ctx.fillRect(0, Math.max(0, y0), Math.max(0, x0), Math.max(0, y1 - y0));
+    ctx.fillRect(Math.min(w, x1), Math.max(0, y0), w, Math.max(0, y1 - y0));
+    const c = Math.round(r * 0.42);
+    for (let i = 0; i < c; i++) {
+      const q = c - i;
+      ctx.fillRect(x0, y0 + i, q, 1); ctx.fillRect(x1 - q, y0 + i, q, 1);
+      ctx.fillRect(x0, y1 - i - 1, q, 1); ctx.fillRect(x1 - q, y1 - i - 1, q, 1);
+    }
+    // a lit rim on the hole so the edge reads as an aperture and not a hole
+    X.ring(ctx, wipe.x, wipe.y, r + 1, shade(col, 70), 2);
+  }
+
+  function wipeBars(ctx, w, h, k, col) {
+    // shutters: every other slat comes from the left, the rest from the right
+    const n = 11, bh = h / n;
+    const lite = shade(col, 30);
+    for (let i = 0; i < n; i++) {
+      const lead = (i % 2 ? 0.12 : 0) + (i / n) * 0.1;
+      const local = U.clamp((k - lead) / (1 - lead), 0, 1);
+      const bw = Math.ceil(w * local) + 1;
+      const y = Math.round(i * bh);
+      const hh = Math.ceil(bh) + 1;
+      const x = i % 2 ? 0 : w - bw;
+      ctx.fillStyle = col; ctx.fillRect(x, y, bw, hh);
+      ctx.fillStyle = lite;
+      ctx.fillRect(x, y, bw, 1);
+      ctx.fillRect(i % 2 ? x + bw - 2 : x, y, 2, hh);
+    }
+  }
+
+  const PIXN = 40;
+  const PIXO = [];
+  for (let i = 0; i < PIXN * PIXN; i++) PIXO.push(U.hash2(i % PIXN, (i / PIXN) | 0));
+  function wipePixel(ctx, w, h, k, col) {
+    // a blocky dissolve, each cell on its own threshold: the teleporter
+    const cw = w / PIXN, ch = h / (PIXN >> 1);
+    ctx.fillStyle = col;
+    for (let y = 0; y < (PIXN >> 1); y++) {
+      for (let x = 0; x < PIXN; x++) {
+        if (PIXO[y * PIXN + x] > k) continue;
+        ctx.fillRect(Math.round(x * cw), Math.round(y * ch), Math.ceil(cw) + 1, Math.ceil(ch) + 1);
+      }
+    }
+    if (k > 0.05 && k < 0.98) {
+      ctx.fillStyle = shade(col, 90);
+      for (let i = 0; i < 18; i++) {
+        const x = (U.hash2(i, 3) * PIXN) | 0, y = (U.hash2(i, 7) * (PIXN >> 1)) | 0;
+        if (Math.abs(PIXO[y * PIXN + x] - k) > 0.06) continue;
+        ctx.fillRect(Math.round(x * cw), Math.round(y * ch), Math.ceil(cw) + 1, Math.ceil(ch) + 1);
+      }
+    }
+  }
+
+  function wipeSweep(ctx, w, h, k, col) {
+    // one diagonal blade across the screen, with a bright leading edge
+    const span = w + h * 0.6;
+    const front = k * (span + 40) - 20;
+    ctx.fillStyle = col;
+    for (let y = 0; y < h; y += 2) {
+      const x = front - (y / h) * h * 0.6;
+      if (x <= 0) continue;
+      ctx.fillRect(0, y, Math.min(w, Math.ceil(x)), 2);
+    }
+    ctx.fillStyle = shade(col, 80);
+    for (let y = 0; y < h; y += 2) {
+      const x = front - (y / h) * h * 0.6;
+      if (x <= 0 || x > w) continue;
+      ctx.fillRect(Math.max(0, x - 4), y, 4, 2);
+    }
+  }
+
+  function wipeStatic(ctx, w, h, k, col) {
+    // the picture tears and rolls: for anything that goes through the brain
+    ctx.fillStyle = col;
+    const bands = 26;
+    for (let i = 0; i < bands; i++) {
+      const y = Math.round(i * h / bands);
+      const bh = Math.ceil(h / bands) + 1;
+      const lead = U.hash2(i, 11) * 0.34;
+      const local = U.clamp((k - lead) / (1 - lead), 0, 1);
+      if (local <= 0) continue;
+      const off = Math.round((1 - local) * (U.hash2(i, 5) - 0.5) * 90);
+      ctx.fillRect(off, y, w, bh);
+      ctx.fillRect(off - w, y, w, bh);
+      ctx.fillRect(off + w, y, w, bh);
+    }
+    if (k > 0.04 && k < 0.99) {
+      ctx.fillStyle = shade(col, 100);
+      for (let i = 0; i < 20; i++) {
+        const y = ((U.hash2(i + ((k * 40) | 0), 13) * h) | 0);
+        ctx.fillRect(0, y, w, 1);
+      }
+    }
+  }
+
   function drawWipe(ctx, w, h) {
     if (!wipe) return;
     const half = wipe.dur * 0.5;
     const closing = wipe.t < half;
     const k = closing ? wipe.t / half : 1 - (wipe.t - half) / half;
     const e = k * k * (3 - 2 * k);
+    if (wipe.kind !== 'slime') {
+      const fn = { iris: wipeIris, bars: wipeBars, pixel: wipePixel,
+        sweep: wipeSweep, static: wipeStatic }[wipe.kind];
+      if (fn) { fn(ctx, w, h, e, wipe.col); return; }
+    }
     const cw = w / SLIME_N;
     const dark = wipe.col;
     const lite = shade(dark, 26);
