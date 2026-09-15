@@ -881,7 +881,18 @@ window.PD = window.PD || {};
     { id: 26, key: 'aether', name: 'Aetherium',   hp: 255,  kg: 0.9,  cr: 48000, c: ['#ffffff', '#c9a8ff', '#7a4fd6'], shine: 1, glow: '#d8bcff' },
     { id: 27, key: 'hull',   name: 'Precursor Plate', hp: 215, kg: 2.6, cr: 60,  c: ['#8fa0b8', '#5c6a82', '#3a4456'] },
     { id: 28, key: 'fungus', name: 'Glowcap',     hp: 18,   kg: 0.4,  cr: 7,     c: ['#6fd9a8', '#2f7f62', '#1a4a3a'], glow: '#5fffb0', glowR: 9 },
-    { id: 29, key: 'bio',    name: 'Bio Sample',  hp: 0,    kg: 0.5,  cr: 340,   c: ['#ff9ecb', '#d64f8a', '#8a2a56'], shine: 1 }
+    { id: 29, key: 'bio',    name: 'Bio Sample',  hp: 0,    kg: 0.5,  cr: 340,   c: ['#ff9ecb', '#d64f8a', '#8a2a56'], shine: 1 },
+    /* --- the second shelf: what you start finding once the drill can take it */
+    { id: 30, key: 'cobalt', name: 'Cobalt',      hp: 128,  kg: 2.9,  cr: 195,   c: ['#7ea8ff', '#3f5fc4', '#22337a'] },
+    { id: 31, key: 'opal',   name: 'Fire Opal',   hp: 158,  kg: 1.4,  cr: 880,   c: ['#ffd8f0', '#e88ac4', '#9a3a7a'], shine: 1, glow: '#ffb0e8', glowR: 8 },
+    { id: 32, key: 'quick',  name: 'Quicksilver', hp: 88,   kg: 3.4,  cr: 420,   c: ['#eef4ff', '#a8b8d8', '#6a7a9c'], shine: 1, glow: '#d8e8ff', glowR: 7 },
+    { id: 33, key: 'amber',  name: 'Amber',       hp: 74,   kg: 0.9,  cr: 560,   c: ['#ffc46a', '#d88a2a', '#8a5210'], shine: 1, glow: '#ffb03d', glowR: 6 },
+    { id: 34, key: 'null',   name: 'Nullstone',   hp: 255,  kg: 6.5,  cr: 15000, c: ['#4a4460', '#241f38', '#0a0814'], shine: 1 },
+    { id: 35, key: 'phos',   name: 'Phosphor',    hp: 46,   kg: 0.7,  cr: 88,    c: ['#eaff8a', '#b8e03a', '#6a8a12'], glow: '#d8ff5a', glowR: 12 },
+    { id: 36, key: 'solar',  name: 'Solar Glass', hp: 186,  kg: 1.1,  cr: 3100,  c: ['#fff6c8', '#ffcf5a', '#d88a10'], shine: 1, glow: '#ffe08a', glowR: 10 },
+    { id: 37, key: 'coral',  name: 'Blood Coral', hp: 102,  kg: 1.3,  cr: 740,   c: ['#ff8a8a', '#c4404f', '#7a1c2c'], shine: 1 },
+    { id: 38, key: 'salt',   name: 'Screaming Salt', hp: 38, kg: 0.6, cr: 24,    c: ['#f0e8f8', '#c0b4d4', '#8a7ea8'] },
+    { id: 39, key: 'tar',    name: 'Black Tar',   hp: 56,   kg: 2.0,  cr: 62,    c: ['#3a3444', '#221e2e', '#12101a'], toxic: 1 }
   ];
   const M = {};
   for (const m of MAT) M[m.key] = m.id;
@@ -896,7 +907,12 @@ window.PD = window.PD || {};
     shellback:{ name: 'Shellback',    hp: 140, dmg: 20,  speed: 14, w: 20, h: 14, cr: 260, kind: 'crawl',  armor: 0.6 },
     wyrm:     { name: 'Magma Wyrm',   hp: 120, dmg: 26,  speed: 30, w: 22, h: 14, cr: 420, kind: 'charge', tele: 0.6, fire: 1 },
     lurker:   { name: 'Deep Lurker',  hp: 110, dmg: 22,  speed: 26, w: 19, h: 16, cr: 240, kind: 'spit',   tele: 0.7 },
-    guardian: { name: 'Core Warden',  hp: 380, dmg: 28,  speed: 22, w: 26, h: 24, cr: 1100, kind: 'boss', tele: 0.8 }
+    guardian: { name: 'Core Warden',  hp: 380, dmg: 28,  speed: 22, w: 26, h: 24, cr: 1100, kind: 'boss', tele: 0.8 },
+    /* --- and the rest of what lives down there */
+    crab:     { name: 'Slag Crab',    hp: 44,  dmg: 12,  speed: 34, w: 16, h: 11, cr: 66,  kind: 'crawl',  armor: 0.35 },
+    bloomer:  { name: 'Bloomer',      hp: 34,  dmg: 9,   speed: 10, w: 13, h: 15, cr: 120, kind: 'crawl',  spores: 1 },
+    driller:  { name: 'Claim Jumper', hp: 90,  dmg: 21,  speed: 56, w: 18, h: 12, cr: 340, kind: 'charge', tele: 0.38 },
+    hangman:  { name: 'Ceiling Hanger', hp: 62, dmg: 24, speed: 20, w: 14, h: 18, cr: 210, kind: 'float' }
   };
 
   /* ---------------------------------------------------------------- strata
@@ -909,62 +925,62 @@ window.PD = window.PD || {};
   }
   const STRATA = {
     rock: [
-      L('REGOLITH CRUST', 0, 0.28, [['crust', 5], ['stone', 3]], [['iron', 10], ['copper', 3]], 0.30, '#3a2a20',
+      L('REGOLITH CRUST', 0, 0.28, [['crust', 5], ['stone', 3]], [['iron', 10], ['copper', 3], ['salt', 4]], 0.30, '#3a2a20',
         { alt: { fills: [['stone', 1]], ores: [['iron', 14], ['silver', 2]] } }),
-      L('IRON SEAMS', 0.28, 0.72, [['stone', 4], ['basalt', 2]], [['iron', 12], ['copper', 7], ['silver', 3]], 0.34, '#2a2230',
+      L('IRON SEAMS', 0.28, 0.72, [['stone', 4], ['basalt', 2]], [['iron', 12], ['copper', 7], ['silver', 3], ['cobalt', 4]], 0.34, '#2a2230',
         { alt: { fills: [['basalt', 1]], ores: [['copper', 10], ['gold', 2], ['ameth', 1]] } }),
-      L('DENSE MANTLE', 0.72, 1.01, [['basalt', 3], ['shell', 1]], [['silver', 4], ['gold', 2], ['ameth', 1]], 0.26, '#1e1a2a')
+      L('DENSE MANTLE', 0.72, 1.01, [['basalt', 3], ['shell', 1]], [['silver', 4], ['gold', 2], ['ameth', 1], ['cobalt', 3], ['quick', 2]], 0.26, '#1e1a2a')
     ],
     ice: [
-      L('PERMAFROST', 0, 0.3, [['frost', 5], ['ice', 3]], [['iron', 5], ['silver', 3]], 0.32, '#1a2a3a',
+      L('PERMAFROST', 0, 0.3, [['frost', 5], ['ice', 3]], [['iron', 5], ['silver', 3], ['salt', 5]], 0.32, '#1a2a3a',
         { alt: { fills: [['ice', 1]], ores: [['crystal', 8], ['sapphire', 2]] }, snow: 1 }),
-      L('CRYSTAL CAVERNS', 0.3, 0.7, [['ice', 3], ['stone', 2], ['crystal', 2]], [['crystal', 9], ['sapphire', 5], ['silver', 4], ['gold', 1]], 0.46, '#15304a',
+      L('CRYSTAL CAVERNS', 0.3, 0.7, [['ice', 3], ['stone', 2], ['crystal', 2]], [['crystal', 9], ['sapphire', 5], ['silver', 4], ['gold', 1], ['opal', 2]], 0.46, '#15304a',
         { alt: { fills: [['crystal', 1]], ores: [['sapphire', 6], ['diamond', 1]] }, sparkle: 1 }),
-      L('GLACIAL CORE', 0.7, 1.01, [['ice', 2], ['shell', 2]], [['sapphire', 5], ['diamond', 2], ['titan', 2]], 0.28, '#0e1e34', { snow: 1 })
+      L('GLACIAL CORE', 0.7, 1.01, [['ice', 2], ['shell', 2]], [['sapphire', 5], ['diamond', 2], ['titan', 2], ['quick', 3]], 0.28, '#0e1e34', { snow: 1 })
     ],
     metal: [
       L('SLAG CRUST', 0, 0.26, [['stone', 4], ['basalt', 2]], [['iron', 12], ['copper', 8]], 0.28, '#2a201c'),
-      L('TITANIUM SEAMS', 0.26, 0.68, [['basalt', 3], ['stone', 2]], [['iron', 8], ['titan', 6], ['silver', 5], ['gold', 3]], 0.34, '#241a1c',
+      L('TITANIUM SEAMS', 0.26, 0.68, [['basalt', 3], ['stone', 2]], [['iron', 8], ['titan', 6], ['silver', 5], ['gold', 3], ['cobalt', 5]], 0.34, '#241a1c',
         { alt: { fills: [['shell', 1]], ores: [['titan', 10], ['emerald', 2]] } }),
-      L('OBSIDIAN HEART', 0.68, 1.01, [['obsid', 2], ['basalt', 2], ['shell', 1]], [['gold', 4], ['uran', 2], ['emerald', 2]], 0.3, '#1a1220', { embers: 1 })
+      L('OBSIDIAN HEART', 0.68, 1.01, [['obsid', 2], ['basalt', 2], ['shell', 1]], [['gold', 4], ['uran', 2], ['emerald', 2], ['quick', 3], ['solar', 1]], 0.3, '#1a1220', { embers: 1 })
     ],
     gem: [
-      L('QUARTZ SHELL', 0, 0.24, [['stone', 4], ['crystal', 2]], [['crystal', 8], ['iron', 4], ['gold', 3]], 0.34, '#1e2a30', { sparkle: 1 }),
-      L('JEWEL GALLERIES', 0.24, 0.68, [['stone', 3], ['crystal', 3]], [['emerald', 6], ['sapphire', 6], ['ameth', 5], ['gold', 4], ['ruby', 2]], 0.5, '#182a2e',
+      L('QUARTZ SHELL', 0, 0.24, [['stone', 4], ['crystal', 2]], [['crystal', 8], ['iron', 4], ['gold', 3], ['opal', 2]], 0.34, '#1e2a30', { sparkle: 1 }),
+      L('JEWEL GALLERIES', 0.24, 0.68, [['stone', 3], ['crystal', 3]], [['emerald', 6], ['sapphire', 6], ['ameth', 5], ['gold', 4], ['ruby', 2], ['opal', 4]], 0.5, '#182a2e',
         { alt: { fills: [['crystal', 1]], ores: [['ruby', 5], ['diamond', 2]] }, sparkle: 1 }),
-      L('DIAMOND ROOT', 0.68, 1.01, [['shell', 2], ['obsid', 2]], [['ruby', 5], ['diamond', 3], ['void', 2]], 0.3, '#14182a')
+      L('DIAMOND ROOT', 0.68, 1.01, [['shell', 2], ['obsid', 2]], [['ruby', 5], ['diamond', 3], ['void', 2], ['opal', 3], ['null', 1]], 0.3, '#14182a')
     ],
     moon: [
-      L('DEAD REGOLITH', 0, 0.3, [['crust', 4], ['basalt', 3]], [['iron', 6], ['titan', 3], ['silver', 3]], 0.28, '#24242e'),
-      L('FOSSIL BEDS', 0.3, 0.7, [['basalt', 3], ['stone', 3]], [['fossil', 2], ['gold', 4], ['sapphire', 4], ['ruby', 3]], 0.38, '#20202c',
+      L('DEAD REGOLITH', 0, 0.3, [['crust', 4], ['basalt', 3]], [['iron', 6], ['titan', 3], ['silver', 3], ['cobalt', 3]], 0.28, '#24242e'),
+      L('FOSSIL BEDS', 0.3, 0.7, [['basalt', 3], ['stone', 3]], [['fossil', 2], ['gold', 4], ['sapphire', 4], ['ruby', 3], ['amber', 4]], 0.38, '#20202c',
         { alt: { fills: [['shell', 1]], ores: [['fossil', 4], ['void', 3]] } }),
-      L('HOLLOW MANTLE', 0.7, 1.01, [['shell', 3], ['obsid', 1]], [['ruby', 4], ['void', 4], ['uran', 2], ['star', 1]], 0.44, '#181828')
+      L('HOLLOW MANTLE', 0.7, 1.01, [['shell', 3], ['obsid', 1]], [['ruby', 4], ['void', 4], ['uran', 2], ['star', 1], ['null', 2]], 0.44, '#181828')
     ],
     terra: [
-      L('TOPSOIL', 0, 0.2, [['crust', 5], ['stone', 3]], [['iron', 6], ['copper', 5], ['gold', 2]], 0.3, '#2a2a1a'),
-      L('GLOWCAP HOLLOWS', 0.2, 0.46, [['stone', 3], ['fungus', 3]], [['emerald', 6], ['copper', 4], ['crystal', 3]], 0.52, '#12301f',
+      L('TOPSOIL', 0, 0.2, [['crust', 5], ['stone', 3]], [['iron', 6], ['copper', 5], ['gold', 2], ['salt', 4], ['phos', 3]], 0.3, '#2a2a1a'),
+      L('GLOWCAP HOLLOWS', 0.2, 0.46, [['stone', 3], ['fungus', 3]], [['emerald', 6], ['copper', 4], ['crystal', 3], ['phos', 7], ['coral', 3]], 0.52, '#12301f',
         { alt: { fills: [['fungus', 1]], ores: [['emerald', 8]] }, spores: 1 }),
-      L('CRYSTAL VAULTS', 0.46, 0.7, [['stone', 2], ['crystal', 3]], [['sapphire', 5], ['ameth', 5], ['gold', 4]], 0.44, '#152a34', { sparkle: 1 }),
-      L('MAGMA SEA', 0.7, 0.9, [['basalt', 4], ['obsid', 1]], [['ruby', 7], ['gold', 3], ['void', 3]], 0.36, '#301410', { lava: 0.12, embers: 1 }),
+      L('CRYSTAL VAULTS', 0.46, 0.7, [['stone', 2], ['crystal', 3]], [['sapphire', 5], ['ameth', 5], ['gold', 4], ['opal', 3], ['coral', 2]], 0.44, '#152a34', { sparkle: 1 }),
+      L('MAGMA SEA', 0.7, 0.9, [['basalt', 4], ['obsid', 1]], [['ruby', 7], ['gold', 3], ['void', 3], ['solar', 2], ['tar', 5]], 0.36, '#301410', { lava: 0.12, embers: 1 }),
       L('CORE SHELL', 0.9, 1.01, [['shell', 3], ['obsid', 1]], [['void', 5], ['star', 2], ['diamond', 1]], 0.26, '#1a1220')
     ],
     volcanic: [
-      L('ASH CRUST', 0, 0.22, [['basalt', 5], ['crust', 2]], [['iron', 5], ['copper', 4], ['obsid', 3]], 0.3, '#2a1a16', { embers: 1 }),
-      L('LAVA TUBES', 0.22, 0.62, [['basalt', 4], ['obsid', 2]], [['ruby', 7], ['gold', 4], ['titan', 3], ['void', 2]], 0.5, '#33150e',
+      L('ASH CRUST', 0, 0.22, [['basalt', 5], ['crust', 2]], [['iron', 5], ['copper', 4], ['obsid', 3], ['tar', 6], ['salt', 3]], 0.3, '#2a1a16', { embers: 1 }),
+      L('LAVA TUBES', 0.22, 0.62, [['basalt', 4], ['obsid', 2]], [['ruby', 7], ['gold', 4], ['titan', 3], ['void', 2], ['solar', 3]], 0.5, '#33150e',
         { lava: 0.16, embers: 1, alt: { fills: [['obsid', 1]], ores: [['ruby', 8], ['diamond', 1]] } }),
-      L('OBSIDIAN MANTLE', 0.62, 1.01, [['obsid', 3], ['shell', 2]], [['void', 6], ['star', 3], ['uran', 2]], 0.3, '#1e1020', { lava: 0.05, embers: 1 })
+      L('OBSIDIAN MANTLE', 0.62, 1.01, [['obsid', 3], ['shell', 2]], [['void', 6], ['star', 3], ['uran', 2], ['solar', 4], ['null', 2]], 0.3, '#1e1020', { lava: 0.05, embers: 1 })
     ],
     titan: [
-      L('CRYSTAL RIND', 0, 0.3, [['crystal', 4], ['shell', 1]], [['sapphire', 6], ['ameth', 5], ['titan', 3]], 0.4, '#1c2440', { sparkle: 1 }),
-      L('PRISM GALLERIES', 0.3, 0.72, [['crystal', 3], ['obsid', 2]], [['ruby', 5], ['diamond', 4], ['void', 5], ['star', 2]], 0.52, '#1e1a44',
+      L('CRYSTAL RIND', 0, 0.3, [['crystal', 4], ['shell', 1]], [['sapphire', 6], ['ameth', 5], ['titan', 3], ['opal', 4]], 0.4, '#1c2440', { sparkle: 1 }),
+      L('PRISM GALLERIES', 0.3, 0.72, [['crystal', 3], ['obsid', 2]], [['ruby', 5], ['diamond', 4], ['void', 5], ['star', 2], ['null', 3]], 0.52, '#1e1a44',
         { sparkle: 1, alt: { fills: [['shell', 1]], ores: [['diamond', 5], ['aether', 1]] } }),
-      L('AETHER WELL', 0.72, 1.01, [['obsid', 2], ['shell', 2]], [['void', 6], ['star', 4], ['aether', 1]], 0.34, '#160f30')
+      L('AETHER WELL', 0.72, 1.01, [['obsid', 2], ['shell', 2]], [['void', 6], ['star', 4], ['aether', 1], ['null', 4]], 0.34, '#160f30')
     ],
     core: [
-      L('IRRADIATED SHELL', 0, 0.3, [['shell', 4], ['obsid', 2]], [['uran', 5], ['titan', 4], ['void', 3]], 0.3, '#221a10', { embers: 1 }),
-      L('STARMETAL VEINS', 0.3, 0.72, [['shell', 3], ['obsid', 3]], [['star', 8], ['void', 6], ['ruby', 3], ['diamond', 2]], 0.4, '#2a1a14',
+      L('IRRADIATED SHELL', 0, 0.3, [['shell', 4], ['obsid', 2]], [['uran', 5], ['titan', 4], ['void', 3], ['solar', 3]], 0.3, '#221a10', { embers: 1 }),
+      L('STARMETAL VEINS', 0.3, 0.72, [['shell', 3], ['obsid', 3]], [['star', 8], ['void', 6], ['ruby', 3], ['diamond', 2], ['null', 3]], 0.4, '#2a1a14',
         { lava: 0.06, embers: 1, alt: { fills: [['obsid', 1]], ores: [['aether', 2], ['star', 6]] } }),
-      L('THE HEART', 0.72, 1.01, [['shell', 3], ['obsid', 1]], [['star', 6], ['aether', 2], ['void', 3]], 0.3, '#1a0c18')
+      L('THE HEART', 0.72, 1.01, [['shell', 3], ['obsid', 1]], [['star', 6], ['aether', 2], ['void', 3], ['null', 5]], 0.3, '#1a0c18')
     ]
   };
 
@@ -985,6 +1001,36 @@ window.PD = window.PD || {};
     const f = FLORA[k] || FLORA.rock;
     STRATA[k].forEach((band, i) => { band.flora = f[Math.min(i, f.length - 1)]; });
   }
+
+  /* ------------------------------------------------------------- the base
+     Once the moon is clear there is room on it for something other than bins.
+     Five pads along the eastern curve; each thing you put on one has three
+     levels and each level is a flat, legible bonus you can feel in the hole.
+     `bonus` is indexed by level, so level 0 is always nothing. */
+  const BUILDINGS = [
+    { id: 'refinery', x: 440, name: 'THE REFINERY', glyph: 'build',
+      blurb: 'ORE GOES IN DIRTY. IT COMES OUT WORTH MORE.',
+      max: 3, cost: [16000, 78000, 330000], bonus: [0, 0.12, 0.26, 0.45],
+      fmt: v => '+' + Math.round(v * 100) + '% ON EVERY SALE' },
+    { id: 'airfarm', x: 484, name: 'THE AIR FARM', glyph: 'o2',
+      blurb: 'GREEN THINGS IN A TUBE, BREATHING SO YOU DO NOT HAVE TO.',
+      max: 3, cost: [8000, 40000, 168000], bonus: [0, 30, 70, 140],
+      fmt: v => '+' + v + ' AIR' },
+    { id: 'dronebay', x: 528, name: 'THE DRONE BAY', glyph: 'drone',
+      blurb: 'THEY PICK UP WHAT YOU DROP. THEY DO NOT ASK WHY.',
+      max: 3, cost: [24000, 104000, 400000], bonus: [0, 26, 58, 110],
+      fmt: v => '+' + v + ' PICKUP REACH' },
+    { id: 'mast', x: 572, name: 'THE RADAR MAST', glyph: 'scan',
+      blurb: 'IT SEES THROUGH ROCK. IT COST MORE THAN THE HOUSE.',
+      max: 3, cost: [13000, 56000, 240000], bonus: [0, 0.3, 0.7, 1.4],
+      fmt: v => '+' + Math.round(v * 100) + '% SCAN RANGE' },
+    { id: 'reactor', x: 616, name: 'THE REACTOR', glyph: 'hex',
+      blurb: 'IT HUMS. THE RAT WILL NOT GO NEAR IT.',
+      max: 3, cost: [30000, 132000, 540000], bonus: [0, 0.12, 0.28, 0.5],
+      fmt: v => '+' + Math.round(v * 100) + '% DRILL' }
+  ];
+  const BUILD_OF = {};
+  for (const b of BUILDINGS) BUILD_OF[b.id] = b;
 
   /* ----------------------------------------------------------------- lore
      Who is out here, what they want, and what they will say about it. */
@@ -1180,7 +1226,7 @@ window.PD = window.PD || {};
       sky: '#0b0720', tint: '#8a6a4f',
       blurb: 'A crumb of rock. Warm up the drill.',
       ores: [[M.crust, 60], [M.stone, 26], [M.iron, 11], [M.copper, 3]],
-      mobs: [['crawler', 6], ['floater', 3]]
+      mobs: [['crawler', 6], ['floater', 3], ['crab', 3]]
     },
     {
       name: 'Rustclod', kind: 'Asteroid', type: 'rock', radius: 40, poi: { geode: 1, fossil: 1, ruin: 0 }, gravity: 40, coreHp: 700,
@@ -1188,7 +1234,7 @@ window.PD = window.PD || {};
       sky: '#160a1c', tint: '#9c6a54',
       blurb: 'Iron-fat and full of grubs.',
       ores: [[M.crust, 40], [M.stone, 30], [M.iron, 20], [M.copper, 8], [M.silver, 2]],
-      mobs: [['crawler', 6], ['floater', 4], ['spitter', 2]]
+      mobs: [['crawler', 6], ['floater', 4], ['spitter', 2], ['crab', 4]]
     },
     {
       name: 'Glacius Minor', kind: 'Ice Shard', type: 'ice', radius: 52, poi: { geode: 2, fossil: 1, ruin: 1 }, gravity: 44, coreHp: 1600,
@@ -1196,7 +1242,7 @@ window.PD = window.PD || {};
       sky: '#061423', tint: '#79c4de',
       blurb: 'Slick, hollow and humming with cold.',
       ores: [[M.ice, 44], [M.stone, 22], [M.iron, 14], [M.silver, 12], [M.sapphire, 6], [M.gold, 2]],
-      mobs: [['floater', 6], ['crawler', 3], ['spitter', 3]]
+      mobs: [['floater', 6], ['crawler', 3], ['spitter', 3], ['crab', 3], ['bloomer', 2]]
     },
     {
       name: 'Forge Husk', kind: 'Metal Rock', type: 'metal', radius: 64, poi: { geode: 1, fossil: 1, ruin: 1 }, gravity: 52, coreHp: 3600,
@@ -1204,7 +1250,7 @@ window.PD = window.PD || {};
       sky: '#1c0d0a', tint: '#c67a3d',
       blurb: 'Somebody smelted this thing. Badly.',
       ores: [[M.stone, 28], [M.iron, 28], [M.copper, 18], [M.silver, 12], [M.gold, 10], [M.emerald, 4]],
-      mobs: [['crawler', 4], ['spitter', 5], ['gnasher', 3]]
+      mobs: [['crawler', 4], ['spitter', 5], ['gnasher', 3], ['bloomer', 3], ['hangman', 2]]
     },
     {
       name: 'Gemworld Shard', kind: 'Fragment', type: 'gem', radius: 76, poi: { geode: 4, fossil: 1, ruin: 1 }, gravity: 58, coreHp: 8000,
@@ -1212,7 +1258,7 @@ window.PD = window.PD || {};
       sky: '#101a2e', tint: '#33c470',
       blurb: 'Every wall is a jewellery shop.',
       ores: [[M.stone, 22], [M.iron, 16], [M.gold, 18], [M.emerald, 18], [M.sapphire, 15], [M.ruby, 9], [M.void, 2]],
-      mobs: [['spitter', 5], ['gnasher', 4], ['floater', 4], ['lurker', 1]]
+      mobs: [['spitter', 5], ['gnasher', 4], ['floater', 4], ['lurker', 1], ['hangman', 3], ['crab', 3]]
     },
     {
       name: 'Mourn, the Dead Moon', kind: 'Moon', type: 'moon', radius: 90, poi: { geode: 2, fossil: 4, ruin: 2 }, gravity: 70, coreHp: 20000,
@@ -1220,7 +1266,7 @@ window.PD = window.PD || {};
       sky: '#0a0e1d', tint: '#b3c4d8',
       blurb: 'Something used to live here. Rude of it.',
       ores: [[M.stone, 24], [M.shell, 14], [M.iron, 12], [M.gold, 14], [M.sapphire, 14], [M.ruby, 13], [M.void, 8], [M.star, 1]],
-      mobs: [['gnasher', 6], ['lurker', 3], ['spitter', 4], ['floater', 3]]
+      mobs: [['gnasher', 6], ['lurker', 3], ['spitter', 4], ['floater', 3], ['driller', 2], ['hangman', 3]]
     },
     {
       name: 'Terra Prime', kind: 'Planet', type: 'terra', radius: 104, poi: { geode: 3, fossil: 2, ruin: 3 }, gravity: 86, coreHp: 60000,
@@ -1228,7 +1274,7 @@ window.PD = window.PD || {};
       sky: '#04121a', tint: '#3fa84f',
       blurb: 'Inhabited! Well. Formerly inhabited.',
       ores: [[M.stone, 20], [M.shell, 16], [M.gold, 12], [M.emerald, 14], [M.ruby, 16], [M.void, 16], [M.star, 6]],
-      mobs: [['gnasher', 6], ['lurker', 6], ['spitter', 3], ['floater', 2]]
+      mobs: [['gnasher', 6], ['lurker', 6], ['spitter', 3], ['floater', 2], ['driller', 4], ['bloomer', 2]]
     },
     {
       name: 'Cinder Majoris', kind: 'Volcanic', type: 'volcanic', radius: 118, poi: { geode: 2, fossil: 1, ruin: 2 }, gravity: 104, coreHp: 165000,
@@ -1236,7 +1282,7 @@ window.PD = window.PD || {};
       sky: '#1e0708', tint: '#e8425f',
       blurb: 'Molten, screaming, extremely profitable.',
       ores: [[M.shell, 22], [M.stone, 14], [M.ruby, 20], [M.gold, 10], [M.void, 22], [M.star, 12]],
-      mobs: [['lurker', 8], ['gnasher', 6], ['spitter', 3]]
+      mobs: [['lurker', 8], ['gnasher', 6], ['spitter', 3], ['driller', 5], ['hangman', 4]]
     },
     {
       name: 'The Crystal Titan', kind: 'Superplanet', type: 'titan', radius: 132, poi: { geode: 6, fossil: 1, ruin: 3 }, gravity: 122, coreHp: 480000,
@@ -1244,7 +1290,7 @@ window.PD = window.PD || {};
       sky: '#150a2b', tint: '#7d4fd6',
       blurb: 'A world-sized gem. Break it. Break it now.',
       ores: [[M.shell, 20], [M.sapphire, 16], [M.ruby, 16], [M.void, 28], [M.star, 20]],
-      mobs: [['lurker', 9], ['gnasher', 5], ['floater', 3]]
+      mobs: [['lurker', 9], ['gnasher', 5], ['floater', 3], ['driller', 6], ['hangman', 4]]
     },
     {
       name: 'Galactic Heart', kind: 'Core World', type: 'core', radius: 150, poi: { geode: 3, fossil: 2, ruin: 4 }, gravity: 140, coreHp: 1600000,
@@ -1252,7 +1298,7 @@ window.PD = window.PD || {};
       sky: '#2a0a16', tint: '#ffc44d',
       blurb: 'The galaxy keeps its savings here.',
       ores: [[M.shell, 18], [M.void, 30], [M.star, 40], [M.ruby, 12]],
-      mobs: [['lurker', 10], ['gnasher', 4], ['floater', 2]]
+      mobs: [['lurker', 10], ['gnasher', 4], ['floater', 2], ['driller', 8], ['hangman', 5]]
     }
   ];
 
@@ -1612,7 +1658,8 @@ window.PD = window.PD || {};
       save.destroyed.filter(Boolean).length * 250000));
   }
 
-  PD.data = { MAT, M, ENEMY, BODIES, UPGRADES, UPG, upgradeCost, recipe, COSMETICS, COS, TITLES, titleFor, bountyFor,
+  PD.data = {
+    BUILDINGS, BUILD_OF, MAT, M, ENEMY, BODIES, UPGRADES, UPG, upgradeCost, recipe, COSMETICS, COS, TITLES, titleFor, bountyFor,
     STRATA, ZONES, zoneOf, FLORA, ABAY, ABAYX, abayCost, NEURONS, NEUR, neuronCost, BRAIN_LINES, BRAIN_IDLE, FACTIONS, LORE, ORB, MIX, MACHINES, METALS, GEMS, JUNK, goodOf, goodFromKey, NODES, appraiseSeconds, appraiseFee };
 })(window.PD);
 
@@ -2247,6 +2294,122 @@ window.PD = window.PD || {};
     return p;
   }
   reg('warden', [buildWarden(0), buildWarden(1)], 20, 18);
+
+  /* SLAG CRAB: goes sideways, always sideways, and the shell turns most of a
+     shot. Two pincers up at the front, six legs stepping out of phase. */
+  function buildCrab(phase) {
+    const p = pix(22, 15);
+    const f = phase ? 1 : -1;
+    // legs first, so the shell sits on top of them
+    for (let i = 0; i < 3; i++) {
+      const lx = 5 + i * 5, d = ((i + phase) % 2) ? 1 : 0;
+      p.line(lx, 9, lx - 2, 13 - d, C.metDD);
+      p.line(lx + 1, 9, lx + 3, 14 - d, C.metDD);
+    }
+    p.ellipse(11, 8, 9, 5, C.metDD);                 // the shell
+    p.ellipse(11, 7, 8, 4, C.met);
+    p.ellipse(11, 6, 6, 2.4, C.metD);
+    for (let i = 0; i < 4; i++) p.set(6 + i * 3, 5, C.metDD);
+    // two eyes on stalks, up over the shell
+    for (const ex of [9, 13]) {
+      p.rect(ex, 1 + (ex === 9 ? 0 : f), 1, 3, C.metDD);
+      p.disc(ex, 1 + (ex === 9 ? 0 : f), 1.4, C.orange);
+      p.set(ex, 1 + (ex === 9 ? 0 : f), C.eye);
+    }
+    // the pincers, one open one shut
+    p.round(17, 5 - f, 4, 3, 1, C.metD);
+    p.round(19, 3 - f, 3, 2, 1, C.met);
+    p.round(19, 6 - f, 3, 2, 1, C.met);
+    p.round(2, 8 + f, 3, 3, 1, C.metD);
+    p.outline(C.ink);
+    return p;
+  }
+  reg('crab', [buildCrab(0), buildCrab(1)], 11, 12);
+
+  /* BLOOMER: a mushroom that got up. Slow, soft, and it goes off when it
+     dies, which is the entire point of it. */
+  function buildBloomer(phase) {
+    const p = pix(18, 20);
+    const bob = phase ? 1 : 0;
+    // the stalk, and two root feet
+    p.round(7, 9 - bob, 5, 10, 2, '#e8dfc4');
+    p.round(7, 9 - bob, 2, 10, 1, '#fff6e0');
+    p.round(4, 17, 4, 3, 1, '#c4b48a');
+    p.round(10, 17, 4, 3, 1, '#c4b48a');
+    // the cap
+    p.ellipse(9, 7 - bob, 8.5, 5.5, '#8a2a56');
+    p.ellipse(9, 6 - bob, 8, 4.5, '#d64f8a');
+    p.ellipse(9, 4 - bob, 5, 2.4, '#ff9ecb');
+    for (const [sx, sy] of [[4, 5], [9, 3], [14, 5], [6, 8], [12, 8]]) {
+      p.disc(sx, sy - bob, 1.4, '#fff6e0');
+    }
+    p.rect(1, 9 - bob, 16, 1, '#8a2a56');            // the gills under it
+    // two very small eyes, because it is still an animal
+    p.set(7, 12 - bob, C.eye); p.set(11, 12 - bob, C.eye);
+    p.rect(8, 14 - bob, 3, 1, '#8a2a56');
+    p.outline(C.ink);
+    return p;
+  }
+  reg('bloomer', [buildBloomer(0), buildBloomer(1)], 9, 18);
+
+  /* CLAIM JUMPER: somebody else's mining drone, still running its route, and
+     its route is through you. A drill on the front and no brakes. */
+  function buildDriller(phase) {
+    const p = pix(26, 16);
+    const spin = phase ? 1 : 0;
+    // the drill bit, stacked cones
+    for (let i = 0; i < 5; i++) {
+      const w = 6 - i, x = 20 + i;
+      if (w <= 0) continue;
+      p.rect(x, 8 - w / 2, 1, w, (i + spin) % 2 ? C.met : C.metDD);
+    }
+    p.round(16, 4, 6, 9, 2, C.metD);
+    p.rect(16, 7, 6, 2, C.orange);
+    // the body: a hull with a cracked canopy and somebody long gone inside
+    p.round(3, 3, 15, 11, 3, C.metDD);
+    p.round(4, 4, 13, 8, 3, C.met);
+    p.round(6, 5, 8, 5, 2, C.glassD);
+    p.round(6, 5, 8, 3, 2, C.glass);
+    p.line(8, 5, 11, 10, C.metDD);                   // the crack
+    p.disc(10, 8, 1.6, C.ink2);
+    // thrusters, firing
+    p.rect(0, 6, 3, 4, C.orangeD);
+    p.rect(0, 7, 2 + spin, 2, C.gold);
+    // a warning light nobody is left to read
+    p.disc(12, 3, 1.6, spin ? C.red : C.redD);
+    p.outline(C.ink);
+    return p;
+  }
+  reg('driller', [buildDriller(0), buildDriller(1)], 13, 12);
+
+  /* CEILING HANGER: hangs off the roof of a cave on a thread and comes down
+     the moment you walk under it. Mostly mouth. */
+  function buildHangman(phase) {
+    const p = pix(18, 24);
+    const drop = phase ? 1 : 0;
+    p.rect(8, 0, 1, 6 + drop, C.slimeD);             // the thread
+    // the body: a bulb, wider at the bottom
+    p.ellipse(9, 12 + drop, 6.5, 7, '#3f2a6a');
+    p.ellipse(9, 10 + drop, 5.5, 5, '#6b3fb5');
+    p.ellipse(9, 8 + drop, 3.5, 2.4, C.purple);
+    // the mouth, underneath, open
+    p.ellipse(9, 18 + drop, 5, 3, '#1d0f33');
+    for (let i = 0; i < 5; i++) {
+      p.spike(3 + i * 3, 16 + drop, 3, 4, 1, C.white);
+    }
+    // a ring of eyes round the top of it
+    for (let i = 0; i < 5; i++) {
+      const ex = 3 + i * 3;
+      p.disc(ex, 9 + drop, 1.4, C.white);
+      p.set(ex, 9 + drop + (phase ? 1 : 0), C.eye);
+    }
+    // and two feelers, trailing
+    p.line(2, 14 + drop, 0, 20 + drop * 2, C.purpleD);
+    p.line(16, 14 + drop, 17, 21 - drop, C.purpleD);
+    p.outline(C.ink);
+    return p;
+  }
+  reg('hangman', [buildHangman(0), buildHangman(1)], 9, 20);
 
   /* CAVE MITE: tiny, fast, comes in clouds. */
   function buildMite(phase) {
@@ -4366,6 +4529,12 @@ window.PD = window.PD || {};
     return '#' + q(r) + q(g) + q(b);
   }
 
+  /* Not everybody out here is a person with a funny head. A fifth of them are
+     fungal -- a cap, gills and a stalk; a fifth are beasts with a snout, ears
+     and a tail; a fifth are arthropods with a carapace and wing cases. The
+     skeleton underneath is the same one, which is why they can all wear a
+     jacket and hold a drink. */
+  const PLANK = ['biped', 'biped', 'biped', 'biped', 'fungal', 'fungal', 'beast', 'beast', 'bug'];
   const BUILDK = ['lanky', 'stout', 'normal', 'normal', 'hulk'];
   const EYEK = ['row', 'row', 'row', 'stack', 'tri', 'stalk'];
   const MOUTHK = ['grin', 'grin', 'tusk', 'beak', 'straw', 'mandible', 'lips', 'grill', 'sucker'];
@@ -4374,7 +4543,7 @@ window.PD = window.PD || {};
   const SKINK = ['plain', 'plain', 'speckle', 'scale', 'stripe', 'plate', 'spot', 'glow'];
   const WEARK = ['vest', 'jacket', 'tank', 'sash', 'coat', 'bare', 'sequin', 'shirt'];
 
-  function alienKin(seed) {
+  function alienKin(seed, forcePlan) {
     const R = PD.util.mulberry32(seed * 2654435761 + 12345);
     const pick = a => a[(R() * a.length) | 0];
     const ri = (a, b) => a + Math.floor(R() * (b - a + 1));
@@ -4387,6 +4556,7 @@ window.PD = window.PD || {};
       acc: hsl(hue + 90 + R() * 180, 62, 56),
       accD: hsl(hue + 90 + R() * 180, 60, 30),
       cloth: hsl(hue + 140 + R() * 160, 38 + R() * 34, 44 + R() * 14),
+      plan: pick(PLANK),
       build: pick(BUILDK), eyes: ri(1, 4), eyeK: pick(EYEK),
       mouth: pick(MOUTHK), crown: pick(CROWNK), tex: pick(SKINK), wear: pick(WEARK),
       big: 0.9 + R() * 0.42, lean: R() < 0.5 ? -1 : 1, ant: ri(1, 3),
@@ -4404,6 +4574,14 @@ window.PD = window.PD || {};
     t.pants = hsl(hue + 230 + R() * 60, 26 + R() * 22, 46 + R() * 14);
     t.pantsL = hsl(hue + 230, 24, 66);
     t.pantsD = hsl(hue + 230, 26, 19);
+    if (forcePlan) t.plan = forcePlan;
+    /* the plan overrules the trimmings: a mushroom does not wear a hat, and a
+       beast's ears are its ears rather than a choice */
+    if (t.plan === 'fungal') { t.crown = 'none'; t.tex = R() < 0.5 ? 'spot' : 'plain'; t.eyes = ri(2, 3); }
+    if (t.plan === 'beast') { t.crown = 'ears'; t.eyes = 2; t.mouth = R() < 0.5 ? 'tusk' : 'grin'; }
+    if (t.plan === 'bug') { t.crown = 'antenna'; t.mouth = 'mandible'; t.tex = 'plate'; }
+    t.capW = 1.5 + R() * 0.7;                       // how wide the cap sits
+    t.snout = 4 + Math.round(R() * 4);              // how far the face sticks out
     if (t.eyeK === 'tri') t.eyes = 3;
     if (t.eyeK === 'stalk') t.eyes = Math.min(2, t.eyes);
     if (t.build === 'hulk') t.big = Math.max(t.big, 1.2);
@@ -4446,6 +4624,26 @@ window.PD = window.PD || {};
     const kiss = face === 4, blink = face === 5, cheer = face === 6;
     const talk = face === 3 || cheer;
     const step = face === 1 ? 1 : (face === 2 ? -1 : 0);   // walk frames
+
+    // ------------------------------------------------------------- the tail
+    // drawn first, so it reads as coming out from behind rather than stuck on
+    if (t.plan === 'beast') {
+      const sweep = step * 2;
+      let tx = cx - t.sw + 1, ty = hipY - 5;
+      for (let i = 0; i < 6; i++) {
+        const w = 6 - i * 0.7;
+        tx -= 1.7 + i * 0.2; ty += (i < 2 ? 2.2 : -1.8) + sweep * 0.4;
+        p.round(tx - w / 2, ty - w / 2, Math.max(2, w), Math.max(2, w), 1, i > 3 ? t.lite : t.skin);
+      }
+      p.round(tx - 2.5, ty - 2.5, 5, 5, 2, t.acc);
+    } else if (t.plan === 'bug') {
+      // wing cases, folded down the back
+      for (const side of [-1, 1]) {
+        p.round(cx + side * (t.sw - 1) - 4, shY + 2, 9, t.th + 6, 4, t.accD);
+        p.round(cx + side * (t.sw - 1) - 3, shY + 3, 7, t.th + 3, 3, t.acc);
+        p.rect(cx + side * (t.sw - 1) - 1, shY + 4, 1, t.th, t.accD);
+      }
+    }
 
     // ---------------------------------------------------------------- legs
     const kneeY = hipY + Math.round(t.lh * 0.5);
@@ -4557,11 +4755,48 @@ window.PD = window.PD || {};
 
     // ---------------------------------------------------------------- head
     p.rect(cx - 2, neckY - 2, 4, 5, t.dark);                          // neck
-    p.ellipse(cx, headY, t.hr, t.hr - 1, t.skin);
-    p.ellipse(cx, headY - Math.round(t.hr * 0.4), Math.round(t.hr * 0.72), Math.round(t.hr * 0.34), t.lite);
-    p.ellipse(cx, headY + Math.round(t.hr * 0.55), Math.round(t.hr * 0.8), Math.round(t.hr * 0.3), t.dark);
-    // a jaw, so the head is not a ball
-    p.round(cx - t.hr + 2, headY + 1, (t.hr - 2) * 2, t.hr, 3, t.skin);
+    if (t.plan === 'fungal') {
+      // a stalk with a cap on it: the gills underneath are the giveaway
+      const cw = Math.round(t.hr * t.capW), ch = Math.round(t.hr * 0.9);
+      p.round(cx - Math.round(t.hr * 0.55), headY - 1, Math.round(t.hr * 1.1), t.hr + 6, 3, t.lite);
+      p.round(cx - Math.round(t.hr * 0.4), headY, Math.round(t.hr * 0.5), t.hr + 5, 2, '#fff6e0');
+      p.ellipse(cx, headY - 1, cw, ch, t.dark);                       // the gills
+      for (let i = -4; i <= 4; i++) p.line(cx + i * 2, headY - 1, cx + i * 3, headY - ch, t.skin);
+      p.ellipse(cx, headY - 3, cw, ch, t.skin);                       // and the cap over them
+      p.ellipse(cx, headY - 5, Math.round(cw * 0.8), Math.round(ch * 0.7), t.lite);
+      for (let i = 0; i < 6; i++) {
+        const a = 0.5 + i * 0.7;
+        p.disc(cx + Math.cos(a) * cw * 0.6, headY - 4 + Math.sin(a) * ch * 0.4,
+          1 + (i % 2), i % 2 ? '#fff6e0' : t.acc);
+      }
+      p.rect(cx - cw, headY - 1, cw * 2, 1, t.dark);
+    } else if (t.plan === 'beast') {
+      // a skull with a snout on the front of it and a brow over the eyes
+      p.ellipse(cx, headY, t.hr, t.hr - 1, t.skin);
+      p.ellipse(cx, headY - Math.round(t.hr * 0.4), Math.round(t.hr * 0.72), Math.round(t.hr * 0.34), t.lite);
+      const sd = t.lean > 0 ? 1 : -1;
+      p.round(cx + sd * (t.hr - 2) - 3, headY + 1, t.snout + 5, Math.round(t.hr * 0.72), 3, t.skin);
+      p.round(cx + sd * (t.hr - 2) - 2, headY + 1, t.snout + 3, Math.round(t.hr * 0.36), 2, t.lite);
+      p.disc(cx + sd * (t.hr + t.snout - 2), headY + 3, 2, t.dark);   // the nose
+      p.rect(cx - t.hr + 1, headY - Math.round(t.hr * 0.3), (t.hr - 1) * 2, 2, t.dark);
+      // fur along the jaw
+      for (let i = -3; i <= 3; i++) p.line(cx + i * 3, headY + t.hr - 3, cx + i * 3 + 1, headY + t.hr + 2, t.dark);
+    } else {
+      p.ellipse(cx, headY, t.hr, t.hr - 1, t.skin);
+      p.ellipse(cx, headY - Math.round(t.hr * 0.4), Math.round(t.hr * 0.72), Math.round(t.hr * 0.34), t.lite);
+      p.ellipse(cx, headY + Math.round(t.hr * 0.55), Math.round(t.hr * 0.8), Math.round(t.hr * 0.3), t.dark);
+      // a jaw, so the head is not a ball
+      p.round(cx - t.hr + 2, headY + 1, (t.hr - 2) * 2, t.hr, 3, t.skin);
+    }
+    if (t.plan === 'bug') {
+      // a plated collar and a pair of spiracles down each side
+      p.round(cx - t.sw + 1, shY - 1, t.sw * 2 - 2, 6, 2, t.accD);
+      p.round(cx - t.sw + 2, shY, t.sw * 2 - 4, 3, 1, t.acc);
+      for (let i = 0; i < 3; i++) {
+        p.set(cx - t.sw + 1, shY + 7 + i * 4, t.dark);
+        p.set(cx + t.sw - 1, shY + 7 + i * 4, t.dark);
+      }
+    }
 
     // ------------------------------------------------- skin, close up
     if (t.tex === 'speckle') {
@@ -4750,9 +4985,12 @@ window.PD = window.PD || {};
 
   /* Six frames each: idle, two steps of a walk, talking, kissing, blinking. */
   const KIN = [];
+  const KIN_MIX = ['biped', 'fungal', 'beast', 'bug', 'biped', 'beast', 'fungal', 'biped'];
   function makeKin(n) {
     for (let i = 0; i < n; i++) {
-      const t = alienKin(i * 7717 + 13);
+      // the mix is dealt out rather than rolled, so a room of twenty always has
+      // mushrooms and beasts in it instead of whatever the seeds felt like
+      const t = alienKin(i * 7717 + 13, KIN_MIX[i % KIN_MIX.length]);
       const frames = [0, 1, 2, 3, 4, 5, 6].map(f => buildAlien(t, f));
       const W = frames[0].w, H = frames[0].h;
       t.key = 'kin' + i;
@@ -5850,8 +6088,7 @@ window.PD = window.PD || {};
     },
     home: {
       jump: { x: VW - 42, y: VH - 46, r: 28, glyph: 'up', col: '#7ef9ff', key: 'up', label: 'JUMP' },
-      use:  { x: VW - 42, y: VH - 112, r: 24, glyph: 'hand', col: '#ffb03d', key: 'KeyE', label: 'USE' },
-      roll: { x: VW - 106, y: VH - 40, r: 20, glyph: 'dash', col: '#ffd34d', key: 'shift', label: 'ROLL' }
+      use:  { x: VW - 42, y: VH - 112, r: 24, glyph: 'hand', col: '#ffb03d', key: 'KeyE', label: 'USE' }
     }
   };
 
@@ -7675,7 +7912,8 @@ window.PD = window.PD || {};
   const SPRITE_FOR = {
     crawler: 'grub', floater: 'jelly', spitter: 'spit',
     gnasher: 'gnasher', lurker: 'lurker', guardian: 'warden',
-    mite: 'mite', shellback: 'shellback', wyrm: 'wyrm'
+    mite: 'mite', shellback: 'shellback', wyrm: 'wyrm',
+    crab: 'crab', bloomer: 'bloomer', driller: 'driller', hangman: 'hangman'
   };
 
   function Mob(type, x, y, scale) {
@@ -7718,6 +7956,19 @@ window.PD = window.PD || {};
     FX.shake(1.6);
     if (this.hp <= 0) {
       this.dead = true;
+      /* A bloomer does not die quietly: the cap goes off and everything
+         standing in the cloud gets a lungful, you included. */
+      if (this.def.spores) {
+        FX.burst(this.x, this.y - 4, 26, ['#ff9ecb', '#d64f8a', '#fff6e0', '#8a2a56'], 130);
+        FX.ring(this.x, this.y - 4, 3, 34, 0.5, '#ff9ecb', 2);
+        A.noise({ from: 700, to: 140, dur: 0.4, vol: 0.12 });
+        const p = g.player;
+        if (U.dist(p.x, p.y, this.x, this.y) < 34) p.hurt(8, g, Math.sign(p.x - this.x));
+        for (const m of g.mobs) {
+          if (m === this || m.dead) continue;
+          if (U.dist(m.x, m.y, this.x, this.y) < 30) m.hurtBy(14, g, 0, 'spore');
+        }
+      }
       g.onMobKilled(this);
     } else {
       PD.audio.sfx.hitMob();
@@ -8143,6 +8394,13 @@ window.PD = window.PD || {};
     if (id === 'oxygen') v += D.UPG.lung.value(upg.lung || 0);
     if (id === 'cargo') v += D.UPG.belly.value(upg.belly || 0);
     if (id === 'hull') v += D.UPG.ironskin.value(upg.ironskin || 0);
+    // and whatever you have had built on the moon while you were out
+    if (g.baseBonus) {
+      if (id === 'oxygen') v += g.baseBonus('airfarm');
+      else if (id === 'magnet') v += g.baseBonus('dronebay');
+      else if (id === 'scanner') v *= 1 + g.baseBonus('mast');
+      else if (id === 'drill') v *= 1 + g.baseBonus('reactor');
+    }
     // and then whatever the brain in the jar has grown on top of it
     const b = g.brain;
     if (!b) return v;
@@ -10164,52 +10422,28 @@ window.PD = window.PD || {};
   /* ------------------------------------------------------------- the lessons
      One entry per thing he has to explain. `once` ids are written into
      save.seen, so he never says the same thing twice. */
+  /* He used to explain the controls. He does not any more: you can see a
+     drill, you can see a door, and a shark reading you a manual is the least
+     interesting thing he could be doing. What is left is the half-dozen
+     moments where he has something to SAY -- and the debt, which he will
+     always find time for. */
   const LESSONS = {
-    welcome: ['THIS ROCK IS YOURS NOW. I PAID FOR IT.',
-      'THE HOUSE HAS A COMPUTER. THE SAUCER GOES TO PLANETS.',
-      'WALK WITH A AND D. PRESS E AT THINGS.'],
-    chart: ['EVERY DOT IS A WORLD AND EVERY WORLD IS MONEY.',
-      'START AT THE TOP AND WORK DOWN. OR DO NOT. I GET PAID EITHER WAY.'],
-    travel: ['NOW YOU FLY IT. ROCKS DO NOT MOVE OUT OF YOUR WAY.',
-      'HOLD THE POINTER OR USE THE STICK. EVERY DENT COMES OFF YOUR HULL.'],
-    dig: ['HOLD TO DRILL. THE BIT EATS WHATEVER IT TOUCHES.',
-      'AIR IS THE BLUE ONE. WHEN IT RUNS OUT, SO DO YOU.',
-      'FILL THE SACK. PRESS E AT THE POD TO GO HOME.'],
-    sack: ['THE SACK IS HALF FULL AND YOU ARE HALF AS FAST.',
-      'HEAVY IS SLOW. SLOW IS DEAD. GO HOME.'],
-    air: ['YOUR AIR IS LOW.', 'I AM NOT SENTIMENTAL BUT YOU OWE ME MONEY.'],
-    back: ['THE ROCKS ARE IN THE VAULT. THEY ARE NOT MONEY YET.',
-      'SIT AT THE COMPUTER. SELL THEM ON ABAY. THAT IS THE WHOLE BUSINESS.'],
-    desk: ['THIS IS A HUMAN COMPUTER. YOU STOLE IT. GOOD.',
-      'ABAY BUYS YOUR ROCKS AND SELLS YOU BETTER TOOLS.',
-      'THE AUCTIONS ARE CHEAPER IF YOU CAN STAND THE WAITING.'],
-    sell: ['THERE. THAT IS WHAT A ROCK IS WORTH.',
-      'I TAKE A FIFTH UNTIL WE ARE SQUARE. READ THE PAPERWORK.'],
-    abay: ['BUY A BIGGER DRILL BEFORE YOU BUY ANYTHING ELSE.',
-      'EVERY SHELF IS A DIFFERENT KIND OF DEBT.'],
-    auction: ['AN AUCTION IS CHEAPER THAN THE SHOP IF NOBODY ELSE WANTS IT.',
-      'SOMEBODY ELSE ALWAYS WANTS IT.'],
-    brain: ['THE BRAIN IS THE ONLY THING ON THIS MOON CLEVERER THAN THE RAT.',
-      'FEED IT THOTS. IT GROWS YOU NEW HABITS.'],
+    welcome: ['THIS ROCK IS YOURS NOW. I PAID FOR IT.'],
+    dig: ['AIR IS THE BLUE ONE. WHEN IT RUNS OUT, SO DO YOU.'],
+    air: ['YOUR AIR IS LOW. I AM NOT SENTIMENTAL BUT YOU OWE ME MONEY.'],
+    sell: ['I TAKE A FIFTH UNTIL WE ARE SQUARE. READ THE PAPERWORK.'],
+    brain: ['FEED IT. IT IS THE ONLY THING ON THIS MOON CLEVERER THAN THE RAT.'],
     tip: ['YES. IT IS A TIP. THAT IS WHY IT WAS CHEAP.',
-      'PRESS E AT EVERY HEAP. I AM NOT DOING IT.',
       'THERE IS SOMETHING UNDER THE LAST ONE. I CHECKED.'],
-    club: ['A CLUB. ON MY MOON. UNDER MY BINS.',
-      'GO IN. SPEND MONEY. TWENTY PER CENT OF IT WAS MINE ANYWAY.'],
-    checkout: ['HUMANS DO NOT LET YOU BUY A THING. THEY LET YOU APPLY.',
-      'SIGN IN. PROVE YOU ARE NOT A ROBOT. THEN THE CARD. THEN THE CODE.',
-      'I HAVE DONE THIS. IT TAKES LONGER THAN THE MINING.'],
-    twofa: ['NOW THEY SEND EIGHT NUMBERS TO A SATELLITE.',
-      'READ THEM OFF THE SCREEN. TYPE THEM IN THE OTHER SCREEN.',
-      'THIS IS WHAT THEY CALL SECURITY.'],
-    ordered: ['IT IS BOUGHT. IT IS ON THE MOON. IT WAS ALWAYS ON THE MOON.'],
+    club: ['A CLUB. ON MY MOON. UNDER MY BINS.'],
+    hub: ['THE PORT. EVERYTHING FOR SALE AND NOTHING WORTH BUYING.',
+      'DO NOT SIGN ANYTHING. THAT IS MY JOB.'],
+    build: ['YOU ARE BUILDING. ON MY MOON. WITH MY MONEY.',
+      'IT IS NOT MY MONEY UNTIL YOU MAKE SOME. GO ON THEN.'],
     gamble: ['I CAN SEE THE WATCH. I CAN SEE WHERE THE WATCH IS.',
-      'YOU ARE STANDING AT A MACHINE. THAT IS HOW WE MET.',
       'GO ON THEN. IT IS YOUR MONEY. IT IS MY MONEY.'],
-    jackpot: ['THREE THE SAME. IN TWENTY YEARS I HAVE NEVER SEEN IT.',
-      'PUT IT TOWARDS THE DEBT. PUT IT TOWARDS THE DEBT.'],
-    core: ['THAT IS THE CORE. BREAK IT AND THE WHOLE WORLD GOES.',
-      'THE BOUNTY IS ENORMOUS. DO IT AGAIN.'],
+    jackpot: ['THREE THE SAME. IN TWENTY YEARS I HAVE NEVER SEEN IT.'],
+    core: ['THAT IS A WHOLE WORLD GONE. THE BOUNTY IS ENORMOUS. DO IT AGAIN.'],
     debt75: ['A QUARTER DOWN. I HAVE STOPPED CIRCLING YOUR HOUSE.'],
     debt50: ['HALF. I TOLD MY MOTHER ABOUT YOU. SHE WAS NOT INTERESTED.'],
     debt25: ['ONE QUARTER LEFT. DO NOT GET CLEVER NOW.'],
@@ -15722,7 +15956,7 @@ window.PD = window.PD || {};
      chipped rock, not a ball. Outside is exactly one screen wide and never
      scrolls -- the moon is an object you look at, not a corridor. */
   const MOON = { cx: 240, cy: 960, r: 820 };
-  const OUT_W = 480, IN_W = 232;
+  const OUT_W = 780, IN_W = 232;
   const WALK = 172;                  // how far round the curve he can get
   const FLOOR = 216;                 // the room floor, inside
   const CEIL = 124;                  // the underside of the rock roof, inside
@@ -15740,7 +15974,7 @@ window.PD = window.PD || {};
     return U.clamp(P.x - VW / 2, 0, w - VW);
   }
   function bounds() {
-    if (S.scene === 'out') return [MOON.cx - WALK, MOON.cx + WALK];
+    if (S.scene === 'out') return [MOON.cx - WALK, MOON.cx + 400];
     return S.scene === 'club' ? [16, CLUB_W - 16] : [20, IN_W - 20];
   }
 
@@ -16090,7 +16324,7 @@ window.PD = window.PD || {};
       return CLUB_SPOTS;
     }
     if (S.scene === 'in') return g.save.pet ? IN_SPOTS : IN_SPOTS.concat([RAT_SPOT]);
-    const out = OUT_SPOTS.slice();
+    const out = OUT_SPOTS.slice().concat(buildPads(g));
     for (let i = 0; i < TRASH.length; i++) {
       if (cleaned(g, i)) continue;
       out.push({ id: 'trash', i, x: TRASH[i].x, r: 17,
@@ -16144,6 +16378,7 @@ window.PD = window.PD || {};
     if (s.id === 'stage') { tipTheDancer(g); return; }
     if (s.id.indexOf('slot') === 0) { playSlot(g, +s.id.slice(4)); return; }
     if (s.id === 'universal') { P.lock = 1; PD.chum.enterGamble(g); return; }
+    if (s.bid) { openBuild(g, s.bid); return; }
 
   }
 
@@ -16222,35 +16457,206 @@ window.PD = window.PD || {};
   /* What he has decided you ought to be doing, in the order he has decided it.
      The list is rebuilt whenever the scene or the state of the tip changes,
      which starts the tour over from the top. */
+  /* He only leads you anywhere on the night it matters. After that he is a
+     shark with an opinion, not a signpost -- the moon is small and you have
+     eyes. */
   function leadGoals(g) {
     if (S.scene === 'club' && g.save.story === 1) return [
       { x: 1344, line: 'THE BIG ONE. AT THE BACK. YOU KNOW THE ONE.' }
     ];
-    if (S.scene === 'club') return [
-      { x: 470, line: 'DANCE. IT IS FREE. NOTHING ELSE IN HERE IS.' },
-      { x: 596, line: 'TIP THEM. THEY ARE WORKING. UNLIKE YOU.' },
-      { x: 750, line: 'BUY A DRINK. PUT IT ON MY TAB. THERE IS NO TAB.' },
-      { x: 1130, line: 'NO. NOT THE MACHINES. LOOK AT ME. NOT THE MACHINES.' },
-      { x: 288, line: 'ASK HIM FOR A SONG. HE HAS TWO. IT IS A COIN FLIP.' }
-    ];
-    if (S.scene === 'in') return [
-      { x: IN_SPOTS[0].x, line: 'THE COMPUTER. SELL THE ROCKS. THAT IS THE BUSINESS.' },
-      { x: IN_SPOTS[1].x, line: 'THE BRAIN. FEED IT. IT MAKES YOU LESS OF A LIABILITY.' },
-      { x: IN_SPOTS[2].x, line: 'AND OUT. THERE IS A PLANET WITH YOUR NAME ON IT.' }
-    ];
+    if (S.scene !== 'out' || g.save.seen && g.save.seen.chum_tip) return [];
     const out = [];
-    for (let i = 0; i < TRASH.length && out.length < 3; i++) {
-      if (!cleaned(g, i)) out.push({ x: TRASH[i].x, line: 'THAT ONE. PRESS E. I HAVE WAITED BEFORE.' });
+    for (let i = 0; i < TRASH.length && out.length < 1; i++) {
+      if (!cleaned(g, i)) out.push({ x: TRASH[i].x, line: 'THAT ONE. I HAVE WAITED BEFORE.' });
     }
-    out.push({ x: OUT_SPOTS[1].x, line: 'THE SAUCER. GO AND EAT A PLANET.' });
-    out.push({ x: OUT_SPOTS[0].x, line: 'THE HOUSE. THE MONEY IS IN THE COMPUTER.' });
-    if (moonClean(g)) out.push({ x: CLUB_X, line: 'OR THE CLUB. I OWN IT NOW. YOU ARE WELCOME.' });
     return out;
+  }
+
+  /* ------------------------------------------------------------ the base
+     Once the tip is gone there is bare regolith along the eastern curve, and
+     five pads somebody poured before you owned the place. What you put on
+     them is the only part of this game that improves while you are not
+     looking at it: every level is a flat number you can feel in the hole. */
+  const BUILD = { open: null, sel: 0, t: 0 };
+
+  function buildPads(g) {
+    if (!moonClean(g)) return [];
+    return D.BUILDINGS.map(b => ({
+      id: 'pad_' + b.id, x: b.x, r: 26, bid: b.id,
+      name: g.baseLvl(b.id) ? b.name : 'AN EMPTY PAD',
+      sub: g.baseLvl(b.id) >= b.max ? 'FINISHED' :
+        (g.baseLvl(b.id) ? 'UPGRADE  $' + U.fmt(g.baseCost(b.id)) : 'BUILD  $' + U.fmt(g.baseCost(b.id)))
+    }));
+  }
+
+  function openBuild(g, bid) {
+    BUILD.open = bid; BUILD.t = 0;
+    UI.mode = 'build';
+    A.sfx.click();
+  }
+  function closeBuild() { BUILD.open = null; UI.mode = null; P.lock = 0.2; A.sfx.click(); }
+
+  function updateBuild(dt, g) {
+    BUILD.t += dt;
+    const IN = PD.input, m = IN.mouse;
+    if (IN.hit('esc') || IN.hit('KeyE')) { closeBuild(); return; }
+    const b = D.BUILD_OF[BUILD.open];
+    const lvl = g.baseLvl(b.id);
+    const can = lvl < b.max && g.save.credits >= g.baseCost(b.id);
+    const hitGo = m.inside && m.x > 148 && m.x < 260 && m.y > 176 && m.y < 196;
+    const hitNo = m.inside && m.x > 272 && m.x < 340 && m.y > 176 && m.y < 196;
+    if (m.leftPressed && hitNo) { closeBuild(); return; }
+    if ((m.leftPressed && hitGo && can) || (IN.hit('enter') && can)) {
+      if (g.build(b.id)) {
+        FX.text(b.x, groundY(b.x) - 60, 'BUILT', '#ffd34d', 1);
+        FX.ring(b.x, groundY(b.x) - 16, 4, 60, 0.9, '#ffd34d', 3);
+      }
+    }
+  }
+
+  function drawBuildPanel(ctx, g, t) {
+    const b = D.BUILD_OF[BUILD.open];
+    if (!b) return;
+    const lvl = g.baseLvl(b.id), done = lvl >= b.max;
+    const cost = g.baseCost(b.id);
+    const can = !done && g.save.credits >= cost;
+    ctx.fillStyle = 'rgba(6,4,14,0.82)'; ctx.fillRect(0, 0, VW, VH);
+    X.plate(ctx, 120, 62, 240, 146, '#1d1836', '#453c5c', '#0a0614', 6);
+    X.rect(ctx, 120, 62, 240, 2, '#7ef9ff');
+    PD.glyph.draw(ctx, b.glyph, 130, 70, '#7ef9ff', '#2f8fae');
+    F.draw(ctx, b.name, 240, 74, '#d8fbff', { center: true, shadow: '#0a0614' });
+    F.draw(ctx, b.blurb, 240, 90, '#8a86a8', { center: true, shadow: false });
+
+    // three lamps: what it is now and what it would be
+    for (let i = 1; i <= b.max; i++) {
+      const on = i <= lvl, next = i === lvl + 1;
+      const bx = 240 - (b.max * 30) / 2 + (i - 1) * 30;
+      X.plate(ctx, bx, 104, 26, 20, on ? '#1d4a44' : (next ? '#2a2452' : '#150f28'),
+        on ? '#4fd0b0' : (next ? '#6b5a9c' : '#2e2640'), '#04100e', 3);
+      F.draw(ctx, String(i), bx + 13, 110, on ? '#8affd0' : (next ? '#c9bce8' : '#4a4460'),
+        { center: true, shadow: false });
+    }
+    const cur = b.bonus[Math.min(b.max, lvl)];
+    F.draw(ctx, lvl ? 'NOW  ' + b.fmt(cur) : 'NOTHING ON THIS PAD', 240, 132,
+      lvl ? '#8affd0' : '#6a6484', { center: true, shadow: false });
+    if (!done) {
+      F.draw(ctx, 'NEXT  ' + b.fmt(b.bonus[lvl + 1]), 240, 144, '#ffd34d',
+        { center: true, shadow: false });
+    }
+
+    F.draw(ctx, 'YOU HAVE $' + U.fmt(g.save.credits), 240, 162,
+      can || done ? '#8a86a8' : '#ff8a9a', { center: true, shadow: false });
+
+    const m = PD.input.mouse;
+    const hotGo = m.inside && m.x > 148 && m.x < 260 && m.y > 176 && m.y < 196;
+    const hotNo = m.inside && m.x > 272 && m.x < 340 && m.y > 176 && m.y < 196;
+    if (done) {
+      X.plate(ctx, 148, 176, 112, 20, '#1d4a44', '#4fd0b0', '#04100e', 4);
+      F.draw(ctx, 'FINISHED', 204, 182, '#8affd0', { center: true, shadow: false });
+    } else {
+      X.plate(ctx, 148, 176, 112, 20, can ? (hotGo ? '#2f8f6a' : '#1d4a44') : '#2a1a24',
+        can ? '#4fd0b0' : '#6a3040', '#04100e', 4);
+      F.draw(ctx, (lvl ? 'UPGRADE  $' : 'BUILD  $') + U.fmt(cost), 204, 182,
+        can ? '#ffffff' : '#8a5a68', { center: true, shadow: false });
+    }
+    X.plate(ctx, 272, 176, 68, 20, hotNo ? '#3a3060' : '#241f3e', '#6b5a9c', '#0a0614', 4);
+    F.draw(ctx, 'LEAVE', 306, 182, '#c9bce8', { center: true, shadow: false });
+  }
+
+  /* What is actually standing out there. Each one is built out of the same
+     plates as the house, so the moon looks like one person made all of it
+     out of the same skip. */
+  function drawBuildings(ctx, g, t, cam) {
+    for (const b of D.BUILDINGS) {
+      const x = b.x - cam, gy = groundY(b.x);
+      if (x < -60 || x > VW + 60) continue;
+      const lvl = g.baseLvl(b.id);
+      // the pad itself, always there
+      X.blob(ctx, x, gy + 2, 22, 4, '#241f36');
+      X.plate(ctx, x - 20, gy - 4, 40, 7, '#3a3450', '#5a5474', '#1a1626', 3);
+      for (let i = 0; i < 4; i++) X.rect(ctx, x - 16 + i * 10, gy - 2, 5, 2, '#2a2438');
+      if (!lvl) {
+        ctx.globalAlpha = 0.35 + Math.abs(Math.sin(t * 2 + b.x)) * 0.25;
+        for (let i = 0; i < 4; i++) {
+          X.rect(ctx, x - 18 + i * 12, gy - 8, 3, 3, '#7ef9ff');
+        }
+        ctx.globalAlpha = 1;
+        F.draw(ctx, 'PAD', x, gy - 18, '#4a6a80', { center: true, shadow: '#0a0614' });
+        continue;
+      }
+      const h = 26 + lvl * 12;
+      if (b.id === 'refinery') {
+        X.plate(ctx, x - 17, gy - h, 34, h - 2, '#4a3c2e', '#6b5a44', '#241c14', 4);
+        X.plate(ctx, x - 12, gy - h + 5, 24, 12, '#2a2018', '#8a6a3a', '#120c08', 3);
+        for (let i = 0; i < lvl; i++) {
+          X.rect(ctx, x - 12 + i * 11, gy - h - 14, 7, 15, '#5a4a38');
+          X.rect(ctx, x - 12 + i * 11, gy - h - 14, 7, 3, '#8a6a3a');
+          const f = ((t * 0.4 + i / 3) % 1);
+          ctx.globalAlpha = (1 - f) * 0.4;
+          X.blob(ctx, x - 9 + i * 11, gy - h - 18 - f * 26, 3 + f * 7, 2 + f * 6, '#8a86a8');
+          ctx.globalAlpha = 1;
+        }
+        X.rect(ctx, x - 10, gy - h + 8, 20, 5, Math.sin(t * 3) > 0 ? '#ffb03d' : '#8a5a20');
+      } else if (b.id === 'airfarm') {
+        X.plate(ctx, x - 18, gy - 12, 36, 11, '#2a3444', '#44566e', '#121a24', 3);
+        for (let i = 0; i < lvl + 1; i++) {
+          const tx = x - 13 + i * 10;
+          X.rect(ctx, tx - 4, gy - h, 9, h - 12, 'rgba(150,220,255,0.22)');
+          X.rect(ctx, tx - 4, gy - h, 9, 2, '#9fe0ff');
+          for (let k = 0; k < 3; k++) {
+            X.blob(ctx, tx, gy - h + 8 + k * 9 + Math.sin(t * 1.4 + k + i) * 1.5,
+              3, 4, k % 2 ? '#4cff9a' : '#2f8f6a');
+          }
+        }
+      } else if (b.id === 'dronebay') {
+        X.plate(ctx, x - 18, gy - 20, 36, 19, '#2e3a4a', '#4a5c74', '#12181f', 4);
+        X.rect(ctx, x - 13, gy - 16, 26, 9, '#0d1620');
+        for (let i = 0; i < lvl; i++) {
+          const dy = gy - 30 - i * 11 + Math.sin(t * 2.2 + i * 2) * 3;
+          const dx2 = x - 10 + i * 10 + Math.cos(t * 1.1 + i) * 5;
+          X.plate(ctx, dx2 - 4, dy - 3, 9, 6, '#6b7e94', '#a8b4c8', '#2a3440', 2);
+          X.rect(ctx, dx2 - 7, dy - 4, 4, 1, '#8e86a8');
+          X.rect(ctx, dx2 + 4, dy - 4, 4, 1, '#8e86a8');
+          X.blob(ctx, dx2, dy + 2, 2, 2, Math.sin(t * 6 + i) > 0 ? '#7ef9ff' : '#2a5f6a');
+        }
+      } else if (b.id === 'mast') {
+        X.plate(ctx, x - 12, gy - 10, 24, 9, '#2a2438', '#453c5c', '#0a0614', 3);
+        X.rect(ctx, x - 2, gy - h, 4, h - 10, '#5a5474');
+        X.rect(ctx, x - 2, gy - h, 1, h - 10, '#8e86a8');
+        for (let i = 0; i < 3; i++) X.rect(ctx, x - 7, gy - h + 12 + i * 10, 14, 2, '#3a3348');
+        const a = t * (0.6 + lvl * 0.3);
+        X.blob(ctx, x, gy - h - 2, 9, 4, '#453c5c');
+        X.blob(ctx, x + Math.cos(a) * 7, gy - h - 3, 5, 3, '#7ef9ff');
+        ctx.globalAlpha = 0.16;
+        X.blob(ctx, x, gy - h - 4, 20 + lvl * 8, 10 + lvl * 4, '#7ef9ff');
+        ctx.globalAlpha = 1;
+      } else {
+        X.plate(ctx, x - 16, gy - h, 32, h - 1, '#2a2438', '#5a4a78', '#0a0614', 5);
+        const hot = 0.4 + Math.abs(Math.sin(t * (1 + lvl))) * 0.4;
+        X.blob(ctx, x, gy - h / 2 - 4, 9, 11, '#150f28');
+        ctx.globalAlpha = hot;
+        X.blob(ctx, x, gy - h / 2 - 4, 7, 9, '#4cff9a');
+        X.blob(ctx, x, gy - h / 2 - 4, 4, 5, '#d8ffe8');
+        ctx.globalAlpha = 1;
+        for (let i = 0; i < lvl; i++) X.rect(ctx, x - 13 + i * 9, gy - h - 5, 6, 6, '#4cff9a');
+        ctx.globalAlpha = 0.05 * lvl;
+        X.blob(ctx, x, gy - h / 2 - 4, 18, 16, '#4cff9a');
+        ctx.globalAlpha = 1;
+      }
+      // a plate on the front with the name and how far up it is
+      F.draw(ctx, b.name.replace('THE ', ''), x, gy - h - (b.id === 'refinery' ? 26 : 16),
+        '#8a86a8', { center: true, shadow: '#0a0614' });
+      for (let i = 0; i < b.max; i++) {
+        X.rect(ctx, x - (b.max * 5) / 2 + i * 5, gy - h - (b.id === 'refinery' ? 18 : 8),
+          3, 3, i < lvl ? '#ffd34d' : '#3a3348');
+      }
+    }
   }
 
   /* ---------------------------------------------------------------- update */
   function update(dt, g) {
     const IN = PD.input;
+    if (UI.mode === 'build') { S.t += dt; updateBuild(dt, g); return; }
     g0 = g;
     S.t += dt;
     if (FX.wipeActive()) { view(dt); return; }
@@ -16516,6 +16922,7 @@ window.PD = window.PD || {};
     AH.blit(ctx, AH.S.flag, Math.floor(t * 4) % 2, fx - cam, groundY(fx) + 2);
     const svx = OUT_SPOTS[0].x - 66;
     AH.blit(ctx, AH.S.survey, 0, svx - cam, groundY(svx) + 2);
+    if (moonClean(g)) drawBuildings(ctx, g, t, cam);
 
     /* Whatever is left of the tip, plus a wash of grime over the regolith
        that lifts as the heaps go. A clean moon is a visibly different moon. */
@@ -17706,6 +18113,7 @@ window.PD = window.PD || {};
   /* Signs, speech and the sleep fade, drawn on the screen at screen size so
      the zoom does not turn the lettering into billboards. */
   function drawOverlay(ctx, g, t) {
+    if (UI.mode === 'build') { drawBuildPanel(ctx, g, t); return; }
     if (S.sleep <= 0) prompt(ctx, g, t, Math.round(g.intCam));
 
     if (S.sleep > 0) {
@@ -18253,6 +18661,7 @@ window.PD = window.PD || {};
       credits: 0, upg, unlocked: 0, destroyed: [], dominion: 0, bonus: 0,
       totalMined: 0, totalEarned: 0, bodyIndex: 0, seen: {},
       vault: {},                                  // ore waiting on the moon
+      base: {},                                   // what you have put on the pads
       cos: { suit: 'rose', skin: 'green', glass: 'sky', drill: 'steel', trim: 'stock' },
       pet: 0,                                     // whether the rat is yours yet
       thots: 0, thotFrac: 0, neur: {},            // what the brain in the jar has grown
@@ -18589,8 +18998,32 @@ window.PD = window.PD || {};
   };
 
   /* The trade mast: everything you hauled home goes at once. */
+  /* What is standing on the pads, and what it is worth to you. */
+  g.baseLvl = function (id) { return (g.save.base && g.save.base[id]) || 0; };
+  g.baseBonus = function (id) {
+    const b = D.BUILD_OF[id];
+    return b ? b.bonus[Math.min(b.max, g.baseLvl(id))] : 0;
+  };
+  g.baseCost = function (id) {
+    const b = D.BUILD_OF[id], lvl = g.baseLvl(id);
+    return lvl >= b.max ? 0 : b.cost[lvl];
+  };
+  g.build = function (id) {
+    const b = D.BUILD_OF[id], lvl = g.baseLvl(id);
+    if (!b || lvl >= b.max) { A.sfx.deny(); return false; }
+    const cost = b.cost[lvl];
+    if (g.save.credits < cost) { A.sfx.deny(); return false; }
+    g.save.credits -= cost;
+    if (!g.save.base) g.save.base = {};
+    g.save.base[id] = lvl + 1;
+    A.sfx.sell();
+    PD.chum.call(g, 'build');
+    saveGame();
+    return true;
+  };
+
   g.sellAll = function () {
-    const total = g.vaultValue();
+    const total = Math.round(g.vaultValue() * (1 + g.baseBonus('refinery')));
     if (!total) { A.sfx.deny(); return; }
     let lots = 0;   // counted for the sound of it
     for (const k in g.save.vault) lots += g.save.vault[k];

@@ -71,6 +71,13 @@
     if (id === 'oxygen') v += D.UPG.lung.value(upg.lung || 0);
     if (id === 'cargo') v += D.UPG.belly.value(upg.belly || 0);
     if (id === 'hull') v += D.UPG.ironskin.value(upg.ironskin || 0);
+    // and whatever you have had built on the moon while you were out
+    if (g.baseBonus) {
+      if (id === 'oxygen') v += g.baseBonus('airfarm');
+      else if (id === 'magnet') v += g.baseBonus('dronebay');
+      else if (id === 'scanner') v *= 1 + g.baseBonus('mast');
+      else if (id === 'drill') v *= 1 + g.baseBonus('reactor');
+    }
     // and then whatever the brain in the jar has grown on top of it
     const b = g.brain;
     if (!b) return v;

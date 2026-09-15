@@ -55,6 +55,7 @@
       credits: 0, upg, unlocked: 0, destroyed: [], dominion: 0, bonus: 0,
       totalMined: 0, totalEarned: 0, bodyIndex: 0, seen: {},
       vault: {},                                  // ore waiting on the moon
+      base: {},                                   // what you have put on the pads
       cos: { suit: 'rose', skin: 'green', glass: 'sky', drill: 'steel', trim: 'stock' },
       pet: 0,                                     // whether the rat is yours yet
       thots: 0, thotFrac: 0, neur: {},            // what the brain in the jar has grown
@@ -391,8 +392,32 @@
   };
 
   /* The trade mast: everything you hauled home goes at once. */
+  /* What is standing on the pads, and what it is worth to you. */
+  g.baseLvl = function (id) { return (g.save.base && g.save.base[id]) || 0; };
+  g.baseBonus = function (id) {
+    const b = D.BUILD_OF[id];
+    return b ? b.bonus[Math.min(b.max, g.baseLvl(id))] : 0;
+  };
+  g.baseCost = function (id) {
+    const b = D.BUILD_OF[id], lvl = g.baseLvl(id);
+    return lvl >= b.max ? 0 : b.cost[lvl];
+  };
+  g.build = function (id) {
+    const b = D.BUILD_OF[id], lvl = g.baseLvl(id);
+    if (!b || lvl >= b.max) { A.sfx.deny(); return false; }
+    const cost = b.cost[lvl];
+    if (g.save.credits < cost) { A.sfx.deny(); return false; }
+    g.save.credits -= cost;
+    if (!g.save.base) g.save.base = {};
+    g.save.base[id] = lvl + 1;
+    A.sfx.sell();
+    PD.chum.call(g, 'build');
+    saveGame();
+    return true;
+  };
+
   g.sellAll = function () {
-    const total = g.vaultValue();
+    const total = Math.round(g.vaultValue() * (1 + g.baseBonus('refinery')));
     if (!total) { A.sfx.deny(); return; }
     let lots = 0;   // counted for the sound of it
     for (const k in g.save.vault) lots += g.save.vault[k];

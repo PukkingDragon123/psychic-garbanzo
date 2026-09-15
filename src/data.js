@@ -37,7 +37,18 @@
     { id: 26, key: 'aether', name: 'Aetherium',   hp: 255,  kg: 0.9,  cr: 48000, c: ['#ffffff', '#c9a8ff', '#7a4fd6'], shine: 1, glow: '#d8bcff' },
     { id: 27, key: 'hull',   name: 'Precursor Plate', hp: 215, kg: 2.6, cr: 60,  c: ['#8fa0b8', '#5c6a82', '#3a4456'] },
     { id: 28, key: 'fungus', name: 'Glowcap',     hp: 18,   kg: 0.4,  cr: 7,     c: ['#6fd9a8', '#2f7f62', '#1a4a3a'], glow: '#5fffb0', glowR: 9 },
-    { id: 29, key: 'bio',    name: 'Bio Sample',  hp: 0,    kg: 0.5,  cr: 340,   c: ['#ff9ecb', '#d64f8a', '#8a2a56'], shine: 1 }
+    { id: 29, key: 'bio',    name: 'Bio Sample',  hp: 0,    kg: 0.5,  cr: 340,   c: ['#ff9ecb', '#d64f8a', '#8a2a56'], shine: 1 },
+    /* --- the second shelf: what you start finding once the drill can take it */
+    { id: 30, key: 'cobalt', name: 'Cobalt',      hp: 128,  kg: 2.9,  cr: 195,   c: ['#7ea8ff', '#3f5fc4', '#22337a'] },
+    { id: 31, key: 'opal',   name: 'Fire Opal',   hp: 158,  kg: 1.4,  cr: 880,   c: ['#ffd8f0', '#e88ac4', '#9a3a7a'], shine: 1, glow: '#ffb0e8', glowR: 8 },
+    { id: 32, key: 'quick',  name: 'Quicksilver', hp: 88,   kg: 3.4,  cr: 420,   c: ['#eef4ff', '#a8b8d8', '#6a7a9c'], shine: 1, glow: '#d8e8ff', glowR: 7 },
+    { id: 33, key: 'amber',  name: 'Amber',       hp: 74,   kg: 0.9,  cr: 560,   c: ['#ffc46a', '#d88a2a', '#8a5210'], shine: 1, glow: '#ffb03d', glowR: 6 },
+    { id: 34, key: 'null',   name: 'Nullstone',   hp: 255,  kg: 6.5,  cr: 15000, c: ['#4a4460', '#241f38', '#0a0814'], shine: 1 },
+    { id: 35, key: 'phos',   name: 'Phosphor',    hp: 46,   kg: 0.7,  cr: 88,    c: ['#eaff8a', '#b8e03a', '#6a8a12'], glow: '#d8ff5a', glowR: 12 },
+    { id: 36, key: 'solar',  name: 'Solar Glass', hp: 186,  kg: 1.1,  cr: 3100,  c: ['#fff6c8', '#ffcf5a', '#d88a10'], shine: 1, glow: '#ffe08a', glowR: 10 },
+    { id: 37, key: 'coral',  name: 'Blood Coral', hp: 102,  kg: 1.3,  cr: 740,   c: ['#ff8a8a', '#c4404f', '#7a1c2c'], shine: 1 },
+    { id: 38, key: 'salt',   name: 'Screaming Salt', hp: 38, kg: 0.6, cr: 24,    c: ['#f0e8f8', '#c0b4d4', '#8a7ea8'] },
+    { id: 39, key: 'tar',    name: 'Black Tar',   hp: 56,   kg: 2.0,  cr: 62,    c: ['#3a3444', '#221e2e', '#12101a'], toxic: 1 }
   ];
   const M = {};
   for (const m of MAT) M[m.key] = m.id;
@@ -52,7 +63,12 @@
     shellback:{ name: 'Shellback',    hp: 140, dmg: 20,  speed: 14, w: 20, h: 14, cr: 260, kind: 'crawl',  armor: 0.6 },
     wyrm:     { name: 'Magma Wyrm',   hp: 120, dmg: 26,  speed: 30, w: 22, h: 14, cr: 420, kind: 'charge', tele: 0.6, fire: 1 },
     lurker:   { name: 'Deep Lurker',  hp: 110, dmg: 22,  speed: 26, w: 19, h: 16, cr: 240, kind: 'spit',   tele: 0.7 },
-    guardian: { name: 'Core Warden',  hp: 380, dmg: 28,  speed: 22, w: 26, h: 24, cr: 1100, kind: 'boss', tele: 0.8 }
+    guardian: { name: 'Core Warden',  hp: 380, dmg: 28,  speed: 22, w: 26, h: 24, cr: 1100, kind: 'boss', tele: 0.8 },
+    /* --- and the rest of what lives down there */
+    crab:     { name: 'Slag Crab',    hp: 44,  dmg: 12,  speed: 34, w: 16, h: 11, cr: 66,  kind: 'crawl',  armor: 0.35 },
+    bloomer:  { name: 'Bloomer',      hp: 34,  dmg: 9,   speed: 10, w: 13, h: 15, cr: 120, kind: 'crawl',  spores: 1 },
+    driller:  { name: 'Claim Jumper', hp: 90,  dmg: 21,  speed: 56, w: 18, h: 12, cr: 340, kind: 'charge', tele: 0.38 },
+    hangman:  { name: 'Ceiling Hanger', hp: 62, dmg: 24, speed: 20, w: 14, h: 18, cr: 210, kind: 'float' }
   };
 
   /* ---------------------------------------------------------------- strata
@@ -65,62 +81,62 @@
   }
   const STRATA = {
     rock: [
-      L('REGOLITH CRUST', 0, 0.28, [['crust', 5], ['stone', 3]], [['iron', 10], ['copper', 3]], 0.30, '#3a2a20',
+      L('REGOLITH CRUST', 0, 0.28, [['crust', 5], ['stone', 3]], [['iron', 10], ['copper', 3], ['salt', 4]], 0.30, '#3a2a20',
         { alt: { fills: [['stone', 1]], ores: [['iron', 14], ['silver', 2]] } }),
-      L('IRON SEAMS', 0.28, 0.72, [['stone', 4], ['basalt', 2]], [['iron', 12], ['copper', 7], ['silver', 3]], 0.34, '#2a2230',
+      L('IRON SEAMS', 0.28, 0.72, [['stone', 4], ['basalt', 2]], [['iron', 12], ['copper', 7], ['silver', 3], ['cobalt', 4]], 0.34, '#2a2230',
         { alt: { fills: [['basalt', 1]], ores: [['copper', 10], ['gold', 2], ['ameth', 1]] } }),
-      L('DENSE MANTLE', 0.72, 1.01, [['basalt', 3], ['shell', 1]], [['silver', 4], ['gold', 2], ['ameth', 1]], 0.26, '#1e1a2a')
+      L('DENSE MANTLE', 0.72, 1.01, [['basalt', 3], ['shell', 1]], [['silver', 4], ['gold', 2], ['ameth', 1], ['cobalt', 3], ['quick', 2]], 0.26, '#1e1a2a')
     ],
     ice: [
-      L('PERMAFROST', 0, 0.3, [['frost', 5], ['ice', 3]], [['iron', 5], ['silver', 3]], 0.32, '#1a2a3a',
+      L('PERMAFROST', 0, 0.3, [['frost', 5], ['ice', 3]], [['iron', 5], ['silver', 3], ['salt', 5]], 0.32, '#1a2a3a',
         { alt: { fills: [['ice', 1]], ores: [['crystal', 8], ['sapphire', 2]] }, snow: 1 }),
-      L('CRYSTAL CAVERNS', 0.3, 0.7, [['ice', 3], ['stone', 2], ['crystal', 2]], [['crystal', 9], ['sapphire', 5], ['silver', 4], ['gold', 1]], 0.46, '#15304a',
+      L('CRYSTAL CAVERNS', 0.3, 0.7, [['ice', 3], ['stone', 2], ['crystal', 2]], [['crystal', 9], ['sapphire', 5], ['silver', 4], ['gold', 1], ['opal', 2]], 0.46, '#15304a',
         { alt: { fills: [['crystal', 1]], ores: [['sapphire', 6], ['diamond', 1]] }, sparkle: 1 }),
-      L('GLACIAL CORE', 0.7, 1.01, [['ice', 2], ['shell', 2]], [['sapphire', 5], ['diamond', 2], ['titan', 2]], 0.28, '#0e1e34', { snow: 1 })
+      L('GLACIAL CORE', 0.7, 1.01, [['ice', 2], ['shell', 2]], [['sapphire', 5], ['diamond', 2], ['titan', 2], ['quick', 3]], 0.28, '#0e1e34', { snow: 1 })
     ],
     metal: [
       L('SLAG CRUST', 0, 0.26, [['stone', 4], ['basalt', 2]], [['iron', 12], ['copper', 8]], 0.28, '#2a201c'),
-      L('TITANIUM SEAMS', 0.26, 0.68, [['basalt', 3], ['stone', 2]], [['iron', 8], ['titan', 6], ['silver', 5], ['gold', 3]], 0.34, '#241a1c',
+      L('TITANIUM SEAMS', 0.26, 0.68, [['basalt', 3], ['stone', 2]], [['iron', 8], ['titan', 6], ['silver', 5], ['gold', 3], ['cobalt', 5]], 0.34, '#241a1c',
         { alt: { fills: [['shell', 1]], ores: [['titan', 10], ['emerald', 2]] } }),
-      L('OBSIDIAN HEART', 0.68, 1.01, [['obsid', 2], ['basalt', 2], ['shell', 1]], [['gold', 4], ['uran', 2], ['emerald', 2]], 0.3, '#1a1220', { embers: 1 })
+      L('OBSIDIAN HEART', 0.68, 1.01, [['obsid', 2], ['basalt', 2], ['shell', 1]], [['gold', 4], ['uran', 2], ['emerald', 2], ['quick', 3], ['solar', 1]], 0.3, '#1a1220', { embers: 1 })
     ],
     gem: [
-      L('QUARTZ SHELL', 0, 0.24, [['stone', 4], ['crystal', 2]], [['crystal', 8], ['iron', 4], ['gold', 3]], 0.34, '#1e2a30', { sparkle: 1 }),
-      L('JEWEL GALLERIES', 0.24, 0.68, [['stone', 3], ['crystal', 3]], [['emerald', 6], ['sapphire', 6], ['ameth', 5], ['gold', 4], ['ruby', 2]], 0.5, '#182a2e',
+      L('QUARTZ SHELL', 0, 0.24, [['stone', 4], ['crystal', 2]], [['crystal', 8], ['iron', 4], ['gold', 3], ['opal', 2]], 0.34, '#1e2a30', { sparkle: 1 }),
+      L('JEWEL GALLERIES', 0.24, 0.68, [['stone', 3], ['crystal', 3]], [['emerald', 6], ['sapphire', 6], ['ameth', 5], ['gold', 4], ['ruby', 2], ['opal', 4]], 0.5, '#182a2e',
         { alt: { fills: [['crystal', 1]], ores: [['ruby', 5], ['diamond', 2]] }, sparkle: 1 }),
-      L('DIAMOND ROOT', 0.68, 1.01, [['shell', 2], ['obsid', 2]], [['ruby', 5], ['diamond', 3], ['void', 2]], 0.3, '#14182a')
+      L('DIAMOND ROOT', 0.68, 1.01, [['shell', 2], ['obsid', 2]], [['ruby', 5], ['diamond', 3], ['void', 2], ['opal', 3], ['null', 1]], 0.3, '#14182a')
     ],
     moon: [
-      L('DEAD REGOLITH', 0, 0.3, [['crust', 4], ['basalt', 3]], [['iron', 6], ['titan', 3], ['silver', 3]], 0.28, '#24242e'),
-      L('FOSSIL BEDS', 0.3, 0.7, [['basalt', 3], ['stone', 3]], [['fossil', 2], ['gold', 4], ['sapphire', 4], ['ruby', 3]], 0.38, '#20202c',
+      L('DEAD REGOLITH', 0, 0.3, [['crust', 4], ['basalt', 3]], [['iron', 6], ['titan', 3], ['silver', 3], ['cobalt', 3]], 0.28, '#24242e'),
+      L('FOSSIL BEDS', 0.3, 0.7, [['basalt', 3], ['stone', 3]], [['fossil', 2], ['gold', 4], ['sapphire', 4], ['ruby', 3], ['amber', 4]], 0.38, '#20202c',
         { alt: { fills: [['shell', 1]], ores: [['fossil', 4], ['void', 3]] } }),
-      L('HOLLOW MANTLE', 0.7, 1.01, [['shell', 3], ['obsid', 1]], [['ruby', 4], ['void', 4], ['uran', 2], ['star', 1]], 0.44, '#181828')
+      L('HOLLOW MANTLE', 0.7, 1.01, [['shell', 3], ['obsid', 1]], [['ruby', 4], ['void', 4], ['uran', 2], ['star', 1], ['null', 2]], 0.44, '#181828')
     ],
     terra: [
-      L('TOPSOIL', 0, 0.2, [['crust', 5], ['stone', 3]], [['iron', 6], ['copper', 5], ['gold', 2]], 0.3, '#2a2a1a'),
-      L('GLOWCAP HOLLOWS', 0.2, 0.46, [['stone', 3], ['fungus', 3]], [['emerald', 6], ['copper', 4], ['crystal', 3]], 0.52, '#12301f',
+      L('TOPSOIL', 0, 0.2, [['crust', 5], ['stone', 3]], [['iron', 6], ['copper', 5], ['gold', 2], ['salt', 4], ['phos', 3]], 0.3, '#2a2a1a'),
+      L('GLOWCAP HOLLOWS', 0.2, 0.46, [['stone', 3], ['fungus', 3]], [['emerald', 6], ['copper', 4], ['crystal', 3], ['phos', 7], ['coral', 3]], 0.52, '#12301f',
         { alt: { fills: [['fungus', 1]], ores: [['emerald', 8]] }, spores: 1 }),
-      L('CRYSTAL VAULTS', 0.46, 0.7, [['stone', 2], ['crystal', 3]], [['sapphire', 5], ['ameth', 5], ['gold', 4]], 0.44, '#152a34', { sparkle: 1 }),
-      L('MAGMA SEA', 0.7, 0.9, [['basalt', 4], ['obsid', 1]], [['ruby', 7], ['gold', 3], ['void', 3]], 0.36, '#301410', { lava: 0.12, embers: 1 }),
+      L('CRYSTAL VAULTS', 0.46, 0.7, [['stone', 2], ['crystal', 3]], [['sapphire', 5], ['ameth', 5], ['gold', 4], ['opal', 3], ['coral', 2]], 0.44, '#152a34', { sparkle: 1 }),
+      L('MAGMA SEA', 0.7, 0.9, [['basalt', 4], ['obsid', 1]], [['ruby', 7], ['gold', 3], ['void', 3], ['solar', 2], ['tar', 5]], 0.36, '#301410', { lava: 0.12, embers: 1 }),
       L('CORE SHELL', 0.9, 1.01, [['shell', 3], ['obsid', 1]], [['void', 5], ['star', 2], ['diamond', 1]], 0.26, '#1a1220')
     ],
     volcanic: [
-      L('ASH CRUST', 0, 0.22, [['basalt', 5], ['crust', 2]], [['iron', 5], ['copper', 4], ['obsid', 3]], 0.3, '#2a1a16', { embers: 1 }),
-      L('LAVA TUBES', 0.22, 0.62, [['basalt', 4], ['obsid', 2]], [['ruby', 7], ['gold', 4], ['titan', 3], ['void', 2]], 0.5, '#33150e',
+      L('ASH CRUST', 0, 0.22, [['basalt', 5], ['crust', 2]], [['iron', 5], ['copper', 4], ['obsid', 3], ['tar', 6], ['salt', 3]], 0.3, '#2a1a16', { embers: 1 }),
+      L('LAVA TUBES', 0.22, 0.62, [['basalt', 4], ['obsid', 2]], [['ruby', 7], ['gold', 4], ['titan', 3], ['void', 2], ['solar', 3]], 0.5, '#33150e',
         { lava: 0.16, embers: 1, alt: { fills: [['obsid', 1]], ores: [['ruby', 8], ['diamond', 1]] } }),
-      L('OBSIDIAN MANTLE', 0.62, 1.01, [['obsid', 3], ['shell', 2]], [['void', 6], ['star', 3], ['uran', 2]], 0.3, '#1e1020', { lava: 0.05, embers: 1 })
+      L('OBSIDIAN MANTLE', 0.62, 1.01, [['obsid', 3], ['shell', 2]], [['void', 6], ['star', 3], ['uran', 2], ['solar', 4], ['null', 2]], 0.3, '#1e1020', { lava: 0.05, embers: 1 })
     ],
     titan: [
-      L('CRYSTAL RIND', 0, 0.3, [['crystal', 4], ['shell', 1]], [['sapphire', 6], ['ameth', 5], ['titan', 3]], 0.4, '#1c2440', { sparkle: 1 }),
-      L('PRISM GALLERIES', 0.3, 0.72, [['crystal', 3], ['obsid', 2]], [['ruby', 5], ['diamond', 4], ['void', 5], ['star', 2]], 0.52, '#1e1a44',
+      L('CRYSTAL RIND', 0, 0.3, [['crystal', 4], ['shell', 1]], [['sapphire', 6], ['ameth', 5], ['titan', 3], ['opal', 4]], 0.4, '#1c2440', { sparkle: 1 }),
+      L('PRISM GALLERIES', 0.3, 0.72, [['crystal', 3], ['obsid', 2]], [['ruby', 5], ['diamond', 4], ['void', 5], ['star', 2], ['null', 3]], 0.52, '#1e1a44',
         { sparkle: 1, alt: { fills: [['shell', 1]], ores: [['diamond', 5], ['aether', 1]] } }),
-      L('AETHER WELL', 0.72, 1.01, [['obsid', 2], ['shell', 2]], [['void', 6], ['star', 4], ['aether', 1]], 0.34, '#160f30')
+      L('AETHER WELL', 0.72, 1.01, [['obsid', 2], ['shell', 2]], [['void', 6], ['star', 4], ['aether', 1], ['null', 4]], 0.34, '#160f30')
     ],
     core: [
-      L('IRRADIATED SHELL', 0, 0.3, [['shell', 4], ['obsid', 2]], [['uran', 5], ['titan', 4], ['void', 3]], 0.3, '#221a10', { embers: 1 }),
-      L('STARMETAL VEINS', 0.3, 0.72, [['shell', 3], ['obsid', 3]], [['star', 8], ['void', 6], ['ruby', 3], ['diamond', 2]], 0.4, '#2a1a14',
+      L('IRRADIATED SHELL', 0, 0.3, [['shell', 4], ['obsid', 2]], [['uran', 5], ['titan', 4], ['void', 3], ['solar', 3]], 0.3, '#221a10', { embers: 1 }),
+      L('STARMETAL VEINS', 0.3, 0.72, [['shell', 3], ['obsid', 3]], [['star', 8], ['void', 6], ['ruby', 3], ['diamond', 2], ['null', 3]], 0.4, '#2a1a14',
         { lava: 0.06, embers: 1, alt: { fills: [['obsid', 1]], ores: [['aether', 2], ['star', 6]] } }),
-      L('THE HEART', 0.72, 1.01, [['shell', 3], ['obsid', 1]], [['star', 6], ['aether', 2], ['void', 3]], 0.3, '#1a0c18')
+      L('THE HEART', 0.72, 1.01, [['shell', 3], ['obsid', 1]], [['star', 6], ['aether', 2], ['void', 3], ['null', 5]], 0.3, '#1a0c18')
     ]
   };
 
@@ -141,6 +157,36 @@
     const f = FLORA[k] || FLORA.rock;
     STRATA[k].forEach((band, i) => { band.flora = f[Math.min(i, f.length - 1)]; });
   }
+
+  /* ------------------------------------------------------------- the base
+     Once the moon is clear there is room on it for something other than bins.
+     Five pads along the eastern curve; each thing you put on one has three
+     levels and each level is a flat, legible bonus you can feel in the hole.
+     `bonus` is indexed by level, so level 0 is always nothing. */
+  const BUILDINGS = [
+    { id: 'refinery', x: 440, name: 'THE REFINERY', glyph: 'build',
+      blurb: 'ORE GOES IN DIRTY. IT COMES OUT WORTH MORE.',
+      max: 3, cost: [16000, 78000, 330000], bonus: [0, 0.12, 0.26, 0.45],
+      fmt: v => '+' + Math.round(v * 100) + '% ON EVERY SALE' },
+    { id: 'airfarm', x: 484, name: 'THE AIR FARM', glyph: 'o2',
+      blurb: 'GREEN THINGS IN A TUBE, BREATHING SO YOU DO NOT HAVE TO.',
+      max: 3, cost: [8000, 40000, 168000], bonus: [0, 30, 70, 140],
+      fmt: v => '+' + v + ' AIR' },
+    { id: 'dronebay', x: 528, name: 'THE DRONE BAY', glyph: 'drone',
+      blurb: 'THEY PICK UP WHAT YOU DROP. THEY DO NOT ASK WHY.',
+      max: 3, cost: [24000, 104000, 400000], bonus: [0, 26, 58, 110],
+      fmt: v => '+' + v + ' PICKUP REACH' },
+    { id: 'mast', x: 572, name: 'THE RADAR MAST', glyph: 'scan',
+      blurb: 'IT SEES THROUGH ROCK. IT COST MORE THAN THE HOUSE.',
+      max: 3, cost: [13000, 56000, 240000], bonus: [0, 0.3, 0.7, 1.4],
+      fmt: v => '+' + Math.round(v * 100) + '% SCAN RANGE' },
+    { id: 'reactor', x: 616, name: 'THE REACTOR', glyph: 'hex',
+      blurb: 'IT HUMS. THE RAT WILL NOT GO NEAR IT.',
+      max: 3, cost: [30000, 132000, 540000], bonus: [0, 0.12, 0.28, 0.5],
+      fmt: v => '+' + Math.round(v * 100) + '% DRILL' }
+  ];
+  const BUILD_OF = {};
+  for (const b of BUILDINGS) BUILD_OF[b.id] = b;
 
   /* ----------------------------------------------------------------- lore
      Who is out here, what they want, and what they will say about it. */
@@ -336,7 +382,7 @@
       sky: '#0b0720', tint: '#8a6a4f',
       blurb: 'A crumb of rock. Warm up the drill.',
       ores: [[M.crust, 60], [M.stone, 26], [M.iron, 11], [M.copper, 3]],
-      mobs: [['crawler', 6], ['floater', 3]]
+      mobs: [['crawler', 6], ['floater', 3], ['crab', 3]]
     },
     {
       name: 'Rustclod', kind: 'Asteroid', type: 'rock', radius: 40, poi: { geode: 1, fossil: 1, ruin: 0 }, gravity: 40, coreHp: 700,
@@ -344,7 +390,7 @@
       sky: '#160a1c', tint: '#9c6a54',
       blurb: 'Iron-fat and full of grubs.',
       ores: [[M.crust, 40], [M.stone, 30], [M.iron, 20], [M.copper, 8], [M.silver, 2]],
-      mobs: [['crawler', 6], ['floater', 4], ['spitter', 2]]
+      mobs: [['crawler', 6], ['floater', 4], ['spitter', 2], ['crab', 4]]
     },
     {
       name: 'Glacius Minor', kind: 'Ice Shard', type: 'ice', radius: 52, poi: { geode: 2, fossil: 1, ruin: 1 }, gravity: 44, coreHp: 1600,
@@ -352,7 +398,7 @@
       sky: '#061423', tint: '#79c4de',
       blurb: 'Slick, hollow and humming with cold.',
       ores: [[M.ice, 44], [M.stone, 22], [M.iron, 14], [M.silver, 12], [M.sapphire, 6], [M.gold, 2]],
-      mobs: [['floater', 6], ['crawler', 3], ['spitter', 3]]
+      mobs: [['floater', 6], ['crawler', 3], ['spitter', 3], ['crab', 3], ['bloomer', 2]]
     },
     {
       name: 'Forge Husk', kind: 'Metal Rock', type: 'metal', radius: 64, poi: { geode: 1, fossil: 1, ruin: 1 }, gravity: 52, coreHp: 3600,
@@ -360,7 +406,7 @@
       sky: '#1c0d0a', tint: '#c67a3d',
       blurb: 'Somebody smelted this thing. Badly.',
       ores: [[M.stone, 28], [M.iron, 28], [M.copper, 18], [M.silver, 12], [M.gold, 10], [M.emerald, 4]],
-      mobs: [['crawler', 4], ['spitter', 5], ['gnasher', 3]]
+      mobs: [['crawler', 4], ['spitter', 5], ['gnasher', 3], ['bloomer', 3], ['hangman', 2]]
     },
     {
       name: 'Gemworld Shard', kind: 'Fragment', type: 'gem', radius: 76, poi: { geode: 4, fossil: 1, ruin: 1 }, gravity: 58, coreHp: 8000,
@@ -368,7 +414,7 @@
       sky: '#101a2e', tint: '#33c470',
       blurb: 'Every wall is a jewellery shop.',
       ores: [[M.stone, 22], [M.iron, 16], [M.gold, 18], [M.emerald, 18], [M.sapphire, 15], [M.ruby, 9], [M.void, 2]],
-      mobs: [['spitter', 5], ['gnasher', 4], ['floater', 4], ['lurker', 1]]
+      mobs: [['spitter', 5], ['gnasher', 4], ['floater', 4], ['lurker', 1], ['hangman', 3], ['crab', 3]]
     },
     {
       name: 'Mourn, the Dead Moon', kind: 'Moon', type: 'moon', radius: 90, poi: { geode: 2, fossil: 4, ruin: 2 }, gravity: 70, coreHp: 20000,
@@ -376,7 +422,7 @@
       sky: '#0a0e1d', tint: '#b3c4d8',
       blurb: 'Something used to live here. Rude of it.',
       ores: [[M.stone, 24], [M.shell, 14], [M.iron, 12], [M.gold, 14], [M.sapphire, 14], [M.ruby, 13], [M.void, 8], [M.star, 1]],
-      mobs: [['gnasher', 6], ['lurker', 3], ['spitter', 4], ['floater', 3]]
+      mobs: [['gnasher', 6], ['lurker', 3], ['spitter', 4], ['floater', 3], ['driller', 2], ['hangman', 3]]
     },
     {
       name: 'Terra Prime', kind: 'Planet', type: 'terra', radius: 104, poi: { geode: 3, fossil: 2, ruin: 3 }, gravity: 86, coreHp: 60000,
@@ -384,7 +430,7 @@
       sky: '#04121a', tint: '#3fa84f',
       blurb: 'Inhabited! Well. Formerly inhabited.',
       ores: [[M.stone, 20], [M.shell, 16], [M.gold, 12], [M.emerald, 14], [M.ruby, 16], [M.void, 16], [M.star, 6]],
-      mobs: [['gnasher', 6], ['lurker', 6], ['spitter', 3], ['floater', 2]]
+      mobs: [['gnasher', 6], ['lurker', 6], ['spitter', 3], ['floater', 2], ['driller', 4], ['bloomer', 2]]
     },
     {
       name: 'Cinder Majoris', kind: 'Volcanic', type: 'volcanic', radius: 118, poi: { geode: 2, fossil: 1, ruin: 2 }, gravity: 104, coreHp: 165000,
@@ -392,7 +438,7 @@
       sky: '#1e0708', tint: '#e8425f',
       blurb: 'Molten, screaming, extremely profitable.',
       ores: [[M.shell, 22], [M.stone, 14], [M.ruby, 20], [M.gold, 10], [M.void, 22], [M.star, 12]],
-      mobs: [['lurker', 8], ['gnasher', 6], ['spitter', 3]]
+      mobs: [['lurker', 8], ['gnasher', 6], ['spitter', 3], ['driller', 5], ['hangman', 4]]
     },
     {
       name: 'The Crystal Titan', kind: 'Superplanet', type: 'titan', radius: 132, poi: { geode: 6, fossil: 1, ruin: 3 }, gravity: 122, coreHp: 480000,
@@ -400,7 +446,7 @@
       sky: '#150a2b', tint: '#7d4fd6',
       blurb: 'A world-sized gem. Break it. Break it now.',
       ores: [[M.shell, 20], [M.sapphire, 16], [M.ruby, 16], [M.void, 28], [M.star, 20]],
-      mobs: [['lurker', 9], ['gnasher', 5], ['floater', 3]]
+      mobs: [['lurker', 9], ['gnasher', 5], ['floater', 3], ['driller', 6], ['hangman', 4]]
     },
     {
       name: 'Galactic Heart', kind: 'Core World', type: 'core', radius: 150, poi: { geode: 3, fossil: 2, ruin: 4 }, gravity: 140, coreHp: 1600000,
@@ -408,7 +454,7 @@
       sky: '#2a0a16', tint: '#ffc44d',
       blurb: 'The galaxy keeps its savings here.',
       ores: [[M.shell, 18], [M.void, 30], [M.star, 40], [M.ruby, 12]],
-      mobs: [['lurker', 10], ['gnasher', 4], ['floater', 2]]
+      mobs: [['lurker', 10], ['gnasher', 4], ['floater', 2], ['driller', 8], ['hangman', 5]]
     }
   ];
 
@@ -768,6 +814,7 @@
       save.destroyed.filter(Boolean).length * 250000));
   }
 
-  PD.data = { MAT, M, ENEMY, BODIES, UPGRADES, UPG, upgradeCost, recipe, COSMETICS, COS, TITLES, titleFor, bountyFor,
+  PD.data = {
+    BUILDINGS, BUILD_OF, MAT, M, ENEMY, BODIES, UPGRADES, UPG, upgradeCost, recipe, COSMETICS, COS, TITLES, titleFor, bountyFor,
     STRATA, ZONES, zoneOf, FLORA, ABAY, ABAYX, abayCost, NEURONS, NEUR, neuronCost, BRAIN_LINES, BRAIN_IDLE, FACTIONS, LORE, ORB, MIX, MACHINES, METALS, GEMS, JUNK, goodOf, goodFromKey, NODES, appraiseSeconds, appraiseFee };
 })(window.PD);

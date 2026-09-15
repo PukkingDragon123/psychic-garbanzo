@@ -29,7 +29,7 @@
      chipped rock, not a ball. Outside is exactly one screen wide and never
      scrolls -- the moon is an object you look at, not a corridor. */
   const MOON = { cx: 240, cy: 960, r: 820 };
-  const OUT_W = 480, IN_W = 232;
+  const OUT_W = 780, IN_W = 232;
   const WALK = 172;                  // how far round the curve he can get
   const FLOOR = 216;                 // the room floor, inside
   const CEIL = 124;                  // the underside of the rock roof, inside
@@ -47,7 +47,7 @@
     return U.clamp(P.x - VW / 2, 0, w - VW);
   }
   function bounds() {
-    if (S.scene === 'out') return [MOON.cx - WALK, MOON.cx + WALK];
+    if (S.scene === 'out') return [MOON.cx - WALK, MOON.cx + 400];
     return S.scene === 'club' ? [16, CLUB_W - 16] : [20, IN_W - 20];
   }
 
@@ -397,7 +397,7 @@
       return CLUB_SPOTS;
     }
     if (S.scene === 'in') return g.save.pet ? IN_SPOTS : IN_SPOTS.concat([RAT_SPOT]);
-    const out = OUT_SPOTS.slice();
+    const out = OUT_SPOTS.slice().concat(buildPads(g));
     for (let i = 0; i < TRASH.length; i++) {
       if (cleaned(g, i)) continue;
       out.push({ id: 'trash', i, x: TRASH[i].x, r: 17,
@@ -451,6 +451,7 @@
     if (s.id === 'stage') { tipTheDancer(g); return; }
     if (s.id.indexOf('slot') === 0) { playSlot(g, +s.id.slice(4)); return; }
     if (s.id === 'universal') { P.lock = 1; PD.chum.enterGamble(g); return; }
+    if (s.bid) { openBuild(g, s.bid); return; }
 
   }
 
@@ -529,35 +530,206 @@
   /* What he has decided you ought to be doing, in the order he has decided it.
      The list is rebuilt whenever the scene or the state of the tip changes,
      which starts the tour over from the top. */
+  /* He only leads you anywhere on the night it matters. After that he is a
+     shark with an opinion, not a signpost -- the moon is small and you have
+     eyes. */
   function leadGoals(g) {
     if (S.scene === 'club' && g.save.story === 1) return [
       { x: 1344, line: 'THE BIG ONE. AT THE BACK. YOU KNOW THE ONE.' }
     ];
-    if (S.scene === 'club') return [
-      { x: 470, line: 'DANCE. IT IS FREE. NOTHING ELSE IN HERE IS.' },
-      { x: 596, line: 'TIP THEM. THEY ARE WORKING. UNLIKE YOU.' },
-      { x: 750, line: 'BUY A DRINK. PUT IT ON MY TAB. THERE IS NO TAB.' },
-      { x: 1130, line: 'NO. NOT THE MACHINES. LOOK AT ME. NOT THE MACHINES.' },
-      { x: 288, line: 'ASK HIM FOR A SONG. HE HAS TWO. IT IS A COIN FLIP.' }
-    ];
-    if (S.scene === 'in') return [
-      { x: IN_SPOTS[0].x, line: 'THE COMPUTER. SELL THE ROCKS. THAT IS THE BUSINESS.' },
-      { x: IN_SPOTS[1].x, line: 'THE BRAIN. FEED IT. IT MAKES YOU LESS OF A LIABILITY.' },
-      { x: IN_SPOTS[2].x, line: 'AND OUT. THERE IS A PLANET WITH YOUR NAME ON IT.' }
-    ];
+    if (S.scene !== 'out' || g.save.seen && g.save.seen.chum_tip) return [];
     const out = [];
-    for (let i = 0; i < TRASH.length && out.length < 3; i++) {
-      if (!cleaned(g, i)) out.push({ x: TRASH[i].x, line: 'THAT ONE. PRESS E. I HAVE WAITED BEFORE.' });
+    for (let i = 0; i < TRASH.length && out.length < 1; i++) {
+      if (!cleaned(g, i)) out.push({ x: TRASH[i].x, line: 'THAT ONE. I HAVE WAITED BEFORE.' });
     }
-    out.push({ x: OUT_SPOTS[1].x, line: 'THE SAUCER. GO AND EAT A PLANET.' });
-    out.push({ x: OUT_SPOTS[0].x, line: 'THE HOUSE. THE MONEY IS IN THE COMPUTER.' });
-    if (moonClean(g)) out.push({ x: CLUB_X, line: 'OR THE CLUB. I OWN IT NOW. YOU ARE WELCOME.' });
     return out;
+  }
+
+  /* ------------------------------------------------------------ the base
+     Once the tip is gone there is bare regolith along the eastern curve, and
+     five pads somebody poured before you owned the place. What you put on
+     them is the only part of this game that improves while you are not
+     looking at it: every level is a flat number you can feel in the hole. */
+  const BUILD = { open: null, sel: 0, t: 0 };
+
+  function buildPads(g) {
+    if (!moonClean(g)) return [];
+    return D.BUILDINGS.map(b => ({
+      id: 'pad_' + b.id, x: b.x, r: 26, bid: b.id,
+      name: g.baseLvl(b.id) ? b.name : 'AN EMPTY PAD',
+      sub: g.baseLvl(b.id) >= b.max ? 'FINISHED' :
+        (g.baseLvl(b.id) ? 'UPGRADE  $' + U.fmt(g.baseCost(b.id)) : 'BUILD  $' + U.fmt(g.baseCost(b.id)))
+    }));
+  }
+
+  function openBuild(g, bid) {
+    BUILD.open = bid; BUILD.t = 0;
+    UI.mode = 'build';
+    A.sfx.click();
+  }
+  function closeBuild() { BUILD.open = null; UI.mode = null; P.lock = 0.2; A.sfx.click(); }
+
+  function updateBuild(dt, g) {
+    BUILD.t += dt;
+    const IN = PD.input, m = IN.mouse;
+    if (IN.hit('esc') || IN.hit('KeyE')) { closeBuild(); return; }
+    const b = D.BUILD_OF[BUILD.open];
+    const lvl = g.baseLvl(b.id);
+    const can = lvl < b.max && g.save.credits >= g.baseCost(b.id);
+    const hitGo = m.inside && m.x > 148 && m.x < 260 && m.y > 176 && m.y < 196;
+    const hitNo = m.inside && m.x > 272 && m.x < 340 && m.y > 176 && m.y < 196;
+    if (m.leftPressed && hitNo) { closeBuild(); return; }
+    if ((m.leftPressed && hitGo && can) || (IN.hit('enter') && can)) {
+      if (g.build(b.id)) {
+        FX.text(b.x, groundY(b.x) - 60, 'BUILT', '#ffd34d', 1);
+        FX.ring(b.x, groundY(b.x) - 16, 4, 60, 0.9, '#ffd34d', 3);
+      }
+    }
+  }
+
+  function drawBuildPanel(ctx, g, t) {
+    const b = D.BUILD_OF[BUILD.open];
+    if (!b) return;
+    const lvl = g.baseLvl(b.id), done = lvl >= b.max;
+    const cost = g.baseCost(b.id);
+    const can = !done && g.save.credits >= cost;
+    ctx.fillStyle = 'rgba(6,4,14,0.82)'; ctx.fillRect(0, 0, VW, VH);
+    X.plate(ctx, 120, 62, 240, 146, '#1d1836', '#453c5c', '#0a0614', 6);
+    X.rect(ctx, 120, 62, 240, 2, '#7ef9ff');
+    PD.glyph.draw(ctx, b.glyph, 130, 70, '#7ef9ff', '#2f8fae');
+    F.draw(ctx, b.name, 240, 74, '#d8fbff', { center: true, shadow: '#0a0614' });
+    F.draw(ctx, b.blurb, 240, 90, '#8a86a8', { center: true, shadow: false });
+
+    // three lamps: what it is now and what it would be
+    for (let i = 1; i <= b.max; i++) {
+      const on = i <= lvl, next = i === lvl + 1;
+      const bx = 240 - (b.max * 30) / 2 + (i - 1) * 30;
+      X.plate(ctx, bx, 104, 26, 20, on ? '#1d4a44' : (next ? '#2a2452' : '#150f28'),
+        on ? '#4fd0b0' : (next ? '#6b5a9c' : '#2e2640'), '#04100e', 3);
+      F.draw(ctx, String(i), bx + 13, 110, on ? '#8affd0' : (next ? '#c9bce8' : '#4a4460'),
+        { center: true, shadow: false });
+    }
+    const cur = b.bonus[Math.min(b.max, lvl)];
+    F.draw(ctx, lvl ? 'NOW  ' + b.fmt(cur) : 'NOTHING ON THIS PAD', 240, 132,
+      lvl ? '#8affd0' : '#6a6484', { center: true, shadow: false });
+    if (!done) {
+      F.draw(ctx, 'NEXT  ' + b.fmt(b.bonus[lvl + 1]), 240, 144, '#ffd34d',
+        { center: true, shadow: false });
+    }
+
+    F.draw(ctx, 'YOU HAVE $' + U.fmt(g.save.credits), 240, 162,
+      can || done ? '#8a86a8' : '#ff8a9a', { center: true, shadow: false });
+
+    const m = PD.input.mouse;
+    const hotGo = m.inside && m.x > 148 && m.x < 260 && m.y > 176 && m.y < 196;
+    const hotNo = m.inside && m.x > 272 && m.x < 340 && m.y > 176 && m.y < 196;
+    if (done) {
+      X.plate(ctx, 148, 176, 112, 20, '#1d4a44', '#4fd0b0', '#04100e', 4);
+      F.draw(ctx, 'FINISHED', 204, 182, '#8affd0', { center: true, shadow: false });
+    } else {
+      X.plate(ctx, 148, 176, 112, 20, can ? (hotGo ? '#2f8f6a' : '#1d4a44') : '#2a1a24',
+        can ? '#4fd0b0' : '#6a3040', '#04100e', 4);
+      F.draw(ctx, (lvl ? 'UPGRADE  $' : 'BUILD  $') + U.fmt(cost), 204, 182,
+        can ? '#ffffff' : '#8a5a68', { center: true, shadow: false });
+    }
+    X.plate(ctx, 272, 176, 68, 20, hotNo ? '#3a3060' : '#241f3e', '#6b5a9c', '#0a0614', 4);
+    F.draw(ctx, 'LEAVE', 306, 182, '#c9bce8', { center: true, shadow: false });
+  }
+
+  /* What is actually standing out there. Each one is built out of the same
+     plates as the house, so the moon looks like one person made all of it
+     out of the same skip. */
+  function drawBuildings(ctx, g, t, cam) {
+    for (const b of D.BUILDINGS) {
+      const x = b.x - cam, gy = groundY(b.x);
+      if (x < -60 || x > VW + 60) continue;
+      const lvl = g.baseLvl(b.id);
+      // the pad itself, always there
+      X.blob(ctx, x, gy + 2, 22, 4, '#241f36');
+      X.plate(ctx, x - 20, gy - 4, 40, 7, '#3a3450', '#5a5474', '#1a1626', 3);
+      for (let i = 0; i < 4; i++) X.rect(ctx, x - 16 + i * 10, gy - 2, 5, 2, '#2a2438');
+      if (!lvl) {
+        ctx.globalAlpha = 0.35 + Math.abs(Math.sin(t * 2 + b.x)) * 0.25;
+        for (let i = 0; i < 4; i++) {
+          X.rect(ctx, x - 18 + i * 12, gy - 8, 3, 3, '#7ef9ff');
+        }
+        ctx.globalAlpha = 1;
+        F.draw(ctx, 'PAD', x, gy - 18, '#4a6a80', { center: true, shadow: '#0a0614' });
+        continue;
+      }
+      const h = 26 + lvl * 12;
+      if (b.id === 'refinery') {
+        X.plate(ctx, x - 17, gy - h, 34, h - 2, '#4a3c2e', '#6b5a44', '#241c14', 4);
+        X.plate(ctx, x - 12, gy - h + 5, 24, 12, '#2a2018', '#8a6a3a', '#120c08', 3);
+        for (let i = 0; i < lvl; i++) {
+          X.rect(ctx, x - 12 + i * 11, gy - h - 14, 7, 15, '#5a4a38');
+          X.rect(ctx, x - 12 + i * 11, gy - h - 14, 7, 3, '#8a6a3a');
+          const f = ((t * 0.4 + i / 3) % 1);
+          ctx.globalAlpha = (1 - f) * 0.4;
+          X.blob(ctx, x - 9 + i * 11, gy - h - 18 - f * 26, 3 + f * 7, 2 + f * 6, '#8a86a8');
+          ctx.globalAlpha = 1;
+        }
+        X.rect(ctx, x - 10, gy - h + 8, 20, 5, Math.sin(t * 3) > 0 ? '#ffb03d' : '#8a5a20');
+      } else if (b.id === 'airfarm') {
+        X.plate(ctx, x - 18, gy - 12, 36, 11, '#2a3444', '#44566e', '#121a24', 3);
+        for (let i = 0; i < lvl + 1; i++) {
+          const tx = x - 13 + i * 10;
+          X.rect(ctx, tx - 4, gy - h, 9, h - 12, 'rgba(150,220,255,0.22)');
+          X.rect(ctx, tx - 4, gy - h, 9, 2, '#9fe0ff');
+          for (let k = 0; k < 3; k++) {
+            X.blob(ctx, tx, gy - h + 8 + k * 9 + Math.sin(t * 1.4 + k + i) * 1.5,
+              3, 4, k % 2 ? '#4cff9a' : '#2f8f6a');
+          }
+        }
+      } else if (b.id === 'dronebay') {
+        X.plate(ctx, x - 18, gy - 20, 36, 19, '#2e3a4a', '#4a5c74', '#12181f', 4);
+        X.rect(ctx, x - 13, gy - 16, 26, 9, '#0d1620');
+        for (let i = 0; i < lvl; i++) {
+          const dy = gy - 30 - i * 11 + Math.sin(t * 2.2 + i * 2) * 3;
+          const dx2 = x - 10 + i * 10 + Math.cos(t * 1.1 + i) * 5;
+          X.plate(ctx, dx2 - 4, dy - 3, 9, 6, '#6b7e94', '#a8b4c8', '#2a3440', 2);
+          X.rect(ctx, dx2 - 7, dy - 4, 4, 1, '#8e86a8');
+          X.rect(ctx, dx2 + 4, dy - 4, 4, 1, '#8e86a8');
+          X.blob(ctx, dx2, dy + 2, 2, 2, Math.sin(t * 6 + i) > 0 ? '#7ef9ff' : '#2a5f6a');
+        }
+      } else if (b.id === 'mast') {
+        X.plate(ctx, x - 12, gy - 10, 24, 9, '#2a2438', '#453c5c', '#0a0614', 3);
+        X.rect(ctx, x - 2, gy - h, 4, h - 10, '#5a5474');
+        X.rect(ctx, x - 2, gy - h, 1, h - 10, '#8e86a8');
+        for (let i = 0; i < 3; i++) X.rect(ctx, x - 7, gy - h + 12 + i * 10, 14, 2, '#3a3348');
+        const a = t * (0.6 + lvl * 0.3);
+        X.blob(ctx, x, gy - h - 2, 9, 4, '#453c5c');
+        X.blob(ctx, x + Math.cos(a) * 7, gy - h - 3, 5, 3, '#7ef9ff');
+        ctx.globalAlpha = 0.16;
+        X.blob(ctx, x, gy - h - 4, 20 + lvl * 8, 10 + lvl * 4, '#7ef9ff');
+        ctx.globalAlpha = 1;
+      } else {
+        X.plate(ctx, x - 16, gy - h, 32, h - 1, '#2a2438', '#5a4a78', '#0a0614', 5);
+        const hot = 0.4 + Math.abs(Math.sin(t * (1 + lvl))) * 0.4;
+        X.blob(ctx, x, gy - h / 2 - 4, 9, 11, '#150f28');
+        ctx.globalAlpha = hot;
+        X.blob(ctx, x, gy - h / 2 - 4, 7, 9, '#4cff9a');
+        X.blob(ctx, x, gy - h / 2 - 4, 4, 5, '#d8ffe8');
+        ctx.globalAlpha = 1;
+        for (let i = 0; i < lvl; i++) X.rect(ctx, x - 13 + i * 9, gy - h - 5, 6, 6, '#4cff9a');
+        ctx.globalAlpha = 0.05 * lvl;
+        X.blob(ctx, x, gy - h / 2 - 4, 18, 16, '#4cff9a');
+        ctx.globalAlpha = 1;
+      }
+      // a plate on the front with the name and how far up it is
+      F.draw(ctx, b.name.replace('THE ', ''), x, gy - h - (b.id === 'refinery' ? 26 : 16),
+        '#8a86a8', { center: true, shadow: '#0a0614' });
+      for (let i = 0; i < b.max; i++) {
+        X.rect(ctx, x - (b.max * 5) / 2 + i * 5, gy - h - (b.id === 'refinery' ? 18 : 8),
+          3, 3, i < lvl ? '#ffd34d' : '#3a3348');
+      }
+    }
   }
 
   /* ---------------------------------------------------------------- update */
   function update(dt, g) {
     const IN = PD.input;
+    if (UI.mode === 'build') { S.t += dt; updateBuild(dt, g); return; }
     g0 = g;
     S.t += dt;
     if (FX.wipeActive()) { view(dt); return; }
@@ -823,6 +995,7 @@
     AH.blit(ctx, AH.S.flag, Math.floor(t * 4) % 2, fx - cam, groundY(fx) + 2);
     const svx = OUT_SPOTS[0].x - 66;
     AH.blit(ctx, AH.S.survey, 0, svx - cam, groundY(svx) + 2);
+    if (moonClean(g)) drawBuildings(ctx, g, t, cam);
 
     /* Whatever is left of the tip, plus a wash of grime over the regolith
        that lifts as the heaps go. A clean moon is a visibly different moon. */
@@ -2013,6 +2186,7 @@
   /* Signs, speech and the sleep fade, drawn on the screen at screen size so
      the zoom does not turn the lettering into billboards. */
   function drawOverlay(ctx, g, t) {
+    if (UI.mode === 'build') { drawBuildPanel(ctx, g, t); return; }
     if (S.sleep <= 0) prompt(ctx, g, t, Math.round(g.intCam));
 
     if (S.sleep > 0) {

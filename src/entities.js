@@ -188,7 +188,8 @@
   const SPRITE_FOR = {
     crawler: 'grub', floater: 'jelly', spitter: 'spit',
     gnasher: 'gnasher', lurker: 'lurker', guardian: 'warden',
-    mite: 'mite', shellback: 'shellback', wyrm: 'wyrm'
+    mite: 'mite', shellback: 'shellback', wyrm: 'wyrm',
+    crab: 'crab', bloomer: 'bloomer', driller: 'driller', hangman: 'hangman'
   };
 
   function Mob(type, x, y, scale) {
@@ -231,6 +232,19 @@
     FX.shake(1.6);
     if (this.hp <= 0) {
       this.dead = true;
+      /* A bloomer does not die quietly: the cap goes off and everything
+         standing in the cloud gets a lungful, you included. */
+      if (this.def.spores) {
+        FX.burst(this.x, this.y - 4, 26, ['#ff9ecb', '#d64f8a', '#fff6e0', '#8a2a56'], 130);
+        FX.ring(this.x, this.y - 4, 3, 34, 0.5, '#ff9ecb', 2);
+        A.noise({ from: 700, to: 140, dur: 0.4, vol: 0.12 });
+        const p = g.player;
+        if (U.dist(p.x, p.y, this.x, this.y) < 34) p.hurt(8, g, Math.sign(p.x - this.x));
+        for (const m of g.mobs) {
+          if (m === this || m.dead) continue;
+          if (U.dist(m.x, m.y, this.x, this.y) < 30) m.hurtBy(14, g, 0, 'spore');
+        }
+      }
       g.onMobKilled(this);
     } else {
       PD.audio.sfx.hitMob();

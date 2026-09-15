@@ -23,8 +23,7 @@
     },
     home: {
       jump: { x: VW - 42, y: VH - 46, r: 28, glyph: 'up', col: '#7ef9ff', key: 'up', label: 'JUMP' },
-      use:  { x: VW - 42, y: VH - 112, r: 24, glyph: 'hand', col: '#ffb03d', key: 'KeyE', label: 'USE' },
-      roll: { x: VW - 106, y: VH - 40, r: 20, glyph: 'dash', col: '#ffd34d', key: 'shift', label: 'ROLL' }
+      use:  { x: VW - 42, y: VH - 112, r: 24, glyph: 'hand', col: '#ffb03d', key: 'KeyE', label: 'USE' }
     }
   };
 

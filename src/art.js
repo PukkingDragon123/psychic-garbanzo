@@ -629,6 +629,122 @@
   }
   reg('warden', [buildWarden(0), buildWarden(1)], 20, 18);
 
+  /* SLAG CRAB: goes sideways, always sideways, and the shell turns most of a
+     shot. Two pincers up at the front, six legs stepping out of phase. */
+  function buildCrab(phase) {
+    const p = pix(22, 15);
+    const f = phase ? 1 : -1;
+    // legs first, so the shell sits on top of them
+    for (let i = 0; i < 3; i++) {
+      const lx = 5 + i * 5, d = ((i + phase) % 2) ? 1 : 0;
+      p.line(lx, 9, lx - 2, 13 - d, C.metDD);
+      p.line(lx + 1, 9, lx + 3, 14 - d, C.metDD);
+    }
+    p.ellipse(11, 8, 9, 5, C.metDD);                 // the shell
+    p.ellipse(11, 7, 8, 4, C.met);
+    p.ellipse(11, 6, 6, 2.4, C.metD);
+    for (let i = 0; i < 4; i++) p.set(6 + i * 3, 5, C.metDD);
+    // two eyes on stalks, up over the shell
+    for (const ex of [9, 13]) {
+      p.rect(ex, 1 + (ex === 9 ? 0 : f), 1, 3, C.metDD);
+      p.disc(ex, 1 + (ex === 9 ? 0 : f), 1.4, C.orange);
+      p.set(ex, 1 + (ex === 9 ? 0 : f), C.eye);
+    }
+    // the pincers, one open one shut
+    p.round(17, 5 - f, 4, 3, 1, C.metD);
+    p.round(19, 3 - f, 3, 2, 1, C.met);
+    p.round(19, 6 - f, 3, 2, 1, C.met);
+    p.round(2, 8 + f, 3, 3, 1, C.metD);
+    p.outline(C.ink);
+    return p;
+  }
+  reg('crab', [buildCrab(0), buildCrab(1)], 11, 12);
+
+  /* BLOOMER: a mushroom that got up. Slow, soft, and it goes off when it
+     dies, which is the entire point of it. */
+  function buildBloomer(phase) {
+    const p = pix(18, 20);
+    const bob = phase ? 1 : 0;
+    // the stalk, and two root feet
+    p.round(7, 9 - bob, 5, 10, 2, '#e8dfc4');
+    p.round(7, 9 - bob, 2, 10, 1, '#fff6e0');
+    p.round(4, 17, 4, 3, 1, '#c4b48a');
+    p.round(10, 17, 4, 3, 1, '#c4b48a');
+    // the cap
+    p.ellipse(9, 7 - bob, 8.5, 5.5, '#8a2a56');
+    p.ellipse(9, 6 - bob, 8, 4.5, '#d64f8a');
+    p.ellipse(9, 4 - bob, 5, 2.4, '#ff9ecb');
+    for (const [sx, sy] of [[4, 5], [9, 3], [14, 5], [6, 8], [12, 8]]) {
+      p.disc(sx, sy - bob, 1.4, '#fff6e0');
+    }
+    p.rect(1, 9 - bob, 16, 1, '#8a2a56');            // the gills under it
+    // two very small eyes, because it is still an animal
+    p.set(7, 12 - bob, C.eye); p.set(11, 12 - bob, C.eye);
+    p.rect(8, 14 - bob, 3, 1, '#8a2a56');
+    p.outline(C.ink);
+    return p;
+  }
+  reg('bloomer', [buildBloomer(0), buildBloomer(1)], 9, 18);
+
+  /* CLAIM JUMPER: somebody else's mining drone, still running its route, and
+     its route is through you. A drill on the front and no brakes. */
+  function buildDriller(phase) {
+    const p = pix(26, 16);
+    const spin = phase ? 1 : 0;
+    // the drill bit, stacked cones
+    for (let i = 0; i < 5; i++) {
+      const w = 6 - i, x = 20 + i;
+      if (w <= 0) continue;
+      p.rect(x, 8 - w / 2, 1, w, (i + spin) % 2 ? C.met : C.metDD);
+    }
+    p.round(16, 4, 6, 9, 2, C.metD);
+    p.rect(16, 7, 6, 2, C.orange);
+    // the body: a hull with a cracked canopy and somebody long gone inside
+    p.round(3, 3, 15, 11, 3, C.metDD);
+    p.round(4, 4, 13, 8, 3, C.met);
+    p.round(6, 5, 8, 5, 2, C.glassD);
+    p.round(6, 5, 8, 3, 2, C.glass);
+    p.line(8, 5, 11, 10, C.metDD);                   // the crack
+    p.disc(10, 8, 1.6, C.ink2);
+    // thrusters, firing
+    p.rect(0, 6, 3, 4, C.orangeD);
+    p.rect(0, 7, 2 + spin, 2, C.gold);
+    // a warning light nobody is left to read
+    p.disc(12, 3, 1.6, spin ? C.red : C.redD);
+    p.outline(C.ink);
+    return p;
+  }
+  reg('driller', [buildDriller(0), buildDriller(1)], 13, 12);
+
+  /* CEILING HANGER: hangs off the roof of a cave on a thread and comes down
+     the moment you walk under it. Mostly mouth. */
+  function buildHangman(phase) {
+    const p = pix(18, 24);
+    const drop = phase ? 1 : 0;
+    p.rect(8, 0, 1, 6 + drop, C.slimeD);             // the thread
+    // the body: a bulb, wider at the bottom
+    p.ellipse(9, 12 + drop, 6.5, 7, '#3f2a6a');
+    p.ellipse(9, 10 + drop, 5.5, 5, '#6b3fb5');
+    p.ellipse(9, 8 + drop, 3.5, 2.4, C.purple);
+    // the mouth, underneath, open
+    p.ellipse(9, 18 + drop, 5, 3, '#1d0f33');
+    for (let i = 0; i < 5; i++) {
+      p.spike(3 + i * 3, 16 + drop, 3, 4, 1, C.white);
+    }
+    // a ring of eyes round the top of it
+    for (let i = 0; i < 5; i++) {
+      const ex = 3 + i * 3;
+      p.disc(ex, 9 + drop, 1.4, C.white);
+      p.set(ex, 9 + drop + (phase ? 1 : 0), C.eye);
+    }
+    // and two feelers, trailing
+    p.line(2, 14 + drop, 0, 20 + drop * 2, C.purpleD);
+    p.line(16, 14 + drop, 17, 21 - drop, C.purpleD);
+    p.outline(C.ink);
+    return p;
+  }
+  reg('hangman', [buildHangman(0), buildHangman(1)], 9, 20);
+
   /* CAVE MITE: tiny, fast, comes in clouds. */
   function buildMite(phase) {
     const p = pix(10, 9);

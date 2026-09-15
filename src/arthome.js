@@ -1111,6 +1111,12 @@
     return '#' + q(r) + q(g) + q(b);
   }
 
+  /* Not everybody out here is a person with a funny head. A fifth of them are
+     fungal -- a cap, gills and a stalk; a fifth are beasts with a snout, ears
+     and a tail; a fifth are arthropods with a carapace and wing cases. The
+     skeleton underneath is the same one, which is why they can all wear a
+     jacket and hold a drink. */
+  const PLANK = ['biped', 'biped', 'biped', 'biped', 'fungal', 'fungal', 'beast', 'beast', 'bug'];
   const BUILDK = ['lanky', 'stout', 'normal', 'normal', 'hulk'];
   const EYEK = ['row', 'row', 'row', 'stack', 'tri', 'stalk'];
   const MOUTHK = ['grin', 'grin', 'tusk', 'beak', 'straw', 'mandible', 'lips', 'grill', 'sucker'];
@@ -1119,7 +1125,7 @@
   const SKINK = ['plain', 'plain', 'speckle', 'scale', 'stripe', 'plate', 'spot', 'glow'];
   const WEARK = ['vest', 'jacket', 'tank', 'sash', 'coat', 'bare', 'sequin', 'shirt'];
 
-  function alienKin(seed) {
+  function alienKin(seed, forcePlan) {
     const R = PD.util.mulberry32(seed * 2654435761 + 12345);
     const pick = a => a[(R() * a.length) | 0];
     const ri = (a, b) => a + Math.floor(R() * (b - a + 1));
@@ -1132,6 +1138,7 @@
       acc: hsl(hue + 90 + R() * 180, 62, 56),
       accD: hsl(hue + 90 + R() * 180, 60, 30),
       cloth: hsl(hue + 140 + R() * 160, 38 + R() * 34, 44 + R() * 14),
+      plan: pick(PLANK),
       build: pick(BUILDK), eyes: ri(1, 4), eyeK: pick(EYEK),
       mouth: pick(MOUTHK), crown: pick(CROWNK), tex: pick(SKINK), wear: pick(WEARK),
       big: 0.9 + R() * 0.42, lean: R() < 0.5 ? -1 : 1, ant: ri(1, 3),
@@ -1149,6 +1156,14 @@
     t.pants = hsl(hue + 230 + R() * 60, 26 + R() * 22, 46 + R() * 14);
     t.pantsL = hsl(hue + 230, 24, 66);
     t.pantsD = hsl(hue + 230, 26, 19);
+    if (forcePlan) t.plan = forcePlan;
+    /* the plan overrules the trimmings: a mushroom does not wear a hat, and a
+       beast's ears are its ears rather than a choice */
+    if (t.plan === 'fungal') { t.crown = 'none'; t.tex = R() < 0.5 ? 'spot' : 'plain'; t.eyes = ri(2, 3); }
+    if (t.plan === 'beast') { t.crown = 'ears'; t.eyes = 2; t.mouth = R() < 0.5 ? 'tusk' : 'grin'; }
+    if (t.plan === 'bug') { t.crown = 'antenna'; t.mouth = 'mandible'; t.tex = 'plate'; }
+    t.capW = 1.5 + R() * 0.7;                       // how wide the cap sits
+    t.snout = 4 + Math.round(R() * 4);              // how far the face sticks out
     if (t.eyeK === 'tri') t.eyes = 3;
     if (t.eyeK === 'stalk') t.eyes = Math.min(2, t.eyes);
     if (t.build === 'hulk') t.big = Math.max(t.big, 1.2);
@@ -1191,6 +1206,26 @@
     const kiss = face === 4, blink = face === 5, cheer = face === 6;
     const talk = face === 3 || cheer;
     const step = face === 1 ? 1 : (face === 2 ? -1 : 0);   // walk frames
+
+    // ------------------------------------------------------------- the tail
+    // drawn first, so it reads as coming out from behind rather than stuck on
+    if (t.plan === 'beast') {
+      const sweep = step * 2;
+      let tx = cx - t.sw + 1, ty = hipY - 5;
+      for (let i = 0; i < 6; i++) {
+        const w = 6 - i * 0.7;
+        tx -= 1.7 + i * 0.2; ty += (i < 2 ? 2.2 : -1.8) + sweep * 0.4;
+        p.round(tx - w / 2, ty - w / 2, Math.max(2, w), Math.max(2, w), 1, i > 3 ? t.lite : t.skin);
+      }
+      p.round(tx - 2.5, ty - 2.5, 5, 5, 2, t.acc);
+    } else if (t.plan === 'bug') {
+      // wing cases, folded down the back
+      for (const side of [-1, 1]) {
+        p.round(cx + side * (t.sw - 1) - 4, shY + 2, 9, t.th + 6, 4, t.accD);
+        p.round(cx + side * (t.sw - 1) - 3, shY + 3, 7, t.th + 3, 3, t.acc);
+        p.rect(cx + side * (t.sw - 1) - 1, shY + 4, 1, t.th, t.accD);
+      }
+    }
 
     // ---------------------------------------------------------------- legs
     const kneeY = hipY + Math.round(t.lh * 0.5);
@@ -1302,11 +1337,48 @@
 
     // ---------------------------------------------------------------- head
     p.rect(cx - 2, neckY - 2, 4, 5, t.dark);                          // neck
-    p.ellipse(cx, headY, t.hr, t.hr - 1, t.skin);
-    p.ellipse(cx, headY - Math.round(t.hr * 0.4), Math.round(t.hr * 0.72), Math.round(t.hr * 0.34), t.lite);
-    p.ellipse(cx, headY + Math.round(t.hr * 0.55), Math.round(t.hr * 0.8), Math.round(t.hr * 0.3), t.dark);
-    // a jaw, so the head is not a ball
-    p.round(cx - t.hr + 2, headY + 1, (t.hr - 2) * 2, t.hr, 3, t.skin);
+    if (t.plan === 'fungal') {
+      // a stalk with a cap on it: the gills underneath are the giveaway
+      const cw = Math.round(t.hr * t.capW), ch = Math.round(t.hr * 0.9);
+      p.round(cx - Math.round(t.hr * 0.55), headY - 1, Math.round(t.hr * 1.1), t.hr + 6, 3, t.lite);
+      p.round(cx - Math.round(t.hr * 0.4), headY, Math.round(t.hr * 0.5), t.hr + 5, 2, '#fff6e0');
+      p.ellipse(cx, headY - 1, cw, ch, t.dark);                       // the gills
+      for (let i = -4; i <= 4; i++) p.line(cx + i * 2, headY - 1, cx + i * 3, headY - ch, t.skin);
+      p.ellipse(cx, headY - 3, cw, ch, t.skin);                       // and the cap over them
+      p.ellipse(cx, headY - 5, Math.round(cw * 0.8), Math.round(ch * 0.7), t.lite);
+      for (let i = 0; i < 6; i++) {
+        const a = 0.5 + i * 0.7;
+        p.disc(cx + Math.cos(a) * cw * 0.6, headY - 4 + Math.sin(a) * ch * 0.4,
+          1 + (i % 2), i % 2 ? '#fff6e0' : t.acc);
+      }
+      p.rect(cx - cw, headY - 1, cw * 2, 1, t.dark);
+    } else if (t.plan === 'beast') {
+      // a skull with a snout on the front of it and a brow over the eyes
+      p.ellipse(cx, headY, t.hr, t.hr - 1, t.skin);
+      p.ellipse(cx, headY - Math.round(t.hr * 0.4), Math.round(t.hr * 0.72), Math.round(t.hr * 0.34), t.lite);
+      const sd = t.lean > 0 ? 1 : -1;
+      p.round(cx + sd * (t.hr - 2) - 3, headY + 1, t.snout + 5, Math.round(t.hr * 0.72), 3, t.skin);
+      p.round(cx + sd * (t.hr - 2) - 2, headY + 1, t.snout + 3, Math.round(t.hr * 0.36), 2, t.lite);
+      p.disc(cx + sd * (t.hr + t.snout - 2), headY + 3, 2, t.dark);   // the nose
+      p.rect(cx - t.hr + 1, headY - Math.round(t.hr * 0.3), (t.hr - 1) * 2, 2, t.dark);
+      // fur along the jaw
+      for (let i = -3; i <= 3; i++) p.line(cx + i * 3, headY + t.hr - 3, cx + i * 3 + 1, headY + t.hr + 2, t.dark);
+    } else {
+      p.ellipse(cx, headY, t.hr, t.hr - 1, t.skin);
+      p.ellipse(cx, headY - Math.round(t.hr * 0.4), Math.round(t.hr * 0.72), Math.round(t.hr * 0.34), t.lite);
+      p.ellipse(cx, headY + Math.round(t.hr * 0.55), Math.round(t.hr * 0.8), Math.round(t.hr * 0.3), t.dark);
+      // a jaw, so the head is not a ball
+      p.round(cx - t.hr + 2, headY + 1, (t.hr - 2) * 2, t.hr, 3, t.skin);
+    }
+    if (t.plan === 'bug') {
+      // a plated collar and a pair of spiracles down each side
+      p.round(cx - t.sw + 1, shY - 1, t.sw * 2 - 2, 6, 2, t.accD);
+      p.round(cx - t.sw + 2, shY, t.sw * 2 - 4, 3, 1, t.acc);
+      for (let i = 0; i < 3; i++) {
+        p.set(cx - t.sw + 1, shY + 7 + i * 4, t.dark);
+        p.set(cx + t.sw - 1, shY + 7 + i * 4, t.dark);
+      }
+    }
 
     // ------------------------------------------------- skin, close up
     if (t.tex === 'speckle') {
@@ -1495,9 +1567,12 @@
 
   /* Six frames each: idle, two steps of a walk, talking, kissing, blinking. */
   const KIN = [];
+  const KIN_MIX = ['biped', 'fungal', 'beast', 'bug', 'biped', 'beast', 'fungal', 'biped'];
   function makeKin(n) {
     for (let i = 0; i < n; i++) {
-      const t = alienKin(i * 7717 + 13);
+      // the mix is dealt out rather than rolled, so a room of twenty always has
+      // mushrooms and beasts in it instead of whatever the seeds felt like
+      const t = alienKin(i * 7717 + 13, KIN_MIX[i % KIN_MIX.length]);
       const frames = [0, 1, 2, 3, 4, 5, 6].map(f => buildAlien(t, f));
       const W = frames[0].w, H = frames[0].h;
       t.key = 'kin' + i;
