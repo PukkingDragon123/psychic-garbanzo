@@ -854,8 +854,165 @@
     runes(ctx, cx, y + 70, t);
   }
 
-  /* The menu. Everything on it hangs in front of the galaxy on its own bob at
-     its own rate, so nothing is nailed to the screen. */
+  /* ===================================================================== THE MENU
+     The front of the game. It is not a picture with a button on it: the
+     galaxy turns, somebody else's rubbish tumbles across it, a world is
+     drilled to bits over on the right and the whole menu hangs in front of
+     all of that on its own bob.
+
+     Four ways in -- carry on, start again, change the settings, or read who
+     did this -- and it drives off the keyboard as well as the mouse, because
+     a menu you cannot get through without a mouse is not a menu. */
+  const MENU = { page: 'menu', sel: 0, set: 0, cred: 0, flash: 0, was: 0 };
+
+  function menuItems(g) {
+    const it = [{ id: 'play', label: g.save.totalEarned > 0 ? 'CONTINUE' : 'START',
+      sub: g.save.totalEarned > 0 ? 'BACK TO THE DRILL' : 'OUT OF THE TANK',
+      gl: 'play', col: '#1f6b4c', hi: '#8dff5a' }];
+    if (g.save.totalEarned > 0) {
+      it.push({ id: 'new', label: 'NEW GAME', sub: 'THROW ALL OF IT AWAY',
+        gl: 'skull', col: '#6b1f32', hi: '#ff6a8a' });
+    }
+    it.push({ id: 'settings', label: 'SETTINGS', sub: 'NOISE, WOBBLE AND THE SHARK',
+      gl: 'machine', col: '#2a3f7a', hi: '#7ec8ff' });
+    it.push({ id: 'credits', label: 'CREDITS', sub: 'WHO IS TO BLAME',
+      gl: 'star', col: '#6b4a1f', hi: '#ffd34d' });
+    return it;
+  }
+
+  /* One plate on the stack. The selected one slides out to the right, lights
+     up and grows a gold chevron, so you can see where you are from the far
+     side of a room. */
+  function menuPlate(ctx, x, y, w, it, on, t) {
+    const slide = on ? 6 + Math.sin(t * 3) * 1 : 0;
+    const px = Math.round(x + slide), h = 30;
+    X.plate(ctx, px + 3, y + 5, w, h, 'rgba(4,2,12,0.55)', null, null, 4);
+    X.plate(ctx, px, y, w, h, on ? it.col : '#17122c', on ? it.hi : '#3a3060', '#0a0618', 4);
+    if (on) {
+      X.rect(ctx, px, y, w, 1, it.hi);
+      ctx.globalAlpha = 0.18 + 0.1 * Math.sin(t * 5);
+      X.rect(ctx, px, y + 1, w, h - 2, it.hi);
+      ctx.globalAlpha = 1;
+      for (let i = 0; i < 4; i++) X.rect(ctx, px - 8 - i * 2, y + 11 + i, 2, 8 - i * 2, COL.gold);
+    }
+    PD.glyph.draw(ctx, it.gl, px + 7, y + 7, on ? '#ffffff' : '#8e86a8', on ? it.hi : '#3a3060');
+    F.draw(ctx, it.label, px + 28, y + 4, on ? '#ffffff' : '#9a92b4', { scale: 2 });
+    F.draw(ctx, it.sub, px + 28, y + 20, on ? it.hi : '#4e4670', { shadow: false });
+  }
+
+  /* ------------------------------------------------------------- the settings
+     The same four switches the lab has, on the front door as well, because
+     the first thing anybody wants to turn off is the noise and the last place
+     they want to go looking for it is inside the game. */
+  const OPTS = [
+    { id: 'sfx', name: 'NOISES', note: 'CLICKS, BANGS, THE DRILL',
+      get: () => A.state.sfx, set: v => (A.sfx.toggle ? A.sfx.toggle(v) : (A.state.sfx = v)) },
+    { id: 'music', name: 'THE GROOVE', note: 'THE MUSIC, SUCH AS IT IS',
+      get: () => A.state.music, set: v => A.music(v) },
+    { id: 'shake', name: 'SCREEN WOBBLE', note: 'THE WHOLE PICTURE JUMPS',
+      get: () => !PD.fx.noShake, set: v => { PD.fx.noShake = !v; } },
+    { id: 'chum', name: 'MR CHUM', note: 'HE RINGS. YOU CAN STOP HIM.',
+      get: () => !PD.chum.muted, set: v => { PD.chum.muted = !v; } }
+  ];
+
+  function optRow(ctx, x, y, w, o, on, t) {
+    const v = o.get();
+    X.plate(ctx, x, y, w, 24, on ? '#241d46' : '#161130', on ? '#6b5ab0' : '#2e2650', '#0a0618', 3);
+    if (on) for (let i = 0; i < 3; i++) X.rect(ctx, x - 7 - i * 2, y + 8 + i, 2, 8 - i * 2, COL.gold);
+    F.draw(ctx, o.name, x + 8, y + 4, on ? '#ffffff' : '#9a92b4');
+    F.draw(ctx, o.note, x + 8, y + 14, on ? '#7ec8ff' : '#4e4670', { shadow: false });
+    // a fat physical switch, thrown left or right
+    const sw = x + w - 40;
+    X.plate(ctx, sw, y + 7, 32, 11, '#0d0920', '#3a3060', '#000000', 3);
+    X.plate(ctx, v ? sw + 16 : sw + 1, y + 8, 15, 9, v ? '#2f9a6a' : '#5a2438',
+      v ? '#8dff5a' : '#ff6a8a', '#0a0618', 2);
+    F.draw(ctx, v ? 'ON' : 'OFF', v ? sw + 4 : sw + 20, y + 9, v ? '#8dff5a' : '#ff9ab0', { shadow: false });
+    if (on && Math.abs(Math.sin(t * 4)) > 0.5) X.rect(ctx, x, y + 23, w, 1, COL.gold);
+  }
+
+  /* ------------------------------------------------------------- the credits
+     One name, over and over, because one person did all of it. It scrolls up
+     through a window and starts again at the bottom, and there is a dragon on
+     the end of it. */
+  const CREDITS = [
+    ['PLANET DESTROYER', 2, '#b6ff4d'],
+    ['', 0, null],
+    ['MADE BY', 1, '#8e86a8'],
+    ['PUKKING DRAGON', 3, '#ffd34d'],
+    ['', 0, null],
+    ['DESIGN', 1, '#8e86a8'], ['PUKKING DRAGON', 1, '#ffffff'],
+    ['CODE', 1, '#8e86a8'], ['PUKKING DRAGON', 1, '#ffffff'],
+    ['PIXELS', 1, '#8e86a8'], ['PUKKING DRAGON', 1, '#ffffff'],
+    ['NOISES', 1, '#8e86a8'], ['PUKKING DRAGON', 1, '#ffffff'],
+    ['', 0, null],
+    ['THE ALIEN', 1, '#8e86a8'], ['HE HAS NO NAME', 1, '#8dff5a'],
+    ['MR CHUM', 1, '#8e86a8'], ['OWNS YOU', 1, '#ff6a8a'],
+    ['THE HOUSE', 1, '#8e86a8'], ['ALWAYS WINS', 1, '#c02038'],
+    ['THE RAT', 1, '#8e86a8'], ['BRENDA', 1, '#ff9ecb'],
+    ['', 0, null],
+    ['NO ENGINE. NO SPRITE SHEETS.', 1, '#7ec8ff'],
+    ['EVERY PIXEL IN HERE IS DRAWN', 1, '#7ec8ff'],
+    ['BY CODE, EVERY TIME IT RUNS.', 1, '#7ec8ff'],
+    ['', 0, null],
+    ['THANK YOU FOR DESTROYING', 1, '#9a92b4'],
+    ['ABSOLUTELY EVERYTHING.', 1, '#9a92b4'],
+    ['', 0, null],
+    ['MADE BY PUKKING DRAGON', 2, '#ffd34d'],
+    ['', 0, null], ['', 0, null], ['', 0, null]
+  ];
+
+  /* A dragon, because the name has one in it. The first pass came out as a
+     green bird: what makes it a dragon is the wing with fingers in it, the
+     horn, the jaw under the snout and the spade on the end of the tail. */
+  function dragonMark(ctx, x, y, t, s) {
+    const G = '#6fdc55', GD = '#2f8a3a', GL = '#b8f79a', HORN = '#e8dfc4';
+    const flap = Math.sin(t * 2.6) * 2.2 * s;
+    // the far wing, behind everything
+    X.poly(ctx, [[x - 1 * s, y - 2 * s], [x - 7 * s, y - 13 * s - flap], [x + 3 * s, y - 7 * s]], '#1f5e28');
+    // the tail, out behind, with a spade on the end of it
+    for (let i = 0; i < 5; i++) {
+      const q = i / 4;
+      X.blob(ctx, x - 5 * s - i * 3.4 * s, y + 2 * s + Math.sin(t * 2.6 + i * 0.8) * 1.4 * s,
+        (3.4 - q * 2.6) * s, (2.8 - q * 2.1) * s, i > 2 ? GD : G);
+    }
+    const tx = x - 19 * s, ty = y + 2 * s + Math.sin(t * 2.6 + 3.2) * 1.4 * s;
+    X.poly(ctx, [[tx + 2 * s, ty - 3 * s], [tx - 5 * s, ty], [tx + 2 * s, ty + 3 * s]], GD);
+    // the body
+    X.blob(ctx, x, y + 1 * s, 6 * s, 4.6 * s, G);
+    X.blob(ctx, x, y + 2.6 * s, 4.6 * s, 2.4 * s, GL);
+    // the near wing: a membrane with three fingers running through it
+    const wt = y - 14 * s - flap;
+    X.poly(ctx, [[x, y - 2 * s], [x + 4 * s, wt], [x + 13 * s, wt + 5 * s], [x + 5 * s, y - 1 * s]], GD);
+    X.poly(ctx, [[x + 1 * s, y - 3 * s], [x + 4 * s, wt + 1 * s], [x + 9 * s, wt + 4 * s], [x + 4 * s, y - 2 * s]], '#3fa84a');
+    for (let i = 0; i < 3; i++) {
+      X.line(ctx, x + 3 * s, wt + 2 * s, x + (6 + i * 3.4) * s, wt + (5 + i * 2.6) * s, '#1f5e28', Math.max(1, s * 0.7));
+    }
+    // the neck, curving up and forward
+    for (let i = 0; i < 3; i++) X.blob(ctx, x + (2 + i * 2) * s, y - (1.5 + i * 1.8) * s, (3.2 - i * 0.4) * s, (2.6 - i * 0.3) * s, G);
+    // the head: a wedge with a snout on the front and a jaw under it
+    const hx = x + 8 * s, hy = y - 7 * s;
+    X.blob(ctx, hx, hy, 3.6 * s, 3 * s, G);
+    X.poly(ctx, [[hx + 1 * s, hy - 2 * s], [hx + 8 * s, hy - 0.5 * s], [hx + 1 * s, hy + 2 * s]], G);
+    X.poly(ctx, [[hx + 2 * s, hy + 1 * s], [hx + 7 * s, hy + 1 * s], [hx + 2 * s, hy + 3 * s]], GD);
+    X.rect(ctx, hx + 4 * s, hy - 0.5 * s, 1.4 * s, 1.4 * s, '#1a3c1a');       // the nostril
+    X.poly(ctx, [[hx - 1 * s, hy - 2 * s], [hx + 1 * s, hy - 8 * s], [hx + 2.6 * s, hy - 2 * s]], HORN);
+    X.poly(ctx, [[hx - 3 * s, hy - 1 * s], [hx - 6 * s, hy - 5 * s], [hx - 1 * s, hy - 2 * s]], HORN);
+    X.rect(ctx, hx + 0.5 * s, hy - 1.4 * s, 1.8 * s, 1.8 * s, '#ffd34d');     // the eye
+    X.rect(ctx, hx + 1.2 * s, hy - 1.4 * s, 0.8 * s, 1.8 * s, '#1a1024');
+    // and what it is for
+    for (let i = 0; i < 5; i++) {
+      const q = ((t * 1.5 + i * 0.2) % 1);
+      ctx.globalAlpha = (1 - q) * 0.95;
+      X.blob(ctx, hx + (7 + q * 9) * s, hy - 0.5 * s + Math.sin(t * 8 + i) * 1.6 * s * q,
+        (1.2 + q * 2.2) * s, (1.2 + q * 2.2) * s, q > 0.55 ? '#ff5a2a' : (q > 0.25 ? '#ff9a2a' : '#ffe9a8'));
+    }
+    ctx.globalAlpha = 1;
+    // the legs, tucked
+    X.blob(ctx, x + 1 * s, y + 5 * s, 2.4 * s, 1.8 * s, GD);
+    X.blob(ctx, x - 3 * s, y + 5 * s, 2.2 * s, 1.6 * s, GD);
+  }
+
+  /* --------------------------------------------------------------- the screen */
   function title(ctx, g, t, dt) {
     dt = dt === undefined ? 1 / 60 : Math.min(0.05, dt);
     if (!show) showInit();
@@ -864,29 +1021,106 @@
     showStep(dt);
     showDraw(ctx, t);
 
-    const cx = 158;
-    const bobA = Math.sin(t * 0.9) * 3;
-    const bobB = Math.sin(t * 1.24 + 1.1) * 2.5;
-    const bobC = Math.sin(t * 0.72 + 2.4) * 2;
+    const IN = PD.input, m = IN.mouse;
+    const up = IN.hit('up'), dn = IN.hit('down');
+    const go = IN.hit('enter') || IN.hit('space') || IN.hit('KeyE');
+    const back = IN.hit('esc') || IN.hit('Backspace');
+    MENU.flash = Math.max(0, MENU.flash - dt * 3);
 
-    wordmark(ctx, cx, 46 + bobA, t);
+    let start = false, wipe = false;
+    if (MENU.page === 'menu') {
+      const items = menuItems(g);
+      MENU.sel = ((MENU.sel % items.length) + items.length) % items.length;
+      if (up) { MENU.sel = (MENU.sel + items.length - 1) % items.length; A.sfx.click(); }
+      if (dn) { MENU.sel = (MENU.sel + 1) % items.length; A.sfx.click(); }
 
-    const m = PD.input.mouse;
-    const py = 168 + bobB;
-    const hot = m.inside && Math.abs(m.x - cx) < 74 && Math.abs(m.y - py) < 16;
-    floater(ctx, cx - 74, py - 16, 148, 32, hot ? '#2f8f6a' : '#1f6b4c', hot ? '#8dff5a' : '#4fd99a', 5);
-    ctx.save(); ctx.translate(cx - 52, py); ctx.rotate(-Math.PI / 2);
-    PD.glyph.draw(ctx, 'play', -7, -7, '#ffffff', '#8dff5a'); ctx.restore();
-    F.draw(ctx, g.save.totalEarned > 0 ? 'CONTINUE' : 'START', cx + 8, py - 7, '#ffffff', { center: true, scale: 2 });
-    const start = hot && m.leftPressed;
-    if (start) PD.audio.sfx.click();
+      wordmark(ctx, 158, 40 + Math.sin(t * 0.9) * 3, t);
 
-    let wipe = false;
-    if (g.save.totalEarned > 0) {
-      const sy = 200 + bobC;
-      floater(ctx, cx - 92, sy - 5, 184, 32, 'rgba(14,8,34,0.78)', '#33e6ff', 4);
-      F.draw(ctx, '$' + U.fmt(g.save.credits) + '   GALAXY ' + g.save.dominion.toFixed(1) + '%', cx, sy, COL.gold, { center: true });
-      wipe = button(ctx, cx - 40, sy + 12, 80, 12, 'NEW GAME', { accent: '#8a2f4a' });
+      const x0 = 30, w = 218, y0 = 116, gap = 34;
+      let clicked = false;
+      for (let i = 0; i < items.length; i++) {
+        const y = y0 + i * gap + Math.sin(t * 1.1 + i * 0.7) * 1.5;
+        const hot = m.inside && m.x > x0 - 4 && m.x < x0 + w + 10 && m.y > y && m.y < y + 30;
+        if (hot && MENU.sel !== i) { MENU.sel = i; A.sfx.click(); }
+        menuPlate(ctx, x0, y, w, items[i], MENU.sel === i, t);
+        if (hot && m.leftPressed) clicked = true;
+      }
+      if (go || clicked) {
+        const id = items[MENU.sel].id;
+        A.sfx.click();
+        if (id === 'play') start = true;
+        else if (id === 'new') wipe = true;
+        else { MENU.page = id; MENU.set = 0; MENU.cred = 0; }
+      }
+      // what is in the save, small, under the stack
+      if (g.save.totalEarned > 0) {
+        F.draw(ctx, '$' + U.fmt(g.save.credits) + '   GALAXY ' + g.save.dominion.toFixed(1) + '%   ' +
+          g.save.destroyed.length + ' DEAD WORLDS', 30, 256, '#6b6490', { shadow: '#0a0618' });
+      }
+    } else if (MENU.page === 'settings') {
+      if (up) { MENU.set = (MENU.set + OPTS.length - 1) % OPTS.length; A.sfx.click(); }
+      if (dn) { MENU.set = (MENU.set + 1) % OPTS.length; A.sfx.click(); }
+      const x0 = 34, w = 238, y0 = 74;
+      floater(ctx, x0 - 18, 40, w + 28, 178, 'rgba(12,7,30,0.88)', '#5b3f96', 6);
+      F.draw(ctx, 'SETTINGS', x0 + w / 2 - 5, 50, COL.gold, { center: true, scale: 3 });
+      for (let i = 0; i < OPTS.length; i++) {
+        const y = y0 + i * 30;
+        const hot = m.inside && m.x > x0 && m.x < x0 + w && m.y > y && m.y < y + 24;
+        if (hot && MENU.set !== i) { MENU.set = i; A.sfx.click(); }
+        optRow(ctx, x0, y, w, OPTS[i], MENU.set === i, t);
+        if (hot && m.leftPressed) { OPTS[i].set(!OPTS[i].get()); A.sfx.click(); }
+      }
+      if (go || IN.hit('left') || IN.hit('right')) {
+        const o = OPTS[MENU.set]; o.set(!o.get()); A.sfx.click();
+      }
+      F.draw(ctx, 'THE SAME SWITCHES ARE IN THE LAB.', x0 + w / 2 - 5, 198, '#4e4670', { center: true, shadow: false });
+      if (backBtn(ctx, 'BACK', t) || back) { MENU.page = 'menu'; A.sfx.click(); }
+    } else {
+      // the credits, scrolling up through a window
+      MENU.cred += dt * (IN.down('down') || m.left ? 64 : 22);
+      const x0 = 26, w = 244, H = 142, TOP = 54;
+      floater(ctx, x0 - 10, 28, w + 20, 216, 'rgba(10,6,26,0.9)', '#6b4a1f', 6);
+      F.draw(ctx, 'CREDITS', x0 + w / 2 - 5, 36, COL.gold, { center: true, scale: 2 });
+      X.rect(ctx, x0 - 4, 50, w + 8, 1, '#6b4a1f');
+      ctx.save();
+      ctx.beginPath(); ctx.rect(x0 - 6, TOP, w + 12, H); ctx.clip();
+      let y = TOP + H - MENU.cred;
+      for (const [text, sc, col] of CREDITS) {
+        if (text && y > TOP - 20 && y < TOP + H + 4) {
+          F.draw(ctx, text, x0 + w / 2 - 5, Math.round(y), col, { center: true, scale: sc, shadow: '#0a0618' });
+        }
+        y += sc ? 10 + sc * 5 : 10;
+      }
+      const total = y - (TOP + H - MENU.cred);
+      if (MENU.cred > total + H) MENU.cred = 0;
+      ctx.restore();
+      // the top and bottom of the window fade out, so lines do not just stop
+      for (let i = 0; i < 7; i++) {
+        ctx.fillStyle = 'rgba(10,6,26,' + (0.14 * (7 - i)).toFixed(3) + ')';
+        ctx.fillRect(x0 - 6, TOP + i * 2, w + 12, 2);
+        ctx.fillRect(x0 - 6, TOP + H - 2 - i * 2, w + 12, 2);
+      }
+      X.rect(ctx, x0 - 4, TOP + H + 4, w + 8, 1, '#6b4a1f');
+      dragonMark(ctx, x0 + 26, 226, t, 1.7);
+      F.draw(ctx, 'MADE BY', x0 + 76, 212, '#8e86a8', { shadow: '#0a0618' });
+      F.draw(ctx, 'PUKKING DRAGON', x0 + 76, 222, COL.gold, { scale: 2, shadow: '#0a0618' });
+      if (backBtn(ctx, 'BACK', t) || back) { MENU.page = 'menu'; A.sfx.click(); }
+    }
+
+    /* The byline, always there, bottom right, under everything else. */
+    if (MENU.page === 'menu') {
+      dragonMark(ctx, 396, 36, t, 1.3);
+      const gl = 0.72 + 0.28 * Math.sin(t * 1.6);
+      ctx.globalAlpha = gl;
+      F.draw(ctx, 'MADE BY PUKKING DRAGON', 472, 252, COL.gold, { right: true, scale: 1, shadow: '#0a0618' });
+      ctx.globalAlpha = 1;
+    }
+
+    // a vignette over the lot, because a menu should feel like a screen
+    for (let i = 0; i < 9; i++) {
+      ctx.fillStyle = 'rgba(6,3,16,' + (0.05 * (9 - i)).toFixed(3) + ')';
+      ctx.fillRect(0, i * 2, VW, 2); ctx.fillRect(0, VH - 2 - i * 2, VW, 2);
+      ctx.fillRect(i * 3, 0, 3, VH); ctx.fillRect(VW - 3 - i * 3, 0, 3, VH);
     }
     return { start, wipe };
   }

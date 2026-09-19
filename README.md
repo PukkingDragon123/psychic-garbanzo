@@ -65,6 +65,38 @@ shadow cast well below it. There is no legend and no control list along the
 bottom any more; the bottom of the screen is sky, and the debris drifts through
 it.
 
+### Four ways in
+
+A stack of plates down the left, each with a glyph, a name and a line of its
+own: **CONTINUE** (or START, if there is nothing to continue), **NEW GAME**,
+**SETTINGS** and **CREDITS**. The selected one slides out to the right, lights
+up from the inside and grows a gold chevron pointing at it, so you can see
+where you are from the other side of a room.
+
+It drives off the **keyboard** as well as the mouse — up and down to move,
+enter or space to pick, escape to come back — because a menu you cannot get
+through without a mouse is not a menu. Under the stack, small, in grey: what is
+actually in the save.
+
+### Settings, on the front door
+
+The same four switches the lab has, put where people look for them, because the
+first thing anybody wants to turn off is the noise and the last place they want
+to go hunting for it is inside the game.
+
+**NOISES** (clicks, bangs, the drill), **THE GROOVE** (the music, such as it
+is), **SCREEN WOBBLE** (the whole picture jumps) and **MR CHUM** (he rings; you
+can stop him). Each is a fat physical switch that throws left or right with the
+word on it, so you can tell the state at a glance and not by a tick.
+
+### Credits
+
+One name, over and over, because one person did all of it. It scrolls up
+through a window that fades out top and bottom, and holding down runs it on.
+There is a dragon on the footer, breathing fire, and the line under it says
+**MADE BY PUKKING DRAGON** — which is also sat in the bottom-right corner of
+the menu itself, glowing gently, at all times.
+
 **And it is full of somebody else's rubbish.** Thirteen bits of space trash
 tumble across: a dead satellite, a traffic cone, a fridge with the door hanging
 open, one boot, an office chair, a bent antenna, a tyre, a stove-in crate and,
@@ -294,7 +326,7 @@ back up — so a caller only has to name the one it wants.
 Every screen that used to only say `ESC` now has **a button** in the top left
 as well — the chart, the solar system, the brain — because there is no escape
 key on a phone and no amount of printing the word makes there be one. The
-computer already had `GET UP`, and the club has a door.
+computer already had `GET UP`, and the casino has a door.
 
 ## ABAY
 
@@ -784,8 +816,9 @@ reach the thing, not when he does, and is the only nice thing he says.
 
 What is on his list depends on where you are and what state it is in: the
 heaps that are still on the moon, then the saucer, then the house; the computer
-and the brain when you are indoors; the dancefloor, the dancer, the bar, the DJ
-and — pointedly — the slot machines when you are down the club. The list is
+and the brain when you are indoors; the cage, the poker table, the wheel, the
+blackjack table, the bar and — pointedly — the slot machines when you are down
+the casino. The list is
 rebuilt whenever the scene or the state of the tip changes, which starts the
 tour again from the top.
 
@@ -886,43 +919,77 @@ is a flat number you can feel in the hole:
 
 Twelve purchases in all. The permit office makes every one of them cheaper.
 
-## The club
+## The casino
 
-It is a **big** room — nearly four screens of it, and it takes twelve seconds
-to walk end to end. The way in is a door, a bouncer and a rope; then a corridor
-past the cloakroom and the staff door; then the DJ, the lit dancefloor and two
-stacks of speaker; then the stage; then the long bar; then the toilets and the
-booths; and then a gold-lamp jamb with `THE GALAXY ROOM` over it, and the whole
-back end of the club is the casino.
+It was a nightclub. It is not any more.
 
-Nothing in it is bare wall. Posters in frames, flyers stapled over flyers,
-turning vents, pipework down to the floor, somebody's tag, gold discs for
-records that did not sell, a payphone nobody has used in years, a mirror with
-the room in it, and a fire door that has been chained since before you were
-born. On the floor: gaffer tape over cable runs, dropped glasses, flyers
-trodden flat, bottles on their sides. Every piece of it is placed off its own
-x, so the same junk is in the same place every night.
+Same hole in the same moon, gutted and refitted in **black and red**, because a
+man who lost a million in one is not going to be allowed anywhere near a
+dancefloor again. The mirror ball, the lit tiles, the lasers, the speaker
+stacks, DJ Gorb and the act on the pole are all gone. What is there instead is
+a room whose entire purpose is to take money off you slowly and politely.
 
-Whatever this moon was before it was a tip, somebody ran a club on it, and it
-is still down there with the lights on. Go down the hatch and you are in a room
-the length of the moon: panelled walls with neon run along them and pipes and an
-extractor bolted across them, a mirror ball throwing spots, two spotlights
-sweeping, a fan of lasers on every fourth beat, drifting haze, spilled drinks
-and dropped glasses on the floor, and **a dancefloor that changes colour under
-your feet**, four ways, in time.
+It is a **big** room — nearly four screens of it, and it takes twelve seconds to
+walk end to end. Black lacquer walls with **red flock panels** and a damask
+motif stamped into them, a **gold dado rail** all the way along with sconces on
+it that gutter one at a time, a coffered ceiling with **chandeliers** hanging
+down into the room on gold rings, and a **red carpet** with black diamonds
+running away under your feet and a gold pip in every one of them.
 
-Every interactive thing stands a little to the right of the spot that names it,
-because if you put the spot on the prop you walk into the middle of it and your
-own head hides what you came to look at.
+On the wall: framed portraits of men who won once and were photographed for it,
+a gold disc of a jackpot, and **a clock with no hands on it**, because casinos
+do not have clocks. On the carpet: dropped chips, screwed-up betting slips, the
+end of a cigar, a card lying face down, and a cleaning robot that has been going
+round this room since before any of them were born and is not close to finished.
+
+Cigar smoke drifts the whole length of it.
+
+### Four ways to lose money
 
 | | |
 | --- | --- |
-| **THE WAY OUT** | A rope, and a bouncer who has not moved in an hour and is not going to |
-| **THE COAT CHECK** | Where the suit lives |
-| **DJ GORB** | Up on a riser with two platters, a crossfader and a live equaliser. He has two records. Ask him for something and half the room starts dancing |
-| **THE DANCEFLOOR** | Have a go. The whole room joins in, and the first time is worth 40 thots |
-| **THE DANCER** | A pole, a spotlight, and somebody working a Tuesday. $200 a tip |
-| **THE BAR** | Optics lit from behind, three pumps, stools, a tip jar with one coin in it. $500 for something silly — there are five and one of them is water |
+| **THE CASHIER** | A black marble cage with gold bars, a brass tray under the glass and trays of chips behind it. She does not gamble and she does not stop anyone who does. First visit is worth 40 thots |
+| **THE POKER TABLE** | An oval of felt in a padded red leather apron with gold studs round it. **One card each, $500.** The dealer deals yours across the felt, turns his own, and the high card takes it — he takes the ties, which is the whole of the house edge and is never once mentioned |
+| **THE WHEEL** | Sixteen pockets, one of them green. The wheel turns, the ball runs the other way round it and gives up. **Red or black, $500** — and you pick by standing on the half of the layout you fancy. The two boxes are painted on the felt, so the bet is simply where your feet are. No buttons, no menu |
+| **BLACKJACK** | The same high-card draw at a second table with a second dealer, because in a casino there is always another table doing the same thing |
+| **THE BAR** | Black granite with a gold foot rail, optics lit from behind with an eye in every bottle, three taps, stools. $500 for something silly — one of the six is water and one of them is "on the house", which it is not |
+
+Past the bar: the toilets, two booths of buttoned black leather with little red
+table lamps in them, and a gold-lamp jamb with `THE GALAXY ROOM` over it — the
+slot machines are still through there, unchanged.
+
+### The dealers
+
+Three of them, one behind each table, built as proper characters at the same
+scale as everybody else in the room. Black waistcoat with lapels and a pocket
+square, white shirt with gold buttons, **a red bow tie**, a moustache you could
+hang a coat on, and both hands out flat over the felt at all times so everybody
+can see there is nothing in them. One of them wears a green eyeshade. They deal
+when there is a hand on and stand perfectly still when there is not.
+
+They stand on the far side of the table, which is a step up: drawn at floor
+level the felt ate them from the waist up.
+
+### What the room does not show you
+
+**The debt bar is hidden the whole time you are in here.** Everywhere else in
+the game the number you still owe Mr Chum sits in the bottom-left corner. In
+the casino it is gone — a man does not want the figure over his shoulder while
+he is deciding whether to have another go, and the house would never let you
+see it either.
+
+### Standing room
+
+Fourteen regulars mill about, each up and down its own stretch of carpet
+between the tables, and they are drawn **behind** the furniture. Drawn last they
+stood in front of every game in the room and you could not see what you were
+putting five hundred on. One of them talks at a time, for the same reason.
+
+The spot that names a table is a **sign position and a reach, separately**: the
+sign hangs to the left of the prop so your own head does not hide it, and the
+reach is a `lo`/`hi` pair covering the whole hundred pixels of furniture, so you
+can stand anywhere along a table and still play it — and at the wheel, which end
+you are standing at is the bet.
 
 ## Who is in — every one of them generated
 
@@ -967,15 +1034,6 @@ takes over the jaw, or mutton chops.
 Seven frames each: idle, two steps of a walk, talking, kissing, blinking and a
 cheer. Twenty of them are generated at boot and the body plans are **dealt out
 rather than rolled**, so a room of twenty always has mushrooms in it.
-
-## The dancer
-
-Four poses on a pole, drawn in one canvas with the pole always in the same
-column so the act lines up with the pole the room draws: a hold, a lean, a leg
-out, and the one where they are upside down with their legs wrapped round it and
-are clearly thinking about something else. Sequins, a feather boa that cost more
-than the outfit, and one eye on the pole and one on the clock. Tip them and they
-take the money without breaking eye contact.
 
 ## The Lucky Void
 
@@ -1159,7 +1217,7 @@ a line of history under its blurb.
 | `src/fx.js` | Particles, floating numbers, shockwave rings, terrain chunks, bouncing debris, screen shake, hit-stop, and the block iris |
 | `src/ui.js` | The cardboard-and-masking-tape HUD (air tank, hull chips, sack tube), the action strip, the plank over the door, pause, victory and title screens |
 | `src/lab.js` | Decanting Bay 7: three tanks with a body in each, three save files, and the settings panel |
-| `src/home.js` | All three parts of home: the lumpy moon surface outside with the house and the saucer standing on the curve of it, the very small room inside with the computer and the jar, Brenda, the tip you have to clear off the regolith, and and the club under the hatch with its dancefloor, its mirror ball, DJ Gorb, the act on the pole and its nine chattering regulars |
+| `src/home.js` | All the parts of home: the lumpy moon surface outside with the house and the saucer standing on the curve of it, the very small room inside with the computer and the jar, Brenda, the tip you have to clear off the regolith, the black-and-red casino under the hatch with its poker table, its wheel, its blackjack, its cashier's cage and its three moustachioed dealers, and THE PORT hub |
 | `src/desk.js` | First person at the computer: hands, keyboard, CRT, the loose-spring pointer, ZORB OS and ABAY |
 | `src/glyph.js` | The icon language that rides alongside the text, and the hex primitives |
 | `src/galaxy.js` | Spiral-arm star band, nebulae, sun, ringed planets, shooting stars |

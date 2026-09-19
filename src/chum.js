@@ -762,7 +762,7 @@
   /* =====================================================================
      THE NIGHT YOU LOST IT
 
-     Eight beats with a playable club in the middle of them. You come round on
+     Eight beats with a playable casino in the middle of them. You come round on
      the carpet, you find THE UNIVERSAL at the back, you get nine stars, and
      then the game does to you what the machine was always going to do. After
      that it is out of your hands: the floor, the drag through the city, the
@@ -771,8 +771,8 @@
     { id: 'universal', dur: 999, lines: [] },      // interactive: the ten stars
     { id: 'floor', dur: 10, lines: [
       'YOU GO DOWN ON THE CARPET.',
-      'NOBODY IN THE ROOM STOPS DANCING.',
-      'SOMEBODY STEPS OVER YOU TO GET TO THE BAR.'
+      'NOBODY AT ANY TABLE LOOKS UP.',
+      'SOMEBODY STEPS OVER YOU TO GET TO THE CAGE.'
     ] },
     { id: 'drag', dur: 22, lines: [
       'TWO OF THEM PICK YOU UP.',
@@ -2757,7 +2757,7 @@
   }
 
   /* There is no opening cutscene any more. The night starts with you already on
-     your feet in the club -- the machine is at the back of the room and you go
+     your feet in the casino -- the machine is at the back of the room and you go
      and find it yourself. Everything after that is beats. */
   function enterIntro(g) {
     ensureArt();

@@ -1344,6 +1344,14 @@
         g.state = 'lab';
         PD.lab.enter(g);
       }
+      /* NEW GAME off the front door: the save goes, a fresh body is poured,
+         and it drops straight into the tank the way a first run does. */
+      if (r.wipe) {
+        A.resume(); A.music(true);
+        g.wipeSave();
+        g.state = 'lab';
+        PD.lab.enter(g);
+      }
       PD.touch.draw(ctx, 'ui');
       blit();
       return;

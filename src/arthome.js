@@ -1068,7 +1068,7 @@
   /* What was under the biggest heap all along. */
   function clubSign(lit) {
     const p = pix(58, 44);
-    const neon = lit ? '#ff5fa8' : '#4a2340', tube = lit ? '#7ef9ff' : '#1d3a48';
+    const neon = lit ? '#c02038' : '#4a0a18', tube = lit ? '#ffd34d' : '#5e4410';
     p.round(4, 22, 50, 20, 4, P.rockD);                   // a hatch in the regolith
     p.rect(6, 24, 46, 2, P.rockL);
     p.round(16, 28, 26, 14, 3, '#120a1c');
@@ -1772,21 +1772,44 @@
     return p;
   }
 
-  /* The door. Square, bored, wearing sunglasses indoors at night. */
+  /* The door. Square, bored, wearing sunglasses indoors at night, and built to
+     the same scale as everybody else -- at half size he looked like somebody's
+     child had been left on the rope. */
   function bouncer() {
-    const p = pix(34, 44);
-    p.round(4, 14, 26, 28, 5, '#4a4260');               // the suit
-    p.round(4, 14, 9, 16, 3, '#5e5478');
-    p.round(21, 14, 9, 16, 3, '#5e5478');
-    p.round(13, 14, 8, 12, 3, '#c9c4b4');
-    p.rect(16, 16, 2, 9, '#8a2f4a');
-    p.ellipse(17, 9, 11, 9, '#8a7ab0');                 // the head
-    p.ellipse(17, 4, 8, 4, '#a89bd0');
-    p.round(7, 6, 20, 5, 2, '#140f26');                 // the shades
-    p.rect(9, 7, 6, 2, '#3a3348'); p.rect(19, 7, 6, 2, '#3a3348');
-    p.rect(12, 13, 10, 1, '#5a5474');
-    p.round(2, 22, 30, 6, 2, '#4a4260');                // arms folded
-    p.round(2, 22, 30, 2, 2, '#5e5478');
+    const p = pix(64, 100);
+    const SUIT = '#1d1119', SUITL = '#2e2030', SKIN = '#8a7ab0', SKD = '#5e4e82';
+    const cx = 32;
+    p.round(cx - 15, 74, 13, 26, 4, SUIT);              // legs
+    p.round(cx + 2, 74, 13, 26, 4, SUIT);
+    p.rect(cx - 15, 95, 14, 5, '#0a0408');
+    p.rect(cx + 2, 95, 14, 5, '#0a0408');
+    p.round(cx - 21, 40, 42, 38, 8, SUIT);              // a chest like a wardrobe
+    p.round(cx - 21, 40, 42, 4, 3, SUITL);
+    p.round(cx - 6, 39, 12, 22, 3, '#c9c4b4');          // shirt
+    p.round(cx - 20, 40, 15, 26, 5, SUITL);             // lapels
+    p.round(cx + 5, 40, 15, 26, 5, SUITL);
+    p.rect(cx - 2, 43, 4, 20, '#7a1024');               // the tie
+    p.rect(cx - 3, 42, 6, 4, '#c02038');
+    p.round(cx - 24, 56, 48, 11, 5, SUIT);              // arms folded across it
+    p.round(cx - 24, 56, 48, 3, 2, SUITL);
+    p.round(cx + 8, 58, 10, 8, 3, SKIN);
+    p.round(cx - 17, 59, 9, 7, 3, SKD);
+    p.ellipse(cx, 22, 18, 17, SKIN);                    // the head
+    p.ellipse(cx, 12, 13, 7, '#a89bd0');
+    p.ellipse(cx, 33, 12, 6, SKD);                      // the jaw
+    p.round(cx - 17, 15, 34, 10, 3, '#140f26');         // the shades
+    p.rect(cx - 15, 17, 12, 5, '#3a3348');
+    p.rect(cx + 3, 17, 12, 5, '#3a3348');
+    p.rect(cx - 15, 17, 4, 2, '#6b6480');
+    p.rect(cx - 3, 18, 6, 2, '#140f26');                // the bridge
+    p.rect(cx - 17, 16, 3, 3, '#140f26');
+    p.rect(cx + 14, 16, 3, 3, '#140f26');
+    p.rect(cx - 8, 32, 16, 3, '#5e4e82');               // a flat, unimpressed mouth
+    p.rect(cx - 5, 36, 10, 2, '#4a3e6a');
+    p.round(cx - 12, 4, 24, 7, 3, '#4a4260');           // and a flat top of hair
+    p.rect(cx - 12, 9, 24, 3, '#4a4260');
+    p.rect(cx + 15, 26, 4, 8, '#3a3348');               // an earpiece, curling down
+    p.rect(cx + 17, 32, 2, 8, '#3a3348');
     p.outline(P.ink);
     return p;
   }
@@ -1856,6 +1879,81 @@
     return p;
   }
 
+  /* ----------------------------------------------------------- THE HOUSE
+     A croupier, built to the same scale as everybody else in the room -- the
+     first pass came out seventeen pixels wide next to a crowd of thirty-one
+     and he vanished behind his own table.
+
+     Black waistcoat, white shirt, a red bow tie, a moustache you could hang a
+     coat on, and both hands out flat over the felt at all times so that
+     everybody can see there is nothing in them. There never is. The money
+     still goes the same way. */
+  const DLW = 64, DLH = 100;
+  function dealer(f, k) {
+    const p = pix(DLW, DLH);
+    const SKIN = ['#8fd6a0', '#c9a0ff', '#e8a97a'][k];
+    const SKD = ['#4d8f63', '#7a4aa8', '#a86c40'][k];
+    const HAIR = ['#2a1c14', '#140f26', '#4a2c14'][k];
+    const BLK = '#1d1119', BLKL = '#2e2030', WHT = '#f4f0ff';
+    const cx = 32;
+
+    // the legs, most of which the table has
+    p.round(cx - 13, 74, 11, 26, 4, BLK);
+    p.round(cx + 2, 74, 11, 26, 4, BLK);
+    p.rect(cx - 13, 96, 12, 4, '#0a0408');
+    p.rect(cx + 2, 96, 12, 4, '#0a0408');
+    // the waistcoat over the shirt
+    p.round(cx - 17, 42, 34, 36, 7, BLK);
+    p.round(cx - 17, 42, 34, 4, 3, BLKL);
+    p.round(cx - 7, 41, 14, 32, 4, WHT);                // the shirt front
+    p.rect(cx - 1, 46, 2, 26, '#d4ccea');
+    for (let i = 0; i < 4; i++) p.disc(cx, 50 + i * 6, 1, '#ffd34d');
+    p.round(cx - 16, 42, 12, 26, 5, BLKL);              // lapels
+    p.round(cx + 4, 42, 12, 26, 5, BLKL);
+    p.round(cx + 6, 60, 7, 8, 2, '#7a1024');            // the pocket square
+    p.rect(cx + 6, 60, 7, 2, '#c02038');
+    // the arms, out over the felt. One of them moves; that is the deal.
+    const ay = f ? 52 : 56;
+    p.round(cx - 27, ay, 14, 9, 4, BLK);
+    p.round(cx + 13, ay + (f ? -4 : 0), 14, 9, 4, BLK);
+    p.round(cx - 31, ay + 2, 8, 7, 3, SKIN);            // and the hands
+    p.round(cx + 25, ay + (f ? -2 : 2), 8, 7, 3, SKIN);
+    // the head: big, the way everybody else in this room is built
+    p.ellipse(cx, 24, 17, 18, SKIN);
+    p.ellipse(cx, 33, 13, 8, SKD);                      // the jaw
+    p.ellipse(cx, 13, 13, 7, ['#a8e6b4', '#dcc0ff', '#f6c89a'][k]);
+    for (const ex of [cx - 7, cx + 7]) {                // real eyes, with a light in them
+      p.ellipse(ex, 22, 5, 6, '#f6f8ff');
+      p.ellipse(ex, 23, 3, 3, '#140f26');
+      p.rect(ex - 2, 19, 2, 2, '#ffffff');
+    }
+    p.rect(cx - 12, 13, 8, 3, HAIR);                    // brows
+    p.rect(cx + 4, 13, 8, 3, HAIR);
+    if (k === 1) {                                      // one of them wears the visor
+      p.round(cx - 16, 2, 32, 8, 3, '#1d6a4a');
+      p.round(cx - 18, 9, 36, 5, 2, '#2f9a6a');
+      p.rect(cx - 15, 4, 30, 2, '#3fb87e');
+      p.rect(cx - 17, 10, 34, 1, '#5fd89e');
+    } else {
+      p.round(cx - 15, 0, 30, 8, 4, HAIR);              // and the rest have hair
+      p.rect(cx - 15, 6, 30, 3, HAIR);
+      p.rect(cx - 13, 2, 9, 2, SKD);
+    }
+    // the moustache, which is most of the face
+    p.round(cx - 10, 31, 20, 5, 2, HAIR);
+    p.round(cx - 14, 32, 8, 5, 2, HAIR);
+    p.round(cx + 6, 32, 8, 5, 2, HAIR);
+    p.rect(cx - 3, 37, 7, 2, SKD);
+    // collar and the red bow tie
+    p.round(cx - 9, 36, 8, 7, 2, WHT);
+    p.round(cx + 1, 36, 8, 7, 2, WHT);
+    p.round(cx - 10, 38, 9, 7, 3, '#c02038');
+    p.round(cx + 1, 38, 9, 7, 3, '#c02038');
+    p.round(cx - 3, 39, 6, 5, 2, '#7a1024');
+    p.outline(P.ink);
+    return p;
+  }
+
   /* A coat-check rail with one thing left on it, and it is magnificent. */
   function hippieSuit() {
     const p = pix(30, 38);
@@ -1896,6 +1994,7 @@
   makeKin(20);
   reg('dj', [djAlien(0), djAlien(1)]);
   reg('bouncer', [bouncer()]);
+  for (let i = 0; i < 3; i++) reg('dealer' + i, [dealer(0, i), dealer(1, i)]);
   regRaw('dancer', [0, 1, 2, 3].map(dancer), DPX / HD, DH / HD);
   reg('flag', [flag(0), flag(1)], 3);
   reg('skull', [celestialHead()]);
