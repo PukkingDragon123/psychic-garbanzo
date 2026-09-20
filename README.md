@@ -762,6 +762,38 @@ third window was always going to have a skull in it.
    now, and you are going to go and dig.
 5. **And that is how you came to own a moon.**
 
+## It is raining, and he is dragging you
+
+The drag through the city used to be three sprites standing in a row with a
+rotated copy of you lying between them, which is a diagram of a kidnapping
+rather than one.
+
+**He has you by the ankle.** His arm comes off the end of the arm he already
+has and the forearm is drawn *after* you, so it reads as a grip rather than a
+line passing behind you; you are face down and trailing at an angle with your
+own arms dragging back behind you and bouncing off the road; you throw up a
+rooster tail of road water the whole way and leave a wet smear down the street
+behind you.
+
+And **the street hits you back**. Every couple of seconds there is a kerb, or a
+bin, or a grating, or the big one boots you once without breaking stride: the
+camera jolts, the road throws twenty-odd bits of itself in the air, and a word
+comes off your head in red. Two minutes of being pulled along smoothly is a
+screensaver.
+
+### The rain
+
+Five things make it read as weather rather than as white lines: the drops come
+down at an **angle** and all of them at the same angle; there are **three
+depths** of them at three speeds and three lengths; **sheets** of it sweep
+through on the wind; it **bounces** when it lands, as a ring and two drops going
+back up; and every four to eleven seconds the whole street goes white and then
+the sky falls over — near, and the camera shakes with it; far, and it just
+rumbles.
+
+There are drops on the lens, too, because there is a camera in this shot and it
+is out in the same weather as everybody else.
+
 ## He arrives and he leaves
 
 Neither happens instantly. A bar of light goes up out of the watch and he
@@ -956,7 +988,58 @@ Cigar smoke drifts the whole length of it.
 
 Past the bar: the toilets, two booths of buttoned black leather with little red
 table lamps in them, and a gold-lamp jamb with `THE GALAXY ROOM` over it — the
-slot machines are still through there, unchanged.
+slot machines are through there, in the same black and red as everything else
+now rather than the purple they used to be in.
+
+### The wall is architecture, not wallpaper
+
+The first pass at this room was a row of big flat red rectangles with a soft
+glow on each, and it read as a padded cell. What it was missing was building.
+
+It is **arched alcoves between fluted pilasters** now, over a **wood wainscot**,
+under a **dentil cornice**. Every alcove has something in it — a mirror with the
+far side of the room gone soft in it, a swagged curtain, or a gold sunburst —
+and the flock between them carries a small stamped motif rather than a great
+pink heart. All of it is baked once into a single bay and stamped across the
+room at **2x**, the same density as every sprite in the game, so it lands one
+canvas pixel to one device pixel and costs seven `drawImage` calls a frame
+instead of four hundred rectangles.
+
+The sconces stay live, because they gutter.
+
+### Behind the rope: THE SALON
+
+The room is **two thousand two hundred pixels** wide. Past the Galaxy Room
+there is a velvet rope with a man in front of it, and behind it, **up three
+steps**, is the part of the house that is not for you yet.
+
+The steps are not decoration. On the flat you stood in front of every table
+back there and your own head covered the game you were playing; up a step the
+tables ride higher than you do and you can see what you are losing.
+
+| | |
+| --- | --- |
+| **THE DICE** | A sunken bed of felt with a diamond wall down the far end for them to come off. **$1000.** A seven pays three, an eleven pays five, any pair gives you your money back — about ninety-four pence in the pound, and nobody at that table has ever worked it out |
+| **THE LOUNGE** | A stage, a curtain, a spotlight, a double bass, a horn and a woman who has been singing in this room since before the carpet. She has **three numbers** and she will do the next one if you ask. **The band is the music in the room**: ask for something and the game's soundtrack changes to it |
+| **BACCARAT** | Two cards each, drop the tens, nearest nine. **$5000.** The house takes the ties. It is the simplest game in the building and it is the one that takes the most off you |
+
+### THE CARD
+
+Every bet you put down anywhere in the building goes on your account, win or
+lose, because the house does not care whether you win — it cares how much goes
+across the felt. Five tiers, and every one is worth something real:
+
+| | | |
+| --- | --- | --- |
+| **BRONZE** | $10K wagered | the rope comes down whatever you have or have not destroyed |
+| **SILVER** | $50K | the bar stops charging you |
+| **GOLD** | $250K | the machines pay fifteen for three instead of twelve |
+| **BLACK** | $1M | an envelope is waiting at the cage every time you come in |
+| **THE LIST** | $5M | they will fetch THE UNIVERSAL back out for you |
+
+There is a board beside the cashier's cage with a lamp against each tier and
+the one you are on lit. It is the only thing in the building that tells you you
+are getting somewhere, which is of course the entire point of it.
 
 ### The dealers
 
@@ -1035,6 +1118,35 @@ Seven frames each: idle, two steps of a walk, talking, kissing, blinking and a
 cheer. Twenty of them are generated at boot and the body plans are **dealt out
 rather than rolled**, so a room of twenty always has mushrooms in it.
 
+## The regulars
+
+Not everybody in the casino is a stranger. Some of them you are fairly sure you
+have seen somewhere before, you cannot think where, and it is going to bother
+you all night.
+
+None of them is anybody. Each is **the ordinary generated body with a handful
+of traits held down** — so they walk, talk, blink, kiss and cheer out of the
+same seven frames as the rest of the room, and they turn up in the crowd
+wherever the crowd turns up, dealt alternately with the strangers so they are
+spread down the room instead of standing in one corner of it. Each has a line
+of his own and uses it about a third of the time.
+
+| | |
+| --- | --- |
+| **SPARKS** | Small, yellow, two hot red discs on the cheeks and a zig-zag where a tail should be. He has not paid for a drink in his life |
+| **THE PLUMBER** | Stout, a red cap with a letter on it, a moustache you could hang a coat on, blue dungarees, white gloves. He says he is in pipes. Nobody asks again |
+| **THE HEDGEHOG** | Blue, spikes down the back and over the head, white gloves, red boots. In a hurry, and not going anywhere |
+| **THE HERO** | A green tunic and a tall green hat that flops over at the end. Has not said a word all night |
+| **CHOMPY** | Round, yellow, one eye and a wedge taken out of his face. Has eaten everything on that side of the room |
+| **THE BARBARIAN** | Enormous, bare, a red headband and a beard. Asked the barman for a lake |
+| **THE WIZARD** | A tall purple hat and a white beard. Keeps saying the wheel is a trick. It is |
+| **UNIT 7** | Plated, a red visor and one antenna. Has been calculating the odds for nine hours |
+
+Adding them cost the generator five new optional flags — cheek discs, a bolt
+tail, a ball cap, a pointed hat, a headband, back spikes, dungarees, gloves and
+a chomping wedge of a mouth — and nothing else. The bodies underneath are the
+bodies everybody else has.
+
 ## The Lucky Void
 
 Through an arch at the back of the club, past the bar, there is a red carpet
@@ -1052,6 +1164,54 @@ Mr Chum notices. He notices the first time, and he has something to say if the
 three ever land.
 
 Two regulars have been standing at the end machines since before you arrived.
+
+## The band knows several numbers
+
+There used to be **one loop**: a bassline, a hat and an arpeggio, going round
+for the entire game whatever was happening on screen.
+
+It is a small band now, and it knows **twelve numbers**. A track is a chord
+progression plus a bar of patterns to run over it — sixteen characters to a
+bar, one per semiquaver, where a digit is a degree (of the chord for the bass
+and the comping, of the scale for the tune, so the melody moves with the
+harmony), a dash holds the note before it and a dot is a rest:
+
+```
+prog:  [[0,'m7'], [5,'d7'], [0,'m7'], [-2,'d9']]
+bass:  '1.2.3.5.8.5.3.2.'     a walking bass
+comp:  '..C...C...C...C.'     chords on the off-beat
+ride:  'x..x..x.x..x..x.'     a brush on the ride
+```
+
+Swing is a per-track number: every other semiquaver arrives a fraction late,
+which is the whole difference between a lounge and a lift.
+
+| | |
+| --- | --- |
+| `title` | The front door. Swaggering, brassy, far too pleased with itself |
+| `moon` | Sparse, slow, lonely. Nobody is out there and the music knows it |
+| `dig` | Driving, for working |
+| `deep` | Half the speed, twice the weight, and something is down here |
+| `boss` | Something enormous has noticed you |
+| `casino` | Lounge swing. Walking bass, off-beat comping, a brush on the ride |
+| `lounge1/2/3` | Whatever she is singing tonight |
+| `city` | The rain, upside down, bleeding |
+| `port` | A market with four thousand people in it, all shouting a price |
+| `chum` | Oily, and it will not leave |
+
+**Nobody chooses the track.** It is picked from what is on screen, every frame,
+and the band finishes the bar it is on before it changes, so nothing ever
+lurches. That frame-loop call goes to `track()` and never to `music()`:
+`music()` is the settings switch, and if the picker touched it then turning the
+music off would last exactly one frame.
+
+And the noises: the room has card-on-felt, chip-on-chip, dice-on-wood, a ball
+going round and round a wheel and slowing down, a reel stopping, a jackpot, a
+round of applause. The street has **rain as a filtered loop** rather than ten
+thousand one-shots, thunder near and far, a punch, a scrape and a body landing
+on a road. The casino has a **murmur**: a hundred people losing money, heard
+and not seen, which follows the scene so it is on the moment you are through
+the door and gone the moment you are not.
 
 ## The chart
 
@@ -1215,6 +1375,7 @@ a line of history under its blurb.
 | `src/entities.js` | Mobs with four AI kinds, bullets, ore pickups, falling boulders |
 | `src/player.js` | Movement, the drill, weapons, dash, the ragdoll, air, cargo, damage, and the tether to the pod |
 | `src/fx.js` | Particles, floating numbers, shockwave rings, terrain chunks, bouncing debris, screen shake, hit-stop, and the block iris |
+| `src/audio.js` | The whole band and every noise in the game: a twelve-track sequencer with chord progressions, swing and per-scene switching, plus the drill rig, the thrusters, the rain loop, the room murmur and about thirty one-shots. Not one sample |
 | `src/ui.js` | The cardboard-and-masking-tape HUD (air tank, hull chips, sack tube), the action strip, the plank over the door, pause, victory and title screens |
 | `src/lab.js` | Decanting Bay 7: three tanks with a body in each, three save files, and the settings panel |
 | `src/home.js` | All the parts of home: the lumpy moon surface outside with the house and the saucer standing on the curve of it, the very small room inside with the computer and the jar, Brenda, the tip you have to clear off the regolith, the black-and-red casino under the hatch with its poker table, its wheel, its blackjack, its cashier's cage and its three moustachioed dealers, and THE PORT hub |

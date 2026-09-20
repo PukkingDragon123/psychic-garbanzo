@@ -1255,7 +1255,15 @@
         tx -= 1.7 + i * 0.2; ty += (i < 2 ? 2.2 : -1.8) + sweep * 0.4;
         p.round(tx - w / 2, ty - w / 2, Math.max(2, w), Math.max(2, w), 1, i > 3 ? t.lite : t.skin);
       }
-      p.round(tx - 2.5, ty - 2.5, 5, 5, 2, t.acc);
+      if (t.bolt) {
+        // a zig-zag, which is not a tail any animal has ever had
+        p.rect(tx - 6, ty - 8, 10, 4, t.acc);
+        p.rect(tx - 2, ty - 5, 9, 4, t.acc);
+        p.rect(tx - 8, ty - 2, 10, 4, t.acc);
+        p.rect(tx - 5, ty - 7, 6, 2, t.lite);
+      } else {
+        p.round(tx - 2.5, ty - 2.5, 5, 5, 2, t.acc);
+      }
     } else if (t.plan === 'bug') {
       for (const side of [-1, 1]) {
         p.round(cx + side * (t.sw - 1) - 4, shY + 3, 9, t.th + 4, 4, t.accD);
@@ -1289,6 +1297,21 @@
         p.rect(fx - t.aw + 1, FOOT - 5, t.aw * 2 - 1, 1, t.lite);
         p.rect(fx - t.aw + 1, FOOT - 1, t.aw * 2 - 1, 1, t.dark);
         for (let k = 0; k < 3; k++) p.set(fx + fd * t.aw, FOOT - 4 + k, t.dark);
+      }
+    }
+
+    // a row of spikes down the back, for whoever needs them
+    if (t.spikes) {
+      /* They have to clear the silhouette or they are just a darker bit of
+         back. Each one leans further out and further down than the last. */
+      for (let i = 0; i < 5; i++) {
+        const bx2 = cx - t.sw - 2 - i * 3, by2 = shY - 4 + i * 5;
+        p.spike(bx2, by2, 11 - i, 14 - i, -1, t.dark);
+        p.spike(bx2 + 1, by2 + 2, 7 - i, 10 - i, -1, t.skin);
+      }
+      for (let i = 0; i < 3; i++) {
+        p.spike(cx - 3 + i * 4, shY - 9 - i, 7, 9, -1, t.dark);
+        p.spike(cx - 3 + i * 4, shY - 7 - i, 4, 6, -1, t.skin);
       }
     }
 
@@ -1349,6 +1372,16 @@
         }
       }
       p.rect(cx - t.sw, colY, t.sw * 2, 1, '#ffffff');
+    } else if (t.wear === 'dungaree') {
+      // a bib, two straps over the shoulders and a button on each of them
+      p.round(cx - t.sw + 1, shY + 5, (t.sw - 1) * 2, t.th + 4, 3, t.cloth);
+      p.round(cx - t.sw + 2, shY + 6, (t.sw - 1) * 2 - 2, 4, 2, t.clothL);
+      for (const side of [-1, 1]) {
+        p.rect(cx + side * (t.sw - 3) - 1, shY - 1, 3, 8, t.cloth);
+        p.disc(cx + side * (t.sw - 3), shY + 6, 2, t.acc);
+      }
+      p.rect(cx - 4, shY + 10, 9, 6, t.clothD);
+      p.round(cx - t.sw + 1, shY + t.th, (t.sw - 1) * 2, 5, 2, t.clothD);
     } else if (t.wear === 'shirt') {
       p.round(cx - t.sw, colY, t.sw * 2, t.th + 2, 2, C);
       p.spike(cx, colY, 10, Math.round(t.th * 0.7), 1, t.skin);   // an open collar
@@ -1385,12 +1418,22 @@
       if (t.pads) p.round(sx - 3, shY + 1, 7, 5, 2, t.acc);
       // a hand with fingers on it, curled or open
       const hx2 = ex + side * 2;
-      p.round(hx2 - 3, hy, 7, 7, 2, t.lite);
-      p.round(hx2 - 3, hy, 7, 3, 2, t.skin);
-      for (let f = 0; f < 3; f++) p.rect(hx2 - 3 + f * 2, hy + 5, 2, 3, t.skin);
-      p.set(hx2 - 3, hy + 3, t.dark);
+      const HANDC = t.gloves ? t.gloves : t.lite;
+      const HANDC2 = t.gloves ? t.gloves : t.skin;
+      p.round(hx2 - 3, hy, 7, 7, 2, HANDC);
+      p.round(hx2 - 3, hy, 7, 3, 2, HANDC2);
+      for (let f = 0; f < 3; f++) p.rect(hx2 - 3 + f * 2, hy + 5, 2, 3, HANDC2);
+      p.set(hx2 - 3, hy + 3, t.gloves ? '#b4b0c8' : t.dark);
+      if (t.gloves) p.rect(hx2 - 4, hy - 1, 9, 2, '#e8e4f4');
       if (t.ring && side > 0) { p.disc(hx2 + 2, hy + 3, 2, t.acc); p.set(hx2 + 2, hy + 2, '#ffffff'); }
     }
+
+    /* ------------------------------------------------------ the extra bits
+       A handful of optional flags the ordinary generator never sets. They
+       exist for the regulars in the casino who are quite clearly SOMEBODY --
+       there is a small yellow one with sparks coming off him, there is a
+       plumber, there is a hedgehog -- and every one of them is built out of
+       this same body so they walk, talk, blink and cheer like everyone else. */
 
     // ------------------------------------------------------------- the neck
     p.rect(cx - 3, neckY - 3, 7, 6, t.dark);
@@ -1581,6 +1624,12 @@
     } else if (t.mouth === 'grill') {
       p.rect(cx - 5, my - 1, 11, 4, INK);
       for (let i = 0; i < 5; i++) p.rect(cx - 4 + i * 2, my, 2, 3, i === 2 ? '#fff3b0' : '#ffd34d');
+    } else if (t.mouth === 'chomp') {
+      // a wedge taken out of the face, with a tongue at the back of it
+      const open = talk || cheer ? 9 : 6;
+      p.spike(cx + 3, my - open, open + 2, open, 1, INK);
+      p.spike(cx + 3, my, open + 2, open, -1, INK);
+      p.rect(cx + 1, my - 2, 3, 5, '#d64f7a');
     } else if (t.mouth === 'sucker') {
       p.ellipse(cx, my, 4, 4, t.dark);
       p.ellipse(cx, my, 3, 3, '#3a1226');
@@ -1627,8 +1676,40 @@
       }
     }
 
+    /* Two hot little discs on the cheeks. Nothing else in the generator puts
+       a saturated colour on a face, which is exactly why it reads. */
+    if (t.cheeks) {
+      for (const side of [-1, 1]) {
+        p.ellipse(cx + side * Math.round(HRr * 0.72), headY + Math.round(HRr * 0.3), 4, 3, t.cheeks);
+        p.ellipse(cx + side * Math.round(HRr * 0.72), headY + Math.round(HRr * 0.24), 2, 1, '#ff9a9a');
+      }
+    }
+
     // ---------------------------------------------------- what is on top
     const crownY = headY - HRr;
+    if (t.crown === 'cap') {
+      // a soft cap with a brim and a letter on the front of it
+      p.round(cx - HRr - 1, crownY - 3, (HRr + 1) * 2, 11, 5, t.capC || t.acc);
+      p.round(cx - HRr - 1, crownY + 4, (HRr + 1) * 2, 4, 2, t.capD || t.accD);
+      p.round(cx - HRr - 4, crownY + 6, HRr + 3, 4, 2, t.capD || t.accD);
+      p.disc(cx, crownY, 1.5, t.capD || t.accD);
+      p.rect(cx - 2, crownY + 1, 5, 4, '#ffffff');
+      p.rect(cx - 2, crownY + 1, 1, 4, t.capC || t.acc);
+      p.rect(cx + 2, crownY + 1, 1, 4, t.capC || t.acc);
+      p.rect(cx - 1, crownY + 2, 3, 1, t.capC || t.acc);
+    } else if (t.crown === 'pointy') {
+      // a tall soft hat that flops over at the end
+      for (let i = 0; i < 12; i++) {
+        const w = Math.max(2, HRr * 2 - i * 1.6);
+        p.rect(cx - w / 2 + i * 0.6, crownY - 1 - i * 2, w, 3, i > 8 ? t.clothL : t.cloth);
+      }
+      p.round(cx + 5, crownY - 26, 6, 6, 2, t.clothL);
+      p.round(cx - HRr - 2, crownY, (HRr + 2) * 2, 4, 2, t.clothD);
+    } else if (t.crown === 'band') {
+      p.round(cx - HRr, crownY + 2, HRr * 2, 5, 2, t.acc);
+      p.rect(cx - HRr, crownY + 4, HRr * 2, 1, t.accD);
+      for (let i = 0; i < 3; i++) p.rect(cx - HRr - 3 - i * 2, crownY + 5 + i * 3, 4, 2, t.acc);
+    }
     if (t.crown === 'fin') {
       for (let i = 0; i < 5; i++) p.spike(cx - 7 + i * 4, crownY - 11 + i * 2, 7, 13 - i * 2, -1, t.acc);
     } else if (t.crown === 'horns') {
@@ -1727,6 +1808,82 @@
   /* Six frames each: idle, two steps of a walk, talking, kissing, blinking. */
   const KIN = [];
   const KIN_MIX = ['biped', 'fungal', 'beast', 'bug', 'biped', 'beast', 'fungal', 'biped'];
+  /* =================================================================== THE REGULARS
+     Not everybody in the casino is a stranger. Some of them you are fairly
+     sure you have seen somewhere before, and you cannot think where, and it
+     is going to bother you all night.
+
+     None of them is anybody. They are the ordinary generated body with a
+     handful of traits held down -- so they walk, talk, blink and cheer out of
+     the same seven frames as the rest of the room, and they turn up in the
+     crowd wherever the crowd turns up. */
+  const CELEBS = [
+    { name: 'SPARKS', say: 'HE HAS NOT PAID FOR A DRINK IN HIS LIFE',
+      t: { plan: 'beast', build: 'stout', skin: '#ffe14d', lite: '#fff6b0', dark: '#c49a12',
+        acc: '#ffd34d', accD: '#8a6a10', cheeks: '#e8402a', bolt: 1, crown: 'ears',
+        mouth: 'grin', eyes: 2, eyeK: 'row', wear: 'bare', hair: 'none', brow: 'flat',
+        boots: 0, belt: 0, iris: '#241a08', irisL: '#4a3a18', big: 0.96, tex: 'plain' } },
+    { name: 'THE PLUMBER', say: 'HE SAYS HE IS IN PIPES. NOBODY ASKS AGAIN.',
+      t: { plan: 'biped', build: 'stout', skin: '#f0b07a', lite: '#ffd0a4', dark: '#a8683a',
+        cloth: '#2f56c4', clothL: '#5a82e8', clothD: '#1a2f7a', acc: '#ffd34d', accD: '#a8801e',
+        capC: '#d63550', capD: '#8a1228', crown: 'cap', wear: 'dungaree', hair: 'walrus',
+        hairC: '#3a1c0e', hairL: '#5e3018', brow: 'bushy', mouth: 'grin', eyes: 2,
+        gloves: '#f4f0ff', boots: 1, bootC: '#5e3018', big: 0.94, tex: 'plain',
+        iris: '#3a6ad8', irisL: '#7a9cf0' } },
+    { name: 'THE HEDGEHOG', say: 'HE IS IN A HURRY AND HE IS NOT GOING ANYWHERE',
+      t: { plan: 'biped', build: 'normal', skin: '#2f6ae0', lite: '#6a9cff', dark: '#163a8a',
+        acc: '#e8402a', accD: '#8a1810', spikes: 1, crown: 'none', wear: 'bare',
+        mouth: 'smirk', eyes: 2, eyeK: 'row', hair: 'none', brow: 'arch',
+        gloves: '#f4f0ff', boots: 1, bootC: '#d63550', bootL: '#ff8a8a',
+        iris: '#1a2a4a', irisL: '#4a6a9a', big: 1.0, tex: 'plain' } },
+    { name: 'THE HERO', say: 'HE HAS NOT SAID A WORD ALL NIGHT',
+      t: { plan: 'biped', build: 'lanky', skin: '#f0c49a', lite: '#ffe0bc', dark: '#a8784a',
+        cloth: '#2f9a4a', clothL: '#6ad07a', clothD: '#145a28', crown: 'pointy',
+        wear: 'tank', hair: 'none', brow: 'flat', mouth: 'smirk', eyes: 2,
+        hairC: '#e8c04a', hairL: '#fff0a0', boots: 1, bootC: '#6a4520',
+        iris: '#3a8ad8', irisL: '#8ac0f0', big: 0.98, tex: 'plain' } },
+    { name: 'CHOMPY', say: 'HE HAS EATEN EVERYTHING ON THAT SIDE OF THE ROOM',
+      t: { plan: 'biped', build: 'stout', skin: '#ffe14d', lite: '#fff6b0', dark: '#c49a12',
+        acc: '#ffd34d', accD: '#8a6a10', crown: 'none', wear: 'bare', mouth: 'chomp',
+        eyes: 1, eyeK: 'row', hair: 'none', brow: 'flat', boots: 0, belt: 0,
+        iris: '#241a08', irisL: '#4a3a18', big: 1.12, tex: 'plain' } },
+    { name: 'THE BARBARIAN', say: 'HE ASKED THE BARMAN FOR A LAKE',
+      t: { plan: 'biped', build: 'hulk', skin: '#d8a070', lite: '#f0c49a', dark: '#8a5a2a',
+        acc: '#d63550', accD: '#7a1020', crown: 'band', wear: 'bare', hair: 'beard',
+        hairC: '#3a1c0e', hairL: '#6a3a1a', brow: 'angry', mouth: 'grin', eyes: 2,
+        boots: 1, bootC: '#4a2c14', chain: 1, big: 1.14, tex: 'plain',
+        iris: '#3a5a2a', irisL: '#7a9a4a' } },
+    { name: 'THE WIZARD', say: 'HE KEEPS SAYING THE WHEEL IS A TRICK. IT IS.',
+      t: { plan: 'biped', build: 'lanky', skin: '#e0c0a8', lite: '#f6e0cc', dark: '#96745c',
+        cloth: '#3a2a8a', clothL: '#6a5ad0', clothD: '#1a1050', crown: 'pointy',
+        wear: 'coat', hair: 'beard', hairC: '#e8e4f4', hairL: '#ffffff', brow: 'bushy',
+        mouth: 'straw', eyes: 2, boots: 1, bootC: '#2a1a4a', big: 1.02, tex: 'plain',
+        iris: '#7ad0e8', irisL: '#c0f0ff', smoke: 0 } },
+    { name: 'UNIT 7', say: 'IT HAS BEEN CALCULATING THE ODDS FOR NINE HOURS',
+      t: { plan: 'biped', build: 'normal', skin: '#a8b0c0', lite: '#d4dce8', dark: '#5a6274',
+        acc: '#e8402a', accD: '#8a1810', crown: 'antenna', ant: 1, wear: 'vest',
+        mouth: 'grill', eyes: 1, eyeK: 'row', hair: 'none', brow: 'flat', tex: 'plate',
+        shades: 'visor', boots: 1, bootC: '#3a4250', big: 1.0,
+        iris: '#e8402a', irisL: '#ff9a8a' } }
+  ];
+
+  function makeCelebs() {
+    for (let i = 0; i < CELEBS.length; i++) {
+      const c = CELEBS[i];
+      // an ordinary generated body, then the things that make him him
+      const t = alienKin(90210 + i * 131, c.t.plan);
+      Object.assign(t, c.t);
+      t.celeb = c.name;
+      t.say = c.say;
+      const frames = [0, 1, 2, 3, 4, 5, 6].map(f => buildAlien(t, f));
+      const W = frames[0].w, H = frames[0].h;
+      t.key = 'celeb' + i;
+      regRaw(t.key, frames, W / 2 / HD, H / HD);
+      t.w = W / HD; t.h = H / HD;
+      KIN.push(t);
+    }
+  }
+
   function makeKin(n) {
     for (let i = 0; i < n; i++) {
       // the mix is dealt out rather than rolled, so a room of twenty always has
@@ -1992,6 +2149,7 @@
   for (let i = 0; i < 4; i++) reg('moonjunk' + i, [moonJunk(i)]);
   reg('clubsign', [clubSign(false), clubSign(true)]);
   makeKin(20);
+  makeCelebs();
   reg('dj', [djAlien(0), djAlien(1)]);
   reg('bouncer', [bouncer()]);
   for (let i = 0; i < 3; i++) reg('dealer' + i, [dealer(0, i), dealer(1, i)]);
@@ -2000,5 +2158,5 @@
   reg('skull', [celestialHead()]);
   reg('tape', [tapeDeck(0), tapeDeck(1)]);
 
-  PD.arthome = { S, P, KIN, alienKin, buildAlien, hsl, buildMoon, buildPlanet, blit, HD, mitten, reg, regRaw };
+  PD.arthome = { S, P, KIN, CELEBS, alienKin, buildAlien, hsl, buildMoon, buildPlanet, blit, HD, mitten, reg, regRaw };
 })(window.PD);

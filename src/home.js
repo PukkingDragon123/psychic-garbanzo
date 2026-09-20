@@ -36,7 +36,7 @@
   const GRAV = 300;                  // low: everything here is bouncy
 
   const S = { scene: 'out', deck: 0, t: 0, ratSeen: 0, sleep: 0, swing: 0, beat: 0, kissT: 2,
-    chatT: 1.5, drunk: 0 };
+    chatT: 1.5, drunk: 0, song: null, songI: -1, clap: 0 };
   let g0 = null;                     // the running game, for view() between frames
 
   function roomW() {
@@ -69,6 +69,10 @@
   }
   function groundY(x) {
     if (S.scene === 'hub') return DECK_Y[S.deck];
+    /* The salon is up three steps, which is not decoration: on the flat you
+       stood in front of every table back there and your own head covered the
+       game you were playing. Up a step the tables ride higher than you do. */
+    if (S.scene === 'club') return x > STEP_X ? SALON_Y : FLOOR;
     if (S.scene !== 'out') return FLOOR;
     const dx = x - MOON.cx;
     if (Math.abs(dx) >= MOON.r) return 1e4;
@@ -153,10 +157,24 @@
      it is still down there with the lights on. It is another `scene`, like the
      inside of the house, so it inherits the walking, the camera, the prompt
      and the touch controls for nothing. */
-  const CLUB_W = 1440, CLUB_CEIL = 84;
+  /* The room got another eight hundred pixels of itself. Past THE GALAXY ROOM
+     there is a velvet rope, and behind the rope is the part of the house that
+     is not for you until you have killed a couple of worlds. */
+  const CLUB_W = 2260, CLUB_CEIL = 84;
   /* Where everything stands. A spot sits a little to the LEFT of the thing it
      names, or you walk into the middle of the prop and your own head hides it. */
   const CAGE_X = 215, POKER_X = 380, ROU_X = 620, JACK_X = 840, BAR_X = 980;
+  const ROPE_X = 1490, CRAPS_X = 1660, STAGE_X = 1880, BACC_X = 2090;
+  /* Three steps up at the rope, and everything behind it is drawn off
+     SALON_Y instead of FLOOR. */
+  const STEP_X = ROPE_X + 4, SALON_Y = FLOOR - 16;
+  const HI_STAKE = 1000, BACC_STAKE = 5000;
+  /* The rope comes down when you have finished off two worlds. Until then the
+     pit boss stands in front of it and looks at your shoes. */
+  function salonOpen(g) {
+    return (g.save.destroyed || []).filter(Boolean).length >= 2 || g.save.dominion >= 4
+      || (g.save.wagered || 0) >= 10000;
+  }
   const TSTAKE = 500;
   /* A spot's `x` is where its SIGN goes, and it sits to the left of the thing
      it names or your own head hides the prop. The reach is a separate pair,
@@ -174,10 +192,19 @@
     { id: 'slot1', x: 1164, r: 24, name: 'NOVA', sub: 'THIS ONE IS DUE. $200' },
     { id: 'slot2', x: 1224, r: 24, name: 'HOT', sub: 'LAST ONE. $200' }
   ];
+  /* Behind the rope. These only come back from `spots` once the rope is down. */
+  const SALON_SPOTS = [
+    { id: 'craps', x: CRAPS_X - 70, lo: CRAPS_X - 62, hi: CRAPS_X + 62,
+      name: 'THE DICE', sub: 'SEVEN OR ELEVEN. $1000' },
+    { id: 'stage', x: STAGE_X - 62, lo: STAGE_X - 58, hi: STAGE_X + 58,
+      name: 'THE LOUNGE', sub: 'ASK HER FOR SOMETHING' },
+    { id: 'bacc', x: BACC_X - 68, lo: BACC_X - 60, hi: BACC_X + 60,
+      name: 'BACCARAT', sub: 'NEAREST NINE. $5000' }
+  ];
   /* Two booths in the dead bits of wall, for the ones who have stopped. */
   const BOOTHS = [{ x: 530 }, { x: 730 }];
   const SEATS = [
-    { x: 516, k: 10 }, { x: 544, k: 11 }, { x: 716, k: 14 }, { x: 744, k: 16 }
+    { x: 516, k: 10 }, { x: 544, k: 21 }, { x: 716, k: 14 }, { x: 744, k: 24 }
   ];
   /* Sixteen regulars, each with a stretch of carpet they wander up and down.
      Giving them bands is what stops all sixteen ending up in one corner and
@@ -187,10 +214,19 @@
      furniture now and they are drawn BEHIND it. */
   const BANDS = [[262, 318], [350, 412], [444, 552], [596, 656],
     [694, 778], [800, 884], [906, 1036]];
+  /* Who is in tonight. Half the room is generated strangers and half of it is
+     the regulars -- the ones you are fairly sure you have seen somewhere
+     before and cannot place. They are dealt alternately so they are spread
+     down the room rather than all standing in one corner of it. */
+  const CELEB0 = AH.KIN.findIndex(k => k.celeb);
+  const NCELEB = AH.KIN.filter(k => k.celeb).length;
+  function kinAt(i) {
+    return (i % 2 === 1 && CELEB0 >= 0) ? CELEB0 + ((i >> 1) % NCELEB) : i;
+  }
   const CLUBBERS = [];
   for (let i = 0; i < 14; i++) {
     const b = BANDS[i % BANDS.length];
-    CLUBBERS.push({ x: U.rand(b[0], b[1]), lo: b[0], hi: b[1], vx: 0, k: i, t: U.rand(0, 6),
+    CLUBBERS.push({ x: U.rand(b[0], b[1]), lo: b[0], hi: b[1], vx: 0, k: kinAt(i), t: U.rand(0, 6),
       face: i % 2 ? 1 : -1, dance: U.rand(0, 3), kiss: 0, mate: -1, wait: U.rand(0, 2),
       blink: U.rand(0, 4), say: null, sayT: 0, drink: i % 3 === 0 ? i % 4 : -1 });
   }
@@ -226,6 +262,7 @@
     S.scene = 'club';
     place(g, story ? 120 : CLUB_SPOTS[0].x + 30);
     if (story) { UI.mode = null; S.drunk = 0.45; say('YOU ARE UP. YOU ARE NOT WELL. THE BACK OF THE ROOM IS THAT WAY.'); }
+    else compYou(g);
     A.sfx.tone(90, { type: 'square', to: 60, dur: 0.3, vol: 0.1 });
   }
   function leaveClub(g) {
@@ -259,12 +296,12 @@
     'SOMEBODY BEHIND YOU SAYS THEY KNEW IT. THEY DID NOT KNOW IT.'
   ];
 
-  function tableBusy() { return CARD.at || ROU.live; }
+  function tableBusy() { return CARD.at || ROU.live || DICE.live || BACC.live; }
 
   function playCards(g, which) {
     if (tableBusy()) return;
     if (g.save.credits < TSTAKE) { say('FIVE HUNDRED A HAND. YOU HAVE NOT GOT IT.'); A.sfx.deny(); return; }
-    g.save.credits -= TSTAKE;
+    g.save.credits -= TSTAKE; wager(g, TSTAKE);
     CARD.at = which; CARD.t = 0; CARD.done = 0;
     CARD.you = U.randInt(0, 12); CARD.ys = U.randInt(0, 3);
     CARD.dlr = U.randInt(0, 12); CARD.ds = U.randInt(0, 3);
@@ -311,7 +348,7 @@
   function playRoulette(g, red) {
     if (tableBusy()) return;
     if (g.save.credits < TSTAKE) { say('FIVE HUNDRED ON THE TABLE. YOU HAVE NOT GOT IT.'); A.sfx.deny(); return; }
-    g.save.credits -= TSTAKE;
+    g.save.credits -= TSTAKE; wager(g, TSTAKE);
     ROU.live = 1; ROU.t = 0; ROU.done = 0; ROU.bet = red ? 0 : 1;
     ROU.land = U.rand() < 0.027 ? 2 : (U.rand() < 0.5 ? 0 : 1);
     ROU.win = ROU.land === ROU.bet ? TSTAKE * 2 : 0;
@@ -354,9 +391,258 @@
     if (ROU.t > 4.6) { ROU.live = 0; ROU.rest = 2.2; }
   }
 
+
+  /* ===================================================================== THE SALON
+     What is behind the rope. Bigger stakes, worse odds, better carpet.
+
+     THE DICE. Two of them, thrown down the felt off the back wall. A seven
+     pays three, an eleven pays five, any pair gives you your money back and
+     everything else belongs to the house -- which comes out at about ninety
+     four pence in the pound, and nobody at the table has ever worked that out.
+
+     BACCARAT. Two cards each, count them, drop the tens, nearest nine wins.
+     The house takes the ties. It is the simplest game in the building and it
+     is the one that takes the most off you. */
+  const DICE = { live: 0, t: 0, done: 0, a: 1, b: 1, win: 0, rest: 0, vx: 0 };
+  const BACC = { live: 0, t: 0, done: 0, you: [0, 0], dlr: [0, 0], ys: [0, 0], ds: [0, 0], win: 0, rest: 0 };
+
+  const DICE_LOSE = [
+    'THE STICKMAN RAKES THEM BACK WITHOUT LOOKING AT YOU.',
+    'FOUR. FOUR IS NOTHING. FOUR HAS NEVER BEEN ANYTHING.',
+    'THE TABLE GROANS. THE TABLE IS NOT ON YOUR SIDE.',
+    'HE SAYS NEW SHOOTER. HE MEANS GO AWAY.',
+    'SOMEBODY BEHIND YOU BLOWS ON THEM. IT DOES NOT HELP.'
+  ];
+  const BACC_LOSE = [
+    'THE HOUSE HAS IT BY ONE. IT IS ALWAYS BY ONE.',
+    'SHE TURNS THEM OVER WITHOUT A FLICKER AND TAKES THE LOT.',
+    'NATURAL. HERS, NOT YOURS.',
+    'A TIE GOES TO THE HOUSE. YOU DID READ THE FELT.',
+    'FIVE THOUSAND, GONE IN THE TIME IT TAKES TO TURN A CARD.'
+  ];
+
+  function playDice(g) {
+    if (tableBusy()) return;
+    if (g.save.credits < HI_STAKE) { say('A THOUSAND A ROLL BACK HERE. YOU HAVE NOT GOT IT.'); A.sfx.deny(); return; }
+    g.save.credits -= HI_STAKE; wager(g, HI_STAKE);
+    DICE.live = 1; DICE.t = 0; DICE.done = 0;
+    DICE.a = U.randInt(1, 6); DICE.b = U.randInt(1, 6);
+    const tot = DICE.a + DICE.b;
+    DICE.win = tot === 7 ? HI_STAKE * 3 : (tot === 11 ? HI_STAKE * 5 : (DICE.a === DICE.b ? HI_STAKE : 0));
+    P.lock = 0.3;
+    A.sfx.dice();
+    PD.chum.call(g, 'gamble');
+    g.save.spun = (g.save.spun || 0) + 1;
+    g.saveGame();
+  }
+
+  function updateDice(dt, g) {
+    DICE.rest = Math.max(0, DICE.rest - dt);
+    if (!DICE.live) return;
+    DICE.t += dt;
+    if (DICE.t > 1.25 && !DICE.done) {
+      DICE.done = 1;
+      const tot = DICE.a + DICE.b;
+      if (DICE.win > HI_STAKE) {
+        g.save.credits += DICE.win;
+        say(tot + '. ' + (tot === 7 ? 'SEVEN. THE WHOLE TABLE SHOUTS.' : 'ELEVEN. NOBODY CAN BELIEVE IT.')
+          + ' ' + U.fmt(DICE.win) + '.');
+        FX.text(CRAPS_X, FLOOR - 82, '+$' + U.fmt(DICE.win), '#ffd34d', 2);
+        for (let i = 0; i < 34; i++) {
+          FX.spawn({ x: CRAPS_X + U.rand(-26, 26), y: FLOOR - 40, vx: U.rand(-140, 140), vy: U.rand(-230, -70),
+            life: 1.4, size: 2, glow: 1, color: i % 2 ? '#ffd34d' : '#f4f0ff', grav: 220, drag: 1 });
+        }
+        FX.ring(CRAPS_X, FLOOR - 48, 4, 70, 1, '#ffd34d', 3);
+        A.sfx.jackpot();
+        A.sfx.applause();
+      } else if (DICE.win) {
+        g.save.credits += DICE.win;
+        say('A PAIR OF ' + DICE.a + 'S. YOU GET YOUR THOUSAND BACK AND NOTHING ELSE.');
+        FX.text(CRAPS_X, FLOOR - 82, 'PUSH', '#e8e2f4', 0);
+        A.sfx.chips(3);
+      } else {
+        say(tot + '. ' + U.pick(DICE_LOSE));
+        FX.text(CRAPS_X, FLOOR - 82, '-$' + U.fmt(HI_STAKE), '#ff5a4d', 0);
+        A.sfx.deny();
+      }
+      g.saveGame();
+    }
+    if (DICE.t > 3.4) { DICE.live = 0; DICE.rest = 2.4; }
+  }
+
+  function baccTotal(c) { return (c[0] + c[1]) % 10; }
+
+  function playBacc(g) {
+    if (tableBusy()) return;
+    if (g.save.credits < BACC_STAKE) { say('FIVE THOUSAND A COUP. SHE CAN SEE YOU HAVE NOT GOT IT.'); A.sfx.deny(); return; }
+    g.save.credits -= BACC_STAKE; wager(g, BACC_STAKE);
+    BACC.live = 1; BACC.t = 0; BACC.done = 0;
+    for (let i = 0; i < 2; i++) {
+      BACC.you[i] = U.randInt(0, 12); BACC.ys[i] = U.randInt(0, 3);
+      BACC.dlr[i] = U.randInt(0, 12); BACC.ds[i] = U.randInt(0, 3);
+    }
+    // face cards and tens count nothing, which is the whole joke of the game
+    const val = k => (k >= 8 ? 0 : k + 2);
+    const y = (val(BACC.you[0]) + val(BACC.you[1])) % 10;
+    const d = (val(BACC.dlr[0]) + val(BACC.dlr[1])) % 10;
+    BACC.yt = y; BACC.dt = d;
+    BACC.win = y > d ? BACC_STAKE * 2 : 0;          // she takes the ties as well
+    P.lock = 0.3;
+    A.sfx.card(0); A.sfx.card(2);
+    PD.chum.call(g, 'gamble');
+    g.save.spun = (g.save.spun || 0) + 1;
+    g.saveGame();
+  }
+
+  function updateBacc(dt, g) {
+    BACC.rest = Math.max(0, BACC.rest - dt);
+    if (!BACC.live) return;
+    const was = BACC.t;
+    BACC.t += dt;
+    for (const [w, i] of [[0.25, 0], [0.5, 1], [0.75, 2], [1.0, 3]]) {
+      if (was < w && BACC.t >= w) A.sfx.card(i);
+    }
+    if (BACC.t > 1.9 && !BACC.done) {
+      BACC.done = 1;
+      A.sfx.flip();
+      if (BACC.win) {
+        g.save.credits += BACC.win;
+        say(BACC.yt + ' TO ' + BACC.dt + '. SHE PUSHES ' + U.fmt(BACC.win) + ' ACROSS AND SAYS NOTHING.');
+        FX.text(BACC_X, FLOOR - 84, '+$' + U.fmt(BACC.win), '#ffd34d', 2);
+        for (let i = 0; i < 40; i++) {
+          FX.spawn({ x: BACC_X + U.rand(-28, 28), y: FLOOR - 40, vx: U.rand(-150, 150), vy: U.rand(-240, -70),
+            life: 1.5, size: 2, glow: 1, color: i % 3 ? '#ffd34d' : '#d63550', grav: 220, drag: 1 });
+        }
+        FX.ring(BACC_X, FLOOR - 48, 4, 84, 1.1, '#ffd34d', 3);
+        A.sfx.jackpot();
+      } else {
+        say(BACC.dt + ' TO ' + BACC.yt + '. ' + U.pick(BACC_LOSE));
+        FX.text(BACC_X, FLOOR - 84, '-$' + U.fmt(BACC_STAKE), '#ff5a4d', 0);
+        A.sfx.deny();
+      }
+      g.saveGame();
+    }
+    if (BACC.t > 4.2) { BACC.live = 0; BACC.rest = 2.6; }
+  }
+
+  /* --------------------------------------------------------------- the lounge
+     Somebody has been on that stage every night since the place opened and she
+     has three numbers. Ask and she does the next one, and the band changes
+     with her, because the music in this room is coming off that stage. */
+  const SONGS = [
+    { id: 'lounge1', name: 'A MOON, A MAN, A MILLION',
+      line: 'SHE COUNTS THE BAND IN WITHOUT LOOKING AT THEM.' },
+    { id: 'lounge2', name: 'DRILL IT, BOY',
+      line: 'THE HORN PLAYER SITS UP. THIS IS THE ONE HE LIKES.' },
+    { id: 'lounge3', name: 'WHAT I OWE',
+      line: 'THE ROOM GOES QUIET. EVEN THE DICE TABLE GOES QUIET.' }
+  ];
+  function askForASong(g) {
+    S.songI = ((S.songI === undefined ? -1 : S.songI) + 1) % SONGS.length;
+    const sg = SONGS[S.songI];
+    S.song = sg.id;
+    S.clap = 1.6;
+    say(sg.name + '. ' + sg.line);
+    FX.text(STAGE_X, FLOOR - 92, sg.name, '#ffd34d', 1);
+    A.sfx.applause();
+    if (!g.save.seen.song) {
+      g.save.seen.song = 1;
+      g.save.thots = (g.save.thots || 0) + 60;
+      FX.text(P.x, P.y - 50, '+60 THOTS', '#4cff9a', 1);
+      g.saveGame();
+    }
+  }
+
+  /* The pit boss. He is not rude about it. He is just not going to move. */
+  const PIT_LINES = [
+    'HE LOOKS AT YOUR SHOES AND THEN AT YOUR FACE. THE SHOES LOSE.',
+    'HE SAYS THE BACK ROOM IS FOR PEOPLE WHO HAVE DONE SOMETHING.',
+    'HE ASKS HOW MANY WORLDS. YOU SAY NONE YET. HE NODS AND STAYS PUT.',
+    'THE ROPE DOES NOT MOVE. HE DOES NOT MOVE. NOTHING MOVES.'
+  ];
+  function tryTheRope(g) {
+    if (salonOpen(g)) {
+      say('HE UNCLIPS THE ROPE WITHOUT A WORD AND STANDS ASIDE.');
+      A.sfx.dock();
+      return;
+    }
+    say(U.pick(PIT_LINES));
+    A.sfx.deny();
+  }
+
+
+  /* ===================================================================== THE CARD
+     What the house thinks of you, and it is the only opinion in the building
+     that is worth anything.
+
+     Every bet you put down anywhere in this room goes on your account,
+     win or lose, because the house does not care whether you win -- it cares
+     how much goes across the felt. Five tiers, and every one of them is worth
+     something real rather than a badge:
+
+        BRONZE   the rope comes down whatever you have or have not destroyed
+        SILVER   the bar stops charging you
+        GOLD     the machines pay fifteen for three instead of twelve
+        BLACK    there is an envelope waiting every time you come in
+        THE LIST somebody fetches THE UNIVERSAL back out for you
+
+     It is a loyalty scheme, which is the politest thing in the galaxy and
+     also the single most expensive. */
+  const VIP = [
+    { at: 0, name: 'NOBODY', note: 'THEY DO NOT KNOW YOUR FACE' },
+    { at: 10000, name: 'BRONZE', note: 'THE ROPE COMES DOWN FOR YOU' },
+    { at: 50000, name: 'SILVER', note: 'THE BAR IS ON THE HOUSE' },
+    { at: 250000, name: 'GOLD', note: 'THE MACHINES PAY FIFTEEN' },
+    { at: 1000000, name: 'BLACK', note: 'AN ENVELOPE EVERY TIME YOU COME IN' },
+    { at: 5000000, name: 'THE LIST', note: 'THEY WILL FETCH THE UNIVERSAL BACK OUT' }
+  ];
+  function vipTier(g) {
+    const w = g.save.wagered || 0;
+    let k = 0;
+    for (let i = 0; i < VIP.length; i++) if (w >= VIP[i].at) k = i;
+    return k;
+  }
+  /* Everything that takes a bet comes through here, so the account can never
+     drift out of step with the games. */
+  function wager(g, amount) {
+    const before = vipTier(g);
+    g.save.wagered = (g.save.wagered || 0) + amount;
+    const after = vipTier(g);
+    if (after > before) {
+      const v = VIP[after];
+      say('THE PIT BOSS WALKS OVER AND SAYS ONE WORD: ' + v.name + '. ' + v.note + '.');
+      FX.text(P.x, P.y - 58, v.name, '#ffd34d', 2);
+      FX.ring(P.x, P.y - 20, 4, 90, 1.1, '#ffd34d', 3);
+      for (let i = 0; i < 40; i++) {
+        FX.spawn({ x: P.x + U.rand(-20, 20), y: P.y - 20, vx: U.rand(-150, 150), vy: U.rand(-250, -70),
+          life: 1.6, size: 2, glow: 1, color: i % 2 ? '#ffd34d' : '#f4f0ff', grav: 210, drag: 1 });
+      }
+      A.sfx.jackpot();
+      g.save.thots = (g.save.thots || 0) + 50 * after;
+      FX.text(P.x, P.y - 74, '+' + (50 * after) + ' THOTS', '#4cff9a', 1);
+    }
+  }
+  /* The envelope, once per visit, for anybody the house is frightened of. */
+  function compYou(g) {
+    if (vipTier(g) < 4) return;
+    const n = 20000 * (vipTier(g) - 3);
+    g.save.comped = (g.save.comped || 0) + n;
+    g.save.credits += n;
+    say('THERE IS AN ENVELOPE AT THE CAGE WITH YOUR NAME ON IT. ' + U.fmt(n) + '.');
+    FX.text(P.x, P.y - 50, '+$' + U.fmt(n), '#ffd34d', 1);
+    A.sfx.chips(4);
+    g.saveGame();
+  }
+
   /* The cage. She does not gamble and she does not stop anyone who does. */
   function cashier(g) {
-    say(U.pick(CAGE_LINES));
+    const k = vipTier(g), v = VIP[k], nx = VIP[k + 1];
+    if (nx) {
+      say(v.name + '. ' + v.note + '. ' + U.fmt(nx.at - (g.save.wagered || 0)) +
+        ' MORE ACROSS THE FELT AND YOU ARE ' + nx.name + '.');
+    } else {
+      say(v.name + '. THERE IS NOTHING ABOVE IT. THEY WILL FETCH ANYTHING YOU ASK FOR.');
+    }
     FX.text(CAGE_X, FLOOR - 70, '$' + U.fmt(g.save.credits), '#ffd34d', 0);
     A.sfx.tone(920, { type: 'triangle', to: 1240, dur: 0.1, vol: 0.05 });
     if (!g.save.seen.cage) {
@@ -376,10 +662,11 @@
     ['ON THE HOUSE', 'NOTHING IN HERE IS ON THE HOUSE. YOU PAID FOR IT.']
   ];
   function buyADrink(g) {
-    if (g.save.credits < 500) { say('FIVE HUNDRED. YOU HAVE NOT GOT IT.'); A.sfx.deny(); return; }
-    g.save.credits -= 500;
+    const free = vipTier(g) >= 2;
+    if (!free && g.save.credits < 500) { say('FIVE HUNDRED. YOU HAVE NOT GOT IT.'); A.sfx.deny(); return; }
+    if (!free) g.save.credits -= 500;
     const d = U.pick(DRINKS);
-    say(d[0] + '. ' + d[1]);
+    say(d[0] + '. ' + (free ? 'THE BARMAN WAVES YOUR MONEY AWAY. ' : '') + d[1]);
     FX.text(P.x, P.y - 46, d[0], '#ffd34d', 1);
     FX.stars(P.x, P.y - 30, 10, '#ffd34d');
     A.sfx.tone(660, { type: 'triangle', to: 1200, dur: 0.18, vol: 0.07 });
@@ -391,6 +678,9 @@
     updateSlots(dt, g);
     updateCards(dt, g);
     updateRoulette(dt, g);
+    updateDice(dt, g);
+    updateBacc(dt, g);
+    S.clap = Math.max(0, S.clap - dt);
     // somebody says something, roughly every couple of seconds
     S.chatT -= dt;
     if (S.chatT <= 0) {
@@ -399,7 +689,13 @@
          and you could not see which table you were standing at. */
       if (!CLUBBERS.some(c => c.sayT > 0)) {
         const pool = CLUBBERS.filter(c => c.kiss <= 0);
-        if (pool.length) { const c = U.pick(pool); c.say = U.pick(CHATTER); c.sayT = U.rand(2.2, 3.2); }
+        if (pool.length) {
+          const c = U.pick(pool);
+          const K = AH.KIN[c.k % AH.KIN.length];
+          // a regular has his own thing to say and says it a third of the time
+          c.say = (K.say && U.chance(0.34)) ? K.say : U.pick(CHATTER);
+          c.sayT = U.rand(2.2, 3.2);
+        }
       }
     }
     for (let i = 0; i < CLUBBERS.length; i++) {
@@ -519,7 +815,12 @@
         sp.sub = tableBusy() ? 'THE BALL IS STILL GOING'
           : (P.x < ROU_X ? 'RED. $500 ON IT.' : 'BLACK. $500 ON IT.');
       }
-      return CLUB_SPOTS;
+      const out = CLUB_SPOTS.slice();
+      out.push({ id: 'rope', x: ROPE_X - 30, r: 26,
+        name: salonOpen(g) ? 'THE SALON' : 'THE ROPE',
+        sub: salonOpen(g) ? 'THEY KNOW YOU BACK THERE NOW' : 'TWO DEAD WORLDS AND HE MOVES' });
+      if (salonOpen(g)) for (const sp of SALON_SPOTS) out.push(sp);
+      return out;
     }
     if (S.scene === 'in') return g.save.pet ? IN_SPOTS : IN_SPOTS.concat([RAT_SPOT]);
     const out = OUT_SPOTS.slice().concat(buildPads(g));
@@ -575,6 +876,10 @@
     if (s.id === 'cage') { cashier(g); return; }
     if (s.id === 'poker' || s.id === 'jack') { playCards(g, s.id); return; }
     if (s.id === 'roulette') { playRoulette(g, P.x < ROU_X); return; }
+    if (s.id === 'rope') { tryTheRope(g); return; }
+    if (s.id === 'craps') { playDice(g); return; }
+    if (s.id === 'bacc') { playBacc(g); return; }
+    if (s.id === 'stage') { askForASong(g); return; }
     if (s.id.indexOf('slot') === 0) { playSlot(g, +s.id.slice(4)); return; }
     if (s.id === 'universal') { P.lock = 1; PD.chum.enterGamble(g); return; }
     if (s.bid) { openBuild(g, s.bid); return; }
@@ -1511,6 +1816,10 @@
     P.land = Math.max(0, P.land - dt * 3.4);
 
     const was = P.near;
+    /* The room itself: a hundred people losing money, heard rather than seen.
+       It follows the scene, so it is on the moment you are through the door
+       and gone the moment you are not. */
+    A.room(S.scene === 'club' ? (salonOpen(g) ? 1 : 0.8) : 0);
     P.near = nearest(g);
     if (P.near && P.near !== was) A.sfx.tone(900, { type: 'square', dur: 0.03, vol: 0.03 });
     if (use_) use(g, P.near);
@@ -1734,12 +2043,12 @@
      table, and behind every table is somebody whose whole job is to take
      your money slowly and politely and offer you another go. */
   const CAS = {
-    black: '#120a12', blackL: '#1d1119', blackD: '#080408',
-    red: '#7a1024', redL: '#c02038', redD: '#4a0a18',
-    felt: '#2a0a12', feltL: '#3d1020',
-    gold: '#ffd34d', goldD: '#a8801e', goldDD: '#5e4410',
-    wood: '#2e1a14', woodL: '#4a2c20',
-    chip: ['#c02038', '#f4f0ff', '#1d1119', '#ffd34d', '#8a1228']
+    black: '#1d1018', blackL: '#2e1c28', blackD: '#0d060c',
+    red: '#9e1730', redL: '#d63550', redD: '#5e0c1e',
+    felt: '#3a0e18', feltL: '#54162a',
+    gold: '#ffd34d', goldD: '#c2932a', goldDD: '#7a5c16',
+    wood: '#3c241a', woodL: '#5e3a28',
+    chip: ['#d63550', '#f4f0ff', '#2e1c28', '#ffd34d', '#9e1730']
   };
 
   /* The four suits, small enough to sit on a card and still read. */
@@ -1801,41 +2110,171 @@
     }
   }
 
-  /* --------------------------------------------------------------- the room */
-  function casinoWall(ctx, t, cam) {
-    X.rect(ctx, 0, CLUB_CEIL, VW, FLOOR - CLUB_CEIL, CAS.black);
-    for (let x = 0; x < CLUB_W; x += 74) {
-      const px = x - cam;
-      if (px < -80 || px > VW + 80) continue;
-      X.plate(ctx, px + 6, CLUB_CEIL + 14, 62, FLOOR - CLUB_CEIL - 40, CAS.redD, CAS.red, CAS.blackD, 4);
-      X.plate(ctx, px + 11, CLUB_CEIL + 19, 52, FLOOR - CLUB_CEIL - 50, CAS.red, CAS.redL, CAS.redD, 3);
-      // the damask: a lattice of little motifs stamped into the flock
-      for (let r = 0; r < 8; r++) {
-        const y = CLUB_CEIL + 26 + r * 10;
-        for (let q = 0; q < 5; q++) damask(ctx, px + 16 + q * 10 + (r % 2) * 5, y, '#6a0c1e');
-      }
-      X.rect(ctx, px, CLUB_CEIL + 10, 6, FLOOR - CLUB_CEIL - 10, CAS.blackL);
-      X.rect(ctx, px, CLUB_CEIL + 10, 2, FLOOR - CLUB_CEIL - 10, CAS.goldDD);
+  /* ---------------------------------------------------------------- the room
+     The first pass at this wall was a row of big flat red rectangles with a
+     soft glow on each one, and it read as a padded cell rather than a room.
+     What it was missing was architecture: it is arched alcoves between fluted
+     pilasters now, over a wood wainscot, under a dentil cornice, and every
+     alcove has something in it.
+
+     All of it is baked once into a single bay and stamped across the room,
+     because it never changes and there are thirty of them. The bay is baked
+     at 2x, the same density as every sprite in the game, so it lands one
+     canvas pixel to one device pixel under the HD transform. */
+  const BAY = 80;
+  const WALL_H = FLOOR - CLUB_CEIL;
+  let bayCv = null;
+
+  function bayArt(kind) {
+    const c = document.createElement('canvas');
+    c.width = BAY * 2; c.height = WALL_H * 2;
+    const q = c.getContext('2d');
+    q.imageSmoothingEnabled = false;
+    q.setTransform(2, 0, 0, 2, 0, 0);
+    const H = WALL_H, TOP = 0;
+
+    // the flock, wall to wall behind everything
+    X.rect(q, 0, TOP, BAY, H, CAS.black);
+
+    /* The alcove. An arch struck off a real circle, so the shoulders curve
+       and the crown is a single pixel wide at the top. */
+    const ax = 12, aw = 56, r = aw / 2, cy2 = 48, base = H - 34;
+    for (let i = 0; i < aw; i++) {
+      const dx = i - r + 0.5;
+      const k = r * r - dx * dx;
+      const top = Math.round(cy2 - (k > 0 ? Math.sqrt(k) : 0));
+      X.rect(q, ax + i, top, 1, base - top, CAS.redD);
+      X.rect(q, ax + i, top, 1, 2, '#2a0610');                 // the reveal
     }
-    // the dado rail, all the way along, with a gold line on it
-    X.rect(ctx, 0, FLOOR - 26, VW, 5, CAS.blackL);
-    X.rect(ctx, 0, FLOOR - 26, VW, 1, CAS.goldD);
-    X.rect(ctx, 0, FLOOR - 22, VW, 1, CAS.blackD);
-    X.rect(ctx, 0, CLUB_CEIL + 8, VW, 4, CAS.blackL);
-    X.rect(ctx, 0, CLUB_CEIL + 11, VW, 1, CAS.goldD);
-    // sconces: a gold bracket with a flame-coloured bulb in it
-    for (let x = 36; x < CLUB_W; x += 74) {
-      const px = x - cam;
-      if (px < -20 || px > VW + 20) continue;
-      const on = (Math.floor(t * 2.2) + ((x / 74) | 0)) % 9 !== 0;
-      X.rect(ctx, px - 2, FLOOR - 58, 5, 12, CAS.goldDD);
-      X.poly(ctx, [[px - 6, FLOOR - 58], [px + 7, FLOOR - 58], [px + 4, FLOOR - 68], [px - 3, FLOOR - 68]],
+    // the gold bead running round the arch
+    for (let i = -2; i < aw + 2; i++) {
+      const dx = i - r + 0.5;
+      const k = (r + 2) * (r + 2) - dx * dx;
+      if (k <= 0) continue;
+      const top = Math.round(cy2 - Math.sqrt(k));
+      X.rect(q, ax + i, top, 1, 2, CAS.goldDD);
+    }
+    X.rect(q, ax - 2, cy2, 2, base - cy2, CAS.goldDD);
+    X.rect(q, ax + aw, cy2, 2, base - cy2, CAS.goldDD);
+
+    // the flock inside it, lit from the top, with the house motif stamped in
+    for (let i = 0; i < aw; i++) {
+      const dx = i - r + 0.5;
+      const k = r * r - dx * dx;
+      const top = Math.round(cy2 - (k > 0 ? Math.sqrt(k) : 0)) + 2;
+      X.rect(q, ax + i, top, 1, base - top - 1, CAS.red);
+    }
+    for (let row = 0; row < 8; row++) {
+      const y = 16 + row * 13;
+      if (y < 10 || y > base - 8) continue;
+      for (let col = 0; col < 3; col++) {
+        const dxp = ax + 14 + col * 14 + (row % 2) * 7;
+        const dx = dxp - ax - r;
+        if (y < cy2 && dx * dx > r * r - (cy2 - y) * (cy2 - y) - 40) continue;
+        damask(q, dxp, y, '#5e0a1a');
+      }
+    }
+
+    if (kind === 0) {
+      /* A mirror in the alcove, which is what casinos put on every wall they
+         own. The room in it is a smear, deliberately -- a real reflection
+         would need the room drawn twice and would read as a window. */
+      X.rect(q, ax + 8, 30, aw - 16, base - 36, '#1a1826');
+      for (let i = 0; i < aw - 16; i++) {
+        const dx = i - (aw - 16) / 2;
+        const k = ((aw - 16) / 2) * ((aw - 16) / 2) - dx * dx;
+        if (k <= 0) continue;
+        X.rect(q, ax + 8 + i, 30 - Math.round(Math.sqrt(k)), 1, Math.round(Math.sqrt(k)) + 1, '#1a1826');
+      }
+      /* What is in it: the far side of the room, gone soft. A hard diagonal
+         streak here read as a scratch down the glass rather than a reflection. */
+      q.globalAlpha = 0.12;
+      X.poly(q, [[ax + 13, base - 8], [ax + 24, 30], [ax + 30, 30], [ax + 19, base - 8]], '#6a6490');
+      q.globalAlpha = 0.22;
+      X.rect(q, ax + 10, base - 34, aw - 20, 26, '#7a2038');
+      X.blob(q, ax + r, base - 22, 9, 7, '#9e1730');
+      q.globalAlpha = 0.3;
+      X.blob(q, ax + r - 8, 46, 4, 5, '#c2932a');
+      q.globalAlpha = 1;
+      X.rect(q, ax + 8, 30, 2, base - 36, CAS.goldD);
+    } else if (kind === 1) {
+      // a curtain, swagged back, over nothing in particular
+      for (let i = 0; i < 7; i++) {
+        const fx2 = ax + 6 + i * 7;
+        X.rect(q, fx2, 22, 6, base - 24, i % 2 ? '#5e0a1a' : '#7a1024');
+        X.rect(q, fx2, 22, 2, base - 24, '#8a1228');
+      }
+      X.rect(q, ax + 4, 20, aw - 8, 4, CAS.goldDD);
+      X.rect(q, ax + 4, base - 40, aw - 8, 3, CAS.goldD);
+    } else {
+      // and the third one is just the flock, with a gold sunburst on it
+      for (let i = 0; i < 12; i++) {
+        const a = i / 12 * U.TAU;
+        X.line(q, ax + r, cy2 + 26, ax + r + Math.cos(a) * 15, cy2 + 26 + Math.sin(a) * 15, '#8a1228', 1);
+      }
+      X.blob(q, ax + r, cy2 + 26, 7, 7, CAS.goldDD);
+      X.blob(q, ax + r, cy2 + 26, 5, 5, CAS.goldD);
+      X.blob(q, ax + r, cy2 + 26, 2, 2, '#2a1c06');
+    }
+
+    /* The pilaster: a fluted column between the bays, which is what stops
+       the wall reading as wallpaper. */
+    X.rect(q, 0, 4, 10, H - 4, CAS.blackL);
+    X.rect(q, 0, 4, 1, H - 4, '#3a2a38');
+    X.rect(q, 9, 4, 1, H - 4, CAS.blackD);
+    for (let i = 0; i < 3; i++) {
+      X.rect(q, 2 + i * 3, 18, 1, H - 56, CAS.goldDD);
+      X.rect(q, 3 + i * 3, 18, 1, H - 56, '#241a08');
+    }
+    X.rect(q, -1, 10, 12, 6, CAS.blackL);                      // the capital
+    X.rect(q, -1, 10, 12, 1, CAS.goldD);
+    X.rect(q, -1, 15, 12, 1, CAS.goldDD);
+    X.rect(q, -1, H - 40, 12, 7, CAS.blackL);                  // and the base
+    X.rect(q, -1, H - 40, 12, 1, CAS.goldD);
+
+    /* The wainscot, along the bottom of everything: wood panels with a gold
+       bead and a skirting, which is what gives the wall a foot. */
+    X.rect(q, 0, H - 34, BAY, 34, CAS.wood);
+    X.rect(q, 0, H - 34, BAY, 2, CAS.woodL);
+    X.rect(q, 0, H - 32, BAY, 1, CAS.goldDD);
+    for (let i = 0; i < 2; i++) {
+      const px = 14 + i * 36;
+      X.plate(q, px, H - 27, 30, 17, '#3a2018', '#54301f', '#160c08', 2);
+      X.rect(q, px + 3, H - 24, 24, 11, CAS.wood);
+      X.rect(q, px + 3, H - 24, 24, 1, '#54301f');
+    }
+    X.rect(q, 0, H - 8, BAY, 8, CAS.blackD);
+    X.rect(q, 0, H - 8, BAY, 1, CAS.woodL);
+    return c;
+  }
+
+  function casinoWall(ctx, t, cam) {
+    if (!bayCv) bayCv = [0, 1, 2].map(bayArt);
+    X.rect(ctx, 0, CLUB_CEIL, VW, WALL_H, CAS.black);
+    const first = Math.floor(cam / BAY) - 1;
+    for (let b = first; b < first + Math.ceil(VW / BAY) + 2; b++) {
+      const px = b * BAY - cam;
+      if (px < -BAY || px > VW) continue;
+      const k = ((b % 3) + 3) % 3;
+      ctx.drawImage(bayCv[k], Math.round(px), CLUB_CEIL, BAY, WALL_H);
+    }
+    // sconces on the pilasters, live, because they gutter
+    for (let b = first; b < first + Math.ceil(VW / BAY) + 2; b++) {
+      const px = Math.round(b * BAY - cam) + 5;
+      if (px < -14 || px > VW + 14) continue;
+      const on = (Math.floor(t * 2.6) + ((b % 7) + 7) % 7) % 11 !== 0;
+      X.rect(ctx, px - 2, FLOOR - 62, 5, 10, CAS.goldDD);
+      X.poly(ctx, [[px - 6, FLOOR - 62], [px + 7, FLOOR - 62], [px + 4, FLOOR - 71], [px - 3, FLOOR - 71]],
         on ? CAS.goldD : '#3a2a10');
-      X.blob(ctx, px, FLOOR - 64, 4, 5, on ? '#ffe9a8' : '#5a4418');
+      X.rect(ctx, px - 5, FLOOR - 63, 11, 1, CAS.gold);
       if (on) {
-        ctx.globalAlpha = 0.13;
-        X.blob(ctx, px, FLOOR - 62, 22, 26, CAS.gold);
+        X.blob(ctx, px, FLOOR - 67, 3, 4 + Math.sin(t * 9 + b) * 0.6, '#ffe9a8');
+        X.blob(ctx, px, FLOOR - 68, 1.5, 2, '#fffbe0');
+        ctx.globalAlpha = 0.10;
+        X.blob(ctx, px, FLOOR - 66, 11, 13, CAS.gold);
         ctx.globalAlpha = 1;
+      } else {
+        X.blob(ctx, px, FLOOR - 66, 3, 3, '#5a4418');
       }
     }
     casinoWallArt(ctx, t, cam);
@@ -1971,11 +2410,11 @@
      One dealer behind each table. The sprite is the whole performance: the
      arms go out over the felt on the deal and come back when there is nothing
      to do, which is most of the time. */
-  function drawDealer(ctx, x, t, k, busy) {
+  function drawDealer(ctx, x, t, k, busy, fy) {
     const f = busy ? (Math.floor(t * 5) % 2) : (Math.floor(t * 0.9 + k) % 6 === 0 ? 1 : 0);
     /* Feet well above the floor line: he is on the far side of the table, and
        drawn at floor level the felt ate him from the waist up. */
-    AH.blit(ctx, AH.S['dealer' + k], f, x, FLOOR - 40 + Math.sin(t * 1.4 + k) * 0.6);
+    AH.blit(ctx, AH.S['dealer' + k], f, x, (fy === undefined ? FLOOR : fy) - 40 + Math.sin(t * 1.4 + k) * 0.6);
   }
 
   /* A punter sat at a table with their back half to you. */
@@ -2011,6 +2450,27 @@
     X.rect(ctx, cx - 40, FLOOR - 26, 80, 2, CAS.goldDD);
     F.draw(ctx, 'CASHIER', cx, FLOOR - 86, CAS.gold, { center: true, shadow: '#0a0408' });
     F.draw(ctx, 'NO CREDIT', cx, FLOOR - 20, '#8a6a3a', { center: true, shadow: false });
+
+    /* The board beside the cage: five tiers, a lamp against each, and the one
+       you are on lit. It is the only thing in the building that tells you you
+       are getting somewhere, which is of course the point of it. */
+    const bx = cx + 54, k = vipTier(g);
+    X.plate(ctx, bx, FLOOR - 92, 62, 92, CAS.blackL, CAS.goldD, CAS.blackD, 4);
+    X.rect(ctx, bx + 3, FLOOR - 89, 56, 10, CAS.redD);
+    F.draw(ctx, 'THE CARD', bx + 31, FLOOR - 87, CAS.gold, { center: true, shadow: false });
+    for (let i = 1; i < VIP.length; i++) {
+      const y = FLOOR - 76 + (i - 1) * 13, on = k >= i;
+      const lit = on && (Math.floor(t * 3) + i) % 6 !== 0;
+      X.blob(ctx, bx + 9, y + 4, 3, 3, lit ? CAS.gold : '#3a2a10');
+      if (lit) {
+        ctx.globalAlpha = 0.18;
+        X.blob(ctx, bx + 9, y + 4, 8, 8, CAS.gold);
+        ctx.globalAlpha = 1;
+      }
+      F.draw(ctx, VIP[i].name, bx + 17, y + 1, on ? CAS.gold : '#5a4430', { shadow: false });
+    }
+    X.rect(ctx, bx + 3, FLOOR - 14, 56, 1, CAS.goldDD);
+    F.draw(ctx, U.fmt(g.save.wagered || 0), bx + 31, FLOOR - 11, '#8a6a3a', { center: true, shadow: false });
   }
 
   /* ---------------------------------------------------------- the card table
@@ -2219,6 +2679,269 @@
     F.draw(ctx, 'BAR', bx, FLOOR - 88, CAS.gold, { center: true, scale: 2, shadow: '#0a0408' });
   }
 
+
+  /* The three steps, and the floor they lead up to. Drawn before the rope so
+     the stanchions stand on them. */
+  function drawStep(ctx, g, t, cam) {
+    const sx = STEP_X - cam;
+    if (sx > VW + 40) return;
+    const w = CLUB_W - STEP_X;
+    // the raised floor: the same carpet, a shade richer, with a brass nosing
+    X.rect(ctx, sx, SALON_Y, w, VH - SALON_Y, '#6a0f20');
+    X.rect(ctx, sx, SALON_Y + 12, w, VH - SALON_Y - 12, '#7d1326');
+    X.rect(ctx, sx, SALON_Y + 30, w, VH - SALON_Y - 30, '#8e1528');
+    for (let x = ((-cam % 36) + 36) % 36 - 36; x < VW + 36; x += 36) {
+      if (x + 36 < sx) continue;
+      for (let r = 0; r < 3; r++) {
+        const cx2 = x + 18 + (r % 2) * 18, cy2 = SALON_Y + 8 + r * 15;
+        if (cx2 < sx + 6) continue;
+        const rw = 7 + r * 3, rh = 3 + r * 1.2;
+        X.poly(ctx, [[cx2, cy2 - rh], [cx2 + rw, cy2], [cx2, cy2 + rh], [cx2 - rw, cy2]], '#4a0c1a');
+        X.poly(ctx, [[cx2, cy2 - rh * 0.45], [cx2 + rw * 0.45, cy2], [cx2, cy2 + rh * 0.45],
+          [cx2 - rw * 0.45, cy2]], '#8a4418');
+      }
+    }
+    // three treads coming down to the main floor
+    for (let i = 0; i < 3; i++) {
+      const y = SALON_Y + i * 5, h = 5;
+      X.rect(ctx, sx - 18 + i * 6, y, 20 - i * 6, h, i % 2 ? '#6a0f20' : '#5e0c1e');
+      X.rect(ctx, sx - 18 + i * 6, y, 20 - i * 6, 1, CAS.goldDD);
+    }
+    X.rect(ctx, sx, SALON_Y - 1, w, 2, CAS.blackD);
+    X.rect(ctx, sx, SALON_Y + 1, w, 1, CAS.goldDD);
+  }
+
+  /* ---------------------------------------------------------------- the rope
+     A gold stanchion each side, a length of red velvet between them, and a
+     man in front of it whose whole job is the word no. */
+  function drawRope(ctx, g, t, cam) {
+    const rx = ROPE_X - cam;
+    if (rx < -80 || rx > VW + 80) return;
+    const open = salonOpen(g);
+    // the arch through, with the name of the room over it
+    X.plate(ctx, rx - 46, CLUB_CEIL + 2, 14, FLOOR - CLUB_CEIL - 2, CAS.blackL, CAS.goldD, CAS.blackD, 3);
+    X.plate(ctx, rx + 32, CLUB_CEIL + 2, 14, FLOOR - CLUB_CEIL - 2, CAS.blackL, CAS.goldD, CAS.blackD, 3);
+    X.plate(ctx, rx - 48, CLUB_CEIL - 4, 96, 14, CAS.redD, CAS.gold, CAS.blackD, 4);
+    F.draw(ctx, 'SALON', rx, CLUB_CEIL - 1, open ? CAS.gold : '#7a5c16', { center: true, shadow: CAS.blackD });
+    for (let i = 0; i < 9; i++) {
+      const on = open && (Math.floor(t * 5) + i) % 4 !== 0;
+      X.blob(ctx, rx - 40 + i * 10, CLUB_CEIL + 14, 2, 2, on ? CAS.gold : '#4a3a10');
+    }
+    // the stanchions and the velvet between them
+    for (const sx of [rx - 26, rx + 26]) {
+      X.rect(ctx, sx - 1, FLOOR - 32, 3, 32, CAS.goldDD);
+      X.rect(ctx, sx - 1, FLOOR - 32, 1, 32, CAS.goldD);
+      X.blob(ctx, sx, FLOOR - 34, 4, 4, CAS.gold);
+      X.blob(ctx, sx, FLOOR, 7, 2, CAS.goldDD);
+    }
+    if (!open) {
+      X.curve(ctx, rx - 26, FLOOR - 32, rx, FLOOR - 20, rx + 26, FLOOR - 32, '#5e0c1e', 4, 10);
+      X.curve(ctx, rx - 26, FLOOR - 33, rx, FLOOR - 21, rx + 26, FLOOR - 33, '#9e1730', 2, 10);
+      // and him, stood in the gap with his hands behind his back
+      AH.blit(ctx, AH.S.bouncer, 0, rx - 6, FLOOR + 1);
+      X.blob(ctx, rx - 6, FLOOR + 1, 10, 2, CAS.blackD);
+    } else {
+      // unclipped: the velvet hangs down one side and the way is open
+      X.curve(ctx, rx - 26, FLOOR - 32, rx - 22, FLOOR - 16, rx - 24, FLOOR - 2, '#5e0c1e', 4, 8);
+      ctx.globalAlpha = 0.1;
+      X.blob(ctx, rx, FLOOR - 40, 34, 40, CAS.gold);
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  /* ------------------------------------------------------------- the dice
+     A long sunken table with a diamond wall down the far end for them to come
+     off, a stickman with a rake and whatever the last roll was still lying
+     where it stopped. */
+  const PIP = [[], [[0, 0]], [[-1, -1], [1, 1]], [[-1, -1], [0, 0], [1, 1]],
+    [[-1, -1], [1, -1], [-1, 1], [1, 1]], [[-1, -1], [1, -1], [0, 0], [-1, 1], [1, 1]],
+    [[-1, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [1, 1]]];
+  function die(ctx, x, y, n, spin) {
+    ctx.save();
+    ctx.translate(Math.round(x), Math.round(y));
+    if (spin) ctx.rotate(spin);
+    X.plate(ctx, -6, -6, 13, 13, '#f4f0ff', '#ffffff', '#9a92b4', 3);
+    for (const [px, py] of PIP[U.clamp(n, 1, 6)]) {
+      X.rect(ctx, px * 4 - 1, py * 4 - 1, 3, 3, n === 1 || n === 5 ? '#d63550' : '#1a1024');
+    }
+    ctx.restore();
+  }
+
+  function drawCraps(ctx, g, t, cam) {
+    const cx = CRAPS_X - cam, TOP = SALON_Y - 50;
+    if (cx < -130 || cx > VW + 130) return;
+    // the stickman, behind it with his rake out over the felt
+    drawDealer(ctx, cx - 58, t, 2, DICE.live, SALON_Y);
+    X.line(ctx, cx - 50, SALON_Y - 52, cx - 10, SALON_Y - 44, CAS.wood, 2);
+    X.rect(ctx, cx - 14, SALON_Y - 46, 12, 3, CAS.woodL);
+    /* A shallow bed of felt with a padded rail along the near edge and the
+       apron under it. The first pass was a tall wooden box with the game
+       hidden somewhere on top of it, and all you could see was the box. */
+    X.blob(ctx, cx, SALON_Y + 3, 64, 5, '#3d0a16');
+    X.plate(ctx, cx - 56, TOP + 30, 112, 22, CAS.wood, CAS.woodL, '#160c08', 3);
+    X.rect(ctx, cx - 56, TOP + 30, 112, 2, CAS.goldDD);
+    X.plate(ctx, cx - 64, TOP, 128, 32, CAS.felt, CAS.feltL, CAS.blackD, 4);
+    X.rect(ctx, cx - 60, TOP + 3, 120, 24, '#2e0a14');
+    // the diamond wall they have to come off, down the far end
+    for (let i = 0; i < 8; i++) X.poly(ctx, [[cx + 26 + i * 5, TOP + 4], [cx + 29 + i * 5, TOP + 8],
+      [cx + 26 + i * 5, TOP + 12], [cx + 23 + i * 5, TOP + 8]], '#5e0c1e');
+    // the layout painted on it
+    X.rect(ctx, cx - 56, TOP + 6, 46, 14, '#3d0e1a');
+    F.draw(ctx, 'PASS', cx - 33, TOP + 9, '#a84a5a', { center: true, shadow: false });
+    F.draw(ctx, '7 PAYS 3    11 PAYS 5', cx + 4, TOP + 22, '#8a3a4a', { center: true, shadow: false });
+    // the rail, and the chips racked along it
+    X.plate(ctx, cx - 66, TOP + 26, 132, 7, '#5e0c1e', '#9e1730', CAS.blackD, 3);
+    for (let i = 0; i < 7; i++) chipStack(ctx, cx - 52 + i * 17, TOP + 30, 2, i);
+    // the dice themselves
+    /* They come off the far wall and run back down the felt. Sixteen pixels
+       apart and well right of centre, because at eight they read as one white
+       blob and at centre the player stands on top of them. */
+    if (DICE.live) {
+      const q = U.clamp(DICE.t / 1.25, 0, 1);
+      const e = 1 - Math.pow(1 - q, 3);
+      const bounce = q < 1 ? Math.abs(Math.sin(q * 9)) * (1 - q) * 13 : 0;
+      const sp = q < 1 ? (1 - q) * 22 : 0;
+      die(ctx, cx + 52 - e * 30, TOP + 13 - bounce, DICE.done ? DICE.a : U.randInt(1, 6), sp);
+      die(ctx, cx + 56 - e * 18, TOP + 19 - bounce * 0.7, DICE.done ? DICE.b : U.randInt(1, 6), -sp);
+      chipStack(ctx, cx - 33, TOP + 12, 5, 0);
+    } else if (DICE.rest > 0) {
+      die(ctx, cx + 22, TOP + 13, DICE.a, 0);
+      die(ctx, cx + 38, TOP + 19, DICE.b, 0);
+      if (DICE.win) {
+        ctx.globalAlpha = 0.16 + Math.sin(t * 9) * 0.06;
+        X.blob(ctx, cx + 30, TOP + 16, 22, 11, CAS.gold);
+        ctx.globalAlpha = 1;
+      }
+    }
+    // and the ones who have been here all night, out at the ends of it
+    drawSeated(ctx, cx - 74, t, 4, false, SALON_Y - 2);
+    drawSeated(ctx, cx + 76, t, 8, true, SALON_Y - 2);
+    F.draw(ctx, 'THE DICE', cx, TOP + 36, '#c2932a', { center: true, shadow: false });
+  }
+
+  /* ------------------------------------------------------------- the lounge
+     A little stage with a curtain behind it, a spotlight on it, a woman who
+     has been singing in this room since before the carpet, and a two-piece
+     band who would rather be anywhere else. */
+  function drawLounge(ctx, g, t, cam) {
+    const sx = STAGE_X - cam, TOP = SALON_Y - 24;
+    if (sx < -140 || sx > VW + 140) return;
+    // the curtain, floor to ceiling, behind the lot
+    for (let i = 0; i < 18; i++) {
+      const fx2 = sx - 72 + i * 8;
+      X.rect(ctx, fx2, CLUB_CEIL + 12, 8, TOP - CLUB_CEIL - 4, i % 2 ? '#5e0c1e' : '#7d1326');
+      X.rect(ctx, fx2, CLUB_CEIL + 12, 2, TOP - CLUB_CEIL - 4, '#9e1730');
+    }
+    X.rect(ctx, sx - 72, CLUB_CEIL + 10, 144, 5, CAS.goldDD);
+    X.rect(ctx, sx - 72, CLUB_CEIL + 10, 144, 1, CAS.gold);
+    // the boards
+    X.plate(ctx, sx - 66, TOP, 132, 26, CAS.wood, CAS.woodL, '#160c08', 3);
+    X.rect(ctx, sx - 66, TOP, 132, 2, CAS.goldDD);
+    for (let i = 0; i < 13; i++) {
+      const on = (Math.floor(t * 5) + i) % 5 !== 0;
+      X.blob(ctx, sx - 60 + i * 10, TOP + 21, 2, 2, on ? CAS.gold : '#4a3a10');
+    }
+    // the spot on her, from somewhere out of shot
+    ctx.globalAlpha = 0.12 + (S.clap > 0 ? 0.05 : 0);
+    X.poly(ctx, [[sx - 6, CLUB_CEIL + 14], [sx + 8, CLUB_CEIL + 14],
+      [sx + 26, TOP + 2], [sx - 24, TOP + 2]], '#ffe9a8');
+    ctx.globalAlpha = 1;
+    // the band: a bass on one side, a horn on the other
+    const sway = Math.sin(t * 2.1) * 1.4;
+    drawSeated(ctx, sx - 50, t, 5, false, TOP + 2);
+    // a double bass: a body with a waist in it, a neck, a scroll and four strings
+    X.blob(ctx, sx - 36, TOP - 6, 9, 10, '#7a4a20');
+    X.blob(ctx, sx - 36, TOP - 18, 7, 8, '#7a4a20');
+    X.blob(ctx, sx - 36, TOP - 6, 6, 7, '#5e3416');
+    X.rect(ctx, sx - 40, TOP - 12, 2, 5, '#3a1e0c');
+    X.rect(ctx, sx - 33, TOP - 12, 2, 5, '#3a1e0c');
+    X.rect(ctx, sx - 37, TOP - 40, 3, 22, '#3a1e0c');
+    X.blob(ctx, sx - 36, TOP - 42, 3, 3, '#5e3416');
+    for (let i = 0; i < 4; i++) X.rect(ctx, sx - 38 + i, TOP - 38, 1, 34, '#d8cfb4');
+    drawSeated(ctx, sx + 46, t, 18, true, TOP + 2);
+    X.line(ctx, sx + 38, TOP - 18, sx + 26, TOP - 24, CAS.goldD, 3);
+    X.poly(ctx, [[sx + 26, TOP - 28], [sx + 26, TOP - 20], [sx + 16, TOP - 16], [sx + 16, TOP - 32]], CAS.gold);
+    // and her, at the microphone
+    const K = AH.KIN[2 % AH.KIN.length];
+    AH.blit(ctx, AH.S[K.key], S.clap > 0 ? 6 : ((Math.floor(t * 2.4) % 4) === 0 ? 3 : 0),
+      sx + sway, TOP + 3, false);
+    X.rect(ctx, sx + 12, TOP - 18, 2, 21, CAS.goldDD);
+    X.blob(ctx, sx + 13, TOP - 20, 3, 4, '#3a3348');
+    X.blob(ctx, sx + 13, TOP - 21, 2, 2, '#8e86a8');
+    // the number on the board at the side of the stage
+    X.plate(ctx, sx - 82, TOP - 38, 52, 22, CAS.blackL, CAS.goldD, CAS.blackD, 3);
+    const sg = SONGS[U.clamp(S.songI, 0, SONGS.length - 1)];
+    F.draw(ctx, 'TONIGHT', sx - 56, TOP - 34, '#8a6a3a', { center: true, shadow: false });
+    F.draw(ctx, S.songI >= 0 ? sg.name.split(' ')[0] : 'ASK HER', sx - 56, TOP - 25, CAS.gold,
+      { center: true, shadow: false });
+    if (S.clap > 0) {
+      for (let i = 0; i < 2; i++) {
+        if (U.chance(0.4)) FX.stars(STAGE_X + U.rand(-50, 50), SALON_Y - U.rand(20, 50), 1, '#ffd34d');
+      }
+    }
+    F.draw(ctx, 'THE LOUNGE', sx, CLUB_CEIL + 16, CAS.gold, { center: true, scale: 2, shadow: CAS.blackD });
+  }
+
+  /* ----------------------------------------------------------- the baccarat
+     The quietest table in the building. A shoe, two cards a side, and a woman
+     who has never once looked surprised. */
+  function drawBacc(ctx, g, t, cam) {
+    const bx = BACC_X - cam, TOP = SALON_Y - 48;
+    if (bx < -130 || bx > VW + 130) return;
+    drawDealer(ctx, bx, t, 1, BACC.live && BACC.t < 1.2, SALON_Y);
+    X.blob(ctx, bx, SALON_Y + 3, 58, 5, '#3d0a16');
+    X.plate(ctx, bx - 20, TOP + 28, 40, 20, CAS.wood, CAS.woodL, '#160c08', 3);
+    // a long shallow kidney of felt, in a padded rim with gold studs round it
+    X.rect(ctx, bx - 58, TOP + 16, 116, 14, '#3d0812');
+    X.blob(ctx, bx, TOP + 28, 58, 10, '#3d0812');
+    X.blob(ctx, bx, TOP + 16, 58, 14, '#8a1228');
+    X.blob(ctx, bx, TOP + 15, 58, 13, CAS.redL);
+    X.blob(ctx, bx, TOP + 16, 51, 11, CAS.felt);
+    X.blob(ctx, bx, TOP + 15, 51, 10, CAS.feltL);
+    for (let i = 0; i < 17; i++) {
+      const a = i / 16 * Math.PI;
+      X.rect(ctx, bx - Math.cos(a) * 54, TOP + 15 + Math.sin(a) * 13, 2, 2, CAS.goldD);
+    }
+    // the two boxes painted on the felt
+    for (let i = 0; i < 2; i++) {
+      const px = bx - 26 + i * 30;
+      X.rect(ctx, px - 13, TOP + 11, 26, 11, '#2e0a14');
+      X.rect(ctx, px - 13, TOP + 11, 26, 1, '#6a1428');
+      F.draw(ctx, i ? 'BANK' : 'YOU', px, TOP + 13, i ? '#a84a5a' : '#c2932a', { center: true, shadow: false });
+    }
+    // the shoe at her elbow
+    X.plate(ctx, bx + 40, TOP + 2, 18, 12, CAS.blackL, '#44303e', CAS.blackD, 2);
+    X.rect(ctx, bx + 43, TOP - 1, 12, 4, CAS.redD);
+    if (BACC.live) {
+      const q = BACC.t, up = q > 1.9;
+      const at = [[-30, 0.25], [30, 0.5], [-38, 0.75], [38, 1.0]];
+      for (let i = 0; i < 4; i++) {
+        if (q < at[i][1]) continue;
+        const mine = i % 2 === 0;
+        const c = mine ? BACC.you[i >> 1] : BACC.dlr[i >> 1];
+        const su = mine ? BACC.ys[i >> 1] : BACC.ds[i >> 1];
+        const sl = U.clamp((q - at[i][1]) / 0.2, 0, 1);
+        cardAt(ctx, bx + 44 - (44 - at[i][0]) * sl, TOP + 8 + sl * 6,
+          RANKS[c], su, up, (i % 2 ? 0.1 : -0.1) + (i > 1 ? 0.2 : 0));
+      }
+      chipStack(ctx, bx - 44, TOP + 20, 5, 0);
+      if (up) {
+        F.draw(ctx, String(BACC.yt), bx - 26, TOP - 8, BACC.win ? CAS.gold : '#9a92b4',
+          { center: true, scale: 2, shadow: CAS.blackD });
+        F.draw(ctx, String(BACC.dt), bx + 30, TOP - 8, BACC.win ? '#9a92b4' : CAS.gold,
+          { center: true, scale: 2, shadow: CAS.blackD });
+        if (BACC.win) {
+          ctx.globalAlpha = 0.16 + Math.sin(t * 9) * 0.06;
+          X.blob(ctx, bx - 26, TOP + 14, 26, 12, CAS.gold);
+          ctx.globalAlpha = 1;
+        }
+      }
+    }
+    drawSeated(ctx, bx - 78, t, 19, false, SALON_Y - 2);
+    drawSeated(ctx, bx + 78, t, 7, true, SALON_Y - 2);
+    F.draw(ctx, 'BACCARAT', bx, TOP + 33, '#c2932a', { center: true, shadow: false });
+  }
+
   /* ------------------------------------------------------------ the whole room */
   function drawClub(ctx, g, t, cam) {
     X.rect(ctx, 0, 0, VW, VH, CAS.blackD);
@@ -2239,6 +2962,19 @@
     drawRoulette(ctx, g, t, cam);
     cardTable(ctx, g, t, cam, JACK_X, 'BLACKJACK', 'jack');
     drawSlots(ctx, g, t, cam);
+    drawStep(ctx, g, t, cam);
+    drawRope(ctx, g, t, cam);
+    if (salonOpen(g)) {
+      drawCraps(ctx, g, t, cam);
+      drawLounge(ctx, g, t, cam);
+      drawBacc(ctx, g, t, cam);
+    } else {
+      // the back of the house, seen past him, with the lights off
+      ctx.globalAlpha = 0.55;
+      X.rect(ctx, ROPE_X + 46 - cam, CLUB_CEIL, CLUB_W - ROPE_X, FLOOR - CLUB_CEIL, CAS.blackD);
+      X.rect(ctx, ROPE_X + 46 - cam, FLOOR, CLUB_W - ROPE_X, VH - FLOOR, CAS.blackD);
+      ctx.globalAlpha = 1;
+    }
 
     for (const c of CLUBBERS) if (c.say) {
       const K = AH.KIN[c.k % AH.KIN.length];
@@ -2299,11 +3035,12 @@
   function playSlot(g, i) {
     if (SLOT.at >= 0) return;                       // one at a time
     if (g.save.credits < STAKE) { say('TWO HUNDRED A GO. YOU HAVE NOT GOT IT.'); A.sfx.deny(); return; }
-    g.save.credits -= STAKE;
+    g.save.credits -= STAKE; wager(g, STAKE);
     SLOT.at = i; SLOT.t = 0; SLOT.lever = 1; SLOT.win = 0; SLOT.msg = 0;
     // decide first, then make the reels land on the decision
     const r = U.rand();
-    if (r < 0.03) { const k = U.randInt(0, 4); SLOT.land = [k, k, k]; SLOT.win = STAKE * 12; }
+    const JACK = vipTier(g) >= 3 ? 15 : 12;       // GOLD gets a better machine
+    if (r < 0.03) { const k = U.randInt(0, 4); SLOT.land = [k, k, k]; SLOT.win = STAKE * JACK; }
     else if (r < 0.23) {
       const k = U.randInt(0, 4);
       let o = U.randInt(0, 4); if (o === k) o = (k + 1) % 5;
@@ -2369,36 +3106,36 @@
        The same room you end up in later, at a tenth of the size: purple walls,
        an arcade of lit rooms along the back, gold lamps, red carpet with the
        house diamond stamped into it, and a velvet rope holding nobody back. */
-    X.rect(ctx, a0 + 10, CH2, W, FLOOR - CH2, '#25103c');
+    X.rect(ctx, a0 + 10, CH2, W, FLOOR - CH2, CAS.black);
     const grd = ctx.createLinearGradient(0, CH2, 0, FLOOR);
-    grd.addColorStop(0, '#1a0a2e'); grd.addColorStop(1, '#3a1550');
+    grd.addColorStop(0, '#12080e'); grd.addColorStop(1, '#4a0f1e');
     ctx.fillStyle = grd; ctx.fillRect(a0 + 10, CH2, W, FLOOR - CH2);
     // the arcade: six lit openings with a rank of little machines in each
     for (let i = 0; i < 11; i++) {
       const x = a0 + 26 + i * 34, hue = HUES[i % HUES.length];
-      X.rect(ctx, x - 14, CH2 + 8, 28, 40, '#1c0c30');
+      X.rect(ctx, x - 14, CH2 + 8, 28, 40, '#160a12');
       for (let k = 0; k <= 8; k++) {
         const a = Math.PI + k * (Math.PI / 8);
-        X.blob(ctx, x + Math.cos(a) * 14, CH2 + 8 + Math.sin(a) * 9, 2, 2, '#4a2270');
+        X.blob(ctx, x + Math.cos(a) * 14, CH2 + 8 + Math.sin(a) * 9, 2, 2, CAS.goldDD);
       }
       ctx.globalAlpha = 0.2; X.rect(ctx, x - 13, CH2 + 10, 26, 38, hue); ctx.globalAlpha = 1;
       ctx.globalAlpha = 0.45; X.rect(ctx, x - 13, CH2 + 10, 26, 2, hue); ctx.globalAlpha = 1;
       for (let m = -1; m <= 1; m++) {
-        X.rect(ctx, x + m * 8 - 3, CH2 + 34, 7, 14, '#150920');
-        X.rect(ctx, x + m * 8 - 3, CH2 + 32, 7, 2, '#22102f');
+        X.rect(ctx, x + m * 8 - 3, CH2 + 34, 7, 14, CAS.blackD);
+        X.rect(ctx, x + m * 8 - 3, CH2 + 32, 7, 2, CAS.blackL);
         const on = (Math.floor(t * 3.5) + i + m) % 4 !== 0;
-        X.rect(ctx, x + m * 8 - 2, CH2 + 37, 5, 3, on ? hue : '#1d0c2c');
+        X.rect(ctx, x + m * 8 - 2, CH2 + 37, 5, 3, on ? hue : '#1d0c14');
       }
-      X.rect(ctx, x - 18, CH2 + 6, 8, 44, '#2e1446');                  // the pier
-      X.rect(ctx, x - 18, CH2 + 6, 2, 44, '#4a2270');
+      X.rect(ctx, x - 18, CH2 + 6, 8, 44, CAS.blackL);                  // the pier
+      X.rect(ctx, x - 18, CH2 + 6, 2, 44, CAS.goldDD);
     }
     // a rail along the front of it, and two chandeliers
-    X.rect(ctx, a0 + 10, CH2 + 50, W, 3, '#4a2270');
-    X.rect(ctx, a0 + 10, CH2 + 50, W, 1, '#8a5ac0');
-    for (let i = 0; i < 42; i++) X.rect(ctx, a0 + 14 + i * 9, CH2 + 53, 2, 6, '#3c1a58');
+    X.rect(ctx, a0 + 10, CH2 + 50, W, 3, CAS.goldDD);
+    X.rect(ctx, a0 + 10, CH2 + 50, W, 1, CAS.goldD);
+    for (let i = 0; i < 42; i++) X.rect(ctx, a0 + 14 + i * 9, CH2 + 53, 2, 6, CAS.redD);
     for (const gx of [a0 + 62, a0 + 190, a0 + 318]) {
       const cy = CH2 + 14 + Math.sin(t * 0.6 + gx) * 1;
-      X.rect(ctx, gx, CH2, 1, 14, '#5a4a78');
+      X.rect(ctx, gx, CH2, 1, 14, CAS.goldDD);
       for (let k = 0; k < 7; k++) {
         const a = k / 7 * U.TAU + t * 0.22;
         X.blob(ctx, gx + Math.cos(a) * 7, cy + Math.sin(a) * 3, 2, 2, '#ffe9a8');
@@ -2408,21 +3145,21 @@
     }
 
     // the carpet, with the house diamond stamped into it
-    X.rect(ctx, a0 + 10, FLOOR, W, VH - FLOOR, '#3a0e26');
+    X.rect(ctx, a0 + 10, FLOOR, W, VH - FLOOR, '#5e0d1e');
     for (let y = 0; y < VH - FLOOR; y += 6) {
-      X.rect(ctx, a0 + 10, FLOOR + y, W, 6, y > 12 ? '#4a1230' : '#3d0f28');
+      X.rect(ctx, a0 + 10, FLOOR + y, W, 6, y > 12 ? '#7d1326' : '#6e1022');
       for (let x = (y * 7) % 22; x < W; x += 22) {
-        X.rect(ctx, a0 + 10 + x, FLOOR + y + 2, 8, 2, y > 12 ? '#5c1a3c' : '#47122e');
+        X.rect(ctx, a0 + 10 + x, FLOOR + y + 2, 8, 2, y > 12 ? '#8a1228' : '#6a0f20');
       }
     }
     for (let x = 6; x < W; x += 34) {
       ctx.globalAlpha = 0.5;
       X.poly(ctx, [[a0 + 10 + x, FLOOR + 10], [a0 + 16 + x, FLOOR + 15],
-        [a0 + 10 + x, FLOOR + 20], [a0 + 4 + x, FLOOR + 15]], '#5c1a3c');
+        [a0 + 10 + x, FLOOR + 20], [a0 + 4 + x, FLOOR + 15]], '#3d0a16');
       ctx.globalAlpha = 1;
     }
-    X.rect(ctx, a0 + 10, FLOOR - 1, W, 2, '#2a0a1c');
-    X.rect(ctx, a0 + 10, FLOOR + 1, W, 1, '#57163a');
+    X.rect(ctx, a0 + 10, FLOOR - 1, W, 2, CAS.blackD);
+    X.rect(ctx, a0 + 10, FLOOR + 1, W, 1, '#8a1228');
     // the velvet rope, the same as the one in the big room
     for (let i = 0; i < 9; i++) {
       const px = a0 + 24 + i * 44;
@@ -2436,25 +3173,25 @@
     }
 
     // the way through: a gold jamb, so it reads as a threshold and not a seam
-    X.plate(ctx, a0 - 5, CLUB_CEIL + 2, 20, FLOOR - CLUB_CEIL - 2, '#2e1446', '#5e2a86', '#120722', 3);
-    X.rect(ctx, a0 + 3, CLUB_CEIL + 10, 5, FLOOR - CLUB_CEIL - 16, '#7a3aae');
-    X.plate(ctx, a0 - 8, CLUB_CEIL, 26, 9, '#351550', '#7a3aae', '#170a2a', 3);
-    X.plate(ctx, a0 - 8, FLOOR - 10, 26, 10, '#351550', '#7a3aae', '#170a2a', 3);
+    X.plate(ctx, a0 - 5, CLUB_CEIL + 2, 20, FLOOR - CLUB_CEIL - 2, CAS.blackL, CAS.goldDD, CAS.blackD, 3);
+    X.rect(ctx, a0 + 3, CLUB_CEIL + 10, 5, FLOOR - CLUB_CEIL - 16, CAS.goldD);
+    X.plate(ctx, a0 - 8, CLUB_CEIL, 26, 9, CAS.blackL, CAS.goldD, CAS.blackD, 3);
+    X.plate(ctx, a0 - 8, FLOOR - 10, 26, 10, CAS.blackL, CAS.goldD, CAS.blackD, 3);
     for (let i = 0; i < 9; i++) {
       const on = (Math.floor(t * 5) + i) % 4 !== 0;
       X.blob(ctx, a0 + 5, CLUB_CEIL + 18 + i * 12, 2.5, 2.5, on ? '#ffd34d' : '#4a3a10');
     }
-    X.rect(ctx, a0 + 10, CLUB_CEIL, W, 6, '#2e1446');
+    X.rect(ctx, a0 + 10, CLUB_CEIL, W, 6, CAS.blackL);
     for (let i = 0; i <= 28; i++) {
       const on = (Math.floor(t * 6) + i) % 4 !== 0;
       X.blob(ctx, a0 + 18 + i * 13, CLUB_CEIL + 3, 2.5, 2.5, on ? '#ffd34d' : '#4a3a10');
     }
     const lit = Math.sin(t * 5) > -0.3;
-    X.plate(ctx, a0 + 110, CLUB_CEIL - 22, 168, 22, '#3a0e26', '#ff5fa8', '#180510', 4);
-    F.draw(ctx, 'THE GALAXY ROOM', a0 + 194, CLUB_CEIL - 18, lit ? '#ffd6f0' : '#7a4a68',
-      { center: true, shadow: '#180510' });
-    F.draw(ctx, 'NO CREDIT  NO REFUNDS  NO PITY', a0 + 194, CLUB_CEIL - 9, '#ff8ad8',
-      { center: true, shadow: '#180510' });
+    X.plate(ctx, a0 + 110, CLUB_CEIL - 22, 168, 22, CAS.redD, CAS.gold, CAS.blackD, 4);
+    F.draw(ctx, 'THE GALAXY ROOM', a0 + 194, CLUB_CEIL - 18, lit ? CAS.gold : '#7a5c16',
+      { center: true, shadow: CAS.blackD });
+    F.draw(ctx, 'NO CREDIT  NO REFUNDS  NO PITY', a0 + 194, CLUB_CEIL - 9, CAS.redL,
+      { center: true, shadow: CAS.blackD });
 
     for (let i = 0; i < 3; i++) drawMachine(ctx, g, t, cam, i);
     drawUniversalCab(ctx, g, t, cam);
@@ -3128,9 +3865,20 @@
   }
 
 
-  PD.home = { enter, update, draw, drawScene, playSlot, SLOT,
+  /* --------------------------------------------------------------- the band
+     What is playing where. The casino has its own number, and if you have
+     asked the act on the lounge stage for something then they are playing
+     that instead until you ask for something else. */
+  function track() {
+    if (S.scene === 'club') return S.song || 'casino';
+    if (S.scene === 'hub') return 'port';
+    return 'moon';
+  }
+
+  PD.home = { enter, update, draw, drawScene, playSlot, SLOT, track,
     drunk: () => (S.scene === 'club' ? S.drunk : 0), drawOverlay, view, toScreen, fromScreenX, closeScene, touchMode, leaveDesk, say, P, UI, S, groundY, ZW, ZH, ZK, ROOM_W: OUT_W, SPOTS,
     TRASH, CLUB_X, CLUB_SPOTS, CLUBBERS, moonClean, trashLeft, sweep, goClub, leaveClub, spots, nearest, use,
     playCards, playRoulette, CARD, ROU, POKER_X, ROU_X, JACK_X, BAR_X, CAGE_X,
+    vipTier, VIP, salonOpen, ROPE_X, CRAPS_X, STAGE_X, BACC_X, SONGS,
     goHub, leaveHub, HUB, HUB_W, DECK_Y, STALLS };
 })(window.PD);

@@ -63,6 +63,7 @@
       artifacts: 0,                               // relics hauled home
       debt: PD.chum.DEBT0,                        // what you owe Mr Chum
       seenIntro: 0, trash: 0, spun: 0,
+      wagered: 0, comped: 0,                      // what the house has seen you put down
       story: 0                                   // how far through the night you are
     };
   }
@@ -850,10 +851,41 @@
     saveGame();
   }
 
+  /* ---------------------------------------------------------------- the band
+     Who plays what. They take their cue from whatever is on screen and they
+     finish the bar before they change, so nothing ever lurches. This runs
+     every frame, which is exactly why it calls `track` and never `music`:
+     `music` is the settings switch and nothing else is allowed to touch it. */
+  function pickTrack() {
+    if (PD.chum.active()) return 'chum';
+    switch (g.state) {
+      case 'title': return 'title';
+      case 'lab': return 'moon';
+      case 'intro': return PD.chum.track ? PD.chum.track() : 'casino';
+      case 'home': return PD.home.track ? PD.home.track() : 'moon';
+      case 'desk': case 'starmap': case 'mind': return 'moon';
+      case 'travel': return 'dig';
+      case 'victory': case 'ending': return 'title';
+      case 'play': {
+        for (const m of g.mobs) if (!m.dead && m.spec && m.spec.kind === 'boss') return 'boss';
+        if (g.destruction) return 'boss';
+        const f = U.clamp(g.world.depthMeters(g.player.y) / Math.max(20, g.world.maxDepthMeters()), 0, 1);
+        return f > 0.58 ? 'deep' : 'dig';
+      }
+    }
+    return 'dig';
+  }
+
   /* ------------------------------------------------------------------ update */
   function update(dt) {
     g.time += dt;
     A.schedule();
+    A.track(pickTrack());
+    /* The two room tones only belong to two places. Anything that leaves
+       either of them has to shut them up, and the only way to be sure of that
+       is to shut them up from here, every frame, for everywhere else. */
+    if (g.state !== 'home') A.room(0);
+    if (g.state !== 'intro') A.rain(0);
 
     for (let i = g.toasts.length - 1; i >= 0; i--) {
       g.toasts[i].life -= dt;

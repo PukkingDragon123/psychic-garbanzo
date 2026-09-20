@@ -495,6 +495,15 @@
 
   function active() { return !!S.call; }
 
+  /* What the band plays through the night you lost it. The casino, then the
+     rain, then whatever Mr Chum has on in his own house. */
+  const BEAT_TRACK = { universal: 'casino', floor: 'casino', drag: 'city', fist: 'city',
+    chum: 'chum', drop: 'chum' };
+  function track() {
+    const b = BEATS[IN_S.beat];
+    return (b && BEAT_TRACK[b.id]) || 'casino';
+  }
+
   function update(dt, g) {
     if (!S.call) return;
     S.t += dt;
@@ -2280,13 +2289,110 @@
     return c;
   }
 
+  /* ===================================================================== THE RAIN
+     It is not a shower. It has been coming down on this city since before the
+     city was here and it does not let up for the whole beat.
+
+     Five things make it read as weather rather than as white lines: the drops
+     come down at an ANGLE and all of them at the same angle; there are three
+     depths of them at three speeds; sheets of it sweep through on the wind;
+     it bounces when it lands; and every so often the whole street goes white
+     and then the sky falls over. */
+  const WET = { t: 0, flash: 0, nextBolt: 3, gust: 0, shake: 0 };
+
+  function rainStep(dt) {
+    WET.t += dt;
+    WET.flash = Math.max(0, WET.flash - dt * 3.4);
+    WET.shake = Math.max(0, WET.shake - dt * 3.2);
+    WET.gust = 0.5 + 0.5 * Math.sin(WET.t * 0.37) + 0.2 * Math.sin(WET.t * 1.13);
+    WET.nextBolt -= dt;
+    if (WET.nextBolt <= 0) {
+      WET.nextBolt = U.rand(4.5, 11);
+      const far = U.chance(0.55);
+      WET.flash = far ? 0.45 : 1;
+      A.sfx.thunder(far);
+      if (!far) WET.shake = 0.6;
+    }
+    A.rain(0.7 + WET.gust * 0.3);
+  }
+
+  /* Behind everything: the sky lighting up, and the sheets on the wind. */
+  function rainBack(ctx, t) {
+    if (WET.flash > 0.02) {
+      ctx.globalAlpha = WET.flash * 0.34;
+      X.rect(ctx, 0, 0, VW, VH, '#b8cfff');
+      ctx.globalAlpha = WET.flash * 0.5;
+      X.rect(ctx, 0, 0, VW, 90, '#dfe9ff');
+      ctx.globalAlpha = 1;
+    }
+    // sheets of it, drifting across the middle distance
+    for (let i = 0; i < 4; i++) {
+      const sx = ((i * 190 - t * (120 + i * 40)) % 760 + 760) % 760 - 180;
+      ctx.globalAlpha = 0.05 + 0.03 * Math.sin(t * 0.7 + i);
+      X.poly(ctx, [[sx, 0], [sx + 70, 0], [sx + 20, VH], [sx - 50, VH]], '#8fb4e8');
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  /* In front of everything: the drops, where they land, and the ones that have
+     hit the lens of whatever we are watching this through. */
+  const RAIN_SLANT = 0.34;
+  function rainFront(ctx, t) {
+    const slant = RAIN_SLANT * (0.7 + WET.gust * 0.6);
+    for (let L = 0; L < 3; L++) {
+      const n = [70, 80, 60][L];
+      const sp = [340, 620, 1000][L];
+      const len = [4, 8, 15][L];
+      const al = [0.11, 0.2, 0.3][L];
+      const w = L === 2 ? 2 : 1;
+      for (let i = 0; i < n; i++) {
+        const seed = i + L * 131;
+        const drift = t * sp;
+        const y = ((U.hash2(seed, 9) * (VH + 60) + drift + seed * 7) % (VH + 60)) - 30;
+        const x = ((U.hash2(seed, 5) * (VW + 120) - y * slant - drift * slant * 0.3) % (VW + 120) + VW + 120)
+          % (VW + 120) - 60;
+        ctx.globalAlpha = al + U.hash2(seed, 17) * 0.14;
+        X.line(ctx, x, y, x + len * slant, y + len, '#bcd8ff', w);
+        ctx.globalAlpha = 1;
+      }
+    }
+    // where it lands: a splash and a ring, all along the road
+    for (let i = 0; i < 26; i++) {
+      const sx = (U.hash2(i, 29) * VW + Math.floor(t * 4 + i * 0.7) * 137) % VW;
+      const f = ((t * 4 + i * 0.7) % 1);
+      const y = 206 + (i % 4) * 8;
+      ctx.globalAlpha = (1 - f) * 0.42;
+      X.ring(ctx, sx, y, 1 + f * 6, '#bcd8ff', 1);
+      X.rect(ctx, sx - 1, y - 2 - f * 4, 1, 3, '#dfe9ff');
+      X.rect(ctx, sx + 2, y - 1 - f * 3, 1, 2, '#dfe9ff');
+      ctx.globalAlpha = 1;
+    }
+    // and the drops that landed on the camera and stayed there
+    for (let i = 0; i < 9; i++) {
+      const q = ((t * 0.22 + U.hash2(i, 41)) % 1);
+      const x = U.hash2(i, 43) * VW;
+      const y = U.hash2(i, 47) * VH + q * 22;
+      ctx.globalAlpha = 0.16 * (1 - q);
+      X.blob(ctx, x, y, 3 + (i % 3), 4 + (i % 3), '#cfe2ff');
+      ctx.globalAlpha = 0.28 * (1 - q);
+      X.rect(ctx, x - 1, y - 2, 1, 2, '#ffffff');
+      ctx.globalAlpha = 1;
+    }
+  }
+
   function drawDrag(ctx, g, t) {
     const scroll = t * 58;
+    /* Thunder and kerbs both move the camera. Everything in the beat is drawn
+       inside this, so the shake is the picture moving and not a layer of it. */
+    const sh = WET.shake > 0 ? WET.shake * WET.shake * 7 : 0;
+    ctx.save();
+    if (sh) ctx.translate(Math.round(U.rand(-sh, sh)), Math.round(U.rand(-sh, sh)));
     // ------------------------------------------------------------- the sky
     const grd = ctx.createLinearGradient(0, 0, 0, VH);
     grd.addColorStop(0, '#0d0424'); grd.addColorStop(0.42, '#2a0c3e');
     grd.addColorStop(0.78, '#4a1240'); grd.addColorStop(1, '#12061c');
     ctx.fillStyle = grd; ctx.fillRect(0, 0, VW, VH);
+    rainBack(ctx, t);
     // a planet hanging over the whole thing, and cloud lit from underneath
     const px0 = ((-scroll * 0.05) % 900 + 900) % 900 - 120;
     X.blob(ctx, px0, 52, 46, 44, '#3a1a52');
@@ -2408,23 +2514,6 @@
       ctx.globalAlpha = 1;
     }
 
-    // --------------------------------------------------------------- rain
-    for (let i = 0; i < 110; i++) {
-      const far = i % 3 === 0;
-      const x = ((U.hash2(i, 5) * VW + t * (far ? 26 : 52)) % (VW + 20)) - 10;
-      const y = ((U.hash2(i, 9) * VH + t * (far ? 300 : 520) + i * 13) % VH);
-      ctx.globalAlpha = (far ? 0.12 : 0.24) + U.hash2(i, 17) * 0.16;
-      X.rect(ctx, x, y, 1, far ? 5 : 9, '#9fd8ff');
-      ctx.globalAlpha = 1;
-    }
-    for (let i = 0; i < 12; i++) {                       // and where it lands
-      const sx = (U.hash2(i, 29) * VW + Math.floor(t * 3 + i) * 67) % VW;
-      const f = ((t * 3 + i) % 1);
-      ctx.globalAlpha = (1 - f) * 0.4;
-      X.ring(ctx, sx, 208 + (i % 3) * 8, 1 + f * 5, '#9fd8ff', 1);
-      ctx.globalAlpha = 1;
-    }
-
     // a couple of posts going past close enough to be out of focus
     for (let i = 0; i < 3; i++) {
       const fx = ((i * 214 - scroll * 2.3) % 640 + 640) % 640 - 60;
@@ -2438,31 +2527,179 @@
     }
 
     // ------------------------------------------------- and the three of them
-    const bob = Math.sin(t * 5) * 2;
-    ctx.globalAlpha = 0.4;
-    X.blob(ctx, 300, 232 + bob, 22, 4, '#050310');
-    X.blob(ctx, 176, 232 - bob, 20, 4, '#050310');
-    ctx.globalAlpha = 1;
-    drawBull(ctx, 300, 228 + bob, t);
-    drawDrax(ctx, 176, 228 - bob, t);
-    // you, between them, being dragged by the ankles
-    const sk = PD.art.skinFor(g.save.cos), spr = sk.alienCore;
-    const cv = spr.frames[0], k = spr.hd || 1;
-    ctx.save();
-    ctx.translate(238, 216 + bob);
-    ctx.rotate(1.5);
-    ctx.drawImage(cv, -spr.ox, -spr.oy, cv.width / k, cv.height / k);
-    ctx.restore();
-    for (let i = 0; i < 4; i++) {
-      if (!U.chance(0.5)) continue;
-      X.rect(ctx, 226 + U.rand(-14, 14), 224 + U.rand(-2, 4), 2, 1, '#c9bce8');
-    }
+    drawTheDragging(ctx, g, t);
+    rainFront(ctx, t);
     // the frame itself is wet
     ctx.globalAlpha = 0.1;
     const vg = ctx.createRadialGradient(240, 120, 70, 240, 130, 250);
     vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, '#06030f');
     ctx.fillStyle = vg; ctx.fillRect(0, 0, VW, VH);
     ctx.globalAlpha = 1;
+    ctx.restore();
+  }
+
+
+  /* ================================================================ THE DRAGGING
+     It used to be three sprites standing in a row with a rotated copy of you
+     lying between them, which is a diagram of a kidnapping rather than one.
+
+     He has you by the ankle. His arm goes down to it and yours goes up, so
+     there is a line through the two of them; you are face down and trailing,
+     your head is the lowest thing in the picture and it is taking the kerb;
+     you throw up a wake of water the whole way; and every couple of seconds
+     the street hits you back. */
+  const DRAG = { t: 0, hit: 0, next: 1.6, kind: 0, ow: 0, owT: 0, boot: 0 };
+  const DRAG_OW = ['OW', 'OOF', 'AGH', 'NNGH', 'HELP', 'NOT THE FACE', 'MY TEETH'];
+  const DRAG_HITS = [
+    'THE KERB. THE WHOLE KERB.',
+    'A BIN GOES OVER. MOST OF IT GOES OVER YOU.',
+    'STRAIGHT THROUGH THE PUDDLE. ALL OF THE PUDDLE.',
+    'A GRATING. YOU COUNT EVERY BAR OF IT.',
+    'THE BIG ONE KICKS YOU ONCE, WITHOUT BREAKING STRIDE.'
+  ];
+
+  function dragStep(dt, g) {
+    DRAG.t += dt;
+    DRAG.hit = Math.max(0, DRAG.hit - dt * 3.4);
+    DRAG.owT = Math.max(0, DRAG.owT - dt);
+    DRAG.boot = Math.max(0, DRAG.boot - dt * 2.6);
+    gritStep(dt);
+    DRAG.next -= dt;
+    if (DRAG.next > 0) return;
+    /* Something happens to you every couple of seconds, because two minutes of
+       being pulled along smoothly is a screensaver. */
+    DRAG.next = U.rand(1.9, 3.2);
+    DRAG.kind = U.randInt(0, DRAG_HITS.length - 1);
+    DRAG.hit = 1;
+    WET.shake = Math.max(WET.shake, 0.55);
+    DRAG.ow = U.pick(DRAG_OW);
+    DRAG.owT = 1.1;
+    if (DRAG.kind === 4) { DRAG.boot = 1; A.sfx.punch(); }
+    else { A.sfx.thud(); A.sfx.scrape(); }
+    // whatever it was, it comes apart and goes everywhere. Its own little
+    // system: the intro runs its own loop and does not step the game's FX.
+    const COL = ['#8e86a8', '#6a7e94', '#bcd8ff', '#3a4a3a', '#c9bce8'];
+    for (let i = 0; i < 24; i++) {
+      GRIT.push({ x: 264 + U.rand(-20, 20), y: 204 + U.rand(-6, 4),
+        vx: U.rand(-40, 200), vy: U.rand(-190, -20), life: U.rand(0.5, 1.3),
+        c: U.pick(COL), s: U.chance(0.3) ? 2 : 1 });
+    }
+  }
+
+  const GRIT = [];
+  function gritStep(dt) {
+    for (let i = GRIT.length - 1; i >= 0; i--) {
+      const p = GRIT[i];
+      p.x += p.vx * dt; p.y += p.vy * dt;
+      p.vy += 430 * dt; p.vx *= 1 - dt * 1.4;
+      if (p.y > 212) { p.y = 212; p.vy = -p.vy * 0.34; p.vx *= 0.6; }
+      p.life -= dt;
+      if (p.life <= 0) GRIT.splice(i, 1);
+    }
+  }
+  function gritDraw(ctx) {
+    for (const p of GRIT) {
+      ctx.globalAlpha = U.clamp(p.life * 2.4, 0, 1);
+      X.rect(ctx, p.x, p.y, p.s, p.s, p.c);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  /* One of them, drawn from the shoulder down to the fist on your ankle. */
+  function dragArm(ctx, sx, sy, gx, gy, t) {
+    const mx = (sx + gx) / 2 + Math.sin(t * 5) * 1.5;
+    const my = (sy + gy) / 2 + 4;
+    limbPx(ctx, sx, sy, mx, my, 9, 7, '#8a8a92', '#b4b4bc', '#4a4a52');
+    limbPx(ctx, mx, my, gx, gy, 7, 6, '#8a8a92', '#b4b4bc', '#4a4a52');
+    X.blob(ctx, mx, my, 5, 5, '#9a9aa2');
+    X.blob(ctx, gx, gy, 6, 5, '#a4a4ac');                  // the fist
+    X.rect(ctx, gx - 4, gy - 3, 9, 2, '#6a6a72');
+  }
+
+  function drawTheDragging(ctx, g, t) {
+    const bob = Math.sin(t * 5) * 2;
+    const jolt = DRAG.hit * DRAG.hit;
+    // the wake: a rooster tail of road water off whatever is ploughing it
+    for (let i = 0; i < 26; i++) {
+      const q = ((t * 3.4 + i * 0.09) % 1);
+      ctx.globalAlpha = (1 - q) * 0.45;
+      X.blob(ctx, 276 + q * 74, 209 - q * (9 + (i % 5) * 5) + (i % 3),
+        3.5 - q * 2.4, 2.4 - q * 1.4, '#bcd8ff');
+      ctx.globalAlpha = 1;
+    }
+    // the smear he is leaving down the road behind you
+    ctx.globalAlpha = 0.3;
+    X.rect(ctx, 268, 210, 106, 3, '#4a5a78');
+    ctx.globalAlpha = 0.15;
+    X.rect(ctx, 268, 206, 130, 7, '#4a5a78');
+    ctx.globalAlpha = 1;
+
+    ctx.globalAlpha = 0.4;
+    X.blob(ctx, 300, 210 + bob, 22, 4, '#050310');
+    X.blob(ctx, 176, 210 - bob, 20, 4, '#050310');
+    X.blob(ctx, 268, 212, 28, 4, '#050310');
+    ctx.globalAlpha = 1;
+
+    // the big one, behind, with a boot out when he feels like it
+    drawBull(ctx, 300, 206 + bob, t);
+    if (DRAG.boot > 0.02) {
+      const k = DRAG.boot;
+      limbPx(ctx, 292, 196 + bob, 292 - k * 34, 208 + bob, 8, 6, '#6a4a3a', '#8a6a52', '#3a2418');
+      X.blob(ctx, 292 - k * 36, 209 + bob, 7, 4, '#2a1a12');
+    }
+
+    /* You. Face down, at an angle, head low and taking everything, with your
+       own arms trailing back behind you because nothing about this is under
+       your control. */
+    const sk = PD.art.skinFor(g.save.cos), spr = sk.alienCore;
+    const cv = spr.frames[0], k = spr.hd || 1;
+    /* Far enough from him that the arm between you is a SPAN and not a seam:
+       at forty pixels the two of them read as one lump. */
+    const ax = 268, ay = 203 + bob * 0.4 - jolt * 5;
+    const ang = 1.48 + Math.sin(t * 5) * 0.07 - jolt * 0.28;
+    ctx.save();
+    ctx.translate(ax, ay);
+    ctx.rotate(ang);
+    ctx.drawImage(cv, -spr.ox, -spr.oy, cv.width / k, cv.height / k);
+    ctx.restore();
+    // your arms, dragging behind, bouncing off the road
+    for (let i = 0; i < 2; i++) {
+      const sy2 = ay + 2 + i * 5;
+      const ex = ax + 30 + Math.sin(t * 6 + i * 2) * 5;
+      const ey = 208 + Math.abs(Math.sin(t * 6 + i * 2)) * 2;
+      const SKN = (sk.P && sk.P.skin) || '#7fd8a0';
+      limbPx(ctx, ax + 12, sy2, ex, ey, 5, 4, SKN, (sk.P && sk.P.skinL) || '#b4f0c8',
+        (sk.P && sk.P.skinD) || '#2f6a48');
+      X.blob(ctx, ex, ey, 3, 3, SKN);
+    }
+
+    /* His arm, and your ankle at the end of it. This is the whole picture:
+       one straight line from his shoulder to the thing he is pulling. */
+    /* His hand comes off the end of the arm he already has -- (x+29, y-28)
+       on his own drawing -- and the forearm goes on AFTER you, so it reads as
+       a grip on your ankle rather than a line passing behind you. */
+    drawDrax(ctx, 176, 206 - bob, t);
+    dragArm(ctx, 205, 178 - bob, ax - 22, ay - 6, t);
+
+    // the impact: a white flash of contact and a ring off the road
+    if (DRAG.hit > 0.05) {
+      ctx.globalAlpha = DRAG.hit * 0.5;
+      X.blob(ctx, ax + 16, ay + 8, 12 + (1 - DRAG.hit) * 22, 6 + (1 - DRAG.hit) * 10, '#ffffff');
+      ctx.globalAlpha = DRAG.hit * 0.8;
+      for (let i = 0; i < 7; i++) {
+        const a = i / 7 * U.TAU;
+        X.line(ctx, ax + 16, ay + 6, ax + 16 + Math.cos(a) * (8 + (1 - DRAG.hit) * 20),
+          ay + 6 + Math.sin(a) * (5 + (1 - DRAG.hit) * 12), '#ffe9a8', 2);
+      }
+      ctx.globalAlpha = 1;
+    }
+    gritDraw(ctx);
+    if (DRAG.owT > 0) {
+      ctx.globalAlpha = U.clamp(DRAG.owT * 1.6, 0, 1);
+      F.draw(ctx, DRAG.ow, ax + 10, ay - 26 - (1.1 - DRAG.owT) * 12, '#ff5a4d',
+        { center: true, scale: 2, shadow: '#2a0a12' });
+      ctx.globalAlpha = 1;
+    }
   }
 
   /* Drax: grey, covered in red, bare to the waist, and not remotely joking.
@@ -2803,6 +3040,11 @@
       updateUniversal(dt, g);
       return;
     }
+    /* The weather and the kicking only run while you are out in it. */
+    const bid = BEATS[IN_S.beat] && BEATS[IN_S.beat].id;
+    if (bid === 'drag') { rainStep(dt); dragStep(dt, g); }
+    else if (bid === 'fist') { rainStep(dt); }
+    else A.rain(0);
     // the crowd carries on leaving while you are still on the carpet
     if (BEATS[IN_S.beat] && BEATS[IN_S.beat].id === 'floor') {
       UNI.lever = 0; UNI.pull = 0;
@@ -2914,7 +3156,7 @@
 
   PD.chum = {
     enterIntro, updateIntro, drawIntro, enterGamble, B_OF,
-    call, update, draw, active, takeCut, drawDebt, DEBT0, S, IN_S, HS, LESSONS,
+    call, update, draw, active, takeCut, drawDebt, DEBT0, S, IN_S, HS, LESSONS, track, BEATS, DRAG, WET,
     leadStep, drawMini, miniFrame, MS, MW, MH, MCX, MBASE,
     artFor: ensureArt, CW, CH, CCX, CBASE, UNI, CAM, CROWD,
     /* the house style, shared with the room you walk through to get here */
