@@ -957,7 +957,7 @@
     ['THANK YOU FOR DESTROYING', 1, '#9a92b4'],
     ['ABSOLUTELY EVERYTHING.', 1, '#9a92b4'],
     ['', 0, null],
-    ['MADE BY PUKKING DRAGON', 2, '#ffd34d'],
+    ['THIS GAME MADE BY', 1, '#8e86a8'], ['PUKKING DRAGON', 2, '#ffd34d'],
     ['', 0, null], ['', 0, null], ['', 0, null]
   ];
 
@@ -1010,6 +1010,72 @@
     // the legs, tucked
     X.blob(ctx, x + 1 * s, y + 5 * s, 2.4 * s, 1.8 * s, GD);
     X.blob(ctx, x - 3 * s, y + 5 * s, 2.2 * s, 1.6 * s, GD);
+  }
+
+
+  /* ================================================================== THE FLYPAST
+     The dragon does not sit in the corner any more. It flies the front door:
+     in off the left, up over the wordmark, a bank at the top and out the
+     right, towing the only credit this game has on a banner behind it.
+
+     Three things sell it. It BANKS -- the whole drawing rotates to the angle
+     it is actually travelling at, sampled off its own path rather than
+     guessed. The banner RIPPLES, in vertical slats, and every letter rides
+     the slat it is sitting on, so the cloth and the writing move as one piece
+     instead of the writing sliding about on top of it. And it beats its wings
+     at its own rate, which is nothing to do with the path. */
+  const BANNER = 'THIS GAME MADE BY PUKKING DRAGON';
+  const FLY_T = 19;                      // seconds for one pass, gap included
+
+  /* The route matters more than the drawing. The whole left of this screen is
+     wordmark and menu from twenty pixels down, so the only clear run long
+     enough to tow two hundred pixels of cloth along is the strip across the
+     very top -- and the flypast goes in FRONT of everything, because a banner
+     behind the title is a banner nobody reads. */
+  function flightAt(q) {
+    return {
+      x: -190 + q * (VW + 460),
+      y: 19 + Math.sin(q * Math.PI * 2.6 + 0.3) * 5
+    };
+  }
+
+  function dragonFlight(ctx, t) {
+    const q = (t % FLY_T) / FLY_T;
+    const a = flightAt(q), b = flightAt(q + 0.004);
+    const bw = F.width(BANNER, 1) + 26;
+    if (a.x + 40 < -bw - 60 || a.x - 40 > VW + 60) return;
+
+    /* The banner, first, because it is behind him. Slats of cloth, a gold
+       edge top and bottom, and a tow line back to his tail. */
+    const tail = a.x - 22, by = a.y - 5;
+    const slatY = i => by + Math.sin(t * 5.2 - i * 0.15) * 2.4;
+    X.line(ctx, a.x - 16, a.y + 3, tail - 2, slatY(0) + 6, '#c2932a', 1);
+    for (let i = 0; i < bw; i += 2) {
+      const sx = tail - 4 - i;
+      if (sx < -6 || sx > VW + 6) continue;
+      const yy = slatY(i);
+      X.rect(ctx, sx, yy, 2, 13, ((i >> 1) % 6 < 3) ? '#7a1024' : '#9e1730');
+      X.rect(ctx, sx, yy, 2, 1, COL.gold);
+      X.rect(ctx, sx, yy + 12, 2, 1, '#5e0c1e');
+    }
+    // and the letters, each riding the slat it is standing on
+    const step = F.GW + F.GAP;
+    let cx = tail - 4 - bw + 13;
+    for (let k = 0; k < BANNER.length; k++) {
+      const ch = BANNER[k];
+      if (ch !== ' ') {
+        const i = Math.round(tail - 4 - cx);
+        F.draw(ctx, ch, cx, slatY(i) + 4, COL.gold, { shadow: '#3a0810' });
+      }
+      cx += step;
+    }
+
+    // him, banked to the angle he is actually going
+    ctx.save();
+    ctx.translate(Math.round(a.x), Math.round(a.y));
+    ctx.rotate(Math.atan2(b.y - a.y, b.x - a.x));
+    dragonMark(ctx, 0, 0, t, 1.1);
+    ctx.restore();
   }
 
   /* --------------------------------------------------------------- the screen */
@@ -1102,17 +1168,20 @@
       }
       X.rect(ctx, x0 - 4, TOP + H + 4, w + 8, 1, '#6b4a1f');
       dragonMark(ctx, x0 + 26, 226, t, 1.7);
-      F.draw(ctx, 'MADE BY', x0 + 76, 212, '#8e86a8', { shadow: '#0a0618' });
+      F.draw(ctx, 'THIS GAME MADE BY', x0 + 76, 212, '#8e86a8', { shadow: '#0a0618' });
       F.draw(ctx, 'PUKKING DRAGON', x0 + 76, 222, COL.gold, { scale: 2, shadow: '#0a0618' });
       if (backBtn(ctx, 'BACK', t) || back) { MENU.page = 'menu'; A.sfx.click(); }
     }
 
+    // the flypast goes over the lot, on every page
+    dragonFlight(ctx, t);
+
     /* The byline, always there, bottom right, under everything else. */
     if (MENU.page === 'menu') {
-      dragonMark(ctx, 396, 36, t, 1.3);
-      const gl = 0.72 + 0.28 * Math.sin(t * 1.6);
+      const gl = 0.66 + 0.26 * Math.sin(t * 1.6);
       ctx.globalAlpha = gl;
-      F.draw(ctx, 'MADE BY PUKKING DRAGON', 472, 252, COL.gold, { right: true, scale: 1, shadow: '#0a0618' });
+      F.draw(ctx, 'THIS GAME MADE BY PUKKING DRAGON', 472, 252, COL.gold,
+        { right: true, scale: 1, shadow: '#0a0618' });
       ctx.globalAlpha = 1;
     }
 

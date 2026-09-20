@@ -89,13 +89,32 @@ is), **SCREEN WOBBLE** (the whole picture jumps) and **MR CHUM** (he rings; you
 can stop him). Each is a fat physical switch that throws left or right with the
 word on it, so you can tell the state at a glance and not by a tick.
 
+### The flypast
+
+The dragon does not sit in a corner. It **flies the front door**: in off the
+left, across the top, and out the right, towing the only credit this game has
+on a banner behind it — `THIS GAME MADE BY PUKKING DRAGON`.
+
+Three things sell it. It **banks**, rotating to the angle it is actually
+travelling at, sampled off its own path rather than guessed. The banner
+**ripples**, in vertical slats, and every letter rides the slat it is standing
+on, so the cloth and the writing move as one piece instead of the writing
+sliding about on top of it. And it beats its wings at its own rate, which has
+nothing to do with the path.
+
+The route matters more than the drawing. The whole left of that screen is
+wordmark and menu from twenty pixels down, so the only clear run long enough to
+tow two hundred pixels of cloth is the strip across the very top — and the
+flypast goes in **front** of everything, because a banner behind the title is a
+banner nobody reads.
+
 ### Credits
 
 One name, over and over, because one person did all of it. It scrolls up
 through a window that fades out top and bottom, and holding down runs it on.
 There is a dragon on the footer, breathing fire, and the line under it says
-**MADE BY PUKKING DRAGON** — which is also sat in the bottom-right corner of
-the menu itself, glowing gently, at all times.
+**THIS GAME MADE BY PUKKING DRAGON** — which is also sat in the bottom-right
+corner of the menu itself, glowing gently, at all times.
 
 **And it is full of somebody else's rubbish.** Thirteen bits of space trash
 tumble across: a dead satellite, a traffic cone, a fridge with the door hanging
@@ -111,6 +130,24 @@ time. The window is 320x180 now. That is a 1.5x blow-up of the logical frame,
 which would normally smear pixels — except the frame is already drawn at HD=2,
 so a home pixel lands on exactly **three** device pixels. Crisp, and a third
 more of the moon in shot.
+
+## One smudge on the lens, removed
+
+There was a **dead Celestial head** in the moon's sky: a three-hundred-pixel
+skull sprite, drawn at a **fixed screen position with a bob on it**, at
+six-tenths alpha and eighty-five per cent size.
+
+Which meant that as you walked the whole length of the moon it stayed nailed to
+the top-left corner, going quietly up and down, parallaxing with nothing. It
+did not read as a colossal dead thing out on the horizon. It read as a weird
+particle following you around.
+
+Parallaxing it and scaling it up to a proper landmark only made it a different
+problem — at that size it is a pale slab across half the sky with the stars
+behind it. It is gone. The sky out here is a nebula, four hundred stars and the
+world you are on your way to ruin, and that is enough. (The nebula, while we
+were in there, was being drawn a hundred and forty pixels off the right-hand
+edge of the screen, every frame, for nobody. It is in shot now.)
 
 ## Home is a small rock, seen up close
 

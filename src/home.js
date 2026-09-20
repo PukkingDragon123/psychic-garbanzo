@@ -29,6 +29,7 @@
      chipped rock, not a ball. Outside is exactly one screen wide and never
      scrolls -- the moon is an object you look at, not a corridor. */
   const MOON = { cx: 240, cy: 960, r: 820 };
+  const HEAD_X = 96;                 // where the dead Celestial is buried
   const OUT_W = 780, IN_W = 232;
   const WALK = 172;                  // how far round the curve he can get
   const FLOOR = 216;                 // the room floor, inside
@@ -1861,7 +1862,7 @@
     const sky = ctx.createLinearGradient(0, 0, 0, VH);
     sky.addColorStop(0, '#090620'); sky.addColorStop(0.6, '#150d31'); sky.addColorStop(1, '#2a1541');
     ctx.fillStyle = sky; ctx.fillRect(0, 0, VW, VH);
-    const nx = 620 - cam * 0.2;
+    const nx = 330 - cam * 0.2;
     ctx.save();
     for (let i = 4; i >= 1; i--) {
       ctx.globalAlpha = 0.05 + (4 - i) * 0.012;
@@ -1879,11 +1880,17 @@
       ctx.fillRect(sx | 0, (s.y * VH) | 0, 1, 1);
     }
     ctx.globalAlpha = 1;
-    // the dead Celestial your moon was chipped off, adrift out to one side
-    const sk = AH.S.skull;
-    ctx.globalAlpha = 0.6;
-    ctx.drawImage(sk.frames[0], 6, 12 + Math.round(Math.sin(t * 0.4) * 2), Math.round(sk.w * 0.85), Math.round(sk.h * 0.85));
-    ctx.globalAlpha = 1;
+    /* There used to be a DEAD CELESTIAL HEAD here -- a three-hundred-pixel
+       skull sprite, drawn at a FIXED SCREEN POSITION with a bob on it, at
+       six-tenths alpha and eighty-five per cent size. Which meant that as you
+       walked the whole length of the moon it stayed nailed to the top left
+       corner going quietly up and down, and read as a smudge on the lens.
+
+       Parallaxing it and scaling it up to a landmark only made it a different
+       problem: at that size it is a pale slab across half the sky with the
+       stars behind it. It is gone. The sky out here is a nebula, four hundred
+       stars and the world you are on your way to ruin, and that is enough. */
+
     // the world you are about to ruin
     const icon = g.navIcon(g.save.bodyIndex || 0);
     const px = 404, py = 52 + Math.sin(t * 0.5) * 3;
