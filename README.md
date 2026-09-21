@@ -1044,6 +1044,51 @@ instead of four hundred rectangles.
 
 The sconces stay live, because they gutter.
 
+### Four floors
+
+The casino is a building now, not a corridor. There is a **lift** in the same
+place on every floor, because in a real casino it is the one thing they want
+you to be able to find, and it opens a panel with four brass plates on it.
+
+| | |
+| --- | --- |
+| **0 — THE FLOOR** | The tables, the cage and the salon behind the rope |
+| **1 — THE ARCADE** | Eleven cabinets, a wall of nine televisions, a claw machine full of rubber ducks, a prize counter, lava lamps and posters |
+| **2 — THE MENAGERIE** | A wall of brains in jars, a sofa lounge, a fountain running with something that is not water, a row of potted aliens and sunflowers, and the loan desk |
+| **3 — THE CROWN** | One machine, a gallery of seats pointed at it, and an usher |
+
+**They do not stack on screen, and that is deliberate.** The home renderer
+paints into a fixed 480×270 buffer with a horizontal camera and no vertical
+one; four hundred-pixel storeys will not fit in that, and bolting a Y camera on
+would have broken the prompt sign, the speech bubbles, the touch mapping and the
+floating numbers all at once, for a view you would only ever see one floor of.
+
+So each floor is drawn in the same band, and what sells the building is **the
+atrium**: a hole through the middle of it with the undersides and rails of the
+other three floors receding above and below you, people leaning over them to
+watch, the lift car running in its shaft, and one great chandelier hanging the
+whole height of it. From floor 2 you can see floor 3's rail above you and
+floors 1 and 0 falling away below.
+
+### You are smaller in here
+
+The zoom is **per scene** now. The moon and the house are small places and want
+to be close; the casino is four storeys of building and wants to be seen. Home
+used to blow a 320-wide window up by 1.5×; in the casino it runs at 1:1, so the
+whole logical frame is on screen, you read at two-thirds the size you did, and
+the room reads half as big again. It is still crisp — one home pixel lands on
+exactly two device pixels.
+
+### THE MEGA PLANET MACHINE
+
+At the top of the building. Three windows of **worlds** rather than fruit —
+each one a disc with a lit cap, three continents, a terminator and a ring going
+round it — a lever the size of a man that comes back up on its own, and a
+jackpot board that has never been reset because it has never been paid.
+
+Ten thousand a pull. Two worlds pays three times, three worlds pays **sixty**,
+and the odds of three are about one in eighty.
+
 ### Behind the rope: THE SALON
 
 The room is **two thousand two hundred pixels** wide. Past the Galaxy Room
@@ -1155,6 +1200,39 @@ Seven frames each: idle, two steps of a walk, talking, kissing, blinking and a
 cheer. Twenty of them are generated at boot and the body plans are **dealt out
 rather than rolled**, so a room of twenty always has mushrooms in it.
 
+## Talking to people
+
+Seven of them, one or two per floor, standing on brass name plates: the floor
+man, the pit boss, the change girl, the mechanic, the gardener, the concierge
+and the usher. Press E and they say the next thing they have to say, and then
+they go round. Nobody in this building has anything new to tell you, which is
+the point of them.
+
+### The desk
+
+Second floor. They lend against nothing at all, they add **twenty-five per
+cent** before you have left the counter, and it goes straight onto what you
+already owe the shark. Twenty-five thousand, then a hundred, then five hundred.
+Nobody has ever been refused.
+
+### The card, in the corner
+
+The debt bar is hidden the whole time you are in the casino, so what sits in the
+corner instead is **what you have got on you** — which is the only number the
+house wants you thinking about — with your loyalty tier under it.
+
+### Being shoved
+
+It is busy in here and nobody is looking where they are going. Walk into one of
+the regulars and you get moved, because you are not important, and about a third
+of the time they have something to say about it.
+
+### Crying
+
+Lose enough at once and you go down like a cartoon: two hard jets out of your
+eyes, a puddle that spreads out under you and takes a few seconds to soak away,
+and drops bouncing off the carpet. The bigger the loss, the longer it runs.
+
 ## The regulars
 
 Not everybody in the casino is a stranger. Some of them you are fairly sure you
@@ -1179,7 +1257,24 @@ of his own and uses it about a third of the time.
 | **THE WIZARD** | A tall purple hat and a white beard. Keeps saying the wheel is a trick. It is |
 | **UNIT 7** | Plated, a red visor and one antenna. Has been calculating the odds for nine hours |
 
-Adding them cost the generator five new optional flags — cheek discs, a bolt
+### And seven who are not people at all
+
+There is no set of traits that adds up to a brain floating in a jar, so these
+seven are built by hand: **UNIT 12** (a box on treads with a needle gauge that
+goes further over the more of your money it has watched disappear), **THE JAR**
+(a brain in a preserving jar on three brass legs, which speaks in bubbles),
+**POTTED PETE** (a terracotta pot with a face fired into it and a fern for
+hair), **SUNNY** (eight foot of sunflower in a bucket, who faces whichever
+machine is paying and is never wrong), **THE LAMP**, **DUCKY** and **THE SET**
+(a television on legs, whose face is whatever is on it).
+
+They produce the same seven frames as everybody else and go into the same table,
+so the room code never has to know the difference. Several of them are also
+**furniture** — the lava lamp, the jar, the duck and the television are screwed
+to the walls and standing on the shelves of the casino as props, which is the
+whole reason it was worth building them properly once.
+
+Adding the first eight cost the generator five new optional flags — cheek discs, a bolt
 tail, a ball cap, a pointed hat, a headband, back spikes, dungarees, gloves and
 a chomping wedge of a mouth — and nothing else. The bodies underneath are the
 bodies everybody else has.
@@ -1406,6 +1501,8 @@ a line of history under its blurb.
 | `src/rig.js` | The limb rig: two-bone solves that stretch, a walk cycle driven by ground covered, the drilling brace, the recoil, the snatch, the seven idle flourishes, and hard-pixel limb segments |
 | `src/mind.js` | The brain in the jar: the acid tank, the faceted brain, the neuron lattice and what each neuron grows into you |
 | `src/font.js` | Hand-drawn 5×7 bitmap font, cached per colour |
+| `dist/planet-destroyer-itch.zip` | The itch.io drop: `index.html` at the root plus an `.itch.toml`, built by `tools/pack.js`. The artifact build has no `<!doctype>` because the artifact host supplies one; itch does not, so pack wraps the same bundle in a whole document with a viewport tag |
+| `dist/store/` | Cover (630×500), banner (1920×480), long and short descriptions, and a note on what to upload where. The art is rendered **by the game's own renderer** — that is the real wall, the real chandeliers and the real characters, not a mock-up |
 | `src/audio.js` | WebAudio synthesis — a drill loop that tracks rock hardness, jetpack noise, explosions, and a villainous little groove |
 | `src/data.js` | 30 materials, 9 enemy species, ten worlds in four sectors, nine strata templates, the ABAY catalogue, **the twelve neurons**, the factions and lore, the evil-title ladder |
 | `src/world.js` | Tile grid; strata + pocket-biome generation, tunnels and caverns, veins on a rarity curve, magma lakes, geodes, fossil beds, ruins; fog of war; the three-layer rounded terrain renderer |

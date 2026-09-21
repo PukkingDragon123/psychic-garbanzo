@@ -1884,6 +1884,366 @@
     }
   }
 
+  /* ================================================================ THE SPECIES
+     Not everybody out here has a head, a torso and two legs.
+
+     These seven are built by hand rather than out of the trait generator,
+     because there is no set of traits that adds up to a brain floating in a
+     jar. They produce the same seven frames as everybody else -- idle, two
+     steps of a walk, talking, kissing, blinking and a cheer -- and they are
+     pushed into the same KIN table, so they turn up in every crowd in the
+     game and the room code never has to know the difference.
+
+     Several of them are also furniture. The lava lamp, the jar, the duck and
+     the television are drawn as PROPS around the casino as well, which is why
+     it is worth building them properly once. */
+  const SPW = 66, SPH = 104;
+
+  /* the little shared bits every one of them needs */
+  function spEye(p, x, y, r, shut, white, iris, ink) {
+    if (shut) {
+      p.rect(x - r, y, r * 2 + 1, 2, ink);
+      p.rect(x - r - 1, y - 1, 2, 2, ink);
+      p.rect(x + r, y - 1, 2, 2, ink);
+      return;
+    }
+    p.ellipse(x, y, r, r + 1, white || '#f6f8ff');
+    p.ellipse(x, y + 1, Math.max(1, r - 1), Math.max(1, r - 1), iris || '#1a1024');
+    p.rect(x - r + 1, y - r, 2, 2, '#ffffff');
+  }
+  function spMouth(p, x, y, w, f, col) {
+    if (f === 4) { p.ellipse(x, y, 3, 4, col); p.ellipse(x, y - 1, 2, 2, '#ff9ecb'); return; }
+    if (f === 3 || f === 6) { p.round(x - w / 2, y - 2, w, 8, 3, col); p.rect(x - 2, y + 3, 5, 3, '#d64f7a'); return; }
+    p.round(x - w / 2, y, w, 3, 1, col);
+  }
+
+  const SPECIES = [
+    /* ------------------------------------------------------------ UNIT 12
+       A box on treads with a visor and a needle gauge that goes further over
+       the more of your money it has watched disappear. */
+    { name: 'UNIT 12', acc: '#ff6a4a', say: 'IT HAS BEEN COUNTING CARDS AND IT IS STILL LOSING',
+      build(f) {
+        const p = pix(SPW, SPH), cx = SPW >> 1, M = '#a8b0c0', ML = '#dde4ee', MD = '#5a6274';
+        const R = '#e8402a', G = '#3fb87e', INK = '#141018';
+        const rock = f === 1 ? -1 : (f === 2 ? 1 : 0);
+        // the tread unit it gets about on
+        p.round(cx - 20, 78, 40, 22, 8, MD);
+        p.round(cx - 18, 80, 36, 16, 6, '#2e3440');
+        for (let i = 0; i < 6; i++) p.rect(cx - 17 + i * 6, 80, 4, 16, MD);
+        p.disc(cx - 11, 88, 6, M); p.disc(cx + 11, 88, 6, M);
+        p.disc(cx - 11, 88, 3, MD); p.disc(cx + 11, 88, 3, MD);
+        // the body: a cabinet with a hatch and a gauge in it
+        p.round(cx - 16, 40, 32, 40, 5, M);
+        p.round(cx - 16, 40, 32, 5, 3, ML);
+        p.round(cx - 11, 50, 22, 20, 3, '#2e3440');
+        p.disc(cx, 60, 8, '#1a1f28');
+        p.disc(cx, 60, 7, '#243040');
+        const sweep = 0.6 + (f === 6 ? 0.9 : 0) + rock * 0.12;
+        p.line(cx, 60, cx + Math.cos(Math.PI + sweep) * 6, 60 + Math.sin(Math.PI + sweep) * 6, R);
+        p.disc(cx, 60, 2, ML);
+        for (let i = 0; i < 5; i++) p.set(cx - 6 + i * 3, 53, i > 2 ? R : G);
+        p.round(cx - 14, 72, 28, 5, 2, MD);
+        // arms, on pistons, with a claw on the end
+        for (const s of [-1, 1]) {
+          const ay = f === 6 ? 34 : 56 + rock * s * 2;
+          p.round(cx + s * 16 - 3, 46, 6, ay - 44, 2, MD);
+          p.round(cx + s * 20 - 4, ay, 9, 8, 3, M);
+          p.rect(cx + s * 22 - 2, ay + 6, 3, 5, MD);
+          p.rect(cx + s * 17 - 2, ay + 6, 3, 5, MD);
+        }
+        // the head, the visor and the one antenna
+        p.round(cx - 14, 12, 28, 26, 5, M);
+        p.round(cx - 14, 12, 28, 4, 2, ML);
+        p.round(cx - 11, 18, 22, 11, 3, '#141018');
+        if (f === 5) { p.rect(cx - 9, 23, 18, 2, R); }
+        else {
+          p.round(cx - 9, 20, 8, 7, 2, R);
+          p.round(cx + 2, 20, 8, 7, 2, R);
+          p.rect(cx - 8, 21, 3, 2, '#ffb0a0');
+          p.rect(cx + 3, 21, 3, 2, '#ffb0a0');
+        }
+        for (let i = 0; i < 4; i++) p.rect(cx - 8 + i * 5, 32, 3, 4, (f === 3 || f === 6) ? G : MD);
+        p.rect(cx - 1, 2, 3, 11, MD);
+        p.disc(cx, 2, 3, f === 6 ? G : R);
+        p.rect(cx - 16, 8, 5, 6, MD); p.rect(cx + 12, 8, 5, 6, MD);
+        p.outline(INK);
+        return p;
+      } },
+
+    /* --------------------------------------------------------- THE JAR
+       A brain in a preserving jar on three brass legs. It does not speak.
+       Its bubbles speak, and everybody has learned to read them. */
+    { name: 'THE JAR', acc: '#ff9ecb', say: 'IT BUBBLES TWICE. EVERYBODY AT THE TABLE FOLDS.',
+      build(f) {
+        const p = pix(SPW, SPH), cx = SPW >> 1;
+        const BR = '#c2932a', BRD = '#7a5c16', GLS = '#9fd8e8', FLU = '#4a9ab0';
+        const BRN = '#ff9ecb', BRND = '#c4557f', INK = '#141018';
+        const bob = f === 1 ? -2 : (f === 2 ? 1 : 0);
+        // three little legs, and they are not in step
+        for (const s of [-1, 0, 1]) {
+          const lx = cx + s * 13, ly = 80 + (s === 0 ? 4 : 0) + (f === 1 && s < 0 ? -3 : 0) + (f === 2 && s > 0 ? -3 : 0);
+          p.rect(lx - 1, 70, 3, ly - 70, BRD);
+          p.round(lx - 4, ly, 9, 5, 2, BR);
+        }
+        // the jar: glass, a rim, a clip and a lid
+        p.round(cx - 18, 20 + bob, 36, 52, 10, GLS);
+        p.round(cx - 15, 23 + bob, 30, 46, 8, FLU);
+        p.round(cx - 15, 23 + bob, 8, 40, 4, '#7fc8dc');
+        p.round(cx - 20, 14 + bob, 40, 10, 4, BR);
+        p.round(cx - 20, 14 + bob, 40, 3, 2, '#ffd34d');
+        p.round(cx - 12, 8 + bob, 24, 7, 3, BRD);
+        p.rect(cx - 2, 3 + bob, 5, 6, BR);
+        p.round(cx - 20, 66 + bob, 40, 8, 3, BR);
+        // the brain, and the face it has grown on the front of it
+        p.ellipse(cx, 42 + bob, 13, 12, BRN);
+        for (let i = 0; i < 7; i++) {
+          const a = i * 0.9;
+          p.ellipse(cx + Math.cos(a) * 8, 38 + bob + Math.sin(a) * 6, 4, 3, BRND);
+        }
+        p.rect(cx - 1, 30 + bob, 3, 24, BRND);
+        spEye(p, cx - 5, 44 + bob, 3, f === 5, '#fff0f6', '#3a1024', INK);
+        spEye(p, cx + 5, 44 + bob, 3, f === 5, '#fff0f6', '#3a1024', INK);
+        spMouth(p, cx, 52 + bob, 8, f, BRND);
+        // the two stalks it steers with, and what it is saying in bubbles
+        for (const s of [-1, 1]) {
+          p.rect(cx + s * 12 - 1, 50 + bob, 3, 12, BRND);
+          p.disc(cx + s * 13, 62 + bob, 2, BRN);
+        }
+        const nb = f === 3 || f === 6 ? 6 : 3;
+        for (let i = 0; i < nb; i++) {
+          const q = (i * 0.37 + (f === 6 ? 0.4 : 0)) % 1;
+          p.disc(cx - 9 + ((i * 7) % 18), 62 + bob - q * 34, 1 + (i % 3), '#dff4fa');
+        }
+        p.outline(INK);
+        return p;
+      } },
+
+    /* ------------------------------------------------------- POTTED PETE
+       A terracotta pot with a face fired into it, a fern for hair and two
+       twigs for arms. Rooted, philosophically; ambulatory, technically. */
+    { name: 'POTTED PETE', acc: '#6fd955', say: 'HE HAS NOT MOVED SINCE TUESDAY AND HE IS STILL AHEAD',
+      build(f) {
+        const p = pix(SPW, SPH), cx = SPW >> 1;
+        const T = '#c4723a', TL = '#e29a5e', TD = '#8a4820', SOIL = '#3a2416';
+        const G = '#4fb03a', GL = '#7fe05a', INK = '#141018';
+        const lean = f === 1 ? -2 : (f === 2 ? 2 : 0);
+        // the pot he is, which is also the legs he has not got
+        p.round(cx - 20, 52, 40, 42, 4, T);
+        p.round(cx - 20, 52, 40, 6, 3, TL);
+        p.round(cx - 23, 46, 46, 10, 4, T);
+        p.round(cx - 23, 46, 46, 3, 2, TL);
+        p.rect(cx - 16, 58, 4, 30, TD);
+        p.rect(cx + 12, 58, 4, 30, TD);
+        p.round(cx - 17, 88, 34, 8, 3, TD);
+        p.round(cx - 18, 49, 36, 5, 2, SOIL);
+        // the two little feet underneath, which he is embarrassed about
+        p.round(cx - 14 + (f === 1 ? -2 : 0), 94, 11, 6, 2, TD);
+        p.round(cx + 4 + (f === 2 ? 2 : 0), 94, 11, 6, 2, TD);
+        // the face, fired into the front of him
+        spEye(p, cx - 8, 66, 4, f === 5, '#fff6ee', '#2a1a10', INK);
+        spEye(p, cx + 8, 66, 4, f === 5, '#fff6ee', '#2a1a10', INK);
+        p.rect(cx - 12, 60, 7, 2, TD); p.rect(cx + 6, 60, 7, 2, TD);
+        spMouth(p, cx, 76, 12, f, TD);
+        p.ellipse(cx - 14, 74, 4, 3, '#e8935e');
+        p.ellipse(cx + 14, 74, 4, 3, '#e8935e');
+        // the fern, which is his hair and his pride
+        for (let i = 0; i < 7; i++) {
+          const a = -0.4 + i * 0.44, L = 20 + (i % 3) * 7;
+          const ex = cx + Math.cos(a - Math.PI / 2) * L + lean, ey = 46 + Math.sin(a - Math.PI / 2) * L;
+          p.line(cx + (i - 3) * 2, 46, ex, ey, G);
+          for (let k = 1; k < 5; k++) {
+            const q = k / 5;
+            const lx = cx + (i - 3) * 2 + (ex - (cx + (i - 3) * 2)) * q;
+            const ly = 46 + (ey - 46) * q;
+            p.ellipse(lx, ly, 3, 2, k % 2 ? GL : G);
+          }
+          p.ellipse(ex, ey, 4, 3, GL);
+        }
+        // and the twig arms
+        for (const s of [-1, 1]) {
+          const ay = f === 6 ? 34 : 70;
+          p.line(cx + s * 20, 62, cx + s * 27, ay, '#7a5a2a');
+          p.ellipse(cx + s * 27, ay, 3, 3, G);
+          p.ellipse(cx + s * 29, ay - 3, 3, 2, GL);
+        }
+        p.outline(INK);
+        return p;
+      } },
+
+    /* ----------------------------------------------------------- SUNNY
+       Eight foot of sunflower in a bucket. Follows the light, and the light
+       in here comes off the jackpot sign, so Sunny is always facing the
+       machines. */
+    { name: 'SUNNY', acc: '#ffd34d', say: 'SHE FACES WHICHEVER MACHINE IS PAYING. SHE IS NEVER WRONG.',
+      build(f) {
+        const p = pix(SPW, SPH), cx = SPW >> 1;
+        const ST = '#3f9a2a', STL = '#6fd955', PET = '#ffd34d', PETD = '#d89a10';
+        const SEED = '#6a4418', INK = '#141018';
+        const sway = f === 1 ? -3 : (f === 2 ? 3 : 0);
+        const hx = cx + sway, hy = 26;
+        // the bucket, and the two feet under it
+        p.round(cx - 15, 80, 30, 18, 3, '#8e96a8');
+        p.round(cx - 17, 78, 34, 5, 2, '#c0c8d8');
+        p.rect(cx - 13, 84, 26, 2, '#6a7284');
+        p.round(cx - 13 + (f === 1 ? -2 : 0), 96, 11, 5, 2, '#5a6274');
+        p.round(cx + 3 + (f === 2 ? 2 : 0), 96, 11, 5, 2, '#5a6274');
+        // the stalk, bending the way she is leaning
+        for (let i = 0; i < 12; i++) {
+          const q = i / 11;
+          p.rect(cx - 2 + sway * q, 80 - i * 5, 5, 6, ST);
+          p.rect(cx - 2 + sway * q, 80 - i * 5, 2, 6, STL);
+        }
+        // two enormous leaves, which are also her arms
+        for (const s of [-1, 1]) {
+          const ay = f === 6 ? 40 : 62;
+          for (let k = 0; k < 5; k++) {
+            const q = k / 4;
+            p.ellipse(cx + s * (8 + q * 18), ay + (f === 6 ? -q * 14 : q * 6), 6 - q * 2, 5 - q * 2, k % 2 ? STL : ST);
+          }
+          p.line(cx + s * 6, ay, cx + s * 26, ay + (f === 6 ? -14 : 6), ST);
+        }
+        // the head: two ranks of petals, then the seed face
+        for (let r = 0; r < 2; r++) {
+          const n = 11, R = r ? 25 : 20;
+          for (let i = 0; i < n; i++) {
+            const a = i / n * Math.PI * 2 + r * 0.28 + (f === 6 ? 0.1 : 0);
+            p.ellipse(hx + Math.cos(a) * R, hy + Math.sin(a) * R, 6, 5, r ? PETD : PET);
+            p.ellipse(hx + Math.cos(a) * (R - 2), hy + Math.sin(a) * (R - 2), 4, 4, PET);
+          }
+        }
+        p.ellipse(hx, hy, 15, 14, SEED);
+        for (let i = 0; i < 26; i++) {
+          const a = i * 2.4, rr = 3 + (i % 5) * 2.2;
+          p.set(hx + Math.cos(a) * rr, hy + Math.sin(a) * rr, '#4a2c10');
+        }
+        spEye(p, hx - 6, hy - 1, 4, f === 5, '#fff6dc', '#2a1a08', INK);
+        spEye(p, hx + 6, hy - 1, 4, f === 5, '#fff6dc', '#2a1a08', INK);
+        spMouth(p, hx, hy + 8, 10, f, '#3a2208');
+        p.outline(INK);
+        return p;
+      } },
+
+    /* ------------------------------------------------------ THE LAVA LAMP
+       Sixty years old, still warming up, and the slowest tipper in the
+       building. Also screwed to half the walls in here as a light fitting. */
+    { name: 'THE LAMP', acc: '#ff6a2a', say: 'IT HAS BEEN ABOUT TO SAY SOMETHING FOR TWENTY MINUTES',
+      build(f) {
+        const p = pix(SPW, SPH), cx = SPW >> 1;
+        const BR = '#c2932a', BRD = '#7a5c16', GL = '#3a1a4a', WAX = '#ff6a2a', WAXL = '#ffb03d';
+        const INK = '#141018';
+        const rise = f === 1 ? 0 : (f === 2 ? 3 : (f === 6 ? 6 : 1));
+        // the base and the cap
+        p.round(cx - 16, 84, 32, 14, 4, BR);
+        p.round(cx - 16, 84, 32, 3, 2, '#ffd34d');
+        p.round(cx - 12, 96, 24, 5, 2, BRD);
+        p.round(cx - 12, 4, 24, 10, 4, BR);
+        p.round(cx - 12, 4, 24, 3, 2, '#ffd34d');
+        // the glass: a tapered column of very hot liquid
+        for (let y = 14; y < 84; y++) {
+          const q = (y - 14) / 70;
+          const w = 9 + q * 8;
+          p.rect(cx - w, y, w * 2, 1, GL);
+          p.rect(cx - w, y, 3, 1, '#5e2a70');
+        }
+        // the wax, which is what it is thinking
+        const blobs = [[0, 70, 8], [-3, 52 - rise * 2, 6], [2, 36 - rise * 3, 5], [-2, 22 - rise, 3]];
+        for (const [dx, by, r] of blobs) {
+          p.ellipse(cx + dx, by, r, r + 2, WAX);
+          p.ellipse(cx + dx - 1, by - 1, r - 2, r - 1, WAXL);
+        }
+        // the face it has condensed on the inside of the glass
+        spEye(p, cx - 6, 46, 4, f === 5, '#fff0e0', '#3a1008', INK);
+        spEye(p, cx + 6, 46, 4, f === 5, '#fff0e0', '#3a1008', INK);
+        spMouth(p, cx, 56, 9, f, '#7a2a10');
+        p.outline(INK);
+        return p;
+      } },
+
+    /* -------------------------------------------------------------- DUCKY
+       Enormous. Rubber. Owns four machines on the second floor and will not
+       say how. */
+    { name: 'DUCKY', acc: '#ffd34d', say: 'NOBODY HAS EVER SEEN DUCKY PAY FOR ANYTHING',
+      build(f) {
+        const p = pix(SPW, SPH), cx = SPW >> 1;
+        const Y = '#ffd84a', YL = '#fff2a0', YD = '#c99a12', OR = '#ff8a1e', INK = '#141018';
+        const wag = f === 1 ? -2 : (f === 2 ? 2 : 0);
+        // the two orange feet
+        p.round(cx - 17 + (f === 1 ? -2 : 0), 92, 16, 8, 3, OR);
+        p.round(cx + 2 + (f === 2 ? 2 : 0), 92, 16, 8, 3, OR);
+        // the body, which is nearly all of him
+        p.ellipse(cx, 66, 24, 26, Y);
+        p.ellipse(cx - 7, 56, 13, 12, YL);
+        p.ellipse(cx + 20 + wag, 60, 9, 12, Y);          // the tail
+        p.ellipse(cx + 22 + wag, 54, 5, 6, YL);
+        // a wing each side, up on the cheer
+        for (const s of [-1, 1]) {
+          const ay = f === 6 ? 46 : 66;
+          p.ellipse(cx + s * 20, ay, 8, f === 6 ? 13 : 10, YD);
+          p.ellipse(cx + s * 19, ay - 2, 6, 7, Y);
+        }
+        // the head, and the bill
+        p.ellipse(cx - 4, 30, 18, 17, Y);
+        p.ellipse(cx - 8, 22, 11, 8, YL);
+        p.round(cx - 26, 30, 18, 9, 4, OR);
+        p.round(cx - 26, 33, 18, 4, 2, '#d86a0e');
+        if (f === 3 || f === 6) { p.round(cx - 26, 36, 18, 6, 3, '#d86a0e'); p.rect(cx - 22, 37, 10, 3, '#a8400a'); }
+        spEye(p, cx - 9, 26, 4, f === 5, '#ffffff', '#1a1008', INK);
+        spEye(p, cx + 3, 26, 4, f === 5, '#ffffff', '#1a1008', INK);
+        p.outline(INK);
+        return p;
+      } },
+
+    /* ------------------------------------------------------------ THE SET
+       A television on legs. Whatever is on it is its face, and whatever its
+       face is doing is on it. */
+    { name: 'THE SET', acc: '#7ef9ff', say: 'IT IS SHOWING THE RACING. IT IS ALWAYS SHOWING THE RACING.',
+      build(f) {
+        const p = pix(SPW, SPH), cx = SPW >> 1;
+        const W = '#8a6a4a', WL = '#b08a5e', WD = '#4a3420', SCR = '#0f2a30';
+        const G = '#6fe8d8', INK = '#141018';
+        const tilt = f === 1 ? -1 : (f === 2 ? 1 : 0);
+        // spindly legs, splayed
+        for (const s of [-1, 1]) {
+          p.line(cx + s * 12, 76, cx + s * 20 + (f === 1 && s < 0 ? -3 : 0) + (f === 2 && s > 0 ? 3 : 0), 98, WD);
+          p.line(cx + s * 12 + s, 76, cx + s * 20 + s, 98, W);
+          p.round(cx + s * 22 - 5, 96, 11, 5, 2, WD);
+        }
+        // the cabinet
+        p.round(cx - 24, 20 + tilt, 48, 58, 5, W);
+        p.round(cx - 24, 20 + tilt, 48, 5, 3, WL);
+        p.round(cx - 21, 25 + tilt, 34, 40, 5, '#2a1a10');
+        p.round(cx - 19, 27 + tilt, 30, 36, 5, SCR);
+        // the dials and the speaker down the side
+        p.disc(cx + 18, 34 + tilt, 4, WD); p.disc(cx + 18, 34 + tilt, 2, '#ffd34d');
+        p.disc(cx + 18, 46 + tilt, 4, WD); p.disc(cx + 18, 46 + tilt, 2, '#ffd34d');
+        for (let i = 0; i < 4; i++) p.rect(cx + 13, 54 + tilt + i * 3, 11, 2, WD);
+        // the picture, which is the face
+        for (let y = 28 + tilt; y < 62 + tilt; y += 3) p.rect(cx - 18, y, 28, 1, '#16343c');
+        spEye(p, cx - 11, 40 + tilt, 4, f === 5, '#dffcff', '#0a2028', INK);
+        spEye(p, cx - 1, 40 + tilt, 4, f === 5, '#dffcff', '#0a2028', INK);
+        spMouth(p, cx - 6, 50 + tilt, 11, f, G);
+        if (f === 6) { for (let i = 0; i < 5; i++) p.rect(cx - 18 + i * 6, 29 + tilt, 4, 3, '#ffd34d'); }
+        // the aerial, bent
+        p.line(cx - 6, 20 + tilt, cx - 18, 2, '#c0c8d8');
+        p.line(cx + 4, 20 + tilt, cx + 18, 6, '#c0c8d8');
+        p.disc(cx - 18, 2, 2, '#e8eef8'); p.disc(cx + 18, 6, 2, '#e8eef8');
+        p.outline(INK);
+        return p;
+      } }
+  ];
+
+  function makeSpecies() {
+    for (let i = 0; i < SPECIES.length; i++) {
+      const sp = SPECIES[i];
+      const frames = [0, 1, 2, 3, 4, 5, 6].map(f => sp.build(f));
+      const W = frames[0].w, H = frames[0].h;
+      const t = { key: 'sp' + i, celeb: sp.name, say: sp.say, acc: sp.acc, species: 1 };
+      regRaw(t.key, frames, W / 2 / HD, H / HD);
+      t.w = W / HD; t.h = H / HD;
+      KIN.push(t);
+    }
+  }
+
   function makeKin(n) {
     for (let i = 0; i < n; i++) {
       // the mix is dealt out rather than rolled, so a room of twenty always has
@@ -2150,6 +2510,7 @@
   reg('clubsign', [clubSign(false), clubSign(true)]);
   makeKin(20);
   makeCelebs();
+  makeSpecies();
   reg('dj', [djAlien(0), djAlien(1)]);
   reg('bouncer', [bouncer()]);
   for (let i = 0; i < 3; i++) reg('dealer' + i, [dealer(0, i), dealer(1, i)]);
@@ -2158,5 +2519,5 @@
   reg('skull', [celestialHead()]);
   reg('tape', [tapeDeck(0), tapeDeck(1)]);
 
-  PD.arthome = { S, P, KIN, CELEBS, alienKin, buildAlien, hsl, buildMoon, buildPlanet, blit, HD, mitten, reg, regRaw };
+  PD.arthome = { S, P, KIN, CELEBS, SPECIES, alienKin, buildAlien, hsl, buildMoon, buildPlanet, blit, HD, mitten, reg, regRaw };
 })(window.PD);

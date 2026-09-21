@@ -1118,11 +1118,9 @@
         else if (id === 'new') wipe = true;
         else { MENU.page = id; MENU.set = 0; MENU.cred = 0; }
       }
-      // what is in the save, small, under the stack
-      if (g.save.totalEarned > 0) {
-        F.draw(ctx, '$' + U.fmt(g.save.credits) + '   GALAXY ' + g.save.dominion.toFixed(1) + '%   ' +
-          g.save.destroyed.length + ' DEAD WORLDS', 30, 256, '#6b6490', { shadow: '#0a0618' });
-      }
+      /* There used to be a line of save figures along the bottom left. It is
+         gone: the menu is a door, not a dashboard, and every number on it is
+         one the game will tell you again the moment you are through. */
     } else if (MENU.page === 'settings') {
       if (up) { MENU.set = (MENU.set + OPTS.length - 1) % OPTS.length; A.sfx.click(); }
       if (dn) { MENU.set = (MENU.set + 1) % OPTS.length; A.sfx.click(); }
