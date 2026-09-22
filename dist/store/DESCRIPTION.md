@@ -34,9 +34,13 @@ lose:
   rubber ducks that has never once held on to anything.
 - **THE MENAGERIE** — sofas, a fountain, a wall of brains in jars, and the desk
   that will lend you anything you like at twenty-five per cent.
-- **THE CROWN** — THE MEGA PLANET MACHINE. Ten thousand a pull, three worlds
-  pays sixty times, and the jackpot board has never been reset because it has
-  never been paid.
+- **THE CROWN** — THE MEGA PLANET MACHINE. It is six times your height, stands
+  on a plinth you climb, and goes up through a hole cut in the ceiling. Three
+  windows with whole ringed worlds turning in them, a lever you reach up for,
+  a raked gallery of people who cannot afford a pull watching you have one, and
+  a board on the wall listing everybody who has and what it took off them. Ten
+  thousand a pull, three worlds pays sixty times, and the jackpot board has
+  never been reset because it has never been paid.
 
 **Everything is drawn by code.** Not one sprite sheet, sound file or font in the
 whole game. Every alien, every ore, every planet and every note of every one of

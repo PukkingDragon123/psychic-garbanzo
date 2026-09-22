@@ -690,6 +690,9 @@
     updateNPCs(dt);
     updateCry(dt);
     LOAN.t = Math.max(0, LOAN.t - dt);
+    if (S.clap > 0 && cdeck() === 0 && U.chance(dt * 26)) {
+      FX.stars(STAGE_X + U.rand(-50, 50), SALON_Y - U.rand(20, 50), 1, '#ffd34d');
+    }
     S.clap = Math.max(0, S.clap - dt);
     if (cdeck() === 0) shoving(dt, g);
     // somebody says something, roughly every couple of seconds
@@ -735,7 +738,12 @@
       }
       /* `dance` is what it was called when this was a nightclub. In here it
          is standing at a table watching somebody else's money go. */
-      if (c.dance > 0) { c.dance -= dt; c.vx = 0; continue; }
+      if (c.dance > 0) {
+        c.dance -= dt; c.vx = 0;
+        const K0 = AH.KIN[c.k % AH.KIN.length];
+        if (U.chance(dt * 3)) FX.stars(c.x, FLOOR - K0.h - 6, 1, K0.acc);
+        continue;
+      }
       c.wait -= dt;
       if (c.wait <= 0) {
         c.wait = U.rand(1.4, 4);
@@ -746,9 +754,13 @@
       if (c.x < c.lo) { c.x = c.lo; c.vx = Math.abs(c.vx); c.face = 1; }
       if (c.x > c.hi) { c.x = c.hi; c.vx = -Math.abs(c.vx); c.face = -1; }
     }
+    updateTray(dt);
+    // the cleaner, still going, still shedding what it picks up
+    if (cdeck() === 0 && U.chance(dt * 1.2)) FX.puff(roombaX(S.t), FLOOR + 4, 2, '#6a4a58', 0.5);
+
     // pair off whoever happens to be standing next to somebody
     S.kissT -= dt;
-    if (S.kissT <= 0) {
+    if (S.kissT <= 0 && cdeck() === 0) {
       S.kissT = U.rand(3.4, 7);
       const free = CLUBBERS.filter(c => c.kiss <= 0);
       for (const a of free) {
@@ -786,6 +798,10 @@
 
   function place(g, atX) {
     setZoom(zoomFor(S.scene));
+    /* Particles live in world coordinates and every room in here uses the same
+       ones. Carrying them across a door means a bar's cigarette smoke reappears
+       forty feet up a lift shaft. Drop them at the threshold. */
+    FX.clearParts();
     const bd = bounds();
     P.x = U.clamp(atX, bd[0], bd[1]);
     P.y = groundY(P.x); P.vx = 0; P.vy = 0;
@@ -849,7 +865,7 @@
           name: 'THE DESK', sub: 'AN ADVANCE. THEY NEVER SAY NO.' });
       }
       if (cdeck() === 3) {
-        out.push({ id: 'mega', x: MEGA_X - 88, lo: MEGA_X - 80, hi: MEGA_X + 84,
+        out.push({ id: 'mega', x: MEGA_X + 62, lo: MEGA_X - MEGA_HW - 40, hi: MEGA_X + MEGA_HW + 96,
           name: 'THE UNIVERSAL', sub: 'THE MEGA PLANET MACHINE. $' + U.fmt(MEGA_STAKE) });
       }
       if (cdeck() !== 0) return out;
@@ -1782,6 +1798,10 @@
     for (const d of DRIPS) { d.t += dt; if (d.t > 3.4) { d.t = 0; A.sfx.tone(1400, { type: 'sine', to: 800, dur: 0.1, vol: 0.02 }); } }
     updateRat(dt, g);
     if (S.scene === 'club') updateClub(dt, g);
+    if (S.scene === 'in' && U.chance(dt * 2.4)) {
+      FX.spawn({ x: IN_SPOTS[1].x + U.rand(-14, 14), y: FLOOR - 88, vx: U.rand(-6, 6), vy: U.rand(-16, -5),
+        life: 1.1, size: 2, color: '#8affd0', grav: -0.06, drag: 0.96, glow: 1 });
+    }
     P.sweep = Math.max(0, P.sweep - dt);
     S.drunk = Math.max(g.save.story === 1 ? 0.32 : 0, S.drunk - dt * 0.06);
 
@@ -2498,6 +2518,288 @@
     }
   }
 
+  /* ======================================================= DRESSING THE ROOM
+     The shell was right and the set pieces were right and between them there
+     was nothing: forty feet of good wallpaper with a chip stack on the floor.
+     This is everything that fills that in -- trolleys, ashtray stands, palms,
+     rope runs, notices, mirrors, pendant lamps and the girl with the tray --
+     laid out by rule along whatever floor you happen to be on, and stepped
+     around the furniture rather than through it. */
+
+  /* What is already taken on each deck. Anything here gets a wide berth. */
+  function busySpans() {
+    const d = cdeck(), out = [[30, 190]];               // the lift, always
+    out.push([atriumX() - 24, atriumX() + atriumW() + 24]);
+    if (d === 0) {
+      out.push([CAGE_X - 74, CAGE_X + 74], [POKER_X - 62, POKER_X + 62], [ROU_X - 74, ROU_X + 74],
+        [JACK_X - 62, JACK_X + 62], [BAR_X - 120, BAR_X + 120], [ROPE_X - 70, ROPE_X + 70],
+        [CRAPS_X - 70, CRAPS_X + 70], [STAGE_X - 96, STAGE_X + 96], [BACC_X - 74, BACC_X + 74],
+        [1130, 1410]);
+    } else if (d === 1) {
+      out.push([196, 382], [CLAW_X - 36, CLAW_X + 36], [818, 992], [1258, 1422],
+        [PRIZE_X - 46, PRIZE_X + 46]);
+    } else if (d === 2) {
+      out.push([LOAN_X - 56, LOAN_X + 56], [628, 772], [890, 1070], [1210, 1370]);
+    } else {
+      out.push([180, 400], [MEGA_X - MEGA_HW - 90, MEGA_X + MEGA_HW + 130], [1280, 1520]);
+    }
+    return out;
+  }
+  function clearAt(spans, x, w) {
+    for (const s of spans) if (x + w > s[0] && x - w < s[1]) return false;
+    return true;
+  }
+
+  /* ------------------------------------------------- what stands on the floor */
+  function propTrolley(ctx, x, t) {
+    X.blob(ctx, x, FLOOR + 3, 16, 3, '#2a0410');
+    X.plate(ctx, x - 14, FLOOR - 26, 29, 22, CAS.wood, CAS.woodL, '#160c08', 3);
+    X.rect(ctx, x - 14, FLOOR - 26, 29, 2, CAS.goldD);
+    X.rect(ctx, x - 12, FLOOR - 15, 25, 2, CAS.goldDD);
+    for (let i = 0; i < 5; i++) {
+      const bx = x - 10 + i * 5;
+      X.rect(ctx, bx, FLOOR - 36, 3, 10, ['#8affa0', '#ffb03d', '#ff8ad8', '#7ec8ff', '#c9a0ff'][i]);
+      X.rect(ctx, bx, FLOOR - 38, 3, 2, CAS.goldDD);
+    }
+    X.blob(ctx, x - 9, FLOOR - 2, 3, 3, '#1a1008');
+    X.blob(ctx, x + 10, FLOOR - 2, 3, 3, '#1a1008');
+  }
+  function propAshStand(ctx, x, t) {
+    X.blob(ctx, x, FLOOR + 2, 7, 2, '#2a0410');
+    X.rect(ctx, x - 5, FLOOR - 4, 11, 4, CAS.goldDD);
+    X.rect(ctx, x - 2, FLOOR - 32, 4, 28, CAS.goldDD);
+    X.rect(ctx, x - 1, FLOOR - 32, 1, 28, CAS.goldD);
+    X.plate(ctx, x - 8, FLOOR - 38, 17, 7, '#3a2a10', CAS.goldD, '#1a1008', 2);
+    X.rect(ctx, x - 6, FLOOR - 36, 13, 3, '#9a9282');
+    for (let i = 0; i < 3; i++) X.rect(ctx, x - 5 + i * 4, FLOOR - 37, 3, 1, '#d8d0c0');
+    if (U.chance(0.5)) {
+      ctx.globalAlpha = 0.07;
+      X.blob(ctx, x + Math.sin(t * 0.7) * 2, FLOOR - 50, 5, 12, '#c9bce8');
+      ctx.globalAlpha = 1;
+    }
+  }
+  function propPalm(ctx, x, t, k) {
+    X.blob(ctx, x, FLOOR + 3, 14, 3, '#2a0410');
+    X.plate(ctx, x - 11, FLOOR - 18, 23, 18, '#5a4418', CAS.goldD, '#2a1c06', 3);
+    X.rect(ctx, x - 11, FLOOR - 18, 23, 2, CAS.gold);
+    X.rect(ctx, x - 2, FLOOR - 44, 4, 27, '#3a5a2a');
+    for (let i = 0; i < 7; i++) {
+      const a = -Math.PI / 2 + (i - 3) * 0.44 + Math.sin(t * 0.6 + i + k) * 0.05;
+      const L = 20 + (i % 2) * 7;
+      X.limb(ctx, x, FLOOR - 42, x + Math.cos(a) * L, FLOOR - 42 + Math.sin(a) * L * 0.8,
+        4, 1, '#2e6a2a', '#5aa83a', '#1a3a18');
+    }
+    X.blob(ctx, x, FLOOR - 44, 4, 3, '#4a8a32');
+  }
+  function propRopeRun(ctx, x, t) {
+    for (let i = 0; i < 3; i++) {
+      const px = x + i * 26;
+      if (i < 2) { ctx.globalAlpha = 0.85; X.rect(ctx, px, FLOOR - 18, 26, 3, '#8a1228'); ctx.globalAlpha = 1; }
+      X.rect(ctx, px - 2, FLOOR - 22, 4, 22, '#4a3a10');
+      X.rect(ctx, px - 1, FLOOR - 22, 1, 22, CAS.goldD);
+      X.blob(ctx, px, FLOOR - 24, 3, 3, CAS.gold);
+    }
+  }
+  function propBanquette(ctx, x, t, k) {
+    X.blob(ctx, x, FLOOR + 3, 26, 4, '#2a0410');
+    X.plate(ctx, x - 24, FLOOR - 30, 49, 30, CAS.redD, '#8a1228', CAS.blackD, 5);
+    X.rect(ctx, x - 24, FLOOR - 30, 49, 2, '#9e1730');
+    X.rect(ctx, x - 24, FLOOR - 14, 49, 3, '#5e0c1e');
+    for (let i = 0; i < 4; i++) X.blob(ctx, x - 17 + i * 11, FLOOR - 22, 2, 2, CAS.goldDD);
+    // and whoever is sleeping it off on the end
+    if (k % 3 === 0) {
+      const K = AH.KIN[(x | 0) % AH.KIN.length];
+      AH.blit(ctx, AH.S[K.key], 5, x + 12, FLOOR - 12, true);
+    }
+  }
+  function propTipBox(ctx, x, t) {
+    X.blob(ctx, x, FLOOR + 2, 8, 2, '#2a0410');
+    X.plate(ctx, x - 7, FLOOR - 26, 15, 26, CAS.wood, CAS.woodL, '#160c08', 3);
+    X.plate(ctx, x - 9, FLOOR - 38, 19, 13, '#2a1c06', CAS.goldD, '#140e04', 3);
+    X.rect(ctx, x - 5, FLOOR - 36, 11, 2, '#000000');
+    F.draw(ctx, 'TIPS', x, FLOOR - 32, CAS.gold, { center: true, shadow: false });
+  }
+  function propUplight(ctx, x, t, k) {
+    const on = (Math.floor(t * 2) + k) % 9 !== 0;
+    X.plate(ctx, x - 6, FLOOR - 8, 13, 8, '#2a1c28', CAS.goldDD, CAS.blackD, 2);
+    X.rect(ctx, x - 4, FLOOR - 9, 9, 2, on ? CAS.gold : '#4a3a10');
+    if (on) {
+      ctx.globalAlpha = 0.07;
+      X.poly(ctx, [[x - 5, FLOOR - 9], [x + 5, FLOOR - 9], [x + 17, FLOOR - 74], [x - 17, FLOOR - 74]], CAS.gold);
+      ctx.globalAlpha = 1;
+    }
+  }
+  function propChairs(ctx, x, t, k) {
+    for (let i = 0; i < 3; i++) {
+      const y = FLOOR - 4 - i * 6;
+      X.plate(ctx, x - 11 + i, y - 22, 22, 22, CAS.redD, '#8a1228', CAS.blackD, 3);
+      X.rect(ctx, x - 11 + i, y - 22, 22, 2, CAS.goldDD);
+    }
+  }
+  function propBucket(ctx, x, t) {
+    X.rect(ctx, x - 9, FLOOR - 30, 19, 3, '#3a2a10');
+    for (let i = 0; i < 2; i++) {
+      const bx = x - 5 + i * 10;
+      X.poly(ctx, [[bx - 5, FLOOR - 27], [bx + 5, FLOOR - 27], [bx + 3, FLOOR - 16], [bx - 3, FLOOR - 16]], '#9e1730');
+      X.rect(ctx, bx - 5, FLOOR - 28, 11, 2, '#d63550');
+    }
+  }
+  /* A different kit on each floor, so the menagerie does not end up with a
+     palm between every palm it already had. */
+  const FLOOR_KITS = [
+    [propTrolley, propAshStand, propRopeRun, propBanquette, propTipBox, propUplight, propChairs, propBucket, propPalm],
+    [propTrolley, propChairs, propAshStand, propBanquette, propUplight, propTipBox, propRopeRun, propBucket],
+    [propTrolley, propBanquette, propUplight, propChairs, propBucket, propAshStand, propTipBox, propRopeRun],
+    [propRopeRun, propAshStand, propBanquette, propUplight, propChairs, propTipBox, propPalm, propTrolley]
+  ];
+
+  /* ------------------------------------------------- what hangs on the wall */
+  const NOTICES = [
+    ['THE HOUSE', 'DOES NOT', 'LEND'], ['NO CREDIT', 'AFTER', 'MIDNIGHT'],
+    ['MIND', 'YOUR OWN', 'CHIPS'], ['ALL WINS', 'PAID IN', 'FULL'],
+    ['NO ARMS', 'ON THE', 'TABLE'], ['THE HOUSE', 'THANKS YOU', 'FOR LOSING']
+  ];
+  function wallNotice(ctx, x, y, k) {
+    X.plate(ctx, x - 20, y, 41, 34, CAS.goldDD, CAS.goldD, '#2a1c06', 3);
+    X.rect(ctx, x - 17, y + 3, 35, 28, '#160a12');
+    const N = NOTICES[k % NOTICES.length];
+    for (let i = 0; i < 3; i++) F.draw(ctx, N[i], x, y + 7 + i * 8, i ? '#8a6a3a' : CAS.gold, { center: true, shadow: false });
+  }
+  function wallMirror(ctx, x, y, t) {
+    X.plate(ctx, x - 17, y, 35, 46, CAS.goldD, CAS.gold, '#2a1c06', 8);
+    X.rect(ctx, x - 13, y + 4, 27, 38, '#1a1826');
+    ctx.globalAlpha = 0.16;
+    X.poly(ctx, [[x - 11, y + 40], [x - 2, y + 6], [x + 3, y + 6], [x - 6, y + 40]], '#8a84b0');
+    ctx.globalAlpha = 0.2;
+    X.rect(ctx, x - 12, y + 28, 25, 13, '#7a2038');
+    ctx.globalAlpha = 1;
+    X.blob(ctx, x, y + 2, 5, 4, CAS.gold);
+  }
+  function wallTapestry(ctx, x, y, k) {
+    X.rect(ctx, x - 19, y, 39, 3, CAS.goldD);
+    X.rect(ctx, x - 17, y + 3, 35, 50, '#5e0a1a');
+    for (let r = 0; r < 4; r++) for (let c = 0; c < 2; c++) damask(ctx, x - 8 + c * 16, y + 11 + r * 12, '#7a1024');
+    for (let i = 0; i < 7; i++) X.rect(ctx, x - 17 + i * 5, y + 53, 3, 4, CAS.goldDD);
+  }
+  function wallTrophy(ctx, x, y, k) {
+    X.plate(ctx, x - 13, y + 22, 27, 9, CAS.wood, CAS.woodL, '#160c08', 2);
+    const sk = ['#8fd6a0', '#c9a0ff', '#ffb03d', '#7ec8ff'][k % 4];
+    X.blob(ctx, x, y + 14, 11, 10, sk);
+    X.blob(ctx, x - 7, y + 6, 4, 6, sk); X.blob(ctx, x + 7, y + 6, 4, 6, sk);
+    X.rect(ctx, x - 6, y + 11, 3, 3, '#1a1008'); X.rect(ctx, x + 3, y + 11, 3, 3, '#1a1008');
+    X.rect(ctx, x - 5, y + 19, 11, 2, '#1a1008');
+    F.draw(ctx, 'A WINNER', x, y + 32, '#6a5a3a', { center: true, shadow: false });
+  }
+  function wallShelf(ctx, x, y, k) {
+    X.rect(ctx, x - 18, y + 22, 37, 3, CAS.wood);
+    X.rect(ctx, x - 18, y + 22, 37, 1, CAS.woodL);
+    for (let i = 0; i < 7; i++) {
+      const h = 10 + (i % 3) * 5;
+      X.rect(ctx, x - 16 + i * 5, y + 22 - h, 4, h, ['#3a6a2a', '#6a3a1a', '#2a3a6a', '#5a2a3a'][(i + k) % 4]);
+      X.rect(ctx, x - 16 + i * 5, y + 22 - h, 4, 2, CAS.goldDD);
+    }
+  }
+  function wallCrest(ctx, x, y, k) {
+    X.poly(ctx, [[x - 15, y + 4], [x + 15, y + 4], [x + 15, y + 26], [x, y + 40], [x - 15, y + 26]], CAS.redD);
+    X.poly(ctx, [[x - 12, y + 7], [x + 12, y + 7], [x + 12, y + 25], [x, y + 36], [x - 12, y + 25]], '#8a1228');
+    damask(ctx, x, y + 18, CAS.goldD);
+    X.rect(ctx, x - 15, y + 4, 31, 2, CAS.gold);
+  }
+  const WALL_PROPS = [wallNotice, wallMirror, wallTapestry, wallTrophy, wallShelf, wallCrest, wallNotice, wallMirror];
+
+  /* ------------------------------------------------------ what hangs overhead */
+  function casinoOverhead(ctx, t, cam) {
+    const W = clubW();
+    // small pendant lamps between the chandeliers
+    for (let x = 80; x < W; x += 80) {
+      const px = x - cam;
+      if (px < -20 || px > VW + 20) continue;
+      if (Math.abs(((x - 200) % 240)) < 40) continue;          // not on a chandelier
+      const cy = CLUB_CEIL + 14 + Math.sin(t * 0.4 + x) * 0.6;
+      X.rect(ctx, px, 8, 1, cy - 8, CAS.goldDD);
+      X.poly(ctx, [[px - 7, cy + 8], [px + 8, cy + 8], [px + 5, cy], [px - 4, cy]], CAS.goldD);
+      X.rect(ctx, px - 7, cy + 8, 15, 1, CAS.gold);
+      const on = (Math.floor(t * 2.2) + ((x / 80) | 0)) % 13 !== 0;
+      X.blob(ctx, px, cy + 9, 4, 2, on ? '#ffe9a8' : '#5a4418');
+      if (on) { ctx.globalAlpha = 0.07; X.blob(ctx, px, cy + 14, 14, 12, CAS.gold); ctx.globalAlpha = 1; }
+    }
+    /* Bunting, swagged bay to bay along the top of the wall. The first pass
+       hung it at eight pixels a flag and the whole room looked like it had a
+       row of teeth. Small flags, a real sag, and a cord you can see. */
+    const SEG = 72;
+    for (let x = Math.floor(cam / SEG) * SEG - SEG; x < cam + VW + SEG; x += SEG) {
+      const px = x - cam;
+      for (let i = 0; i < 12; i++) {
+        const q = i / 12, sag = Math.sin(q * Math.PI) * 5;
+        X.rect(ctx, px + i * 6, CLUB_CEIL + 2 + sag, 6, 1, '#4a3a10');
+        X.poly(ctx, [[px + i * 6, CLUB_CEIL + 3 + sag], [px + i * 6 + 5, CLUB_CEIL + 3 + sag],
+          [px + i * 6 + 2, CLUB_CEIL + 8 + sag]], i % 2 ? '#8a1228' : CAS.goldDD);
+      }
+    }
+    // and the house watching you: a camera dome every so often
+    for (let x = 140; x < W; x += 300) {
+      const px = x - cam;
+      if (px < -14 || px > VW + 14) continue;
+      X.rect(ctx, px - 2, CLUB_CEIL + 2, 5, 5, '#2a1c28');
+      X.blob(ctx, px, CLUB_CEIL + 8, 6, 5, '#120810');
+      X.blob(ctx, px - 2, CLUB_CEIL + 7, 2, 2, (Math.floor(t * 1.5) % 4) ? '#9e1730' : '#ff5a4d');
+    }
+  }
+
+  /* The girl with the tray, going up and down whichever floor you are on and
+     never getting to the end of it. */
+  const TRAY = { x: 400, dir: 1, k: 3, t: 0 };
+  function updateTray(dt) {
+    TRAY.t += dt;
+    TRAY.x += TRAY.dir * 17 * dt;
+    const lo = 200, hi = Math.max(400, clubW() - 200);
+    if (TRAY.x < lo) { TRAY.x = lo; TRAY.dir = 1; }
+    if (TRAY.x > hi) { TRAY.x = hi; TRAY.dir = -1; }
+  }
+  function drawTray(ctx, t, cam) {
+    const x = TRAY.x - cam;
+    if (x < -30 || x > VW + 30) return;
+    const K = AH.KIN[TRAY.k % AH.KIN.length];
+    const bob = Math.sin(TRAY.t * 7) * 1.2;
+    kinShadow(ctx, x, FLOOR, K);
+    AH.blit(ctx, AH.S[K.key], (Math.floor(TRAY.t * 4.4) % 2) ? 1 : 2, x, FLOOR + bob, TRAY.dir < 0);
+    // the tray, held out in front, with four of whatever it is on it
+    const tx = x + TRAY.dir * 11, ty = FLOOR - K.h * 0.62 + bob;
+    X.plate(ctx, tx - 9, ty, 19, 3, '#4a3a10', CAS.goldD, '#1a1008', 1);
+    for (let i = 0; i < 4; i++) {
+      X.rect(ctx, tx - 7 + i * 4, ty - 7, 3, 7, 'rgba(220,235,255,0.35)');
+      X.rect(ctx, tx - 7 + i * 4, ty - 5, 3, 5, ['#8affa0', '#ffb03d', '#ff8ad8', '#7ec8ff'][i]);
+    }
+  }
+
+  /* The two passes. Wall furniture goes on before the tables so the tables
+     stand in front of it; the floor props go on after the shell and before
+     the crowd, so somebody is always half in front of something. */
+  function casinoDressWall(ctx, t, cam) {
+    const spans = busySpans(), W = clubW();
+    for (let x = 96; x < W; x += 62) {
+      const px = x - cam;
+      if (px < -50 || px > VW + 50) continue;
+      if (!clearAt(spans, x, 21)) continue;
+      const i = (x / 62) | 0;
+      const k = (i * 3 + Math.floor(U.hash2(x, 17) * 2)) % WALL_PROPS.length;
+      WALL_PROPS[k](ctx, px, CLUB_CEIL + 40, k + i);
+    }
+  }
+  function casinoDressFloor(ctx, g, t, cam) {
+    const spans = busySpans(), W = clubW();
+    for (let x = 110; x < W; x += 46) {
+      const px = x - cam;
+      if (px < -60 || px > VW + 60) continue;
+      if (!clearAt(spans, x, 19)) continue;
+      /* Step through the kit rather than picking at random: a straight random
+         pick kept putting three of the same thing in a row and the floor read
+         as a garden centre. */
+      const kit = FLOOR_KITS[cdeck()], i = (x / 46) | 0;
+      kit[(i * 3 + Math.floor(U.hash2(x, 41) * 2)) % kit.length](ctx, px, t, i);
+    }
+  }
+
   /* -------------------------------------------------------------- the house
      One dealer behind each table. The sprite is the whole performance: the
      arms go out over the felt on the deal and come back when there is nothing
@@ -2715,7 +3017,7 @@
   /* A cleaning robot that has been going round this room since before any of
      them were born, and is not close to finished. */
   function drawRoomba(ctx, t, cam) {
-    const x = ((t * 26) % 620) + 300 - cam;
+    const x = roombaX(t) - cam;
     const y = FLOOR + 6;
     if (x < -30 || x > VW + 30) return;
     X.blob(ctx, x, y + 3, 13, 2, '#0a0408');
@@ -2724,8 +3026,8 @@
     const eye = Math.sin(t * 5) > 0 ? CAS.redL : '#4a1020';
     X.rect(ctx, x - 4, y - 5, 8, 3, eye);
     for (let i = 0; i < 3; i++) X.rect(ctx, x - 9 + i * 7, y + 3, 4, 2, '#12080e');
-    if (U.chance(0.02)) FX.puff(x + cam, FLOOR + 4, 2, '#6a4a58', 0.5);
   }
+  function roombaX(t) { return ((t * 26) % 620) + 300; }
 
   /* The bar. Black granite, a gold rail, optics along the back and a man who
      has heard every single one of these stories before, twice. */
@@ -2966,11 +3268,6 @@
     F.draw(ctx, 'TONIGHT', sx - 56, TOP - 34, '#8a6a3a', { center: true, shadow: false });
     F.draw(ctx, S.songI >= 0 ? sg.name.split(' ')[0] : 'ASK HER', sx - 56, TOP - 25, CAS.gold,
       { center: true, shadow: false });
-    if (S.clap > 0) {
-      for (let i = 0; i < 2; i++) {
-        if (U.chance(0.4)) FX.stars(STAGE_X + U.rand(-50, 50), SALON_Y - U.rand(20, 50), 1, '#ffd34d');
-      }
-    }
     F.draw(ctx, 'THE LOUNGE', sx, CLUB_CEIL + 16, CAS.gold, { center: true, scale: 2, shadow: CAS.blackD });
   }
 
@@ -3053,7 +3350,7 @@
     { key: 'floor', name: 'THE FLOOR', sub: 'TABLES, CAGE AND THE SALON', w: 2260 },
     { key: 'arcade', name: 'THE ARCADE', sub: 'MACHINES, DUCKS AND TELEVISION', w: 1520 },
     { key: 'menagerie', name: 'THE MENAGERIE', sub: 'PLANTS, JARS AND THE LOAN DESK', w: 1420 },
-    { key: 'crown', name: 'THE CROWN', sub: 'THE MEGA PLANET MACHINE', w: 1160 }
+    { key: 'crown', name: 'THE CROWN', sub: 'THE MEGA PLANET MACHINE', w: 1560 }
   ];
   const LIFT_X = 150;                // the same on all four, deliberately
   const ATRIUM_X = 430, ATRIUM_W = 150;
@@ -3174,6 +3471,49 @@
     const d = cdeck();
     // the void: dark, and darker the further down it goes
     X.rect(ctx, ax, CLUB_CEIL, W, FLOOR - CLUB_CEIL, '#0a0409');
+
+    /* THE FAR SIDE OF THE WELL. Without it the atrium was a black rectangle
+       cut out of a good room. Now it is the other side of the building: three
+       tiers of balcony going away from you with the lights on, people at every
+       rail, a banner hung down the whole height of it and the floor numbers
+       picked out in neon. */
+    if (W > 90) {
+      X.rect(ctx, ax + 10, CLUB_CEIL + 6, W - 20, FLOOR - CLUB_CEIL - 18, '#1a0a12');
+      for (let i = 0; i * 26 < W - 20; i++) X.rect(ctx, ax + 12 + i * 26, CLUB_CEIL + 6, 3, FLOOR - CLUB_CEIL - 18, '#2a1020');
+      for (let tier = 0; tier < 3; tier++) {
+        const y = CLUB_CEIL + 34 + tier * 26;
+        if (y > FLOOR - 30) break;
+        // the lit band of the floor behind the rail
+        X.rect(ctx, ax + 12, y - 15, W - 24, 15, '#2e1020');
+        ctx.globalAlpha = 0.5;
+        X.rect(ctx, ax + 12, y - 15, W - 24, 6, '#6a1a2a');
+        ctx.globalAlpha = 1;
+        // whoever is at that rail, small and dim, because they are a long way off
+        for (let i = 0; i < 3; i++) {
+          const hx = ax + 26 + i * 38 + Math.sin(t * 0.3 + i * 2 + tier) * 2;
+          if (hx > ax + W - 16) break;
+          const K = AH.KIN[(tier * 7 + i * 5) % AH.KIN.length];
+          ctx.globalAlpha = 0.46;
+          AH.blit(ctx, AH.S[K.key], (Math.floor(t * 0.8 + i) % 11) === 0 ? 5 : 0, hx, y + 1, i % 2 === 0);
+          ctx.globalAlpha = 1;
+        }
+        X.rect(ctx, ax + 12, y, W - 24, 5, '#3d0a16');
+        X.rect(ctx, ax + 12, y, W - 24, 1, CAS.goldDD);
+        for (let i = 0; i * 12 < W - 24; i++) X.rect(ctx, ax + 14 + i * 12, y - 5, 1, 5, '#4a3a10');
+        // the floor number, in neon, on the far wall
+        const nn = 3 - tier;
+        const glow = (Math.floor(t * 5) + tier) % 17 !== 0;
+        F.draw(ctx, String(nn), ax + W - 20, y - 12, glow ? '#ff5fa8' : '#5a2038', { center: true, shadow: false });
+      }
+      // the banner, hung down the full height of the well
+      const bx0 = ax + 18;
+      X.rect(ctx, bx0 - 7, CLUB_CEIL + 8, 15, FLOOR - CLUB_CEIL - 30, '#7a1024');
+      X.rect(ctx, bx0 - 7, CLUB_CEIL + 8, 3, FLOOR - CLUB_CEIL - 30, '#9e1730');
+      X.rect(ctx, bx0 - 7, CLUB_CEIL + 8, 15, 2, CAS.goldD);
+      const word = 'CROWN';
+      for (let i = 0; i < word.length; i++) F.draw(ctx, word[i], bx0, CLUB_CEIL + 16 + i * 11, CAS.gold, { center: true, shadow: false });
+      for (let i = 0; i < 4; i++) X.poly(ctx, [[bx0 - 7 + i * 4, FLOOR - 22], [bx0 - 3 + i * 4, FLOOR - 22], [bx0 - 5 + i * 4, FLOOR - 16]], '#5e0c1e');
+    }
     // the floors ABOVE, seen as undersides receding into the ceiling
     for (let u = 1; u <= 3 - d; u++) {
       const y = CLUB_CEIL + 20 - u * 9, inset = u * 9;
@@ -3540,24 +3880,100 @@
      bottom and you are looking at the top of it. */
   function drawCrown(ctx, g, t, cam) {
     const mx = MEGA_X - cam;
-    // a rank of gallery seats looking at it, and the people in them
-    for (let i = 0; i < 6; i++) {
-      const x = 650 + i * 46 - cam;
-      if (x < -40 || x > VW + 40) continue;
-      X.plate(ctx, x - 17, FLOOR - 26, 35, 26, CAS.redD, '#8a1228', CAS.blackD, 4);
-      X.rect(ctx, x - 17, FLOOR - 26, 35, 2, '#9e1730');
-      drawSeated(ctx, x, t, 22 + i, i > 2, FLOOR - 4);
+
+    /* THE GALLERY. Two banks of raked seating either side of the void, facing
+       the machine, full of people who cannot afford a pull and have come to
+       watch somebody else have one. The rows step back and up. */
+    for (const bank of [{ x0: 200, n: 5, dir: 1 }, { x0: 1304, n: 5, dir: -1 }]) {
+      for (let row = 0; row < 2; row++) {
+        const ry = FLOOR - row * 13;
+        for (let i = 0; i < bank.n; i++) {
+          const wx = bank.x0 + i * 44 + row * 18 * bank.dir;
+          const x = wx - cam;
+          if (x < -44 || x > VW + 44) continue;
+          if (row === 1) X.plate(ctx, x - 24, ry + 1, 48, 14, '#4a0a16', '#7a1024', CAS.blackD, 3);
+          X.plate(ctx, x - 17, ry - 28, 35, 28, CAS.redD, '#8a1228', CAS.blackD, 4);
+          X.rect(ctx, x - 17, ry - 28, 35, 2, '#9e1730');
+          X.blob(ctx, x, ry - 30, 4, 3, CAS.goldDD);
+          drawSeated(ctx, x, t, 22 + i + row * 9 + bank.dir * 4, (i + row) % 2 === 0, ry - 4);
+          // a drink on the arm of most of them
+          if ((i + row) % 3 !== 2) {
+            X.rect(ctx, x + 14, ry - 16, 4, 6, 'rgba(220,235,255,0.3)');
+            X.rect(ctx, x + 14, ry - 14, 4, 4, ['#8affa0', '#ffb03d', '#ff8ad8'][(i + row) % 3]);
+          }
+        }
+      }
     }
-    if (mx > -170 && mx < VW + 170) drawMegaMachine(ctx, g, t, cam);
-    // the balcony rail along the front of the gallery
-    for (const [x, k] of [[620, 3], [1090, 0]]) {
+
+    /* THE MACHINE. */
+    if (mx > -(MEGA_HW + 140) && mx < VW + MEGA_HW + 140) drawMegaMachine(ctx, g, t, cam);
+
+    /* THE HOUSE. Two of them stand either side of it all night and have never
+       seen it pay, and a velvet rope box for whoever is next. */
+    for (const [wx, fl] of [[MEGA_X - MEGA_HW - 96, false], [MEGA_X + MEGA_HW + 112, true]]) {
+      const x = wx - cam;
+      if (x < -30 || x > VW + 30) continue;
+      const K = AH.KIN[(wx | 0) % AH.KIN.length];
+      kinShadow(ctx, x, FLOOR, K);
+      AH.blit(ctx, AH.S[K.key], (Math.floor(t * 0.7 + wx) % 11) === 0 ? 5 : 0, x, FLOOR, fl);
+      // a house sash, so they read as staff and not as punters
+      X.rect(ctx, x - 5, FLOOR - 26, 10, 3, CAS.gold);
+    }
+
+    // the queue rail for the next pull, and nobody in it
+    for (let i = 0; i < 5; i++) {
+      const x = 1136 + i * 28 - cam;
+      if (x < -20 || x > VW + 20) continue;
+      if (i < 4) { ctx.globalAlpha = 0.8; X.rect(ctx, x, FLOOR - 18, 28, 3, '#8a1228'); ctx.globalAlpha = 1; }
+      X.rect(ctx, x - 2, FLOOR - 22, 4, 22, '#4a3a10');
+      X.rect(ctx, x - 1, FLOOR - 22, 1, 22, CAS.goldD);
+      X.blob(ctx, x, FLOOR - 24, 3, 3, CAS.gold);
+    }
+
+    /* THE BOARD OF THE DEAD. Every name that has pulled it and what it took.
+       It is the longest thing in the room. */
+    for (let b = 0; b < 2; b++) {
+      const bx = (b ? 1400 : 276) - cam;
+      if (bx < -110 || bx > VW + 110) continue;
+      X.plate(ctx, bx - 72, CLUB_CEIL + 38, 144, 62, CAS.blackD, CAS.goldDD, '#000000', 5);
+      X.rect(ctx, bx - 72, CLUB_CEIL + 38, 144, 2, CAS.goldD);
+      F.draw(ctx, b ? 'TONIGHT' : 'THE BOARD', bx, CLUB_CEIL + 42, CAS.gold, { center: true, shadow: false });
+      for (let i = 0; i < 5; i++) {
+        const seed = b * 31 + i;
+        F.draw(ctx, CROWN_NAMES[(seed * 3) % CROWN_NAMES.length], bx - 66, CLUB_CEIL + 54 + i * 9,
+          '#5a4a6a', { shadow: false });
+        F.draw(ctx, '-$' + U.fmt(10000 * (1 + ((seed * 7) % 24))), bx + 66, CLUB_CEIL + 54 + i * 9,
+          '#7a2432', { right: true, shadow: false });
+      }
+    }
+
+    // lamps and the odd potted thing along the back wall
+    for (const [x, k] of [[178, 3], [1118, 0], [1540, 2]]) {
       const px = x - cam;
       if (px > -30 && px < VW + 30) propLamp(ctx, px, FLOOR - 58, t, k);
     }
-    F.draw(ctx, 'THE CROWN', 880 - cam, CLUB_CEIL + 20, CAS.gold, { center: true, scale: 2, shadow: CAS.blackD });
-    F.draw(ctx, 'ONE MACHINE. ONE PULL. ONE LIFE.', 880 - cam, CLUB_CEIL + 36, '#8a6a3a',
+
+    // the ceiling drapes, gathered back off the machine
+    for (let i = 0; i < 12; i++) {
+      const dx = i * 140 - cam;
+      if (dx < -70 || dx > VW + 70) continue;
+      ctx.globalAlpha = 0.5;
+      X.poly(ctx, [[dx, CLUB_CEIL], [dx + 70, CLUB_CEIL], [dx + 35, CLUB_CEIL + 22]], '#4a0a16');
+      ctx.globalAlpha = 1;
+      X.blob(ctx, dx + 35, CLUB_CEIL + 22, 3, 3, CAS.goldD);
+    }
+
+    const tx = 276 - cam;
+    X.plate(ctx, tx - 108, CLUB_CEIL + 2, 216, 32, CAS.blackD, CAS.goldDD, '#000000', 5);
+    F.draw(ctx, 'THE CROWN', tx, CLUB_CEIL + 6, CAS.gold, { center: true, scale: 2, shadow: CAS.blackD });
+    F.draw(ctx, 'ONE MACHINE. ONE PULL. ONE LIFE.', tx, CLUB_CEIL + 24, '#8a6a3a',
       { center: true, shadow: false });
   }
+
+  /* Names off the board of everybody who has pulled it and gone home lighter. */
+  const CROWN_NAMES = ['VOSK', 'THE GRUB', 'M. PELL', 'HARRA', 'OLD TWIN', 'BRUNT',
+    'SIX EYES', 'THE WIDOW', 'K. ASHE', 'DORMAK', 'PIP', 'THE ARCHITECT'];
+
 
 
   /* ========================================================= THE MEGA PLANET MACHINE
@@ -3568,7 +3984,10 @@
      It is the same machine from the night you lost everything, which is why
      the story's spin happens HERE, in this room, on this floor, instead of
      in a screen of its own. One machine, one set of art. */
-  const MEGA_X = 260, MEGA_STAKE = 10000;
+  /* It stands clear of the lift, clear of the atrium void, and it is so wide
+     that the floor had to be lengthened to hold it. MEGA_HW is the half-width
+     of the cabinet; everything else in here is measured off it. */
+  const MEGA_X = 880, MEGA_HW = 168, MEGA_STAKE = 10000;
   const WORLDS = ['#6fd955', '#3f8ae0', '#d63550', '#ffd34d', '#c9a0ff', '#6fe8d8'];
   const MEGA = { spin: 0, t: 0, reel: [0, 2, 4], land: [0, 2, 4], lever: 0, win: 0, rest: 0, done: 0 };
 
@@ -3627,17 +4046,17 @@
       const three = MEGA.win >= MEGA_STAKE * 60;
       say(three ? 'THREE WORLDS. THE BOARD BREAKS. ' + U.fmt(MEGA.win) + '.'
         : 'TWO WORLDS. ' + U.fmt(MEGA.win) + ' AND THE GALLERY STANDS UP.');
-      FX.text(MEGA_X, FLOOR - 112, '+$' + U.fmt(MEGA.win), '#ffd34d', 2);
-      for (let k = 0; k < (three ? 90 : 34); k++) {
-        FX.spawn({ x: MEGA_X + U.rand(-40, 40), y: FLOOR - 50, vx: U.rand(-190, 190), vy: U.rand(-300, -80),
-          life: 1.9, size: 2, glow: 1, color: k % 3 ? '#ffd34d' : U.pick(WORLDS), grav: 220, drag: 1 });
+      FX.text(MEGA_X, 60, '+$' + U.fmt(MEGA.win), '#ffd34d', 2);
+      for (let k = 0; k < (three ? 180 : 70); k++) {
+        FX.spawn({ x: MEGA_X + U.rand(-MEGA_HW, MEGA_HW), y: U.rand(70, 135), vx: U.rand(-260, 260), vy: U.rand(-340, -60),
+          life: 2.6, size: 2, glow: 1, color: k % 3 ? '#ffd34d' : U.pick(WORLDS), grav: 200, drag: 1 });
       }
-      FX.ring(MEGA_X, FLOOR - 60, 4, three ? 150 : 90, 1.3, '#ffd34d', 4);
+      FX.ring(MEGA_X, 101, 6, three ? 300 : 170, 1.5, '#ffd34d', 5);
       A.sfx.jackpot(); A.sfx.applause();
       if (three) PD.chum.call(g, 'jackpot', true);
     } else {
       say(U.pick(MEGA_LOSE));
-      FX.text(MEGA_X, FLOOR - 112, '-$' + U.fmt(MEGA_STAKE), '#ff5a4d', 0);
+      FX.text(MEGA_X, 60, '-$' + U.fmt(MEGA_STAKE), '#ff5a4d', 0);
       A.sfx.deny();
       cryAboutIt(g, MEGA_STAKE);
     }
@@ -3649,79 +4068,235 @@
      The first pass put a terminator over four fifths of it and every reel
      came out looking like a bowl of soup. */
   const WORLD_DK = ['#2a6a1e', '#1a3a7a', '#6a1020', '#a87a10', '#5e3a8a', '#1a6a6a'];
+  const WORLD_LT = ['#a8f27a', '#7ec8ff', '#ff7a90', '#ffe9a8', '#e0c2ff', '#b6fff2'];
+  const WORLD_NAME = ['VERDANT', 'THE BLUE', 'CINDER', 'GOLDHOLD', 'AMETHYST', 'THE PALE'];
+
+  /* ONE WORLD, ONE WINDOW. At forty pixels across a flat green ball reads as a
+     pea, so each one gets a lit side, a terminator, polar caps, continents,
+     a cloud band, a ring seen edge-on with its own shadow, and a moon. */
   function megaReel(ctx, x, y, r, k, t) {
     const i = ((k % 6) + 6) % 6;
-    const col = WORLDS[i], dk = WORLD_DK[i];
+    const col = WORLDS[i], dk = WORLD_DK[i], lt = WORLD_LT[i];
+
+    // the ring, the half that goes behind, sitting above the equator
+    ctx.globalAlpha = 0.55;
+    X.blob(ctx, x, y - r * 0.26, r * 1.46, Math.max(1, r * 0.15), '#bfae86');
+    X.blob(ctx, x, y - r * 0.26, r * 1.22, Math.max(1, r * 0.09), '#8e7f5e');
+    ctx.globalAlpha = 1;
+
     X.blob(ctx, x, y, r + 1, r + 1, '#0d060c');
     X.blob(ctx, x, y, r, r, dk);
-    X.blob(ctx, x - 1, y - 1, r - 1, r - 1, col);
-    for (let c = 0; c < 3; c++) {
-      const a = c * 2.1 + i;
-      X.blob(ctx, x + Math.cos(a) * r * 0.42, y + Math.sin(a) * r * 0.4, r * 0.3, r * 0.22, dk);
+    X.blob(ctx, x - r * 0.08, y - r * 0.08, r * 0.94, r * 0.94, col);
+
+    // continents, laid out off the reel index so each world keeps its own map
+    for (let c = 0; c < 6; c++) {
+      const a = c * 1.9 + i * 0.7, d = 0.24 + ((c * 7 + i * 3) % 5) * 0.13;
+      const cx = x + Math.cos(a) * r * d * 1.7, cy = y + Math.sin(a) * r * d * 1.5;
+      if ((cx - x) ** 2 + (cy - y) ** 2 > (r * 0.86) ** 2) continue;
+      X.blob(ctx, cx, cy, r * (0.16 + (c % 3) * 0.08), r * (0.11 + (c % 2) * 0.06), dk);
     }
-    ctx.globalAlpha = 0.2;
-    X.blob(ctx, x + r * 0.62, y + r * 0.4, r * 0.62, r * 0.64, '#0d060c');
+    // a cloud band across the middle, drifting
+    ctx.globalAlpha = 0.22;
+    X.blob(ctx, x + Math.sin(t * 0.6 + i) * r * 0.2, y - r * 0.3, r * 0.8, r * 0.1, '#ffffff');
+    X.blob(ctx, x - Math.sin(t * 0.5 + i) * r * 0.25, y + r * 0.34, r * 0.7, r * 0.09, '#ffffff');
     ctx.globalAlpha = 1;
-    X.blob(ctx, x - r * 0.4, y - r * 0.45, r * 0.22, r * 0.18, '#ffffff');
-    // the ring, in front and behind, so it reads as going round it
-    ctx.globalAlpha = 0.85;
-    X.blob(ctx, x, y - r * 0.1, r * 1.28, Math.max(1, r * 0.16), '#e8dfc4');
-    X.blob(ctx, x, y - r * 0.1, r * 0.95, Math.max(1, r * 0.1), dk);
+    // polar caps
+    X.blob(ctx, x, y - r * 0.84, r * 0.34, r * 0.13, lt);
+    X.blob(ctx, x, y + r * 0.86, r * 0.28, r * 0.1, lt);
+    // the night side
+    ctx.globalAlpha = 0.34;
+    X.blob(ctx, x + r * 0.66, y + r * 0.26, r * 0.56, r * 0.82, '#0d060c');
+    ctx.globalAlpha = 0.18;
+    X.blob(ctx, x + r * 0.42, y + r * 0.14, r * 0.62, r * 0.9, '#0d060c');
     ctx.globalAlpha = 1;
+    // and the sun on the other cheek
+    X.blob(ctx, x - r * 0.44, y - r * 0.46, r * 0.2, r * 0.15, '#ffffff');
+    ctx.globalAlpha = 0.3;
+    X.blob(ctx, x - r * 0.34, y - r * 0.36, r * 0.4, r * 0.34, lt);
+    ctx.globalAlpha = 1;
+
+    /* The half that comes in front. It crosses the face of the world rather
+       than stopping at its edge -- the first pass masked it out with a bar of
+       planet colour, and every reel looked like a ball with a stripe on it. */
+    X.blob(ctx, x, y + r * 0.2, r * 1.46, Math.max(1, r * 0.13), '#e8dfc4');
+    X.blob(ctx, x, y + r * 0.2, r * 1.18, Math.max(1, r * 0.07), '#bfae86');
+    ctx.globalAlpha = 0.45;
+    X.blob(ctx, x + r * 0.92, y + r * 0.2, r * 0.48, Math.max(1, r * 0.14), '#0d060c');
+    ctx.globalAlpha = 1;
+
+    // a moon, in its own orbit, at whatever phase the reel index puts it
+    const ma = t * 0.5 + i * 2.1;
+    X.blob(ctx, x + Math.cos(ma) * r * 1.34, y - r * 0.7 + Math.sin(ma) * r * 0.3,
+      Math.max(2, r * 0.15), Math.max(2, r * 0.15), '#8e86a8');
+
+    // the name of it, stamped on the reel band
+    if (r > 20) F.draw(ctx, WORLD_NAME[i], x, y + r * 1.34, 'rgba(232,223,196,0.5)', { center: true, shadow: false });
+  }
+
+  /* THE UNIVERSAL. It is not a slot machine with a big sticker on it. It is a
+     building inside a building: a plinth you climb, a cabinet six times your
+     height that goes up through a hole cut in the ceiling, three windows with
+     whole worlds turning in them, and a lever you have to reach up for.
+
+     Everything is measured off MEGA_HW so it can be made bigger again later
+     without any of it coming apart. */
+  const MEGA_TOP = -72;                  // the cabinet leaves the top of the screen
+
+  function megaShaft(ctx, mx, t) {
+    /* The hole they cut in the ceiling of the top floor to get it in, and
+       never made good. Gold-edged, because everything in here is. */
+    const w = MEGA_HW + 26;
+    X.rect(ctx, mx - w, CLUB_CEIL - 4, w * 2, 10, '#0a0409');
+    X.rect(ctx, mx - w, CLUB_CEIL - 4, w * 2, 2, CAS.goldDD);
+    for (let i = -1; i <= 1; i += 2) {
+      X.plate(ctx, mx + i * (w - 10) - 7, CLUB_CEIL - 6, 15, 16, CAS.blackL, CAS.goldD, CAS.blackD, 3);
+      X.rect(ctx, mx + i * (w - 10) - 5, CLUB_CEIL + 2, 11, 3, (Math.floor(t * 3) + i) % 2 ? '#4a3a10' : CAS.gold);
+    }
+    // gantry cables running up out of shot
+    for (let i = 0; i < 5; i++) {
+      const cx = mx - w + 22 + i * ((w * 2 - 44) / 4);
+      X.rect(ctx, cx, MEGA_TOP, 2, CLUB_CEIL - MEGA_TOP + 4, '#150c14');
+    }
+  }
+
+  function megaWindow(ctx, mx, my, i, t) {
+    /* One of the three, and each one is bigger than a door. */
+    const wx = mx + (i - 1) * 106, hw = 48, hh = 52, PITCH = 104;
+    X.plate(ctx, wx - hw - 7, my - hh - 7, (hw + 7) * 2, (hh + 7) * 2, CAS.black, CAS.goldD, CAS.blackD, 7);
+    X.plate(ctx, wx - hw, my - hh, hw * 2, hh * 2, '#120810', '#2a1020', '#000000', 5);
+    ctx.save();
+    ctx.beginPath(); ctx.rect(wx - hw + 3, my - hh + 3, hw * 2 - 6, hh * 2 - 6); ctx.clip();
+    // the machine's own light behind the reel
+    ctx.globalAlpha = 0.1;
+    X.blob(ctx, wx, my, hw, hh, WORLDS[Math.floor(MEGA.reel[i]) % 6]);
+    ctx.globalAlpha = 1;
+    const v = MEGA.reel[i];
+    for (let o = -1; o <= 1; o++) megaReel(ctx, wx, my + (o - (v % 1)) * PITCH, 36, Math.floor(v) + o, t);
+    // the blur bars that say it is turning, over the top of the worlds
+    if (MEGA.spin > 0) {
+      ctx.globalAlpha = 0.18;
+      for (let b = 0; b < 7; b++) X.rect(ctx, wx - hw, my - hh + ((t * 700 + b * 34) % (hh * 2)), hw * 2, 3, '#ffffff');
+      ctx.globalAlpha = 1;
+    }
+    // glass: a hard diagonal highlight down one corner
+    ctx.globalAlpha = 0.07;
+    X.poly(ctx, [[wx - hw, my - hh], [wx - hw + 36, my - hh], [wx - hw, my - hh + 52]], '#ffffff');
+    ctx.globalAlpha = 1;
+    ctx.restore();
+    // the pay line, lit only when it has paid
+    const paid = MEGA.rest > 0 && MEGA.win;
+    X.rect(ctx, wx - hw - 7, my - 2, (hw + 7) * 2, 4, paid ? CAS.gold : '#7a1024');
+    if (paid) { ctx.globalAlpha = 0.3; X.blob(ctx, wx, my, hw + 10, 12, CAS.gold); ctx.globalAlpha = 1; }
+    // rivets down the frame
+    for (let r = -1; r <= 1; r += 2) {
+      for (let k = 0; k < 6; k++) X.blob(ctx, wx + r * (hw + 3), my - hh + 8 + k * 19, 2, 2, CAS.goldDD);
+    }
   }
 
   function drawMegaMachine(ctx, g, t, cam) {
-    const mx = MEGA_X - cam, B = FLOOR;
-    // the plinth it stands on, with steps up to it
-    X.blob(ctx, mx, B + 3, 80, 6, '#3d0a16');
-    for (let i = 0; i < 3; i++) {
-      X.rect(ctx, mx - 74 + i * 8, B - i * 5, 148 - i * 16, 6, i % 2 ? '#5e0c1e' : '#6a0f20');
-      X.rect(ctx, mx - 74 + i * 8, B - i * 5, 148 - i * 16, 1, CAS.goldDD);
+    const mx = MEGA_X - cam, B = FLOOR, HW = MEGA_HW;
+    const P0 = B - 30;                        // the top of the plinth
+    const lit = MEGA.spin > 0 ? 1 : 0;
+
+    megaShaft(ctx, mx, t);
+
+    // the haze the whole thing sits in
+    ctx.globalAlpha = 0.05 + lit * 0.04;
+    X.blob(ctx, mx, 100, HW + 90, 150, CAS.gold);
+    ctx.globalAlpha = 1;
+
+    /* THE PLINTH. Four steps, and it is wider than the cabinet so it reads as
+       something that was poured before the building went up around it. */
+    X.blob(ctx, mx, B + 7, HW + 62, 10, '#2a0410');
+    for (let i = 0; i < 4; i++) {
+      const w = HW + 54 - i * 14, y = B - i * 10;
+      X.rect(ctx, mx - w, y, w * 2, 11, '#28040e');             // the riser, in shadow
+      X.rect(ctx, mx - w, y, w * 2, 5, i % 2 ? '#7a1024' : '#8a1228');  // the tread, lit
+      X.rect(ctx, mx - w, y, w * 2, 1, CAS.gold);               // and the brass nosing
+      X.rect(ctx, mx - w, y + 5, w * 2, 1, '#3d0a16');
     }
-    const P0 = B - 12;
-    // the cabinet: black lacquer with gold everywhere it can be put
-    X.plate(ctx, mx - 62, P0 - 96, 125, 96, CAS.black, '#3e2a38', CAS.blackD, 8);
-    X.rect(ctx, mx - 62, P0 - 96, 125, 3, CAS.goldD);
-    X.plate(ctx, mx - 56, P0 - 66, 113, 56, CAS.blackD, CAS.goldDD, '#000000', 5);
-    // the three windows, with worlds in them
-    for (let i = 0; i < 3; i++) {
-      const wx = mx - 36 + i * 36, wy = P0 - 38;
-      X.plate(ctx, wx - 17, wy - 24, 35, 48, '#160a12', CAS.goldD, '#000000', 5);
-      ctx.save();
-      ctx.beginPath(); ctx.rect(wx - 14, wy - 21, 29, 42); ctx.clip();
-      const v = MEGA.reel[i];
-      for (let o = -1; o <= 1; o++) {
-        megaReel(ctx, wx, wy + (o - (v % 1)) * 42, 13, Math.floor(v) + o, t);
-      }
-      ctx.restore();
-      // the pay line across the middle of it
-      X.rect(ctx, wx - 17, wy - 1, 35, 2, MEGA.rest > 0 && MEGA.win ? CAS.gold : '#7a1024');
-      ctx.globalAlpha = 0.14;
-      X.blob(ctx, wx, wy, 18, 24, WORLDS[Math.floor(MEGA.reel[i]) % 6]);
+    /* A runner up the middle, laid over the steps rather than through them:
+       a lit tread and a shadowed riser for each one, and a worn patch in the
+       middle of every tread where everybody has put the same foot. */
+    for (let i = 0; i < 4; i++) {
+      const y = B - i * 10;
+      X.rect(ctx, mx - 36, y, 72, 11, '#5e0c1e');
+      X.rect(ctx, mx - 36, y, 72, 5, '#b01e38');
+      X.rect(ctx, mx - 36, y, 72, 1, CAS.goldD);
+      ctx.globalAlpha = 0.3;
+      X.blob(ctx, mx, y + 2, 18, 2, '#6a0f20');
       ctx.globalAlpha = 1;
+      X.rect(ctx, mx - 36, y, 2, 11, CAS.goldDD);
+      X.rect(ctx, mx + 34, y, 2, 11, CAS.goldDD);
     }
-    // the jackpot board over the top, chasing
-    X.plate(ctx, mx - 58, P0 - 92, 117, 24, CAS.redD, CAS.gold, CAS.blackD, 6);
-    for (let i = 0; i < 16; i++) {
-      const on = (Math.floor(t * 7) + i) % 4 !== 0;
-      X.blob(ctx, mx - 52 + i * 7, P0 - 88, 2, 2, on ? CAS.gold : '#4a3a10');
-      X.blob(ctx, mx - 52 + i * 7, P0 - 72, 2, 2, on ? CAS.gold : '#4a3a10');
+
+    /* THE CABINET. Black lacquer from the plinth up through the ceiling. */
+    X.plate(ctx, mx - HW, MEGA_TOP, HW * 2, P0 - MEGA_TOP, CAS.black, '#3e2a38', CAS.blackD, 12);
+    X.rect(ctx, mx - HW, P0 - 4, HW * 2, 4, CAS.goldD);
+    // fluted gold columns down both flanks
+    for (let r = -1; r <= 1; r += 2) {
+      const cx = mx + r * (HW - 17);
+      X.plate(ctx, cx - 10, MEGA_TOP, 20, P0 - MEGA_TOP, '#2a1c28', CAS.goldDD, CAS.blackD, 4);
+      for (let k = 0; k < 3; k++) X.rect(ctx, cx - 5 + k * 4, MEGA_TOP + 6, 2, P0 - MEGA_TOP - 12, k === 1 ? CAS.goldD : '#4a3a10');
+      // and a lamp every so often up the column
+      for (let k = 0; k < 5; k++) {
+        const ly = 18 + k * 36, on = (Math.floor(t * 4) + k) % 5 !== 0;
+        X.blob(ctx, cx, ly, 5, 5, on ? CAS.gold : '#4a3a10');
+        if (on) { ctx.globalAlpha = 0.24; X.blob(ctx, cx, ly, 11, 11, CAS.gold); ctx.globalAlpha = 1; }
+      }
     }
-    F.draw(ctx, 'THE UNIVERSAL', mx, P0 - 85, CAS.gold, { center: true, shadow: CAS.blackD });
-    F.draw(ctx, '$' + U.fmt(MEGA_STAKE * 60), mx, P0 - 76, '#ffe9a8', { center: true, shadow: CAS.blackD });
-    // the stake plate and the coin slot
-    X.plate(ctx, mx - 30, P0 - 10, 61, 9, CAS.blackL, CAS.goldDD, CAS.blackD, 3);
-    F.draw(ctx, '$' + U.fmt(MEGA_STAKE) + ' A PULL', mx, P0 - 8, '#c2932a', { center: true, shadow: false });
-    // the lever, the size of a man, and it comes back up on its own
-    const lv = MEGA.lever * 22;
-    X.plate(ctx, mx + 63, P0 - 56, 9, 12, CAS.blackL, CAS.goldDD, CAS.blackD, 2);
-    X.limb(ctx, mx + 67, P0 - 50, mx + 80, P0 - 72 + lv, 5, 4, '#4a3f70', '#a89ad0', CAS.blackD);
-    X.blob(ctx, mx + 80, P0 - 74 + lv, 7, 7, '#5e0c1e');
-    X.blob(ctx, mx + 80, P0 - 74 + lv, 5, 5, '#d63550');
-    X.blob(ctx, mx + 78, P0 - 76 + lv, 2, 2, '#ff9aa8');
-    // and the glow off the whole thing
-    ctx.globalAlpha = 0.09 + (MEGA.spin ? 0.06 : 0);
-    X.blob(ctx, mx, P0 - 50, 86, 66, CAS.gold);
+    // the recessed black field the windows sit in
+    X.plate(ctx, mx - HW + 28, 36, (HW - 28) * 2, 130, CAS.blackD, CAS.goldDD, '#000000', 8);
+
+    /* THE THREE WINDOWS. */
+    for (let i = 0; i < 3; i++) megaWindow(ctx, mx, 101, i, t);
+
+    /* THE JACKPOT BOARD, over the top, going round. */
+    X.plate(ctx, mx - HW + 14, -10, (HW - 14) * 2, 50, CAS.redD, CAS.gold, CAS.blackD, 8);
+    const bulbs = Math.floor((HW - 30) * 2 / 12);
+    for (let i = 0; i <= bulbs; i++) {
+      const on = (Math.floor(t * 8) + i) % 4 !== 0;
+      const bx = mx - HW + 24 + i * 12;
+      X.blob(ctx, bx, -2, 3, 3, on ? CAS.gold : '#4a3a10');
+      X.blob(ctx, bx, 33, 3, 3, on ? CAS.gold : '#4a3a10');
+    }
+    F.draw(ctx, 'THE UNIVERSAL', mx, 4, CAS.gold, { center: true, scale: 2, shadow: CAS.blackD });
+    F.draw(ctx, '$' + U.fmt(MEGA_STAKE * 60), mx, 21, '#ffe9a8', { center: true, scale: 2, shadow: CAS.blackD });
+
+    /* THE STAKE PLATE, the coin trough and the brass of it. */
+    X.plate(ctx, mx - 112, 168, 224, 18, CAS.blackL, CAS.goldD, CAS.blackD, 5);
+    F.draw(ctx, '$' + U.fmt(MEGA_STAKE) + ' A PULL', mx, 172, CAS.gold, { center: true, scale: 2, shadow: false });
+
+    // coin slot and a worn brass plate under it, rubbed by every hand there has been
+    X.rect(ctx, mx + 84, 170, 5, 14, '#000000');
+    X.rect(ctx, mx + 82, 169, 9, 2, CAS.goldD);
+
+    /* THE LEVER. You reach up for it. */
+    const lv = MEGA.lever * 54;
+    const px0 = mx + HW + 14, py0 = 122;
+    X.plate(ctx, mx + HW - 6, py0 - 26, 24, 96, CAS.black, '#3e2a38', CAS.blackD, 4);
+    X.plate(ctx, px0 - 13, py0 - 16, 27, 76, CAS.blackL, CAS.goldD, CAS.blackD, 5);
+    X.rect(ctx, mx + HW - 6, py0 - 26, 24, 2, CAS.goldDD);
+    X.blob(ctx, px0, py0, 11, 11, '#2a1c28');
+    X.blob(ctx, px0, py0, 7, 7, CAS.goldDD);
+    X.limb(ctx, px0, py0, px0 + 30, py0 - 66 + lv, 9, 7, '#4a3f70', '#a89ad0', CAS.blackD);
+    X.blob(ctx, px0 + 30, py0 - 70 + lv, 15, 15, '#5e0c1e');
+    X.blob(ctx, px0 + 30, py0 - 70 + lv, 11, 11, '#d63550');
+    X.blob(ctx, px0 + 26, py0 - 74 + lv, 4, 4, '#ff9aa8');
+
+    /* THE BARRIER, so the gallery cannot get at it, and a sign nobody reads. */
+    for (let i = -1; i <= 1; i += 2) {
+      const bx = mx + i * (HW + 58);
+      X.plate(ctx, bx - 4, B - 34, 9, 34, CAS.goldD, CAS.gold, CAS.goldDD, 3);
+      X.blob(ctx, bx, B - 36, 5, 5, CAS.gold);
+    }
+    ctx.globalAlpha = 0.85;
+    X.rect(ctx, mx - HW - 54, B - 30, (HW + 54) * 2, 4, '#8a1228');
+    ctx.globalAlpha = 1;
+
+    // the last thing: the light it throws on the carpet in front of it
+    ctx.globalAlpha = 0.08 + lit * 0.07;
+    X.blob(ctx, mx, B + 6, HW + 40, 10, CAS.gold);
     ctx.globalAlpha = 1;
   }
 
@@ -3990,7 +4565,10 @@
     casinoCeiling(ctx, t, cam);
     casinoWall(ctx, t, cam);
     casinoChandeliers(ctx, t, cam);
+    casinoDressWall(ctx, t, cam);
+    casinoOverhead(ctx, t, cam);
     casinoCarpet(ctx, t, cam);
+    casinoDressFloor(ctx, g, t, cam);
     drawAtrium(ctx, g, t, cam);
     drawLift(ctx, g, t, cam);
 
@@ -4001,12 +4579,16 @@
       // a thinner crowd upstairs than on the tables, but there is always one
       for (let i = 0; i < CLUBBERS.length; i += 3) {
         const c = CLUBBERS[i];
-        const hx = 200 + ((c.x * 1.7 + i * 260) % Math.max(200, clubW() - 300));
+        let hx = 200 + ((c.x * 1.7 + i * 260) % Math.max(200, clubW() - 300));
+        // nobody stands inside the machine, or on the plinth, or in the void
+        if (cdeck() === 3 && hx > MEGA_X - MEGA_HW - 70 && hx < MEGA_X + MEGA_HW + 110) continue;
+        if (hx > atriumX() - 16 && hx < atriumX() + atriumW() + 16) continue;
         const K = AH.KIN[c.k % AH.KIN.length];
         const bob = Math.sin(c.t * 2.2 + i) * 1.2;
         kinShadow(ctx, hx - cam, FLOOR, K);
         AH.blit(ctx, AH.S[K.key], (Math.floor(c.t + i) % 9) === 0 ? 5 : 0, hx - cam, FLOOR + bob, i % 2 === 0);
       }
+      drawTray(ctx, t, cam);
       drawNPCs(ctx, g, t, cam);
       drawCry(ctx, cam);
       for (let i = 0; i < 8; i++) {
@@ -4044,6 +4626,7 @@
       ctx.globalAlpha = 1;
     }
 
+    drawTray(ctx, t, cam);
     drawNPCs(ctx, g, t, cam);
     drawCry(ctx, cam);
     for (const c of CLUBBERS) if (c.say) {
@@ -4456,7 +5039,6 @@
       X.rect(ctx, hx - 2, hy + 2, 5, 5, dcol);
       X.rect(ctx, hx - 2, hy, 5, 1, '#d8fbff');
     }
-    if (c.dance > 0 && U.chance(0.06)) FX.stars(c.x, y - 30, 1, K.acc);
     // one big throbbing heart over whoever is getting on with it
     if (c.kiss > 0 && c.mate > CLUBBERS.indexOf(c)) {
       const m = CLUBBERS[c.mate];
@@ -4696,7 +5278,6 @@
     ctx.globalAlpha = 1;
     X.blob(ctx, jx, FLOOR + 2, 30, 4, '#1a2a20');
     AH.blit(ctx, AH.S.brainjar, jf, jx, FLOOR + 2);
-    if (U.chance(0.04)) FX.spawn({ x: jx + cam + U.rand(-14, 14), y: FLOOR - 88, vx: U.rand(-6, 6), vy: U.rand(-16, -5), life: 1.1, size: 2, color: '#8affd0', grav: -0.06, drag: 0.96, glow: 1 });
 
     // the cheese, until he takes it
     if (!g.save.pet) {

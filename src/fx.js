@@ -17,6 +17,16 @@
     shakeAmt = 0; flashAmt = 0; freeze = 0; wipe = null;
   }
 
+  /* Wipe the loose pixels without touching the screen shake, the flash or the
+     wipe that is very probably in progress -- this gets called from inside a
+     wipe's own callback, and nulling the wipe there would leave the screen
+     black. Every room change calls it: a puff of dust kicked up on the moon
+     has no business hanging in the air of a casino a hundred miles away, at
+     the same world coordinates, meaning nothing. */
+  function clearParts() {
+    parts.length = 0; floaters.length = 0; rings.length = 0; chunks.length = 0;
+  }
+
   function spawn(o) {
     if (parts.length >= MAXP) parts.shift();
     parts.push({
@@ -561,7 +571,7 @@
   }
 
   PD.fx = {
-    reset, spawn, sparks, dust, burst, smoke, trail, text, ring, chunk, shards, crumble, pop, puff, stars,
+    reset, clearParts, spawn, sparks, dust, burst, smoke, trail, text, ring, chunk, shards, crumble, pop, puff, stars,
     beginWipe, wipeActive, wipeBusy, updateWipe, drawWipe,
     shake, flash, hitStop, update, tickFreeze, shakeOffset, drawWorld, drawFloaters, drawOverlay,
     get freeze() { return freeze; },

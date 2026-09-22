@@ -1297,6 +1297,51 @@ three ever land.
 
 Two regulars have been standing at the end machines since before you arrived.
 
+## THE UNIVERSAL
+
+On the top floor, THE CROWN, there is one machine and it is not furniture. It
+stands on a four-step plinth with a worn runner up the middle of it, it is six
+times your own height, and it goes up through a hole they cut in the ceiling to
+get it in and never made good — you can see the gantry cables running away into
+the dark above the shaft. Three windows, each one bigger than a door, with a
+whole **ringed world** turning in each: a lit side, a terminator, polar caps,
+continents, a cloud band that drifts, a moon in its own orbit, and a ring that
+passes *in front of* the face of the planet rather than stopping politely at its
+edge. Fluted gold columns down both flanks with lamps chasing up them, a jackpot
+board over the top going round, a coin slot with the brass rubbed off it, and a
+lever on the end of a bracket that you have to reach up for.
+
+Either side of it: a raked gallery of people who cannot afford a pull, watching
+you have one, most of them with a drink on the arm of the seat. On the wall,
+**THE BOARD** — a list of everybody who has pulled this lever and, beside each
+name, what it took off them. Ten thousand a pull. Three worlds pays sixty times.
+The board has never been reset because it has never been paid.
+
+## Filling the room
+
+A casino is not the tables. It is the forty feet between them, and for a while
+that was forty feet of very good wallpaper with a chip stack on the floor. Every
+floor now gets a **dressing pass**: the room works out what is already occupied
+on that deck — the lift, the atrium void, every table, the machine — and then
+lays trolleys, ashtray stands with three ends in the sand, palms in brass pots,
+rope runs on their bollards, banquettes with somebody asleep on the end, tip
+boxes, uplighters and stacks of spare chairs into whatever is left, stepping
+round the furniture rather than through it. It steps *through* the kit rather
+than picking at random, because a straight random pick kept putting three of
+the same thing in a row and the floor read as a garden centre.
+
+Above them: notices about credit that are a lie in both directions, gilt
+mirrors, tapestries with tassels, mounted heads of previous winners, shelves of
+bottles and the house crest. Overhead: pendant lamps between the chandeliers,
+bunting swagged bay to bay, and a camera dome every so often with a red light
+in it. And the girl with the tray, going up and down whichever floor you are on
+and never getting to the end of it.
+
+The **atrium** used to be a black rectangle cut out of a good room. Now it is
+the other side of the building: three tiers of balcony receding with the lights
+on, people small and dim at every rail, the floor numbers picked out in neon on
+the far wall, and a banner hung down the whole height of the well.
+
 ## The band knows several numbers
 
 There used to be **one loop**: a bassline, a hat and an arpeggio, going round
