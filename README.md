@@ -1317,6 +1317,91 @@ you have one, most of them with a drink on the arm of the seat. On the wall,
 name, what it took off them. Ten thousand a pull. Three worlds pays sixty times.
 The board has never been reset because it has never been paid.
 
+## Built to a reference sheet
+
+A concept sheet came in — a knee-high slug with a harness, a beaked gunslinger
+in a long coat, a hulking brute with a cigar, a lizard in a floor-length orange
+coat, a robed figure with a spear, an orb-headed skeleton — and the game was
+rebuilt toward it on three axes.
+
+**The palette.** Random hue at sixty per cent saturation gives you a crowd the
+colour of a bag of sweets. Concept art does not work like that: the skins now
+come from a list of **twelve hides** that actually look like hide — olive, moss,
+brick, clay, cold grey-blue, sea green, grey violet, sand, dried blood,
+verdigris, slate, ash rose — held down where paint lives, with the clothing,
+trousers and boots all pulled to low saturation off the same root. Then **one**
+accent per alien, hot, because a single burning note is what stops muted reading
+as muddy.
+
+**The proportions.** They went chibi — a head nearly forty per cent of the body
+— back when a whole alien was forty pixels tall and a realistic head had no room
+for an eye on it. They are bigger now, so the head has come back down to where
+the sheet has it: a fifth of the figure rather than a third, with the length put
+into the torso and the legs. The head stays *absolutely* large, because the face
+still has to carry two eyes, a brow and a mouth; what changed is everything
+under it.
+
+**No more mushrooms.** The fungal plan is gone. It was the one thing in the
+crowd that read as a cartoon rather than a creature and there is nothing like it
+on the sheet. What replaced it is what *is* on the sheet: a **slug** that pours
+down over its own belt onto one broad foot, with eyes on stalks and a harness;
+and a **brute** with shoulders like a door, a small skull sunk between them and
+hands that go past the knee.
+
+## Everybody has a name
+
+A room full of one-offs with no names is a room full of noise. Every generated
+alien now carries three things, rolled off the same seed as the body, so the
+tall one with the beak is called the same thing every time you meet him:
+
+- a **name**, assembled from two syllable tables, sometimes with a number or an
+  epithet on it — VENAB, QUILAAN-7, DRINEN OF NINE, HARRORN TWICE;
+- a **race**, keyed to the body plan so a slug is never a Krael and a brute is
+  never a Vesh — VESH, KRAEL, GRAUL, MURRHOUND, CHITTEN, THRENN, GLIMMERWORM,
+  SOFT KIN, OBB, BROADBACK;
+- a **calling** — HAULER, FENCE, WIDOW, CLAIM JUMPER, LOAN CLERK, SMELTER.
+
+Stand next to somebody in the casino and a small tag comes up over them with all
+three. The staff carry their race on their brass plate.
+
+## The casino is not a Victorian salon any more
+
+It was flock wallpaper, mahogany, gilt pilasters and candlelight — a Monte Carlo
+room with aliens in it. It is a casino on a moon at the end of the galaxy now
+and it looks like one:
+
+- The **wall** is the inside of a machine: a brushed steel frame, a recess lit
+  from behind, a bolted service panel, smoked glass, and a light channel down
+  every rib with a pulse chasing along it.
+- The **ceiling** is steel trays with light rings set into every third one, and
+  where the gilt cornice was there is a channel of light running the whole
+  length of the room with a pulse travelling down it.
+- The **chandeliers** hang on nothing. Three stacked rings of light that turn
+  slowly, with a hard beam dropped under them.
+- The **floor** is a poured dark deck with the same diamond pattern cut into it
+  as lit inlay rather than woven in wool.
+- The **bunting** is a slack cable with lamps on it, half of them out.
+- The house mark, which was a damask fleur, is a **circuit node**.
+
+The colour names in the code did not change — `gold` is now the amber of a lit
+strip and `wood` is dark steel — so four thousand lines of room code did not
+have to be retyped.
+
+## The market is Dotonbori
+
+The middle deck of the port was a row of stalls and a lot of empty air. What
+fixes that is not more stalls, it is **signage**: shopfronts with striped
+awnings and scalloped edges, paper lanterns on every corner, a marquee of lit
+boxes, and towers of stacked signs bolted to the front edge of the deck running
+down into the air over the docks — because there is no room to stack them
+upwards and that is how half that street works anyway.
+
+And hanging off the deck above, the reason anybody remembers that street: an
+enormous **pufferfish** that inflates and deflates very slowly, a **crab with
+moving claws**, an **octopus** whose tentacles drift as if the street were
+underwater, and a skewer of three **dumplings**. A sign that is a shape beats a
+sign that is a word from three hundred feet away.
+
 ## Nobody is the same size
 
 A crowd of aliens who are all the same height is a school photograph. There is

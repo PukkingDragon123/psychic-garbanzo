@@ -2657,8 +2657,44 @@
       ctx.globalAlpha = 1;
     }
 
+    /* ------------------------------------------------------- THE SKYLINE RAIL
+       A mag rail slung between the towers with something very long and very
+       fast on it. It runs about every twelve seconds and it is the single
+       thing that makes this read as a city rather than a backdrop: nothing
+       else on screen moves at that speed. */
+    const railY = 74;
+    const roff = ((-scroll * 0.72) % 320 + 320) % 320;
+    for (let i = -1; i < VW / 320 + 2; i++) {
+      const rx = i * 320 + roff;
+      X.rect(ctx, rx, railY + 7, 320, 2, '#1d1030');
+      X.rect(ctx, rx, railY + 7, 320, 1, '#3c2058');
+      // the pylons it hangs off
+      X.rect(ctx, rx + 40, railY - 14, 3, 21, '#241440');
+      X.rect(ctx, rx + 40, railY - 14, 1, 21, '#4a2a6a');
+      X.blob(ctx, rx + 41, railY - 16, 2, 2, '#ff5a4d');
+    }
+    const trainT = (t * 0.085) % 1;
+    if (trainT < 0.34) {
+      const tx0 = VW + 200 - (trainT / 0.34) * (VW + 460);
+      for (let c = 0; c < 5; c++) {
+        const cx2 = tx0 + c * 46;
+        if (cx2 < -60 || cx2 > VW + 60) continue;
+        X.rect(ctx, cx2, railY - 9, 42, 15, '#2a2440');
+        X.rect(ctx, cx2, railY - 9, 42, 2, '#6a5aa0');
+        X.rect(ctx, cx2 + 2, railY - 6, 38, 6, '#0d0718');
+        for (let w = 0; w < 6; w++) X.rect(ctx, cx2 + 4 + w * 6, railY - 5, 4, 4, w % 3 ? '#9fd8ff' : '#ffd34d');
+        X.rect(ctx, cx2, railY + 5, 42, 2, '#140a24');
+      }
+      // the streak it drags behind it
+      ctx.globalAlpha = 0.3;
+      X.rect(ctx, tx0 + 230, railY - 4, 120, 3, '#7ef9ff');
+      ctx.globalAlpha = 0.5;
+      X.rect(ctx, tx0 - 8, railY - 6, 10, 9, '#dffaff');
+      ctx.globalAlpha = 1;
+    }
+
     // ---------------------------------------------------------- the traffic
-    for (let i = 0; i < 9; i++) {
+    for (let i = 0; i < 18; i++) {
       const lane = i % 3;
       const sp = 70 + lane * 46 + (i % 2) * 30;
       const dir = lane === 1 ? -1 : 1;
@@ -2666,10 +2702,13 @@
       const x = dir > 0
         ? ((i * 149 - t * sp) % span + span) % span - 80
         : span - (((i * 149 + t * sp) % span + span) % span) - 80;
-      const y = 44 + lane * 22 + Math.sin(t * 0.8 + i) * 2;
-      const sc = 0.7 + lane * 0.25;
-      ctx.globalAlpha = 0.22;
-      X.blob(ctx, x - dir * 16 * sc, y + 2 * sc, 18 * sc, 1.5, '#7ef9ff');
+      const y = 30 + lane * 20 + ((i * 7) % 11) + Math.sin(t * 0.8 + i) * 2;
+      const sc = 0.62 + lane * 0.24;
+      // the trail: three lengths, each fainter, so it reads as speed
+      for (let k = 0; k < 3; k++) {
+        ctx.globalAlpha = 0.2 - k * 0.06;
+        X.rect(ctx, x - dir * (14 + k * 15) * sc, y + 1 * sc, 16 * sc, 1, k ? '#3a86c4' : '#7ef9ff');
+      }
       ctx.globalAlpha = 1;
       X.rect(ctx, x - 9 * sc, y, 18 * sc, 5 * sc, '#241a3a');
       X.rect(ctx, x - 6 * sc, y - 2 * sc, 12 * sc, 3 * sc, '#3a3060');

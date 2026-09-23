@@ -4534,7 +4534,11 @@ window.PD = window.PD || {};
      and a tail; a fifth are arthropods with a carapace and wing cases. The
      skeleton underneath is the same one, which is why they can all wear a
      jacket and hold a drink. */
-  const PLANK = ['biped', 'biped', 'biped', 'biped', 'fungal', 'fungal', 'beast', 'beast', 'bug'];
+  /* THE BODY PLANS. The mushroom is gone -- it was the one thing in the crowd
+     that read as a cartoon rather than a creature, and there is nothing like
+     it on the sheet this is all being matched to. What replaced it is what IS
+     on the sheet: a slug that pours over its own belt, and a brute. */
+  const PLANK = ['biped', 'biped', 'biped', 'biped', 'beast', 'beast', 'bug', 'slug', 'slug', 'brute'];
   const BUILDK = ['lanky', 'stout', 'normal', 'normal', 'hulk', 'pear', 'barrel', 'wedge', 'blob'];
   /* THE FOUR AXES THAT MAKE A CREATURE.
      Skin colour and a hat were never going to be enough: a room of them still
@@ -4544,6 +4548,7 @@ window.PD = window.PD || {};
      they are rolled separately, so a lanky one on bird legs with pincers and a
      long flat head is a different animal from the round one beside him. */
   const LEGK = ['normal', 'normal', 'digi', 'hoof', 'talon', 'stump', 'stilt', 'skirt', 'wheel', 'hover'];
+  // 'foot' exists too, but only a slug gets one -- it is not in the general roll
   const ARMK = ['normal', 'normal', 'tentacle', 'claw', 'mitt', 'thin', 'wing', 'stub', 'four'];
   /* Across, down, and how wide the jaw is, as multipliers on the head radius.
      One table, because the test harness needs the same numbers and a second
@@ -4571,19 +4576,86 @@ window.PD = window.PD || {};
     'goatee', 'beard', 'chops', 'tache'];
   const BROWK = ['flat', 'flat', 'arch', 'angry', 'sad', 'bushy'];
 
+  /* ========================================================== NAME AND RACE
+     Everybody in the building is generated, and until now that meant nobody in
+     the building was anybody: a room full of one-offs with no names is a room
+     full of noise. Two syllable tables and a list of peoples fixes that, and
+     because both are drawn off the same seed as the body, the tall one with
+     the beak is called the same thing every time you meet him.
+
+     The race is keyed to the body plan, so a slug is never a Krael and a brute
+     is never a Vesh -- the name tells you what you are looking at. */
+  const NAME_A = ['VO', 'KA', 'MUR', 'TEL', 'GRA', 'ZUL', 'HEN', 'OB', 'SAR', 'DRIN',
+    'PEL', 'ORR', 'YUX', 'THAM', 'BEK', 'LUN', 'CAS', 'WIDD', 'NUL', 'RHEE',
+    'GOR', 'ILL', 'MAB', 'SOK', 'VEN', 'AZ', 'QUIL', 'HARR', 'TOB', 'ERSK'];
+  const NAME_B = ['SK', 'RA', 'MAK', 'EN', 'THO', 'VIC', 'US', 'ANE', 'OK', 'IL',
+    'DAR', 'ETH', 'OSS', 'UN', 'IRE', 'AB', 'ORN', 'ULE', 'ITH', 'AAN'];
+  const NAME_C = ['THE ELDER', 'THE LESSER', 'OF THE PIT', 'THE THIRD', 'AGAIN',
+    'THE QUIET', 'OF NINE', 'THE LATE', 'TWICE', 'THE HONEST'];
+
+  const RACES = {
+    biped: ['VESH', 'KRAEL', 'ORRIC', 'SEMBLIN', 'HOLT', 'PALE VESH', 'DUN KRAEL'],
+    beast: ['GRAUL', 'MURRHOUND', 'TOSK', 'LOWLAND GRAUL', 'BRACK'],
+    bug: ['CHITTEN', 'MANDIBLE CLAN', 'SIX-STEP', 'THRENN', 'HIVE THRENN'],
+    slug: ['GLIMMERWORM', 'SOFT KIN', 'MOLLUSC ORDER', 'WET VESH', 'SLOW PEOPLE'],
+    brute: ['OBB', 'GREATER OBB', 'HAULER', 'PIT OBB', 'BROADBACK'],
+    fungal: ['SPOREFOLK']
+  };
+  /* A handful of things somebody can be, which is not their race and not their
+     name but is usually the first thing anybody tells you about them. */
+  const CALLINGS = ['HAULER', 'PROSPECTOR', 'FENCE', 'DEALER', 'PILOT', 'DEBTOR',
+    'TOUT', 'BROKER', 'DIGGER', 'RUNNER', 'WIDOW', 'DRIFTER', 'SURVEYOR',
+    'CLAIM JUMPER', 'REFINER', 'LOAN CLERK', 'NAVIGATOR', 'SMELTER'];
+
+  function makeName(R, plan) {
+    const pick2 = a => a[(R() * a.length) | 0];
+    let nm = pick2(NAME_A) + pick2(NAME_B);
+    if (R() < 0.16) nm += '-' + (2 + ((R() * 8) | 0));
+    if (R() < 0.12) nm += ' ' + pick2(NAME_C);
+    return nm;
+  }
+
   function alienKin(seed, forcePlan) {
     const R = PD.util.mulberry32(seed * 2654435761 + 12345);
     const pick = a => a[(R() * a.length) | 0];
     const ri = (a, b) => a + Math.floor(R() * (b - a + 1));
-    const hue = R() * 360;
+    /* THE PALETTE. Random hue at sixty per cent saturation gave a crowd the
+       colour of a bag of sweets. Concept art does not work like that: the
+       sheet this is being matched to is olive, brick, grey-green, burnt
+       orange, cold grey-blue -- a dozen muted skins and everything else built
+       off them. So the hue is drawn from a list of hues that actually look
+       like hide, and the saturation is held down where paint lives. */
+    const HIDES = [
+      [92, 26, 52],   // olive
+      [78, 22, 48],   // moss
+      [14, 30, 46],   // brick
+      [24, 26, 54],   // clay
+      [196, 16, 52],  // cold grey blue
+      [168, 18, 50],  // sea green
+      [256, 14, 48],  // grey violet
+      [38, 20, 56],   // sand
+      [8, 18, 42],    // dried blood
+      [148, 20, 46],  // verdigris
+      [210, 12, 44],  // slate
+      [320, 14, 50]   // ash rose
+    ];
+    const HD0 = HIDES[(R() * HIDES.length) | 0];
+    const hue = HD0[0] + (R() - 0.5) * 16;
+    const sat = HD0[1] + R() * 10, lum = HD0[2] + (R() - 0.5) * 10;
+    /* One accent, and only one. Everything on that sheet is muted except a
+       single hot thing -- an orange glow, a blue blade, a red strap -- and
+       that one note is what stops muted reading as muddy. */
+    const ACC = [[18, 74, 54], [34, 78, 56], [4, 62, 50], [200, 62, 56],
+      [46, 70, 58], [280, 44, 58], [150, 52, 48]];
+    const AC0 = ACC[(R() * ACC.length) | 0];
     const t = {
       seed: seed, hue: hue,
-      skin: hsl(hue, 36 + R() * 32, 54 + R() * 14),
-      dark: hsl(hue, 44 + R() * 20, 26 + R() * 8),
-      lite: hsl(hue, 34 + R() * 24, 76 + R() * 10),
-      acc: hsl(hue + 90 + R() * 180, 62, 56),
-      accD: hsl(hue + 90 + R() * 180, 60, 30),
-      cloth: hsl(hue + 140 + R() * 160, 38 + R() * 34, 44 + R() * 14),
+      skin: hsl(hue, sat, lum),
+      dark: hsl(hue - 4, sat + 8, lum * 0.5),
+      lite: hsl(hue + 4, sat - 4, Math.min(82, lum + 20)),
+      acc: hsl(AC0[0], AC0[1], AC0[2]),
+      accD: hsl(AC0[0], AC0[1] - 10, AC0[2] * 0.52),
+      cloth: hsl(hue + 150 + R() * 70, 12 + R() * 16, 26 + R() * 18),
       plan: pick(PLANK),
       build: pick(BUILDK), eyes: ri(1, 4), eyeK: pick(EYEK),
       mouth: pick(MOUTHK), crown: pick(CROWNK), tex: pick(SKINK), wear: pick(WEARK),
@@ -4600,34 +4672,49 @@ window.PD = window.PD || {};
          reference sheet is carrying something, and it is what stops a coat
          being a coloured rectangle */
       pouches: R() < 0.44, bandolier: R() < 0.26, strap: R() < 0.34,
-      glowCol: hsl(hue + 160 + R() * 120, 84, 62)
+      glowCol: hsl(AC0[0], 84, 62)
     };
-    t.clothL = hsl(hue + 140, 34, 66);
-    t.clothD = hsl(hue + 140, 38, 26);
+    t.clothL = hsl(hue + 150, 12, 48);
+    t.clothD = hsl(hue + 150, 16, 14);
     /* Trousers get their own colour. When they shared one with the jacket the
        whole body below the neck read as a single dark slab. */
-    t.pants = hsl(hue + 230 + R() * 60, 26 + R() * 22, 52 + R() * 14);
-    t.pantsL = hsl(hue + 230, 24, 70);
-    t.pantsD = hsl(hue + 230, 28, 24);
+    t.pants = hsl(hue + 200 + R() * 80, 10 + R() * 14, 28 + R() * 14);
+    t.pantsL = hsl(hue + 200, 10, 46);
+    t.pantsD = hsl(hue + 200, 14, 13);
     /* The iris is never the skin colour. A green man with green eyes has no
        eyes; the whole point of a real eye is that it is a different thing
        sitting in the face. */
-    t.bootC = hsl(hue + 20 + R() * 300, 22 + R() * 26, 30 + R() * 16);
-    t.bootL = hsl(hue + 20, 20, 52);
-    t.iris = hsl(hue + 150 + R() * 120, 66 + R() * 24, 44 + R() * 12);
-    t.irisL = hsl(hue + 150 + R() * 120, 70, 66);
+    t.bootC = hsl(26 + R() * 18, 18 + R() * 12, 20 + R() * 12);
+    t.bootL = hsl(30, 16, 38);
+    t.iris = hsl(AC0[0], 54 + R() * 22, 40 + R() * 12);
+    t.irisL = hsl(AC0[0], 58, 62);
     // and the hair is its own colour too, or it is not hair
-    t.hairC = R() < 0.3 ? hsl(hue + 30, 14 + R() * 20, 18 + R() * 16)
-      : hsl(hue + 200 + R() * 120, 30 + R() * 34, 26 + R() * 24);
-    t.hairL = hsl(hue + 200, 26, 52);
+    t.hairC = hsl(hue + (R() < 0.5 ? 10 : 190), 8 + R() * 14, 14 + R() * 20);
+    t.hairL = hsl(hue + 10, 8, 38);
     if (forcePlan) t.plan = forcePlan;
     /* the plan overrules the trimmings: a mushroom does not wear a hat, and a
        beast's ears are its ears rather than a choice */
-    if (t.plan === 'fungal') {
-      t.crown = 'none'; t.tex = R() < 0.5 ? 'spot' : 'plain'; t.eyes = ri(2, 2);
-      // a mushroom stands on a stalk or on nothing much
-      t.legs = pick(['stump', 'stump', 'skirt', 'normal']);
-      t.arms = pick(['tentacle', 'tentacle', 'thin', 'stub']);
+    if (t.plan === 'slug') {
+      /* THE ONE ON THE FAR LEFT OF THE SHEET. No legs, no shoulders worth the
+         name, a body that pours down over its own belt, and eyes on stalks. */
+      t.legs = 'foot'; t.crown = 'none'; t.eyeK = 'stalk'; t.eyes = 2;
+      t.arms = pick(['stub', 'stub', 'thin', 'tentacle']);
+      t.build = pick(['blob', 'pear', 'stout']);
+      t.wear = pick(['harness', 'harness', 'bare', 'vest']);
+      t.pouches = true; t.boots = false; t.tex = R() < 0.5 ? 'speckle' : 'plain';
+      t.headK = 'round';
+    }
+    if (t.plan === 'brute') {
+      /* THE ONE IN THE MIDDLE. Shoulders like a door, a tiny head on top and
+         hands that go past the knee. */
+      t.build = pick(['hulk', 'barrel', 'wedge']);
+      t.legs = pick(['normal', 'hoof', 'digi']);
+      t.arms = 'mitt';
+      t.crown = pick(['none', 'ears', 'horns']);
+      t.mouth = pick(['grin', 'tusk', 'smirk']);
+      t.wear = pick(['harness', 'bare', 'vest', 'harness']);
+      t.headK = pick(['round', 'anvil', 'wide']);
+      t.smoke = R() < 0.5;
     }
     if (t.plan === 'beast') {
       t.crown = 'ears'; t.eyes = 2; t.mouth = R() < 0.5 ? 'tusk' : 'grin';
@@ -4662,35 +4749,40 @@ window.PD = window.PD || {};
     const HP = HEAD_PROFILE[t.headK] || [1, 1, 1];
     t.hx = HP[0]; t.hy = HP[1]; t.jaw = HP[2];
     t.eyeSpread = 0.4 * (0.6 + t.hx * 0.4);
-    /* THE PROPORTIONS. The old ones were a realistic seven-and-a-half heads
-       tall, which at forty pixels meant a head eleven pixels across and a face
-       you could not draw an eye on. These are character proportions: the head
-       is nearly forty per cent of him and everything else got out of its way.
-       That one change is what turns the crowd from a line of smudges into a
-       room full of people. */
+    /* THE PROPORTIONS. These went to character proportions -- a head nearly
+       forty per cent of the body -- back when a whole alien was forty pixels
+       tall and a realistic head had no room for an eye on it. They are bigger
+       now, so the head can come back down to where the reference sheet has it:
+       a fifth of the figure rather than a third, with the length put into the
+       torso and the legs. That is the difference between a mascot and somebody
+       who could walk past you.
+
+       The head stays absolutely large -- fourteen logical pixels across at
+       stature one -- because the face still has to carry two eyes, a brow and
+       a mouth. What changed is everything under it. */
     /*          lanky stout normal hulk pear barrel wedge blob */
     const B = { lanky: 0, stout: 1, normal: 2, hulk: 3, pear: 4, barrel: 5, wedge: 6, blob: 7 }[t.build];
-    /* STATURE. The thing the whole crowd was missing. `big` only ever moved a
-       body about a fifth either way, so twenty aliens came out twenty aliens
-       tall and the room read as a school photograph. This is a separate roll
-       on the WHOLE animal, head included: a knee-high one standing next to
-       something half again your size is worth more than any amount of paint.
-       Drawn from a table rather than a range, so the small and the enormous
-       actually turn up instead of everybody landing on the average. */
-    const SCALES = [0.56, 0.62, 0.7, 0.78, 0.86, 0.94, 1, 1, 1.06, 1.14, 1.24, 1.38, 1.52, 1.68];
+    const SCALES = [0.62, 0.68, 0.74, 0.82, 0.9, 0.96, 1, 1, 1.05, 1.12, 1.2, 1.3, 1.4];
     t.stature = SCALES[(R() * SCALES.length) | 0];
-    if (t.build === 'hulk' || t.build === 'barrel') t.stature = Math.max(t.stature, 1.14);
-    if (t.build === 'blob') t.stature = Math.min(t.stature, 1.06);
+    if (t.build === 'hulk' || t.build === 'barrel') t.stature = Math.max(t.stature, 1.05);
+    if (t.build === 'blob') t.stature = Math.min(t.stature, 1);
+    if (t.plan === 'brute') t.stature = Math.max(t.stature, 1.18);
+    if (t.plan === 'slug') t.stature = Math.min(t.stature, 0.92);
     const SC = t.big * t.stature;
-    t.hr = Math.round([13, 15, 14, 14, 14, 13, 13, 16][B] * (0.94 + t.big * 0.1) * t.stature);
-    t.sw = Math.round([9, 13, 11, 15, 12, 14, 17, 15][B] * SC);
-    t.hw = Math.round([8, 14, 11, 13, 15, 14, 8, 17][B] * SC);   // hips, which need not match
-    t.th = Math.round([20, 15, 17, 17, 17, 19, 18, 14][B] * SC);
-    t.lh = Math.round([23, 18, 20, 20, 19, 17, 21, 14][B] * SC);
+    t.hr = Math.round([13, 14, 13, 13, 13, 12, 12, 15][B] * (0.94 + t.big * 0.1) * t.stature);
+    t.sw = Math.round([11, 15, 13, 18, 14, 16, 19, 16][B] * SC);
+    t.hw = Math.round([10, 16, 13, 16, 17, 16, 10, 18][B] * SC);   // hips, which need not match
+    t.th = Math.round([34, 27, 30, 31, 30, 33, 32, 24][B] * SC);
+    t.lh = Math.round([42, 31, 37, 36, 34, 30, 38, 22][B] * SC);
     t.aw = Math.max(3, Math.round([4, 6, 5, 7, 5, 6, 5, 7][B] * SC));
     // a ring of tentacles needs room to be a ring of tentacles rather than a fringe
-    if (t.legs === 'skirt') t.lh = Math.round(t.lh * 1.45);
-    if (t.legs === 'stilt') t.lh = Math.round(t.lh * 1.2);
+    if (t.legs === 'skirt') t.lh = Math.round(t.lh * 1.2);
+    /* WHO HE IS. Rolled last, so the race can follow whatever body plan the
+       overrides settled on rather than the one first picked. */
+    t.who = makeName(R, t.plan);
+    const rl = RACES[t.plan] || RACES.biped;
+    t.race = rl[(R() * rl.length) | 0];
+    t.calling = CALLINGS[(R() * CALLINGS.length) | 0];
     t.legLen = 0;                                        // no tentacles any more
     return t;
   }
@@ -4786,7 +4878,21 @@ window.PD = window.PD || {};
       }
     }
 
-    if (t.legs === 'skirt') {
+    if (t.legs === 'foot') {
+      /* ONE FOOT. The body carries straight on down and spreads out onto the
+         floor, with a wet edge and a trail of it behind. */
+      const fw = Math.round(t.hw * 1.7 + 4);
+      for (let y = 0; y < t.lh; y++) {
+        const f = y / t.lh;
+        const wAt = Math.round(t.hw + (fw - t.hw) * f * f);
+        p.rect(cx - wAt, hipY + y, wAt * 2, 1, f > 0.7 ? t.dark : t.skin);
+      }
+      p.round(cx - fw, FOOT - 6, fw * 2, 7, 3, t.dark);
+      p.rect(cx - fw + 2, FOOT - 6, fw * 2 - 4, 2, t.skin);
+      p.rect(cx - fw, FOOT - 1, fw * 2, 1, '#12101a');
+      // the folds where it takes its own weight
+      for (let i = 0; i < 3; i++) p.rect(cx - fw + 4 + i * 2, hipY + Math.round(t.lh * (0.4 + i * 0.16)), fw * 2 - 8 - i * 4, 1, t.dark);
+    } else if (t.legs === 'skirt') {
       /* drawn after the clothing instead, further down this function: a coat
          that hangs past the hip was covering the whole ring of them. */
     } else if (t.legs === 'hover') {
@@ -5246,7 +5352,23 @@ window.PD = window.PD || {};
 
     // ------------------------------------------------------------- the head
     const HR = t.hr;
-    if (t.plan === 'fungal') {
+    if (t.plan === 'slug') {
+      /* No neck at all: the head is the top of the body, so it is drawn as a
+         soft dome that carries straight on down into the shoulders. */
+      p.ellipse(cx, headY + 2, Math.round(HR * 0.96), HR, t.skin);
+      p.round(cx - Math.round(HR * 0.9), headY, Math.round(HR * 1.8), HR + 6, 5, t.skin);
+      p.ellipse(cx, headY - Math.round(HR * 0.44), Math.round(HR * 0.68), Math.round(HR * 0.3), t.lite);
+      // the wet look: one hard highlight, high on the left
+      p.ellipse(cx - Math.round(HR * 0.4), headY - Math.round(HR * 0.5), 3, 2, '#ffffff');
+    } else if (t.plan === 'brute') {
+      // a small skull sunk between enormous shoulders, and a heavy brow
+      p.ellipse(cx, headY + 1, Math.round(HR * 0.92), Math.round(HR * 0.9), t.skin);
+      p.round(cx - Math.round(HR * 0.78), headY + 2, Math.round(HR * 1.56), HR, 4, t.skin);
+      p.rect(cx - Math.round(HR * 0.86), headY - Math.round(HR * 0.2), Math.round(HR * 1.72), 3, t.dark);
+      p.ellipse(cx, headY - Math.round(HR * 0.5), Math.round(HR * 0.6), Math.round(HR * 0.24), t.lite);
+      const sd8 = t.lean > 0 ? 1 : -1;
+      p.round(cx + sd8 * Math.round(HR * 0.5) - 3, headY + Math.round(HR * 0.34), 8, 6, 2, t.dark);
+    } else if (t.plan === 'fungal') {
       const cw = Math.round(HR * t.capW * 0.86), ch = Math.round(HR * 0.62);
       // the stalk is his face, so it is wide enough to have one on it
       p.round(cx - Math.round(HR * 0.82), headY - 6, Math.round(HR * 1.64), HR + 12, 6, t.lite);
@@ -5675,7 +5797,7 @@ window.PD = window.PD || {};
 
   /* Six frames each: idle, two steps of a walk, talking, kissing, blinking. */
   const KIN = [];
-  const KIN_MIX = ['biped', 'fungal', 'beast', 'bug', 'biped', 'beast', 'fungal', 'biped'];
+  const KIN_MIX = ['biped', 'slug', 'beast', 'bug', 'biped', 'brute', 'slug', 'biped', 'beast', 'biped'];
   /* =================================================================== THE REGULARS
      Not everybody in the casino is a stranger. Some of them you are fairly
      sure you have seen somewhere before, and you cannot think where, and it
@@ -14744,8 +14866,44 @@ window.PD = window.PD || {};
       ctx.globalAlpha = 1;
     }
 
+    /* ------------------------------------------------------- THE SKYLINE RAIL
+       A mag rail slung between the towers with something very long and very
+       fast on it. It runs about every twelve seconds and it is the single
+       thing that makes this read as a city rather than a backdrop: nothing
+       else on screen moves at that speed. */
+    const railY = 74;
+    const roff = ((-scroll * 0.72) % 320 + 320) % 320;
+    for (let i = -1; i < VW / 320 + 2; i++) {
+      const rx = i * 320 + roff;
+      X.rect(ctx, rx, railY + 7, 320, 2, '#1d1030');
+      X.rect(ctx, rx, railY + 7, 320, 1, '#3c2058');
+      // the pylons it hangs off
+      X.rect(ctx, rx + 40, railY - 14, 3, 21, '#241440');
+      X.rect(ctx, rx + 40, railY - 14, 1, 21, '#4a2a6a');
+      X.blob(ctx, rx + 41, railY - 16, 2, 2, '#ff5a4d');
+    }
+    const trainT = (t * 0.085) % 1;
+    if (trainT < 0.34) {
+      const tx0 = VW + 200 - (trainT / 0.34) * (VW + 460);
+      for (let c = 0; c < 5; c++) {
+        const cx2 = tx0 + c * 46;
+        if (cx2 < -60 || cx2 > VW + 60) continue;
+        X.rect(ctx, cx2, railY - 9, 42, 15, '#2a2440');
+        X.rect(ctx, cx2, railY - 9, 42, 2, '#6a5aa0');
+        X.rect(ctx, cx2 + 2, railY - 6, 38, 6, '#0d0718');
+        for (let w = 0; w < 6; w++) X.rect(ctx, cx2 + 4 + w * 6, railY - 5, 4, 4, w % 3 ? '#9fd8ff' : '#ffd34d');
+        X.rect(ctx, cx2, railY + 5, 42, 2, '#140a24');
+      }
+      // the streak it drags behind it
+      ctx.globalAlpha = 0.3;
+      X.rect(ctx, tx0 + 230, railY - 4, 120, 3, '#7ef9ff');
+      ctx.globalAlpha = 0.5;
+      X.rect(ctx, tx0 - 8, railY - 6, 10, 9, '#dffaff');
+      ctx.globalAlpha = 1;
+    }
+
     // ---------------------------------------------------------- the traffic
-    for (let i = 0; i < 9; i++) {
+    for (let i = 0; i < 18; i++) {
       const lane = i % 3;
       const sp = 70 + lane * 46 + (i % 2) * 30;
       const dir = lane === 1 ? -1 : 1;
@@ -14753,10 +14911,13 @@ window.PD = window.PD || {};
       const x = dir > 0
         ? ((i * 149 - t * sp) % span + span) % span - 80
         : span - (((i * 149 + t * sp) % span + span) % span) - 80;
-      const y = 44 + lane * 22 + Math.sin(t * 0.8 + i) * 2;
-      const sc = 0.7 + lane * 0.25;
-      ctx.globalAlpha = 0.22;
-      X.blob(ctx, x - dir * 16 * sc, y + 2 * sc, 18 * sc, 1.5, '#7ef9ff');
+      const y = 30 + lane * 20 + ((i * 7) % 11) + Math.sin(t * 0.8 + i) * 2;
+      const sc = 0.62 + lane * 0.24;
+      // the trail: three lengths, each fainter, so it reads as speed
+      for (let k = 0; k < 3; k++) {
+        ctx.globalAlpha = 0.2 - k * 0.06;
+        X.rect(ctx, x - dir * (14 + k * 15) * sc, y + 1 * sc, 16 * sc, 1, k ? '#3a86c4' : '#7ef9ff');
+      }
       ctx.globalAlpha = 1;
       X.rect(ctx, x - 9 * sc, y, 18 * sc, 5 * sc, '#241a3a');
       X.rect(ctx, x - 6 * sc, y - 2 * sc, 12 * sc, 3 * sc, '#3a3060');
@@ -20108,8 +20269,228 @@ window.PD = window.PD || {};
     }
   }
 
+  /* ================================================== THE MARKET, DOTONBORI
+     The middle deck was a row of stalls and a lot of empty air above them.
+     What fixes that is not more stalls: it is SIGNAGE. Osaka stacks its shop
+     signs vertically up the face of every building until the street is a
+     canyon of lit boxes, and then hangs an enormous animal off the front --
+     a pufferfish, a crab with moving claws, an octopus -- because a sign that
+     is a shape beats a sign that is a word from three hundred feet away.
+
+     All of it is drawn at the back of the deck so the crowd walks in front of
+     it, and everything lit flickers on its own clock so no two boxes pulse
+     together. */
+  const OSAKA_WORDS = ['SOLD HERE', 'OPEN', 'CASH ONLY', 'FRESH', 'NO REFUND',
+    'HOT', 'EAT', 'DEEP CUT', 'BEST PRICE', 'TWO FOR ONE', 'LICENSED', 'NIGHT'];
+  const SIGN_COL = [
+    ['#ff2f7a', '#ff9bc4', '#5e0a2c'], ['#38e8ff', '#c4f8ff', '#0c4655'],
+    ['#ffc44d', '#fff0c0', '#6a4a10'], ['#7dff9a', '#d8ffe0', '#164a26'],
+    ['#a97cff', '#e0d0ff', '#361f5e']
+  ];
+
+  /* One tower of stacked boxes going up the face of the deck above. */
+  /* One tower of stacked boxes. It is built from `top` downwards to `bot`,
+     because these hang off a building rather than stand on the ground. */
+  function signTower(ctx, x, top, bot, seed, t) {
+    let y = top;
+    let i = 0;
+    while (y < bot - 8) {
+      const h = 11 + ((seed + i * 7) % 3) * 4;
+      if (y + h > bot) break;
+      const C = SIGN_COL[(seed + i * 3) % SIGN_COL.length];
+      const w = 26 + ((seed + i * 5) % 3) * 8;
+      const on = (Math.floor(t * 3 + i * 0.7 + seed) % 29) !== 0;
+      X.plate(ctx, x - w / 2 - 2, y - 2, w + 4, h + 4, '#0a0e18', '#1e2636', '#05070c', 3);
+      X.rect(ctx, x - w / 2, y, w, h, on ? C[2] : '#0d1018');
+      X.rect(ctx, x - w / 2, y, w, 1, on ? C[0] : '#18202c');
+      if (on) {
+        // the letters are blocks: it is signage in a language you do not read
+        const n = 2 + ((seed + i) % 3);
+        for (let k = 0; k < n; k++) {
+          const cw = Math.floor((w - 8) / n);
+          const bx = x - w / 2 + 4 + k * cw;
+          X.rect(ctx, bx, y + 3, cw - 2, h - 6, C[0]);
+          X.rect(ctx, bx + 1, y + 4, cw - 4, 1, C[1]);
+          X.rect(ctx, bx + 1, y + 4 + ((seed + k) % Math.max(1, h - 8)), cw - 4, 1, C[2]);
+        }
+        ctx.globalAlpha = 0.12;
+        X.blob(ctx, x, y + h / 2, w * 0.8, h, C[0]);
+        ctx.globalAlpha = 1;
+      }
+      // the spine it all bolts to
+      X.rect(ctx, x - 1, y + h, 2, 5, '#141c28');
+      y += h + 5;
+      i++;
+    }
+  }
+
+  /* THE BIG ANIMALS. Four of them, each one a shop sign the size of a room. */
+  function osakaBeast(ctx, kind, x, y, t, dim) {
+    const bob = Math.sin(t * 0.8 + x) * 2.5;
+    const yy = y + bob;
+    if (kind === 'puffer') {
+      /* A PUFFERFISH. A fat ball of spines with a lit belly, and it inflates
+         and deflates very slowly, which is the whole joke. */
+      const puff = 1 + Math.sin(t * 0.5) * 0.08;
+      const r = 21 * puff;
+      for (let i = 0; i < 22; i++) {
+        const a = i / 22 * U.TAU;
+        const sl = 7 + (i % 3) * 3;
+        X.poly(ctx, [[x + Math.cos(a - 0.12) * r, yy + Math.sin(a - 0.12) * r * 0.82],
+          [x + Math.cos(a + 0.12) * r, yy + Math.sin(a + 0.12) * r * 0.82],
+          [x + Math.cos(a) * (r + sl), yy + Math.sin(a) * (r + sl) * 0.82]], '#e8a23a');
+      }
+      X.blob(ctx, x, yy, r, r * 0.82, '#f0b84a');
+      X.blob(ctx, x, yy + r * 0.3, r * 0.82, r * 0.5, '#fff0c0');
+      for (let i = 0; i < 5; i++) X.rect(ctx, x - r * 0.7 + i * r * 0.34, yy + r * 0.34, 2, 8, '#e8a23a');
+      // eyes, huge, and a small unhappy mouth
+      for (const sd of [-1, 1]) {
+        X.blob(ctx, x + sd * r * 0.44, yy - r * 0.3, 7, 7, '#ffffff');
+        X.blob(ctx, x + sd * r * 0.44 + (Math.sin(t * 0.6) > 0 ? 1 : -1), yy - r * 0.3, 4, 4, '#101018');
+        X.blob(ctx, x + sd * r * 0.44 - 1, yy - r * 0.3 - 2, 2, 2, '#ffffff');
+      }
+      X.blob(ctx, x, yy + r * 0.06, 5, 4, '#c47a20');
+      X.rect(ctx, x - 3, yy + r * 0.06, 7, 2, '#7a3a10');
+      ctx.globalAlpha = 0.1;
+      X.blob(ctx, x, yy, r + 18, r + 12, '#ffc44d');
+      ctx.globalAlpha = 1;
+    } else if (kind === 'crab') {
+      /* A CRAB, and the claws move. The one in Osaka has moving claws and it
+         is the only thing anybody remembers about that street. */
+      const cl = Math.sin(t * 1.4) * 0.5;
+      X.blob(ctx, x, yy, 22, 13, '#c42a30');
+      X.blob(ctx, x, yy - 3, 19, 8, '#e8484e');
+      X.blob(ctx, x, yy - 5, 12, 4, '#ff8a8a');
+      for (const sd of [-1, 1]) {
+        // legs
+        for (let i = 0; i < 3; i++) {
+          const a = 0.5 + i * 0.4;
+          X.limb(ctx, x + sd * 16, yy + 3, x + sd * (24 + i * 5), yy + 9 + i * 4, 3, 2, '#c42a30', '#e8484e', '#5e0e12');
+        }
+        // the claw on its own arm
+        const ax2 = x + sd * (27 + Math.sin(t * 1.1 + sd) * 2), ay2 = yy - 9 + Math.cos(t * 0.9) * 2;
+        X.limb(ctx, x + sd * 18, yy - 2, ax2, ay2, 5, 4, '#c42a30', '#e8484e', '#5e0e12');
+        X.poly(ctx, [[ax2, ay2 + 2], [ax2 + sd * 12, ay2 - 2 - cl * 5], [ax2 + sd * 11, ay2 + 2]], '#e8484e');
+        X.poly(ctx, [[ax2, ay2 + 2], [ax2 + sd * 12, ay2 + 7 + cl * 5], [ax2 + sd * 11, ay2 + 3]], '#c42a30');
+        // eye on a stalk
+        X.rect(ctx, x + sd * 6 - 1, yy - 12, 2, 6, '#c42a30');
+        X.blob(ctx, x + sd * 6, yy - 14, 3, 3, '#ffffff');
+        X.blob(ctx, x + sd * 6, yy - 14, 2, 2, '#101018');
+      }
+      ctx.globalAlpha = 0.1;
+      X.blob(ctx, x, yy, 34, 19, '#ff5a5a');
+      ctx.globalAlpha = 1;
+    } else if (kind === 'octo') {
+      // AN OCTOPUS, tentacles drifting as if the street were underwater
+      X.blob(ctx, x, yy, 16, 15, '#8a3ac4');
+      X.blob(ctx, x, yy - 4, 13, 10, '#b05ae8');
+      X.blob(ctx, x - 4, yy - 7, 5, 4, '#e0a8ff');
+      for (let i = 0; i < 6; i++) {
+        let px = x - 12 + i * 4.8, py = yy + 10;
+        const ph = t * 1.3 + i;
+        for (let k = 0; k < 5; k++) {
+          const nx = px + Math.sin(ph + k * 0.7) * 2.6, ny = py + 4;
+          X.limb(ctx, px, py, nx, ny, 5 - k, 4 - k, '#8a3ac4', '#b05ae8', '#3a1058');
+          px = nx; py = ny;
+        }
+      }
+      for (const sd of [-1, 1]) {
+        X.blob(ctx, x + sd * 6, yy - 3, 4, 4, '#ffffff');
+        X.blob(ctx, x + sd * 6, yy - 3, 2, 2, '#101018');
+      }
+      ctx.globalAlpha = 0.1;
+      X.blob(ctx, x, yy + 5, 25, 22, '#c07cff');
+      ctx.globalAlpha = 1;
+    } else {
+      // A DUMPLING, three of them on a stick, because there is always food
+      X.rect(ctx, x - 2, yy - 5, 4, 34, '#8a6a3a');
+      for (let i = 0; i < 3; i++) {
+        const dy = yy + 1 + i * 11;
+        X.blob(ctx, x, dy, 11, 9, '#f0dcb0');
+        X.blob(ctx, x - 2, dy - 3, 4, 3, '#fff6e0');
+        X.blob(ctx, x, dy + 4, 9, 3, '#c49a5a');
+      }
+      ctx.globalAlpha = 0.1;
+      X.blob(ctx, x, yy + 14, 18, 25, '#ffd8a0');
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  /* They hang off the FRONT of the deck above, which is how these signs work:
+     the whole point is that the fish is bigger than the shop. */
+  const OSAKA = [
+    { x: 248, kind: 'puffer', y: -84 },
+    { x: 436, kind: 'crab', y: -86 },
+    { x: 628, kind: 'octo', y: -82 },
+    { x: 818, kind: 'dumpling', y: -96 },
+    { x: 1036, kind: 'puffer', y: -84 }
+  ];
+
+  function hubOsaka(ctx, g, t, cam, d, dim) {
+    if (d !== 1) return;
+    const y = DECK_Y[d], top = DECK_Y[2] + 24;
+    ctx.globalAlpha = dim ? 0.55 : 1;
+
+    /* THE SHOPFRONTS. A run of lit boxes along the back of the deck with
+       awnings over them, so the stalls have something to stand in front of. */
+    for (let x = 60; x < HUB_W - 40; x += 76) {
+      const px = x - cam;
+      if (px < -90 || px > VW + 90) continue;
+      const k = (x / 76) | 0;
+      const C = SIGN_COL[k % SIGN_COL.length];
+      X.plate(ctx, px - 34, y - 38, 68, 38, '#141a26', '#242e40', '#070b12', 4);
+      X.rect(ctx, px - 30, y - 34, 60, 20, '#0b1018');
+      // what is for sale, in a row of lit jars
+      for (let i = 0; i < 4; i++) {
+        X.rect(ctx, px - 26 + i * 14, y - 31, 9, 13, i % 2 ? C[2] : '#16202c');
+        X.rect(ctx, px - 26 + i * 14, y - 31, 9, 2, C[0]);
+        X.blob(ctx, px - 22 + i * 14, y - 25, 3, 3, C[1]);
+      }
+      // the awning, striped, with a scalloped edge
+      for (let i = 0; i < 9; i++) {
+        X.rect(ctx, px - 36 + i * 8, y - 46, 8, 8, i % 2 ? C[2] : '#1a2230');
+      }
+      X.rect(ctx, px - 36, y - 47, 72, 2, C[0]);
+      for (let i = 0; i < 9; i++) X.poly(ctx, [[px - 36 + i * 8, y - 38], [px - 28 + i * 8, y - 38], [px - 32 + i * 8, y - 34]], i % 2 ? C[2] : '#1a2230');
+      // a paper lantern on the corner of it
+      const lit = (Math.floor(t * 2 + k) % 11) !== 0;
+      for (const sd of [-1, 1]) {
+        const lx = px + sd * 32;
+        X.rect(ctx, lx, y - 46, 1, 4, '#2a3444');
+        X.blob(ctx, lx, y - 37, 6, 8, lit ? '#ff6a4a' : '#4a2018');
+        X.blob(ctx, lx, y - 37, 4, 6, lit ? '#ffb07a' : '#5a2a1c');
+        X.rect(ctx, lx - 6, y - 40, 13, 1, lit ? '#c4402a' : '#3a1810');
+        X.rect(ctx, lx - 6, y - 34, 13, 1, lit ? '#c4402a' : '#3a1810');
+        if (lit && !dim) { ctx.globalAlpha = 0.12; X.blob(ctx, lx, y - 35, 12, 12, '#ff8a4a'); ctx.globalAlpha = dim ? 0.55 : 1; }
+      }
+      // the name of the shop, small, at the top
+      F.draw(ctx, OSAKA_WORDS[k % OSAKA_WORDS.length], px, y - 55, C[1], { center: true, shadow: '#060a10' });
+    }
+
+    /* THE TOWERS. There is no room to stack them UPWARDS -- the deck above is
+       eighty pixels over your head -- so they hang off the front edge of this
+       one and run DOWN into the air over the docks, which is how half of that
+       street works anyway: the signs are bolted to the outside of the building
+       and the building is the thing you are standing in. */
+    for (let x = 96; x < HUB_W - 60; x += 122) {
+      const px = x - cam;
+      if (px < -60 || px > VW + 60) continue;
+      X.rect(ctx, px - 2, y + 2, 4, 8, '#1a2230');
+      signTower(ctx, px, y + 10, DECK_Y[0] - 46, (x / 122) | 0, t);
+    }
+
+    /* AND THE ANIMALS. */
+    for (const o of OSAKA) {
+      const px = o.x - cam;
+      if (px < -90 || px > VW + 90) continue;
+      osakaBeast(ctx, o.kind, px, y + o.y, t, dim);
+    }
+    ctx.globalAlpha = 1;
+  }
+
   function hubProps(ctx, g, t, cam, d, dim) {
     const y = DECK_Y[d];
+    hubOsaka(ctx, g, t, cam, d, dim);
     ctx.globalAlpha = dim ? 0.55 : 1;
     for (const q of HUB_PROPS) {
       if (q.deck !== d) continue;
@@ -20779,13 +21160,25 @@ window.PD = window.PD || {};
      only two colours the house owns. Everything standing on that carpet is a
      table, and behind every table is somebody whose whole job is to take
      your money slowly and politely and offer you another go. */
+  /* THE HOUSE COLOURS, REBUILT.
+     This room was flock wallpaper, mahogany and candlelight -- a Monte Carlo
+     salon with aliens in it. It is a casino on a moon at the end of the
+     galaxy, and it should look like one: cold blue-black glass, brushed
+     steel, and every warm thing in the room being a light rather than a
+     lamp. The names are the old ones on purpose, so four thousand lines of
+     room code did not have to be retyped -- `gold` is now the amber of a lit
+     strip, `red` is the house magenta, `wood` is dark steel. */
   const CAS = {
-    black: '#1d1018', blackL: '#2e1c28', blackD: '#0d060c',
-    red: '#9e1730', redL: '#d63550', redD: '#5e0c1e',
-    felt: '#3a0e18', feltL: '#54162a',
-    gold: '#ffd34d', goldD: '#c2932a', goldDD: '#7a5c16',
-    wood: '#3c241a', woodL: '#5e3a28',
-    chip: ['#d63550', '#f4f0ff', '#2e1c28', '#ffd34d', '#9e1730']
+    black: '#131a26', blackL: '#1f2a3a', blackD: '#080c14',
+    red: '#c0247a', redL: '#ff5fb0', redD: '#5e1040',
+    felt: '#0d2e3a', feltL: '#14485a',
+    gold: '#ffc44d', goldD: '#c08a2a', goldDD: '#6a4c18',
+    wood: '#28323f', woodL: '#465468',
+    // and the cold half of the palette, which is most of it
+    neon: '#38e8ff', neonD: '#1a7f96', neonDD: '#0d3d4a',
+    lime: '#7dff9a', violet: '#a97cff', steel: '#8ea0b8', steelD: '#57647a',
+    glass: 'rgba(90,200,230,0.18)',
+    chip: ['#ff5fb0', '#e8f4ff', '#1f2a3a', '#ffc44d', '#38e8ff']
   };
 
   /* The four suits, small enough to sit on a card and still read. */
@@ -20808,13 +21201,17 @@ window.PD = window.PD || {};
 
   /* The motif stamped into the flock, over and over, at the size the house
      paid for it: small enough that it reads as pattern and not as picture. */
+  /* The house mark. It used to be a damask fleur; it is a circuit node now --
+     a dot with four traces off it -- and it is stencilled everywhere the
+     wallpaper pattern used to be. Same footprint, so nothing else moved. */
   function damask(ctx, x, y, col) {
-    X.rect(ctx, x - 1, y - 2, 2, 5, col);
-    X.rect(ctx, x - 3, y, 6, 1, col);
-    X.rect(ctx, x - 2, y - 1, 1, 1, col);
-    X.rect(ctx, x + 1, y - 1, 1, 1, col);
-    X.rect(ctx, x - 2, y + 2, 1, 1, col);
-    X.rect(ctx, x + 1, y + 2, 1, 1, col);
+    X.rect(ctx, x - 1, y - 1, 3, 3, col);
+    X.rect(ctx, x - 4, y, 3, 1, col);
+    X.rect(ctx, x + 2, y, 3, 1, col);
+    X.rect(ctx, x, y - 4, 1, 3, col);
+    X.rect(ctx, x, y + 2, 1, 3, col);
+    X.rect(ctx, x - 4, y - 1, 1, 1, col);
+    X.rect(ctx, x + 4, y + 1, 1, 1, col);
   }
 
   /* A playing card, face up or face down, at whatever angle it was thrown. */
@@ -20862,6 +21259,15 @@ window.PD = window.PD || {};
   const WALL_H = FLOOR - CLUB_CEIL;
   let bayCv = null;
 
+  /* ONE BAY OF THE WALL, BAKED.
+     The old one was flock wallpaper in an arched alcove with a gilt pilaster
+     either side -- a Monte Carlo salon. This is the same footprint rebuilt as
+     the inside of a machine: a brushed steel frame, a recessed panel lit from
+     behind, a service seam with bolts, and one hot strip of light running the
+     width of it. Three kinds, so the wall has a rhythm rather than a repeat.
+
+     It is still baked once into a canvas and blitted, because a wall that is
+     two thousand pixels long cannot be drawn shape by shape every frame. */
   function bayArt(kind) {
     const c = document.createElement('canvas');
     c.width = BAY * 2; c.height = WALL_H * 2;
@@ -20870,118 +21276,76 @@ window.PD = window.PD || {};
     q.setTransform(2, 0, 0, 2, 0, 0);
     const H = WALL_H, TOP = 0;
 
-    // the flock, wall to wall behind everything
-    X.rect(q, 0, TOP, BAY, H, CAS.black);
+    // the shell: cold dark glass, wall to wall
+    X.rect(q, 0, TOP, BAY, H, CAS.blackD);
+    X.rect(q, 0, TOP, BAY, H - 34, CAS.black);
 
-    /* The alcove. An arch struck off a real circle, so the shoulders curve
-       and the crown is a single pixel wide at the top. */
-    const ax = 12, aw = 56, r = aw / 2, cy2 = 48, base = H - 34;
-    for (let i = 0; i < aw; i++) {
-      const dx = i - r + 0.5;
-      const k = r * r - dx * dx;
-      const top = Math.round(cy2 - (k > 0 ? Math.sqrt(k) : 0));
-      X.rect(q, ax + i, top, 1, base - top, CAS.redD);
-      X.rect(q, ax + i, top, 1, 2, '#2a0610');                 // the reveal
-    }
-    // the gold bead running round the arch
-    for (let i = -2; i < aw + 2; i++) {
-      const dx = i - r + 0.5;
-      const k = (r + 2) * (r + 2) - dx * dx;
-      if (k <= 0) continue;
-      const top = Math.round(cy2 - Math.sqrt(k));
-      X.rect(q, ax + i, top, 1, 2, CAS.goldDD);
-    }
-    X.rect(q, ax - 2, cy2, 2, base - cy2, CAS.goldDD);
-    X.rect(q, ax + aw, cy2, 2, base - cy2, CAS.goldDD);
+    const ax = 11, aw = 58, base = H - 34;
 
-    // the flock inside it, lit from the top, with the house motif stamped in
-    for (let i = 0; i < aw; i++) {
-      const dx = i - r + 0.5;
-      const k = r * r - dx * dx;
-      const top = Math.round(cy2 - (k > 0 ? Math.sqrt(k) : 0)) + 2;
-      X.rect(q, ax + i, top, 1, base - top - 1, CAS.red);
-    }
-    for (let row = 0; row < 8; row++) {
-      const y = 16 + row * 13;
-      if (y < 10 || y > base - 8) continue;
-      for (let col = 0; col < 3; col++) {
-        const dxp = ax + 14 + col * 14 + (row % 2) * 7;
-        const dx = dxp - ax - r;
-        if (y < cy2 && dx * dx > r * r - (cy2 - y) * (cy2 - y) - 40) continue;
-        damask(q, dxp, y, '#5e0a1a');
-      }
-    }
+    /* THE RECESS. A rectangle cut into the wall with a chamfered edge, lit
+       from inside, and it steps IN rather than arching over. */
+    X.plate(q, ax - 3, TOP + 10, aw + 6, base - 16, CAS.blackL, CAS.steelD, '#04070c', 5);
+    X.rect(q, ax, TOP + 13, aw, base - 22, CAS.blackD);
 
     if (kind === 0) {
-      /* A mirror in the alcove, which is what casinos put on every wall they
-         own. The room in it is a smear, deliberately -- a real reflection
-         would need the room drawn twice and would read as a window. */
-      X.rect(q, ax + 8, 30, aw - 16, base - 36, '#1a1826');
-      for (let i = 0; i < aw - 16; i++) {
-        const dx = i - (aw - 16) / 2;
-        const k = ((aw - 16) / 2) * ((aw - 16) / 2) - dx * dx;
-        if (k <= 0) continue;
-        X.rect(q, ax + 8 + i, 30 - Math.round(Math.sqrt(k)), 1, Math.round(Math.sqrt(k)) + 1, '#1a1826');
+      /* A LIT PANEL. Bands of house colour behind smoked glass, brightest at
+         the top, with a scanline crawl baked into it. */
+      for (let y = 0; y < base - 26; y++) {
+        const f = y / (base - 26);
+        const col = f < 0.42 ? CAS.redD : (f < 0.72 ? '#2a1038' : CAS.neonDD);
+        X.rect(q, ax + 2, TOP + 15 + y, aw - 4, 1, col);
+        if (y % 4 === 0) { q.globalAlpha = 0.3; X.rect(q, ax + 2, TOP + 15 + y, aw - 4, 1, '#000000'); q.globalAlpha = 1; }
       }
-      /* What is in it: the far side of the room, gone soft. A hard diagonal
-         streak here read as a scratch down the glass rather than a reflection. */
-      q.globalAlpha = 0.12;
-      X.poly(q, [[ax + 13, base - 8], [ax + 24, 30], [ax + 30, 30], [ax + 19, base - 8]], '#6a6490');
+      // the house mark, big, in the middle of it
+      for (let i = 0; i < 3; i++) damask(q, ax + 14 + i * 15, TOP + 40, i === 1 ? CAS.neon : CAS.neonD);
       q.globalAlpha = 0.22;
-      X.rect(q, ax + 10, base - 34, aw - 20, 26, '#7a2038');
-      X.blob(q, ax + r, base - 22, 9, 7, '#9e1730');
-      q.globalAlpha = 0.3;
-      X.blob(q, ax + r - 8, 46, 4, 5, '#c2932a');
+      X.rect(q, ax + 2, TOP + 15, aw - 4, 14, CAS.redL);
       q.globalAlpha = 1;
-      X.rect(q, ax + 8, 30, 2, base - 36, CAS.goldD);
     } else if (kind === 1) {
-      // a curtain, swagged back, over nothing in particular
-      for (let i = 0; i < 7; i++) {
-        const fx2 = ax + 6 + i * 7;
-        X.rect(q, fx2, 22, 6, base - 24, i % 2 ? '#5e0a1a' : '#7a1024');
-        X.rect(q, fx2, 22, 2, base - 24, '#8a1228');
+      /* A SERVICE PANEL. Bolted steel, a vent, and a strip that is not on. */
+      X.rect(q, ax + 2, TOP + 15, aw - 4, base - 26, CAS.blackL);
+      for (let i = 0; i < 5; i++) X.rect(q, ax + 6, TOP + 22 + i * 7, aw - 12, 3, '#0c1420');
+      for (let i = 0; i < 5; i++) X.rect(q, ax + 6, TOP + 22 + i * 7, aw - 12, 1, CAS.steelD);
+      for (const bx of [ax + 5, ax + aw - 6]) {
+        for (let i = 0; i < 4; i++) { X.rect(q, bx - 1, TOP + 19 + i * 16, 3, 3, CAS.steelD); X.set && 0; }
       }
-      X.rect(q, ax + 4, 20, aw - 8, 4, CAS.goldDD);
-      X.rect(q, ax + 4, base - 40, aw - 8, 3, CAS.goldD);
+      X.rect(q, ax + 2, base - 16, aw - 4, 2, CAS.neonDD);
     } else {
-      // and the third one is just the flock, with a gold sunburst on it
-      for (let i = 0; i < 12; i++) {
-        const a = i / 12 * U.TAU;
-        X.line(q, ax + r, cy2 + 26, ax + r + Math.cos(a) * 15, cy2 + 26 + Math.sin(a) * 15, '#8a1228', 1);
-      }
-      X.blob(q, ax + r, cy2 + 26, 7, 7, CAS.goldDD);
-      X.blob(q, ax + r, cy2 + 26, 5, 5, CAS.goldD);
-      X.blob(q, ax + r, cy2 + 26, 2, 2, '#2a1c06');
+      /* GLASS. You can see the room behind it, gone cold and soft. */
+      X.rect(q, ax + 2, TOP + 15, aw - 4, base - 26, '#0a1a24');
+      q.globalAlpha = 0.5;
+      X.poly(q, [[ax + 4, base - 14], [ax + 22, TOP + 16], [ax + 30, TOP + 16], [ax + 12, base - 14]], '#1c3a4a');
+      q.globalAlpha = 0.3;
+      X.poly(q, [[ax + 26, base - 14], [ax + 40, TOP + 16], [ax + 44, TOP + 16], [ax + 30, base - 14]], '#245060');
+      q.globalAlpha = 0.22;
+      X.rect(q, ax + 3, base - 40, aw - 6, 24, CAS.neonD);
+      q.globalAlpha = 1;
+      for (let y = TOP + 16; y < base - 14; y += 3) { q.globalAlpha = 0.12; X.rect(q, ax + 2, y, aw - 4, 1, '#7fe8ff'); }
+      q.globalAlpha = 1;
     }
 
-    /* The pilaster: a fluted column between the bays, which is what stops
-       the wall reading as wallpaper. */
-    X.rect(q, 0, 4, 10, H - 4, CAS.blackL);
-    X.rect(q, 0, 4, 1, H - 4, '#3a2a38');
-    X.rect(q, 9, 4, 1, H - 4, CAS.blackD);
-    for (let i = 0; i < 3; i++) {
-      X.rect(q, 2 + i * 3, 18, 1, H - 56, CAS.goldDD);
-      X.rect(q, 3 + i * 3, 18, 1, H - 56, '#241a08');
-    }
-    X.rect(q, -1, 10, 12, 6, CAS.blackL);                      // the capital
-    X.rect(q, -1, 10, 12, 1, CAS.goldD);
-    X.rect(q, -1, 15, 12, 1, CAS.goldDD);
-    X.rect(q, -1, H - 40, 12, 7, CAS.blackL);                  // and the base
-    X.rect(q, -1, H - 40, 12, 1, CAS.goldD);
+    /* THE MULLION between the bays: a steel rib with a light channel in it. */
+    X.rect(q, 0, TOP + 2, 9, H - 2, CAS.blackL);
+    X.rect(q, 0, TOP + 2, 1, H - 2, CAS.steelD);
+    X.rect(q, 8, TOP + 2, 1, H - 2, '#04070c');
+    X.rect(q, 3, TOP + 8, 3, H - 46, CAS.neonDD);
+    X.rect(q, 4, TOP + 8, 1, H - 46, CAS.neonD);
+    X.rect(q, -1, TOP + 4, 11, 4, CAS.blackL);
+    X.rect(q, -1, TOP + 4, 11, 1, CAS.steelD);
 
-    /* The wainscot, along the bottom of everything: wood panels with a gold
-       bead and a skirting, which is what gives the wall a foot. */
-    X.rect(q, 0, H - 34, BAY, 34, CAS.wood);
-    X.rect(q, 0, H - 34, BAY, 2, CAS.woodL);
-    X.rect(q, 0, H - 32, BAY, 1, CAS.goldDD);
+    /* THE DADO. A run of dark steel along the bottom with a lit line over it,
+       which is what stops the wall floating. */
+    X.rect(q, 0, base, BAY, 34, CAS.wood);
+    X.rect(q, 0, base, BAY, 2, CAS.woodL);
+    X.rect(q, 0, base + 2, BAY, 1, CAS.neonDD);
     for (let i = 0; i < 2; i++) {
       const px = 14 + i * 36;
-      X.plate(q, px, H - 27, 30, 17, '#3a2018', '#54301f', '#160c08', 2);
-      X.rect(q, px + 3, H - 24, 24, 11, CAS.wood);
-      X.rect(q, px + 3, H - 24, 24, 1, '#54301f');
+      X.plate(q, px, base + 7, 30, 17, '#1a2330', '#2c3848', '#070b12', 2);
+      X.rect(q, px + 3, base + 10, 24, 11, '#101825');
+      X.rect(q, px + 3, base + 10, 24, 1, CAS.steelD);
     }
     X.rect(q, 0, H - 8, BAY, 8, CAS.blackD);
-    X.rect(q, 0, H - 8, BAY, 1, CAS.woodL);
+    X.rect(q, 0, H - 8, BAY, 1, CAS.steelD);
     return c;
   }
 
@@ -20995,23 +21359,25 @@ window.PD = window.PD || {};
       const k = ((b % 3) + 3) % 3;
       ctx.drawImage(bayCv[k], Math.round(px), CLUB_CEIL, BAY, WALL_H);
     }
-    // sconces on the pilasters, live, because they gutter
+    /* The strip over each rib, live, because the room breathes: a channel of
+       light with a brighter pulse travelling along it. Candles guttered; this
+       is a filament that is either on or dying. */
     for (let b = first; b < first + Math.ceil(VW / BAY) + 2; b++) {
       const px = Math.round(b * BAY - cam) + 5;
       if (px < -14 || px > VW + 14) continue;
-      const on = (Math.floor(t * 2.6) + ((b % 7) + 7) % 7) % 11 !== 0;
-      X.rect(ctx, px - 2, FLOOR - 62, 5, 10, CAS.goldDD);
-      X.poly(ctx, [[px - 6, FLOOR - 62], [px + 7, FLOOR - 62], [px + 4, FLOOR - 71], [px - 3, FLOOR - 71]],
-        on ? CAS.goldD : '#3a2a10');
-      X.rect(ctx, px - 5, FLOOR - 63, 11, 1, CAS.gold);
+      const on = (Math.floor(t * 2.6) + ((b % 7) + 7) % 7) % 23 !== 0;
+      X.rect(ctx, px - 3, FLOOR - 70, 7, 20, CAS.blackL);
+      X.rect(ctx, px - 3, FLOOR - 70, 7, 1, CAS.steelD);
+      X.rect(ctx, px - 1, FLOOR - 68, 3, 16, on ? CAS.neonD : '#0d1a20');
       if (on) {
-        X.blob(ctx, px, FLOOR - 67, 3, 4 + Math.sin(t * 9 + b) * 0.6, '#ffe9a8');
-        X.blob(ctx, px, FLOOR - 68, 1.5, 2, '#fffbe0');
-        ctx.globalAlpha = 0.10;
-        X.blob(ctx, px, FLOOR - 66, 11, 13, CAS.gold);
+        X.rect(ctx, px - 1, FLOOR - 68, 3, 16, CAS.neonD);
+        X.rect(ctx, px, FLOOR - 68, 1, 16, CAS.neon);
+        // the pulse
+        const ph = ((t * 26 + b * 13) % 34);
+        if (ph < 16) X.rect(ctx, px - 1, FLOOR - 68 + ph, 3, 3, '#dffaff');
+        ctx.globalAlpha = 0.1;
+        X.blob(ctx, px, FLOOR - 60, 13, 18, CAS.neon);
         ctx.globalAlpha = 1;
-      } else {
-        X.blob(ctx, px, FLOOR - 66, 3, 3, '#5a4418');
       }
     }
     casinoWallArt(ctx, t, cam);
@@ -21068,70 +21434,78 @@ window.PD = window.PD || {};
       const px = x - cam;
       if (px < -50 || px > VW + 50) continue;
       const k = ((x / 46) | 0);
-      // the sunk panel, in two steps so it reads as a recess
-      X.rect(ctx, px + 4, 10, 38, 54, '#241521');
-      X.rect(ctx, px + 8, 14, 30, 46, '#33202c');
-      X.rect(ctx, px + 8, 14, 30, 1, CAS.goldDD);
-      X.rect(ctx, px + 8, 59, 30, 1, '#180d15');
+      // a sunk steel tray with a light channel across it
+      X.rect(ctx, px + 4, 10, 38, 54, '#0e1622');
+      X.rect(ctx, px + 8, 14, 30, 46, '#151f2e');
+      X.rect(ctx, px + 8, 14, 30, 1, CAS.steelD);
+      X.rect(ctx, px + 8, 59, 30, 1, '#070b12');
       if (k % 3 === 0) {
-        // a plaster rose, gilded, in every third panel
-        X.blob(ctx, px + 23, 36, 11, 11, '#452a3a');
-        for (let i = 0; i < 8; i++) {
-          const a = i / 8 * U.TAU;
-          X.blob(ctx, px + 23 + Math.cos(a) * 7, 36 + Math.sin(a) * 7, 3, 3, '#55354a');
-        }
-        X.blob(ctx, px + 23, 36, 4, 4, CAS.goldD);
+        // a lit ring set into every third tray
+        const on = (Math.floor(t * 2.2) + k) % 19 !== 0;
+        X.ring(ctx, px + 23, 36, 10, on ? CAS.neonD : '#123', 2);
+        X.ring(ctx, px + 23, 36, 5, on ? CAS.neon : '#12303a', 1);
+        if (on) { ctx.globalAlpha = 0.09; X.blob(ctx, px + 23, 36, 18, 16, CAS.neon); ctx.globalAlpha = 1; }
       } else if (k % 3 === 1) {
-        // or the house suit, stencilled
-        damask(ctx, px + 23, 32, '#5a3448');
-        damask(ctx, px + 15, 44, '#4a2c3e');
-        damask(ctx, px + 31, 44, '#4a2c3e');
+        damask(ctx, px + 23, 32, '#22304a');
+        damask(ctx, px + 15, 44, '#1b2740');
+        damask(ctx, px + 31, 44, '#1b2740');
+      } else {
+        for (let i = 0; i < 4; i++) X.rect(ctx, px + 11, 20 + i * 10, 24, 3, '#0b1220');
       }
-      // the beam between the panels
-      X.rect(ctx, px, 6, 5, CLUB_CEIL - 2, '#3e2836');
-      X.rect(ctx, px, 6, 2, CLUB_CEIL - 2, '#523548');
-      X.rect(ctx, px, 6, 1, CLUB_CEIL - 2, CAS.goldD);
+      // the rib between the trays
+      X.rect(ctx, px, 6, 5, CLUB_CEIL - 2, '#1a2534');
+      X.rect(ctx, px, 6, 2, CLUB_CEIL - 2, '#26344a');
+      X.rect(ctx, px, 6, 1, CLUB_CEIL - 2, CAS.steelD);
     }
-    // a cross beam along the top, and a run of gold above the panels
-    X.rect(ctx, 0, 0, VW, 8, '#1d1018');
-    X.rect(ctx, 0, 6, VW, 2, '#3e2836');
-    X.rect(ctx, 0, 7, VW, 1, CAS.goldDD);
-    X.rect(ctx, 0, 64, VW, 4, '#3e2836');
-    X.rect(ctx, 0, 64, VW, 1, CAS.goldD);
-    // the cornice: gold, heavy, and right on the top edge of the view
+    X.rect(ctx, 0, 0, VW, 8, '#0a0f18');
+    X.rect(ctx, 0, 6, VW, 2, '#1a2534');
+    X.rect(ctx, 0, 7, VW, 1, CAS.steelD);
+    X.rect(ctx, 0, 64, VW, 4, '#1a2534');
+    X.rect(ctx, 0, 64, VW, 1, CAS.steelD);
+    /* THE RAIL. Where the gilt cornice was: a channel of light running the
+       whole length of the room with a pulse chasing along it. */
     X.rect(ctx, 0, CLUB_CEIL - 4, VW, 4, CAS.blackL);
-    X.rect(ctx, 0, CLUB_CEIL, VW, 3, CAS.goldDD);
-    X.rect(ctx, 0, CLUB_CEIL, VW, 1, CAS.goldD);
-    for (let x = ((-cam % 8) + 8) % 8 - 8; x < VW + 8; x += 8) {
-      X.poly(ctx, [[x + 4, CLUB_CEIL + 3], [x + 7, CLUB_CEIL + 8], [x + 1, CLUB_CEIL + 8]], CAS.goldDD);
-      X.rect(ctx, x + 3, CLUB_CEIL + 3, 2, 2, CAS.goldD);
-    }
+    X.rect(ctx, 0, CLUB_CEIL, VW, 3, CAS.neonDD);
+    X.rect(ctx, 0, CLUB_CEIL + 1, VW, 1, CAS.neonD);
+    const run = ((t * 80) % (clubW() + 200)) - cam - 100;
+    ctx.globalAlpha = 0.9;
+    X.rect(ctx, run, CLUB_CEIL, 60, 3, CAS.neon);
+    X.rect(ctx, run + 20, CLUB_CEIL, 20, 3, '#dffaff');
+    ctx.globalAlpha = 1;
+    ctx.globalAlpha = 0.08;
+    X.rect(ctx, 0, CLUB_CEIL + 3, VW, 10, CAS.neon);
+    ctx.globalAlpha = 1;
   }
 
   /* Chandeliers, hung after the wall so they are in the room rather than on
      it. Gold rings, candles that gutter one at a time, and glass drops. */
   function casinoChandeliers(ctx, t, cam) {
+    /* THE LAMPS. There is no chain and there are no candles: these hang on
+       nothing, turn slowly, and throw a hard ring of light rather than a soft
+       one. Three stacked rings and a core, which is a chandelier's silhouette
+       built out of the only material this room has. */
     for (let x = 200; x < clubW(); x += 240) {
       const px = x - cam;
       if (px < -60 || px > VW + 60) continue;
-      const cy = CLUB_CEIL + 30 + Math.sin(t * 0.5 + x) * 1;
-      X.rect(ctx, px, 8, 2, cy - 16, CAS.goldDD);
-      X.rect(ctx, px, 8, 1, cy - 16, CAS.goldD);
-      X.blob(ctx, px + 1, 10, 5, 3, CAS.goldD);
-      X.blob(ctx, px, cy - 20, 5, 3, CAS.goldD);
-      X.ring(ctx, px, cy, 18, CAS.goldD, 2);
-      X.ring(ctx, px, cy + 7, 11, CAS.goldD, 2);
-      for (let i = 0; i < 9; i++) {
-        const a = i / 9 * U.TAU + t * 0.08;
-        const on = (Math.floor(t * 3) + i) % 7 !== 0;
-        const bx = px + Math.cos(a) * 18;
-        X.rect(ctx, bx - 1, cy - 7, 3, 7, '#e8dfc4');
-        X.blob(ctx, bx, cy - 8, 2, 3, on ? '#fff3b0' : '#6a5a2a');
+      const cy = CLUB_CEIL + 30 + Math.sin(t * 0.5 + x) * 1.5;
+      const spin = t * 0.5 + x;
+      for (let r = 0; r < 3; r++) {
+        const rr = 20 - r * 6, yy = cy + r * 7;
+        const sq = Math.max(2, Math.round(rr * (0.24 + 0.1 * Math.abs(Math.sin(spin + r)))));
+        X.blob(ctx, px, yy, rr, sq, r === 1 ? CAS.redD : CAS.neonDD);
+        X.blob(ctx, px, yy - 1, rr - 2, Math.max(1, sq - 2), r === 1 ? CAS.red : CAS.neonD);
+        X.blob(ctx, px, yy - 1, rr - 5, Math.max(1, sq - 3), r === 1 ? CAS.redL : CAS.neon);
       }
-      for (let i = 0; i < 9; i++) X.rect(ctx, px - 16 + i * 4, cy + 9, 1, 3 + (i % 3) * 3, '#d8cfb4');
-      X.blob(ctx, px, cy + 13, 4, 4, CAS.gold);
-      ctx.globalAlpha = 0.10;
-      X.blob(ctx, px, cy + 18, 48, 36, CAS.gold);
+      X.blob(ctx, px, cy + 16, 5, 5, '#dffaff');
+      X.blob(ctx, px, cy + 16, 3, 3, '#ffffff');
+      // the beam it drops, dithered so it stays pixels
+      for (let i = 0; i < 4; i++) {
+        ctx.globalAlpha = 0.05 - i * 0.008;
+        const w = 22 + i * 16;
+        X.dither(ctx, px - w / 2, cy + 18, w, FLOOR - cy - 18, CAS.neon, i % 2);
+      }
+      ctx.globalAlpha = 0.1;
+      X.blob(ctx, px, cy + 22, 44, 30, CAS.neon);
       ctx.globalAlpha = 1;
     }
   }
@@ -21158,11 +21532,11 @@ window.PD = window.PD || {};
       if (px < -90 || px > VW + 90) continue;
       const flick = 1 + Math.sin(t * 1.3 + x) * 0.04;
       ctx.globalAlpha = 0.05 * flick;
-      X.blob(ctx, px, FLOOR + 14, 74, 16, CAS.gold);
+      X.blob(ctx, px, FLOOR + 14, 74, 16, CAS.neon);
       ctx.globalAlpha = 0.06 * flick;
-      X.blob(ctx, px, FLOOR + 10, 48, 10, CAS.gold);
+      X.blob(ctx, px, FLOOR + 10, 48, 10, CAS.neon);
       ctx.globalAlpha = 0.07 * flick;
-      X.blob(ctx, px, FLOOR + 7, 26, 5, '#ffe9a8');
+      X.blob(ctx, px, FLOOR + 7, 26, 5, '#dffaff');
       ctx.globalAlpha = 1;
     }
     for (let x = 80; x < W; x += 80) {
@@ -21170,57 +21544,66 @@ window.PD = window.PD || {};
       const px = x - cam;
       if (px < -40 || px > VW + 40) continue;
       ctx.globalAlpha = 0.045;
-      X.blob(ctx, px, FLOOR + 9, 30, 8, CAS.gold);
+      X.blob(ctx, px, FLOOR + 9, 30, 8, CAS.neon);
       ctx.globalAlpha = 1;
     }
   }
 
   function casinoCarpet(ctx, t, cam) {
-    X.rect(ctx, 0, FLOOR, VW, VH - FLOOR, '#5e0d1e');
-    X.rect(ctx, 0, FLOOR + 12, VW, VH - FLOOR - 12, '#6e1022');
-    X.rect(ctx, 0, FLOOR + 30, VW, VH - FLOOR - 30, '#7d1326');
-    /* The house pattern. Diamonds, getting wider as the carpet comes towards
-       you, because it is a floor and not a wall. They are drawn off their own
-       centre -- scaling the absolute x instead turned every one of them into a
-       little black pennant pointing at the door, which was worse. */
+    /* THE FLOOR. It was a red diamond carpet, and it was the single most
+       Victorian thing left in the building. It is a poured dark floor now with
+       a lit inlay running through it -- the same diamonds, so the pattern
+       still leads your eye down the room, but they are channels of light in
+       a black deck rather than wool. */
+    X.rect(ctx, 0, FLOOR, VW, VH - FLOOR, '#0c1119');
+    X.rect(ctx, 0, FLOOR + 12, VW, VH - FLOOR - 12, '#101722');
+    X.rect(ctx, 0, FLOOR + 30, VW, VH - FLOOR - 30, '#141d2a');
     for (let x = ((-cam % 36) + 36) % 36 - 36; x < VW + 36; x += 36) {
       for (let r = 0; r < 3; r++) {
         const cx = x + 18 + (r % 2) * 18, cy = FLOOR + 8 + r * 15;
         const rw = 7 + r * 3, rh = 3 + r * 1.2;
-        X.poly(ctx, [[cx, cy - rh], [cx + rw, cy], [cx, cy + rh], [cx - rw, cy]], '#3d0a16');
-        X.poly(ctx, [[cx, cy - rh * 0.45], [cx + rw * 0.45, cy], [cx, cy + rh * 0.45], [cx - rw * 0.45, cy]], '#7a3a18');
+        X.poly(ctx, [[cx, cy - rh], [cx + rw, cy], [cx, cy + rh], [cx - rw, cy]], '#0a1018');
+        // the inlay, brighter the nearer it is
+        const lit = r === 2 ? CAS.neonD : CAS.neonDD;
+        X.poly(ctx, [[cx, cy - rh * 0.55], [cx + rw * 0.55, cy], [cx, cy + rh * 0.55], [cx - rw * 0.55, cy]], lit);
+        X.rect(ctx, cx - 1, cy, 2, 1, r === 2 ? CAS.neon : CAS.neonD);
       }
     }
-    /* THE WEAR. Wherever there is something to lose money at, the carpet in
-       front of it has been stood on by everybody who ever came in, and it has
-       gone flat and dark. It is the oldest thing in the room. */
+    /* THE WEAR. Wherever there is something to lose money at, the floor in
+       front of it has been stood on by everybody who ever came in. On a poured
+       deck that is scuffing rather than flattened pile, so it kills the inlay
+       instead of darkening the weave. */
     for (const wx of wearSpots()) {
       const px = wx - cam;
       if (px < -70 || px > VW + 70) continue;
-      ctx.globalAlpha = 0.3;
-      X.blob(ctx, px, FLOOR + 10, 52, 11, '#4a0a14');
-      ctx.globalAlpha = 0.18;
-      X.blob(ctx, px, FLOOR + 8, 34, 7, '#3d0a16');
+      ctx.globalAlpha = 0.4;
+      X.blob(ctx, px, FLOOR + 10, 52, 11, '#070c14');
+      ctx.globalAlpha = 0.22;
+      X.blob(ctx, px, FLOOR + 8, 34, 7, '#1a2634');
       ctx.globalAlpha = 1;
     }
-    X.rect(ctx, 0, FLOOR - 1, VW, 2, CAS.blackD);
-    X.rect(ctx, 0, FLOOR + 1, VW, 1, '#8a1228');
-    // and what has been dropped on it since the carpet went down
+    // the seam where the floor meets the wall, and the light bleeding off it
+    X.rect(ctx, 0, FLOOR - 1, VW, 2, '#04070c');
+    X.rect(ctx, 0, FLOOR + 1, VW, 1, CAS.neonDD);
+    ctx.globalAlpha = 0.07;
+    X.rect(ctx, 0, FLOOR + 2, VW, 7, CAS.neon);
+    ctx.globalAlpha = 1;
+    // and what has been dropped on it since the floor went down
     for (let x = 30; x < clubW(); x += 43) {
       const px = x - cam;
       if (px < -20 || px > VW + 20) continue;
       const k = Math.floor(U.hash2(x, 23) * 6);
       if (k === 0) chipStack(ctx, px, FLOOR + 9, 1, (x / 43) | 0);
-      else if (k === 1) {                              // a betting slip, screwed up
-        X.blob(ctx, px, FLOOR + 8, 4, 3, '#c9c4b4');
-        X.rect(ctx, px - 2, FLOOR + 7, 2, 1, '#8e86a8');
-      } else if (k === 2) {                            // a dropped glass
-        X.rect(ctx, px, FLOOR + 4, 4, 5, 'rgba(220,235,255,0.3)');
-        X.rect(ctx, px, FLOOR + 4, 4, 1, '#d8f0ff');
-      } else if (k === 3) {                            // the end of a cigar
-        X.rect(ctx, px - 4, FLOOR + 8, 8, 2, '#3a2414');
-        X.rect(ctx, px + 3, FLOOR + 8, 2, 2, '#c9c4b4');
-      } else if (k === 4) {                            // a card face down
+      else if (k === 1) {
+        X.blob(ctx, px, FLOOR + 8, 4, 3, '#b8c4d4');
+        X.rect(ctx, px - 2, FLOOR + 7, 2, 1, CAS.steelD);
+      } else if (k === 2) {
+        X.rect(ctx, px, FLOOR + 4, 4, 5, 'rgba(190,230,255,0.3)');
+        X.rect(ctx, px, FLOOR + 4, 4, 1, '#d8f4ff');
+      } else if (k === 3) {
+        X.rect(ctx, px - 4, FLOOR + 8, 8, 2, '#243040');
+        X.rect(ctx, px + 3, FLOOR + 8, 2, 2, CAS.neonD);
+      } else if (k === 4) {
         X.rect(ctx, px - 3, FLOOR + 7, 7, 3, CAS.redD);
         X.rect(ctx, px - 3, FLOOR + 7, 7, 1, CAS.redL);
       }
@@ -21425,24 +21808,29 @@ window.PD = window.PD || {};
       if (px < -20 || px > VW + 20) continue;
       if (Math.abs(((x - 200) % 240)) < 40) continue;          // not on a chandelier
       const cy = CLUB_CEIL + 14 + Math.sin(t * 0.4 + x) * 0.6;
-      X.rect(ctx, px, 8, 1, cy - 8, CAS.goldDD);
-      X.poly(ctx, [[px - 7, cy + 8], [px + 8, cy + 8], [px + 5, cy], [px - 4, cy]], CAS.goldD);
-      X.rect(ctx, px - 7, cy + 8, 15, 1, CAS.gold);
+      // a puck on a thin stem, lit underneath
+      X.rect(ctx, px, 8, 1, cy - 8, '#1a2534');
+      X.plate(ctx, px - 7, cy, 15, 7, CAS.blackL, CAS.steelD, '#04070c', 2);
       const on = (Math.floor(t * 2.2) + ((x / 80) | 0)) % 13 !== 0;
-      X.blob(ctx, px, cy + 9, 4, 2, on ? '#ffe9a8' : '#5a4418');
-      if (on) { ctx.globalAlpha = 0.07; X.blob(ctx, px, cy + 14, 14, 12, CAS.gold); ctx.globalAlpha = 1; }
+      X.rect(ctx, px - 5, cy + 6, 11, 2, on ? CAS.neonD : '#0d1a20');
+      X.rect(ctx, px - 3, cy + 6, 7, 1, on ? '#dffaff' : '#0d1a20');
+      if (on) { ctx.globalAlpha = 0.07; X.blob(ctx, px, cy + 14, 14, 12, CAS.neon); ctx.globalAlpha = 1; }
     }
-    /* Bunting, swagged bay to bay along the top of the wall. The first pass
-       hung it at eight pixels a flag and the whole room looked like it had a
-       row of teeth. Small flags, a real sag, and a cord you can see. */
+    /* Where the bunting was: a slack cable strung bay to bay with lamps hung
+       off it, half of them out. It keeps the swag -- the sag is what made the
+       ceiling read as a ceiling -- and loses the flags. */
     const SEG = 72;
     for (let x = Math.floor(cam / SEG) * SEG - SEG; x < cam + VW + SEG; x += SEG) {
       const px = x - cam;
       for (let i = 0; i < 12; i++) {
-        const q = i / 12, sag = Math.sin(q * Math.PI) * 5;
-        X.rect(ctx, px + i * 6, CLUB_CEIL + 2 + sag, 6, 1, '#4a3a10');
-        X.poly(ctx, [[px + i * 6, CLUB_CEIL + 3 + sag], [px + i * 6 + 5, CLUB_CEIL + 3 + sag],
-          [px + i * 6 + 2, CLUB_CEIL + 8 + sag]], i % 2 ? '#8a1228' : CAS.goldDD);
+        const q = i / 12, sag = Math.sin(q * Math.PI) * 6;
+        X.rect(ctx, px + i * 6, CLUB_CEIL + 3 + sag, 6, 1, '#1a2534');
+        if (i % 3 === 1) {
+          const on = (Math.floor(t * 2 + x * 0.1) + i) % 7 !== 0;
+          X.rect(ctx, px + i * 6 + 2, CLUB_CEIL + 4 + sag, 2, 3, CAS.steelD);
+          X.blob(ctx, px + i * 6 + 3, CLUB_CEIL + 8 + sag, 2, 2, on ? CAS.neon : '#10242c');
+          if (on) { ctx.globalAlpha = 0.14; X.blob(ctx, px + i * 6 + 3, CLUB_CEIL + 9 + sag, 6, 5, CAS.neon); ctx.globalAlpha = 1; }
+        }
       }
     }
     // and the house watching you: a camera dome every so often
@@ -21585,7 +21973,7 @@ window.PD = window.PD || {};
     const busy = CARD.at === mine;
     drawDealer(ctx, tx, t, mine === 'poker' ? 0 : 2, busy && CARD.t < 1.1);
     // the pedestal it stands on, and its shadow on the carpet
-    X.blob(ctx, tx, FLOOR + 3, 26, 4, '#3d0a16');
+    X.blob(ctx, tx, FLOOR + 3, 26, 4, '#0a1018');
     X.plate(ctx, tx - 10, TOP + 10, 20, 24, CAS.wood, CAS.woodL, '#160c08', 3);
     X.blob(ctx, tx, TOP + 32, 20, 4, CAS.wood);
     // the table: an apron of buttoned leather with a bed of felt on top
@@ -21640,7 +22028,7 @@ window.PD = window.PD || {};
     const rx = ROU_X - cam, TOP = FLOOR - 36;
     drawDealer(ctx, rx + 40, t, 1, ROU.live);
     // the layout: a long table with RED on the left of it and BLACK on the right
-    X.blob(ctx, rx, FLOOR + 3, 40, 4, '#3d0a16');
+    X.blob(ctx, rx, FLOOR + 3, 40, 4, '#0a1018');
     X.plate(ctx, rx - 40, TOP + 12, 80, 26, CAS.wood, CAS.woodL, '#160c08', 3);
     X.rect(ctx, rx - 40, TOP + 12, 80, 2, CAS.goldDD);
     X.blob(ctx, rx, TOP + 16, 62, 15, CAS.blackD);
@@ -21813,16 +22201,16 @@ window.PD = window.PD || {};
     if (sx > VW + 40) return;
     const w = clubW() - STEP_X;
     // the raised floor: the same carpet, a shade richer, with a brass nosing
-    X.rect(ctx, sx, SALON_Y, w, VH - SALON_Y, '#6a0f20');
-    X.rect(ctx, sx, SALON_Y + 12, w, VH - SALON_Y - 12, '#7d1326');
-    X.rect(ctx, sx, SALON_Y + 30, w, VH - SALON_Y - 30, '#8e1528');
+    X.rect(ctx, sx, SALON_Y, w, VH - SALON_Y, '#101722');
+    X.rect(ctx, sx, SALON_Y + 12, w, VH - SALON_Y - 12, '#141d2a');
+    X.rect(ctx, sx, SALON_Y + 30, w, VH - SALON_Y - 30, '#18222f');
     for (let x = ((-cam % 36) + 36) % 36 - 36; x < VW + 36; x += 36) {
       if (x + 36 < sx) continue;
       for (let r = 0; r < 3; r++) {
         const cx2 = x + 18 + (r % 2) * 18, cy2 = SALON_Y + 8 + r * 15;
         if (cx2 < sx + 6) continue;
         const rw = 7 + r * 3, rh = 3 + r * 1.2;
-        X.poly(ctx, [[cx2, cy2 - rh], [cx2 + rw, cy2], [cx2, cy2 + rh], [cx2 - rw, cy2]], '#4a0c1a');
+        X.poly(ctx, [[cx2, cy2 - rh], [cx2 + rw, cy2], [cx2, cy2 + rh], [cx2 - rw, cy2]], '#0a1018');
         X.poly(ctx, [[cx2, cy2 - rh * 0.45], [cx2 + rw * 0.45, cy2], [cx2, cy2 + rh * 0.45],
           [cx2 - rw * 0.45, cy2]], '#8a4418');
       }
@@ -21830,7 +22218,7 @@ window.PD = window.PD || {};
     // three treads coming down to the main floor
     for (let i = 0; i < 3; i++) {
       const y = SALON_Y + i * 5, h = 5;
-      X.rect(ctx, sx - 18 + i * 6, y, 20 - i * 6, h, i % 2 ? '#6a0f20' : '#5e0c1e');
+      X.rect(ctx, sx - 18 + i * 6, y, 20 - i * 6, h, i % 2 ? '#101722' : '#5e0c1e');
       X.rect(ctx, sx - 18 + i * 6, y, 20 - i * 6, 1, CAS.goldDD);
     }
     X.rect(ctx, sx, SALON_Y - 1, w, 2, CAS.blackD);
@@ -21903,7 +22291,7 @@ window.PD = window.PD || {};
     /* A shallow bed of felt with a padded rail along the near edge and the
        apron under it. The first pass was a tall wooden box with the game
        hidden somewhere on top of it, and all you could see was the box. */
-    X.blob(ctx, cx, SALON_Y + 3, 64, 5, '#3d0a16');
+    X.blob(ctx, cx, SALON_Y + 3, 64, 5, '#0a1018');
     X.plate(ctx, cx - 56, TOP + 30, 112, 22, CAS.wood, CAS.woodL, '#160c08', 3);
     X.rect(ctx, cx - 56, TOP + 30, 112, 2, CAS.goldDD);
     X.plate(ctx, cx - 64, TOP, 128, 32, CAS.felt, CAS.feltL, CAS.blackD, 4);
@@ -21955,7 +22343,7 @@ window.PD = window.PD || {};
     // the curtain, floor to ceiling, behind the lot
     for (let i = 0; i < 18; i++) {
       const fx2 = sx - 72 + i * 8;
-      X.rect(ctx, fx2, CLUB_CEIL + 12, 8, TOP - CLUB_CEIL - 4, i % 2 ? '#5e0c1e' : '#7d1326');
+      X.rect(ctx, fx2, CLUB_CEIL + 12, 8, TOP - CLUB_CEIL - 4, i % 2 ? '#5e0c1e' : '#141d2a');
       X.rect(ctx, fx2, CLUB_CEIL + 12, 2, TOP - CLUB_CEIL - 4, '#9e1730');
     }
     X.rect(ctx, sx - 72, CLUB_CEIL + 10, 144, 5, CAS.goldDD);
@@ -22010,7 +22398,7 @@ window.PD = window.PD || {};
     const bx = BACC_X - cam, TOP = SALON_Y - 48;
     if (bx < -130 || bx > VW + 130) return;
     drawDealer(ctx, bx, t, 1, BACC.live && BACC.t < 1.2, SALON_Y);
-    X.blob(ctx, bx, SALON_Y + 3, 58, 5, '#3d0a16');
+    X.blob(ctx, bx, SALON_Y + 3, 58, 5, '#0a1018');
     X.plate(ctx, bx - 20, TOP + 28, 40, 20, CAS.wood, CAS.woodL, '#160c08', 3);
     // a long shallow kidney of felt, in a padded rim with gold studs round it
     X.rect(ctx, bx - 58, TOP + 16, 116, 14, '#3d0812');
@@ -22229,7 +22617,7 @@ window.PD = window.PD || {};
           AH.blit(ctx, AH.S[K.key], (Math.floor(t * 0.8 + i) % 11) === 0 ? 5 : 0, hx, y + 1, i % 2 === 0);
           ctx.globalAlpha = 1;
         }
-        X.rect(ctx, ax + 12, y, W - 24, 5, '#3d0a16');
+        X.rect(ctx, ax + 12, y, W - 24, 5, '#0a1018');
         X.rect(ctx, ax + 12, y, W - 24, 1, CAS.goldDD);
         for (let i = 0; i * 12 < W - 24; i++) X.rect(ctx, ax + 14 + i * 12, y - 5, 1, 5, '#4a3a10');
         // the floor number, in neon, on the far wall
@@ -22268,8 +22656,8 @@ window.PD = window.PD || {};
     for (let u = 1; u <= d; u++) {
       const y = FLOOR - 4 + u * 10, inset = u * 8;
       ctx.globalAlpha = 0.85 - u * 0.2;
-      X.rect(ctx, ax + inset, y, W - inset * 2, 8, '#3d0a16');
-      X.rect(ctx, ax + inset, y, W - inset * 2, 2, '#6a0f20');
+      X.rect(ctx, ax + inset, y, W - inset * 2, 8, '#0a1018');
+      X.rect(ctx, ax + inset, y, W - inset * 2, 2, '#101722');
       for (let i = 0; i * 18 + 14 < W - inset * 2; i++) {
         X.blob(ctx, ax + inset + 14 + i * 18, y + 4, 3, 2, '#1a0f16');
       }
@@ -22411,7 +22799,7 @@ window.PD = window.PD || {};
   function drawArcadeCab(ctx, x, t, k) {
     const B = FLOOR;
     const HUE = ['#ff2f8a', '#6fe8d8', '#ffd34d', '#8dff5a', '#c9a0ff', '#ff8a1e'][k % 6];
-    X.blob(ctx, x, B + 2, 15, 3, '#3d0a16');
+    X.blob(ctx, x, B + 2, 15, 3, '#0a1018');
     X.plate(ctx, x - 14, B - 62, 29, 62, CAS.blackL, '#3e2a38', CAS.blackD, 4);
     X.rect(ctx, x - 14, B - 62, 29, 3, HUE);
     // the marquee
@@ -22450,7 +22838,7 @@ window.PD = window.PD || {};
     // THE CLAW: a glass box of rubber ducks with a grab hanging over them
     const cx = CLAW_X - cam;
     if (cx > -80 && cx < VW + 80) {
-      X.blob(ctx, cx, FLOOR + 3, 30, 4, '#3d0a16');
+      X.blob(ctx, cx, FLOOR + 3, 30, 4, '#0a1018');
       X.plate(ctx, cx - 28, FLOOR - 34, 57, 34, CAS.blackL, '#3e2a38', CAS.blackD, 4);
       X.plate(ctx, cx - 30, FLOOR - 92, 61, 60, '#9fd8e8', '#dff4fa', '#4a7a90', 5);
       X.rect(ctx, cx - 26, FLOOR - 88, 53, 52, 'rgba(60,140,170,0.35)');
@@ -22569,7 +22957,7 @@ window.PD = window.PD || {};
       X.plate(ctx, sx - 56, FLOOR - 40, 113, 40, CAS.redD, '#8a1228', CAS.blackD, 6);
       X.rect(ctx, sx - 56, FLOOR - 40, 113, 3, '#9e1730');
       for (let i = 0; i < 5; i++) for (let j = 0; j < 2; j++) X.blob(ctx, sx - 44 + i * 22, FLOOR - 32 + j * 11, 1.5, 1.5, '#5e0c1e');
-      X.plate(ctx, sx - 56, FLOOR - 18, 113, 8, '#7d1326', '#b02a44', CAS.blackD, 3);
+      X.plate(ctx, sx - 56, FLOOR - 18, 113, 8, '#141d2a', '#b02a44', CAS.blackD, 3);
       drawSeated(ctx, sx - 30, t, 29, false, FLOOR - 6);
       drawSeated(ctx, sx + 26, t, 31, true, FLOOR - 6);
       // a low table with a lava lamp and a drink on it
@@ -22591,7 +22979,7 @@ window.PD = window.PD || {};
     // the fountain, which is running with something that is not water
     const fx = 1330 - cam;
     if (fx > -80 && fx < VW + 80) {
-      X.blob(ctx, fx, FLOOR + 2, 40, 5, '#3d0a16');
+      X.blob(ctx, fx, FLOOR + 2, 40, 5, '#0a1018');
       X.plate(ctx, fx - 34, FLOOR - 20, 69, 20, '#5a5474', '#8e86a8', '#2e2a3e', 5);
       X.blob(ctx, fx, FLOOR - 20, 30, 6, '#3fb87e');
       X.rect(ctx, fx - 2, FLOOR - 48, 5, 28, '#8e86a8');
@@ -22958,7 +23346,7 @@ window.PD = window.PD || {};
       X.rect(ctx, mx - w, y, w * 2, 11, '#28040e');             // the riser, in shadow
       X.rect(ctx, mx - w, y, w * 2, 5, i % 2 ? '#7a1024' : '#8a1228');  // the tread, lit
       X.rect(ctx, mx - w, y, w * 2, 1, CAS.gold);               // and the brass nosing
-      X.rect(ctx, mx - w, y + 5, w * 2, 1, '#3d0a16');
+      X.rect(ctx, mx - w, y + 5, w * 2, 1, '#0a1018');
     }
     /* A runner up the middle, laid over the steps rather than through them:
        a lit tread and a shadowed riser for each one, and a worn patch in the
@@ -22969,7 +23357,7 @@ window.PD = window.PD || {};
       X.rect(ctx, mx - 36, y, 72, 5, '#b01e38');
       X.rect(ctx, mx - 36, y, 72, 1, CAS.goldD);
       ctx.globalAlpha = 0.3;
-      X.blob(ctx, mx, y + 2, 18, 2, '#6a0f20');
+      X.blob(ctx, mx, y + 2, 18, 2, '#101722');
       ctx.globalAlpha = 1;
       X.rect(ctx, mx - 36, y, 2, 11, CAS.goldDD);
       X.rect(ctx, mx + 34, y, 2, 11, CAS.goldDD);
@@ -23312,8 +23700,11 @@ window.PD = window.PD || {};
       AH.blit(ctx, AH.S[K.key], frame, x, FLOOR + bob, st.face < 0);
       // a little brass name plate, on the floor where they started
       const px = n.x - cam;
-      X.plate(ctx, px - 24, FLOOR + 2, 49, 9, CAS.goldD, '#ffe9a8', '#4a3410', 2);
+      const race = K.race || K.species || '';
+      const pw = Math.max(49, F.width(n.name, 1) + 10, F.width(race, 1) + 10);
+      X.plate(ctx, px - pw / 2, FLOOR + 2, pw, race ? 17 : 9, CAS.goldD, '#ffe9a8', '#4a3410', 2);
       F.draw(ctx, n.name, px, FLOOR + 4, '#2a1c06', { center: true, shadow: false });
+      if (race) F.draw(ctx, race, px, FLOOR + 11, '#6a5218', { center: true, shadow: false });
       if (st.t > 0) {
         ctx.globalAlpha = 0.16 + Math.sin(t * 7) * 0.06;
         X.blob(ctx, x, FLOOR - K.h * 0.5, 22, 26, CAS.gold);
@@ -23528,6 +23919,7 @@ window.PD = window.PD || {};
     drawWin(ctx, t, cam);
     drawNPCs(ctx, g, t, cam);
     drawCry(ctx, cam);
+    drawWhoTag(ctx, t, cam);
     drawNPCSay(ctx, t, cam);
     const nx = chatNext();
     if (nx && nx.at < 0.55 && !nx.who.say && !nx.who.emote) {
@@ -23710,17 +24102,17 @@ window.PD = window.PD || {};
     }
 
     // the carpet, with the house diamond stamped into it
-    X.rect(ctx, a0 + 10, FLOOR, W, VH - FLOOR, '#5e0d1e');
+    X.rect(ctx, a0 + 10, FLOOR, W, VH - FLOOR, '#0c1119');
     for (let y = 0; y < VH - FLOOR; y += 6) {
-      X.rect(ctx, a0 + 10, FLOOR + y, W, 6, y > 12 ? '#7d1326' : '#6e1022');
+      X.rect(ctx, a0 + 10, FLOOR + y, W, 6, y > 12 ? '#141d2a' : '#101722');
       for (let x = (y * 7) % 22; x < W; x += 22) {
-        X.rect(ctx, a0 + 10 + x, FLOOR + y + 2, 8, 2, y > 12 ? '#8a1228' : '#6a0f20');
+        X.rect(ctx, a0 + 10 + x, FLOOR + y + 2, 8, 2, y > 12 ? '#8a1228' : '#101722');
       }
     }
     for (let x = 6; x < W; x += 34) {
       ctx.globalAlpha = 0.5;
       X.poly(ctx, [[a0 + 10 + x, FLOOR + 10], [a0 + 16 + x, FLOOR + 15],
-        [a0 + 10 + x, FLOOR + 20], [a0 + 4 + x, FLOOR + 15]], '#3d0a16');
+        [a0 + 10 + x, FLOOR + 20], [a0 + 4 + x, FLOOR + 15]], '#0a1018');
       ctx.globalAlpha = 1;
     }
     X.rect(ctx, a0 + 10, FLOOR - 1, W, 2, CAS.blackD);
@@ -23908,6 +24300,40 @@ window.PD = window.PD || {};
   }
 
   /* A small thing somebody has said, with the tail pointing down at them. */
+  /* ===================================================== WHO IS THAT, THEN
+     Everybody in the room is generated, and until they had names that meant
+     nobody in the room was anybody. Stand next to one and a small tag comes up
+     over them: what they are called, what they are, and what they do. It is
+     the cheapest way to turn a crowd into a cast, and it costs one line of
+     lookup because the generator already knows all three.
+
+     Only the nearest one, and only when you are close enough to have read a
+     badge, or the room fills up with labels. */
+  function drawWhoTag(ctx, t, cam) {
+    let best = null, bd = 44;
+    for (const c of CLUBBERS) {
+      if (c.say || c.emote) continue;
+      const d = Math.abs(c.x - P.x);
+      if (d < bd) { bd = d; best = c; }
+    }
+    if (!best) return;
+    const K = AH.KIN[best.k % AH.KIN.length];
+    const who = K.who || K.celeb || K.species || '?';
+    const under = ((K.race || '') + (K.calling ? '  -  ' + K.calling : '')) || '';
+    const w = Math.max(F.width(who, 1), F.width(under, 1)) + 12;
+    const x = Math.round(U.clamp(best.x - cam - w / 2,
+      Math.round(VIEW.x) + 3, Math.round(VIEW.x) + ZW - w - 3));
+    const y = Math.round(FLOOR - K.h - 16);
+    const fade = U.clamp((44 - bd) / 14, 0, 1) * 0.92;
+    ctx.globalAlpha = fade;
+    X.plate(ctx, x - 1, y - 1, w + 2, 20, '#0a0812', null, null, 3);
+    X.plate(ctx, x, y, w, 18, '#151228', '#262048', '#08060e', 3);
+    X.rect(ctx, x + 3, y, w - 6, 1, K.acc || CAS.gold);
+    F.draw(ctx, who, x + w / 2, y + 3, '#e8e2f4', { center: true, shadow: false });
+    F.draw(ctx, under, x + w / 2, y + 11, '#7a7498', { center: true, shadow: false });
+    ctx.globalAlpha = 1;
+  }
+
   /* ========================================================== THE BUBBLE
      It used to be a white box with a spike on it. Now it pops open, it holds
      two lines when it needs to, it carries the speaker's own colour along the

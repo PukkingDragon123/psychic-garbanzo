@@ -1116,7 +1116,11 @@
      and a tail; a fifth are arthropods with a carapace and wing cases. The
      skeleton underneath is the same one, which is why they can all wear a
      jacket and hold a drink. */
-  const PLANK = ['biped', 'biped', 'biped', 'biped', 'fungal', 'fungal', 'beast', 'beast', 'bug'];
+  /* THE BODY PLANS. The mushroom is gone -- it was the one thing in the crowd
+     that read as a cartoon rather than a creature, and there is nothing like
+     it on the sheet this is all being matched to. What replaced it is what IS
+     on the sheet: a slug that pours over its own belt, and a brute. */
+  const PLANK = ['biped', 'biped', 'biped', 'biped', 'beast', 'beast', 'bug', 'slug', 'slug', 'brute'];
   const BUILDK = ['lanky', 'stout', 'normal', 'normal', 'hulk', 'pear', 'barrel', 'wedge', 'blob'];
   /* THE FOUR AXES THAT MAKE A CREATURE.
      Skin colour and a hat were never going to be enough: a room of them still
@@ -1126,6 +1130,7 @@
      they are rolled separately, so a lanky one on bird legs with pincers and a
      long flat head is a different animal from the round one beside him. */
   const LEGK = ['normal', 'normal', 'digi', 'hoof', 'talon', 'stump', 'stilt', 'skirt', 'wheel', 'hover'];
+  // 'foot' exists too, but only a slug gets one -- it is not in the general roll
   const ARMK = ['normal', 'normal', 'tentacle', 'claw', 'mitt', 'thin', 'wing', 'stub', 'four'];
   /* Across, down, and how wide the jaw is, as multipliers on the head radius.
      One table, because the test harness needs the same numbers and a second
@@ -1153,19 +1158,86 @@
     'goatee', 'beard', 'chops', 'tache'];
   const BROWK = ['flat', 'flat', 'arch', 'angry', 'sad', 'bushy'];
 
+  /* ========================================================== NAME AND RACE
+     Everybody in the building is generated, and until now that meant nobody in
+     the building was anybody: a room full of one-offs with no names is a room
+     full of noise. Two syllable tables and a list of peoples fixes that, and
+     because both are drawn off the same seed as the body, the tall one with
+     the beak is called the same thing every time you meet him.
+
+     The race is keyed to the body plan, so a slug is never a Krael and a brute
+     is never a Vesh -- the name tells you what you are looking at. */
+  const NAME_A = ['VO', 'KA', 'MUR', 'TEL', 'GRA', 'ZUL', 'HEN', 'OB', 'SAR', 'DRIN',
+    'PEL', 'ORR', 'YUX', 'THAM', 'BEK', 'LUN', 'CAS', 'WIDD', 'NUL', 'RHEE',
+    'GOR', 'ILL', 'MAB', 'SOK', 'VEN', 'AZ', 'QUIL', 'HARR', 'TOB', 'ERSK'];
+  const NAME_B = ['SK', 'RA', 'MAK', 'EN', 'THO', 'VIC', 'US', 'ANE', 'OK', 'IL',
+    'DAR', 'ETH', 'OSS', 'UN', 'IRE', 'AB', 'ORN', 'ULE', 'ITH', 'AAN'];
+  const NAME_C = ['THE ELDER', 'THE LESSER', 'OF THE PIT', 'THE THIRD', 'AGAIN',
+    'THE QUIET', 'OF NINE', 'THE LATE', 'TWICE', 'THE HONEST'];
+
+  const RACES = {
+    biped: ['VESH', 'KRAEL', 'ORRIC', 'SEMBLIN', 'HOLT', 'PALE VESH', 'DUN KRAEL'],
+    beast: ['GRAUL', 'MURRHOUND', 'TOSK', 'LOWLAND GRAUL', 'BRACK'],
+    bug: ['CHITTEN', 'MANDIBLE CLAN', 'SIX-STEP', 'THRENN', 'HIVE THRENN'],
+    slug: ['GLIMMERWORM', 'SOFT KIN', 'MOLLUSC ORDER', 'WET VESH', 'SLOW PEOPLE'],
+    brute: ['OBB', 'GREATER OBB', 'HAULER', 'PIT OBB', 'BROADBACK'],
+    fungal: ['SPOREFOLK']
+  };
+  /* A handful of things somebody can be, which is not their race and not their
+     name but is usually the first thing anybody tells you about them. */
+  const CALLINGS = ['HAULER', 'PROSPECTOR', 'FENCE', 'DEALER', 'PILOT', 'DEBTOR',
+    'TOUT', 'BROKER', 'DIGGER', 'RUNNER', 'WIDOW', 'DRIFTER', 'SURVEYOR',
+    'CLAIM JUMPER', 'REFINER', 'LOAN CLERK', 'NAVIGATOR', 'SMELTER'];
+
+  function makeName(R, plan) {
+    const pick2 = a => a[(R() * a.length) | 0];
+    let nm = pick2(NAME_A) + pick2(NAME_B);
+    if (R() < 0.16) nm += '-' + (2 + ((R() * 8) | 0));
+    if (R() < 0.12) nm += ' ' + pick2(NAME_C);
+    return nm;
+  }
+
   function alienKin(seed, forcePlan) {
     const R = PD.util.mulberry32(seed * 2654435761 + 12345);
     const pick = a => a[(R() * a.length) | 0];
     const ri = (a, b) => a + Math.floor(R() * (b - a + 1));
-    const hue = R() * 360;
+    /* THE PALETTE. Random hue at sixty per cent saturation gave a crowd the
+       colour of a bag of sweets. Concept art does not work like that: the
+       sheet this is being matched to is olive, brick, grey-green, burnt
+       orange, cold grey-blue -- a dozen muted skins and everything else built
+       off them. So the hue is drawn from a list of hues that actually look
+       like hide, and the saturation is held down where paint lives. */
+    const HIDES = [
+      [92, 26, 52],   // olive
+      [78, 22, 48],   // moss
+      [14, 30, 46],   // brick
+      [24, 26, 54],   // clay
+      [196, 16, 52],  // cold grey blue
+      [168, 18, 50],  // sea green
+      [256, 14, 48],  // grey violet
+      [38, 20, 56],   // sand
+      [8, 18, 42],    // dried blood
+      [148, 20, 46],  // verdigris
+      [210, 12, 44],  // slate
+      [320, 14, 50]   // ash rose
+    ];
+    const HD0 = HIDES[(R() * HIDES.length) | 0];
+    const hue = HD0[0] + (R() - 0.5) * 16;
+    const sat = HD0[1] + R() * 10, lum = HD0[2] + (R() - 0.5) * 10;
+    /* One accent, and only one. Everything on that sheet is muted except a
+       single hot thing -- an orange glow, a blue blade, a red strap -- and
+       that one note is what stops muted reading as muddy. */
+    const ACC = [[18, 74, 54], [34, 78, 56], [4, 62, 50], [200, 62, 56],
+      [46, 70, 58], [280, 44, 58], [150, 52, 48]];
+    const AC0 = ACC[(R() * ACC.length) | 0];
     const t = {
       seed: seed, hue: hue,
-      skin: hsl(hue, 36 + R() * 32, 54 + R() * 14),
-      dark: hsl(hue, 44 + R() * 20, 26 + R() * 8),
-      lite: hsl(hue, 34 + R() * 24, 76 + R() * 10),
-      acc: hsl(hue + 90 + R() * 180, 62, 56),
-      accD: hsl(hue + 90 + R() * 180, 60, 30),
-      cloth: hsl(hue + 140 + R() * 160, 38 + R() * 34, 44 + R() * 14),
+      skin: hsl(hue, sat, lum),
+      dark: hsl(hue - 4, sat + 8, lum * 0.5),
+      lite: hsl(hue + 4, sat - 4, Math.min(82, lum + 20)),
+      acc: hsl(AC0[0], AC0[1], AC0[2]),
+      accD: hsl(AC0[0], AC0[1] - 10, AC0[2] * 0.52),
+      cloth: hsl(hue + 150 + R() * 70, 12 + R() * 16, 26 + R() * 18),
       plan: pick(PLANK),
       build: pick(BUILDK), eyes: ri(1, 4), eyeK: pick(EYEK),
       mouth: pick(MOUTHK), crown: pick(CROWNK), tex: pick(SKINK), wear: pick(WEARK),
@@ -1182,34 +1254,49 @@
          reference sheet is carrying something, and it is what stops a coat
          being a coloured rectangle */
       pouches: R() < 0.44, bandolier: R() < 0.26, strap: R() < 0.34,
-      glowCol: hsl(hue + 160 + R() * 120, 84, 62)
+      glowCol: hsl(AC0[0], 84, 62)
     };
-    t.clothL = hsl(hue + 140, 34, 66);
-    t.clothD = hsl(hue + 140, 38, 26);
+    t.clothL = hsl(hue + 150, 12, 48);
+    t.clothD = hsl(hue + 150, 16, 14);
     /* Trousers get their own colour. When they shared one with the jacket the
        whole body below the neck read as a single dark slab. */
-    t.pants = hsl(hue + 230 + R() * 60, 26 + R() * 22, 52 + R() * 14);
-    t.pantsL = hsl(hue + 230, 24, 70);
-    t.pantsD = hsl(hue + 230, 28, 24);
+    t.pants = hsl(hue + 200 + R() * 80, 10 + R() * 14, 28 + R() * 14);
+    t.pantsL = hsl(hue + 200, 10, 46);
+    t.pantsD = hsl(hue + 200, 14, 13);
     /* The iris is never the skin colour. A green man with green eyes has no
        eyes; the whole point of a real eye is that it is a different thing
        sitting in the face. */
-    t.bootC = hsl(hue + 20 + R() * 300, 22 + R() * 26, 30 + R() * 16);
-    t.bootL = hsl(hue + 20, 20, 52);
-    t.iris = hsl(hue + 150 + R() * 120, 66 + R() * 24, 44 + R() * 12);
-    t.irisL = hsl(hue + 150 + R() * 120, 70, 66);
+    t.bootC = hsl(26 + R() * 18, 18 + R() * 12, 20 + R() * 12);
+    t.bootL = hsl(30, 16, 38);
+    t.iris = hsl(AC0[0], 54 + R() * 22, 40 + R() * 12);
+    t.irisL = hsl(AC0[0], 58, 62);
     // and the hair is its own colour too, or it is not hair
-    t.hairC = R() < 0.3 ? hsl(hue + 30, 14 + R() * 20, 18 + R() * 16)
-      : hsl(hue + 200 + R() * 120, 30 + R() * 34, 26 + R() * 24);
-    t.hairL = hsl(hue + 200, 26, 52);
+    t.hairC = hsl(hue + (R() < 0.5 ? 10 : 190), 8 + R() * 14, 14 + R() * 20);
+    t.hairL = hsl(hue + 10, 8, 38);
     if (forcePlan) t.plan = forcePlan;
     /* the plan overrules the trimmings: a mushroom does not wear a hat, and a
        beast's ears are its ears rather than a choice */
-    if (t.plan === 'fungal') {
-      t.crown = 'none'; t.tex = R() < 0.5 ? 'spot' : 'plain'; t.eyes = ri(2, 2);
-      // a mushroom stands on a stalk or on nothing much
-      t.legs = pick(['stump', 'stump', 'skirt', 'normal']);
-      t.arms = pick(['tentacle', 'tentacle', 'thin', 'stub']);
+    if (t.plan === 'slug') {
+      /* THE ONE ON THE FAR LEFT OF THE SHEET. No legs, no shoulders worth the
+         name, a body that pours down over its own belt, and eyes on stalks. */
+      t.legs = 'foot'; t.crown = 'none'; t.eyeK = 'stalk'; t.eyes = 2;
+      t.arms = pick(['stub', 'stub', 'thin', 'tentacle']);
+      t.build = pick(['blob', 'pear', 'stout']);
+      t.wear = pick(['harness', 'harness', 'bare', 'vest']);
+      t.pouches = true; t.boots = false; t.tex = R() < 0.5 ? 'speckle' : 'plain';
+      t.headK = 'round';
+    }
+    if (t.plan === 'brute') {
+      /* THE ONE IN THE MIDDLE. Shoulders like a door, a tiny head on top and
+         hands that go past the knee. */
+      t.build = pick(['hulk', 'barrel', 'wedge']);
+      t.legs = pick(['normal', 'hoof', 'digi']);
+      t.arms = 'mitt';
+      t.crown = pick(['none', 'ears', 'horns']);
+      t.mouth = pick(['grin', 'tusk', 'smirk']);
+      t.wear = pick(['harness', 'bare', 'vest', 'harness']);
+      t.headK = pick(['round', 'anvil', 'wide']);
+      t.smoke = R() < 0.5;
     }
     if (t.plan === 'beast') {
       t.crown = 'ears'; t.eyes = 2; t.mouth = R() < 0.5 ? 'tusk' : 'grin';
@@ -1244,35 +1331,40 @@
     const HP = HEAD_PROFILE[t.headK] || [1, 1, 1];
     t.hx = HP[0]; t.hy = HP[1]; t.jaw = HP[2];
     t.eyeSpread = 0.4 * (0.6 + t.hx * 0.4);
-    /* THE PROPORTIONS. The old ones were a realistic seven-and-a-half heads
-       tall, which at forty pixels meant a head eleven pixels across and a face
-       you could not draw an eye on. These are character proportions: the head
-       is nearly forty per cent of him and everything else got out of its way.
-       That one change is what turns the crowd from a line of smudges into a
-       room full of people. */
+    /* THE PROPORTIONS. These went to character proportions -- a head nearly
+       forty per cent of the body -- back when a whole alien was forty pixels
+       tall and a realistic head had no room for an eye on it. They are bigger
+       now, so the head can come back down to where the reference sheet has it:
+       a fifth of the figure rather than a third, with the length put into the
+       torso and the legs. That is the difference between a mascot and somebody
+       who could walk past you.
+
+       The head stays absolutely large -- fourteen logical pixels across at
+       stature one -- because the face still has to carry two eyes, a brow and
+       a mouth. What changed is everything under it. */
     /*          lanky stout normal hulk pear barrel wedge blob */
     const B = { lanky: 0, stout: 1, normal: 2, hulk: 3, pear: 4, barrel: 5, wedge: 6, blob: 7 }[t.build];
-    /* STATURE. The thing the whole crowd was missing. `big` only ever moved a
-       body about a fifth either way, so twenty aliens came out twenty aliens
-       tall and the room read as a school photograph. This is a separate roll
-       on the WHOLE animal, head included: a knee-high one standing next to
-       something half again your size is worth more than any amount of paint.
-       Drawn from a table rather than a range, so the small and the enormous
-       actually turn up instead of everybody landing on the average. */
-    const SCALES = [0.56, 0.62, 0.7, 0.78, 0.86, 0.94, 1, 1, 1.06, 1.14, 1.24, 1.38, 1.52, 1.68];
+    const SCALES = [0.62, 0.68, 0.74, 0.82, 0.9, 0.96, 1, 1, 1.05, 1.12, 1.2, 1.3, 1.4];
     t.stature = SCALES[(R() * SCALES.length) | 0];
-    if (t.build === 'hulk' || t.build === 'barrel') t.stature = Math.max(t.stature, 1.14);
-    if (t.build === 'blob') t.stature = Math.min(t.stature, 1.06);
+    if (t.build === 'hulk' || t.build === 'barrel') t.stature = Math.max(t.stature, 1.05);
+    if (t.build === 'blob') t.stature = Math.min(t.stature, 1);
+    if (t.plan === 'brute') t.stature = Math.max(t.stature, 1.18);
+    if (t.plan === 'slug') t.stature = Math.min(t.stature, 0.92);
     const SC = t.big * t.stature;
-    t.hr = Math.round([13, 15, 14, 14, 14, 13, 13, 16][B] * (0.94 + t.big * 0.1) * t.stature);
-    t.sw = Math.round([9, 13, 11, 15, 12, 14, 17, 15][B] * SC);
-    t.hw = Math.round([8, 14, 11, 13, 15, 14, 8, 17][B] * SC);   // hips, which need not match
-    t.th = Math.round([20, 15, 17, 17, 17, 19, 18, 14][B] * SC);
-    t.lh = Math.round([23, 18, 20, 20, 19, 17, 21, 14][B] * SC);
+    t.hr = Math.round([13, 14, 13, 13, 13, 12, 12, 15][B] * (0.94 + t.big * 0.1) * t.stature);
+    t.sw = Math.round([11, 15, 13, 18, 14, 16, 19, 16][B] * SC);
+    t.hw = Math.round([10, 16, 13, 16, 17, 16, 10, 18][B] * SC);   // hips, which need not match
+    t.th = Math.round([34, 27, 30, 31, 30, 33, 32, 24][B] * SC);
+    t.lh = Math.round([42, 31, 37, 36, 34, 30, 38, 22][B] * SC);
     t.aw = Math.max(3, Math.round([4, 6, 5, 7, 5, 6, 5, 7][B] * SC));
     // a ring of tentacles needs room to be a ring of tentacles rather than a fringe
-    if (t.legs === 'skirt') t.lh = Math.round(t.lh * 1.45);
-    if (t.legs === 'stilt') t.lh = Math.round(t.lh * 1.2);
+    if (t.legs === 'skirt') t.lh = Math.round(t.lh * 1.2);
+    /* WHO HE IS. Rolled last, so the race can follow whatever body plan the
+       overrides settled on rather than the one first picked. */
+    t.who = makeName(R, t.plan);
+    const rl = RACES[t.plan] || RACES.biped;
+    t.race = rl[(R() * rl.length) | 0];
+    t.calling = CALLINGS[(R() * CALLINGS.length) | 0];
     t.legLen = 0;                                        // no tentacles any more
     return t;
   }
@@ -1368,7 +1460,21 @@
       }
     }
 
-    if (t.legs === 'skirt') {
+    if (t.legs === 'foot') {
+      /* ONE FOOT. The body carries straight on down and spreads out onto the
+         floor, with a wet edge and a trail of it behind. */
+      const fw = Math.round(t.hw * 1.7 + 4);
+      for (let y = 0; y < t.lh; y++) {
+        const f = y / t.lh;
+        const wAt = Math.round(t.hw + (fw - t.hw) * f * f);
+        p.rect(cx - wAt, hipY + y, wAt * 2, 1, f > 0.7 ? t.dark : t.skin);
+      }
+      p.round(cx - fw, FOOT - 6, fw * 2, 7, 3, t.dark);
+      p.rect(cx - fw + 2, FOOT - 6, fw * 2 - 4, 2, t.skin);
+      p.rect(cx - fw, FOOT - 1, fw * 2, 1, '#12101a');
+      // the folds where it takes its own weight
+      for (let i = 0; i < 3; i++) p.rect(cx - fw + 4 + i * 2, hipY + Math.round(t.lh * (0.4 + i * 0.16)), fw * 2 - 8 - i * 4, 1, t.dark);
+    } else if (t.legs === 'skirt') {
       /* drawn after the clothing instead, further down this function: a coat
          that hangs past the hip was covering the whole ring of them. */
     } else if (t.legs === 'hover') {
@@ -1828,7 +1934,23 @@
 
     // ------------------------------------------------------------- the head
     const HR = t.hr;
-    if (t.plan === 'fungal') {
+    if (t.plan === 'slug') {
+      /* No neck at all: the head is the top of the body, so it is drawn as a
+         soft dome that carries straight on down into the shoulders. */
+      p.ellipse(cx, headY + 2, Math.round(HR * 0.96), HR, t.skin);
+      p.round(cx - Math.round(HR * 0.9), headY, Math.round(HR * 1.8), HR + 6, 5, t.skin);
+      p.ellipse(cx, headY - Math.round(HR * 0.44), Math.round(HR * 0.68), Math.round(HR * 0.3), t.lite);
+      // the wet look: one hard highlight, high on the left
+      p.ellipse(cx - Math.round(HR * 0.4), headY - Math.round(HR * 0.5), 3, 2, '#ffffff');
+    } else if (t.plan === 'brute') {
+      // a small skull sunk between enormous shoulders, and a heavy brow
+      p.ellipse(cx, headY + 1, Math.round(HR * 0.92), Math.round(HR * 0.9), t.skin);
+      p.round(cx - Math.round(HR * 0.78), headY + 2, Math.round(HR * 1.56), HR, 4, t.skin);
+      p.rect(cx - Math.round(HR * 0.86), headY - Math.round(HR * 0.2), Math.round(HR * 1.72), 3, t.dark);
+      p.ellipse(cx, headY - Math.round(HR * 0.5), Math.round(HR * 0.6), Math.round(HR * 0.24), t.lite);
+      const sd8 = t.lean > 0 ? 1 : -1;
+      p.round(cx + sd8 * Math.round(HR * 0.5) - 3, headY + Math.round(HR * 0.34), 8, 6, 2, t.dark);
+    } else if (t.plan === 'fungal') {
       const cw = Math.round(HR * t.capW * 0.86), ch = Math.round(HR * 0.62);
       // the stalk is his face, so it is wide enough to have one on it
       p.round(cx - Math.round(HR * 0.82), headY - 6, Math.round(HR * 1.64), HR + 12, 6, t.lite);
@@ -2257,7 +2379,7 @@
 
   /* Six frames each: idle, two steps of a walk, talking, kissing, blinking. */
   const KIN = [];
-  const KIN_MIX = ['biped', 'fungal', 'beast', 'bug', 'biped', 'beast', 'fungal', 'biped'];
+  const KIN_MIX = ['biped', 'slug', 'beast', 'bug', 'biped', 'brute', 'slug', 'biped', 'beast', 'biped'];
   /* =================================================================== THE REGULARS
      Not everybody in the casino is a stranger. Some of them you are fairly
      sure you have seen somewhere before, and you cannot think where, and it
