@@ -749,7 +749,7 @@
     updateBacc(dt, g);
     updateMega(dt, g);
     updateClaw(dt, g);
-    updateNPCs(dt);
+    updateNPCs(dt, g);
     updateCry(dt);
     LOAN.t = Math.max(0, LOAN.t - dt);
     S.clap = Math.max(0, S.clap - dt);
@@ -786,6 +786,7 @@
       }
       /* `dance` is what it was called when this was a nightclub. In here it
          is standing at a table watching somebody else's money go. */
+      c.cheer = Math.max(0, (c.cheer || 0) - dt);
       if (c.dance > 0) { c.dance -= dt; c.vx = 0; continue; }
       c.wait -= dt;
       if (c.wait <= 0) {
@@ -838,6 +839,8 @@
   const CHAT = { steps: null, i: 0, at: 0 };
 
   function startChat() {
+    // nobody talks over the staff
+    for (const n of NPCS) { const q = NPC_STATE[n.id]; if (q && q.sayT > 0) return; }
     const pool = CLUBBERS.filter(c => c.kiss <= 0 && c.sayT <= 0);
     if (!pool.length) return;
     const a = U.pick(pool);
@@ -904,6 +907,20 @@
     WIN.x = x; WIN.y = y; WIN.big = big || 1;
     WIN.t = WIN.max = 0.55 + (big || 1) * 0.35;
     WIN.col = col || CAS.gold;
+    /* AND THE ROOM TURNS ROUND. Everybody within earshot stops what they are
+       doing, faces the noise and cheers, which is the single cheapest way to
+       make a win feel like it happened in a room full of people rather than
+       in a spreadsheet. */
+    let heard = 0;
+    for (const c of CLUBBERS) {
+      if (Math.abs(c.x - x) > 150 + 90 * (big || 1)) continue;
+      c.face = Math.sign(x - c.x) || c.face;
+      c.dance = U.rand(1.4, 2.6);
+      c.vx = 0;
+      c.cheer = 1.1 + (big || 1) * 0.3;
+      heard++;
+    }
+    if (heard > 2) A.sfx.applause && A.sfx.applause();
   }
   function updateWin(dt) { WIN.t = Math.max(0, WIN.t - dt); }
   function drawWin(ctx, t, cam) {
@@ -1004,9 +1021,12 @@
          and you leave, stand a step inside it and you get the lift. */
       const out = [{ id: 'lift', x: LIFT_X - 54, lo: 52, hi: LIFT_X + 16,
         name: 'THE LIFT', sub: CDECKS[cdeck()].name + '  -  FOUR FLOORS' }];
+      /* The spot follows them about, because they walk now: a prompt nailed
+         to where somebody used to stand is worse than no prompt. */
       for (const n of NPCS) {
-        if (n.deck === cdeck()) out.push({ id: 'npc', npc: n.id, x: n.x - 26, r: 24,
-          name: n.name, sub: 'HAVE A WORD' });
+        if (n.deck !== cdeck()) continue;
+        const nx = npcX(n);
+        out.push({ id: 'npc', npc: n.id, x: nx - 26, r: 26, name: n.name, sub: 'HAVE A WORD' });
       }
       if (cdeck() === 1) {
         out.push({ id: 'claw', x: CLAW_X - 44, lo: CLAW_X - 40, hi: CLAW_X + 40,
@@ -4295,6 +4315,11 @@
       FX.text(MEGA_X, 60, '-$' + U.fmt(MEGA_STAKE), '#ff5a4d', 0);
       A.sfx.deny();
       cryAboutIt(g, MEGA_STAKE);
+      // ten thousand gone and nothing left to put in: he comes and finds you
+      if (g.save.credits < MEGA_STAKE) {
+        P.lock = Math.max(P.lock, 2.6);
+        PD.chum.bite(g, 'broke');
+      }
     }
     g.saveGame();
   }
@@ -4599,53 +4624,142 @@
      this building has anything new to tell you, which is the point of them. */
   const NPCS = [
     { id: 'door', deck: 0, x: 1400, kin: 'THE PLUMBER', name: 'THE FLOOR MAN',
+      says: ['THE ROPE IS THE ROPE.', 'I DO NOT MAKE THE ROPE.', 'YOU AGAIN.', 'FOUR FLOORS. ONE DIRECTION.', 'MIND THE STEP.'],
       lines: ['HE SAYS THE ROPE IS THE ROPE AND HE DOES NOT MAKE THE ROPE.',
         'HE ASKS IF YOU ARE HERE ABOUT THE MACHINE. EVERYBODY IS.',
         'HE SAYS FOUR FLOORS AND THE MONEY ONLY EVER GOES ONE WAY.',
         'HE HAS SEEN YOUR FACE BEFORE. HE DOES NOT SAY WHERE.'] },
     { id: 'pit', deck: 0, x: 1462, kin: 'THE BARBARIAN', name: 'THE PIT BOSS',
+      says: ['THE EDGE IS PUBLIC.', 'NOBODY EVER ASKS.', 'HOW ARE WE GETTING ON?', 'MOST PEOPLE NEVER PRESS FOUR.', 'I WATCHED BOTH OF THEM.'],
       lines: ['HE SAYS THE HOUSE EDGE IS PUBLIC INFORMATION AND NOBODY EVER ASKS.',
         'HE SAYS THE WHEEL HAS PAID OUT TWICE THIS YEAR AND HE WATCHED BOTH.',
         'HE ASKS HOW YOU ARE GETTING ON. HE ALREADY KNOWS.',
         'HE SAYS THE LIFT GOES TO FOUR. MOST PEOPLE NEVER PRESS FOUR.'] },
     { id: 'change', deck: 1, x: 780, kin: 'DUCKY', name: 'THE CHANGE GIRL',
+      says: ['SMALLER COINS LAST LONGER.', 'TRAY IS OPEN.', 'THE CLAW IS HONEST.', 'NOT MY EVENING, IS IT.', 'NEXT.'],
       lines: ['SHE HAS A TRAY OF COINS AND NO INTEREST IN YOUR EVENING.',
         'SHE SAYS THE CLAW IS HONEST. SHE SAYS IT WITHOUT MOVING HER FACE.',
         'SHE SAYS THE TELEVISIONS HAVE BEEN SHOWING THE SAME RACE SINCE SHE STARTED.',
         'SHE ASKS IF YOU WANT IT IN SMALLER COINS. IT LASTS LONGER IN SMALLER COINS.'] },
     { id: 'mechanic', deck: 1, x: 990, kin: 'UNIT 12', name: 'THE MECHANIC',
+      says: ['IT IS FINE.', 'READ THE BACK OF THE CABINET.', 'NOBODY READS THE BACK.', 'ONE MOMENT.', 'THIS IS NORMAL.'],
       lines: ['IT IS INSIDE A MACHINE UP TO THE SHOULDER AND DOES NOT LOOK UP.',
         'IT SAYS THE MACHINES ARE FINE. IT SAYS THIS WHILE REPAIRING ONE.',
         'IT SAYS THE ODDS ARE PRINTED ON THE BACK OF EVERY CABINET.',
         'IT SAYS NOBODY HAS EVER READ THE BACK OF A CABINET.'] },
     { id: 'gardener', deck: 2, x: 1190, kin: 'POTTED PETE', name: 'THE GARDENER',
+      says: ['THEY WERE ALL CUSTOMERS.', 'THAT IS A JOKE.', 'IT IS NOT WATER.', 'STOP ASKING.', 'SUNNY NEVER LOSES.'],
       lines: ['HE SAYS THE PLANTS ON THIS FLOOR ARE ALL FORMER CUSTOMERS.',
         'HE SAYS THAT AS A JOKE. HE DOES NOT LAUGH.',
         'HE SAYS THE FOUNTAIN IS NOT WATER AND TO STOP ASKING.',
         'HE SAYS SUNNY HAS NOT LOST A BET IN SIX YEARS.'] },
     { id: 'concierge', deck: 2, x: 780, kin: 'THE JAR', name: 'THE CONCIERGE',
+      says: ['BLUB.', 'BLUB BLUB.', 'BLUUUB.', 'BLUB?', '...BLUB.'],
       lines: ['IT BUBBLES ONCE. SOMEHOW THIS IS A GREETING.',
         'IT BUBBLES TWICE. SOMEHOW THIS IS THE ENTIRE HISTORY OF THE BUILDING.',
         'IT SAYS THE TOP FLOOR IS NOT FOR EVERYBODY. THE BUBBLES ARE VERY CLEAR.',
         'IT ASKS, IN BUBBLES, WHETHER YOU HAVE CONSIDERED STOPPING.'] },
     { id: 'usher', deck: 3, x: 960, kin: 'THE WIZARD', name: 'THE USHER',
+      says: ['PEOPLE COME UP JUST TO LOOK.', 'ONE IN EIGHTY.', 'I AM NOT MEANT TO SAY THAT.', 'I TELL EVERYBODY THAT.', 'GO ON THEN.'],
       lines: ['HE SAYS PEOPLE COME UP HERE JUST TO LOOK AT IT.',
         'HE SAYS THE BOARD HAS NEVER BEEN RESET BECAUSE IT HAS NEVER BEEN PAID.',
         'HE SAYS SIXTY TIMES YOUR MONEY AND A ONE IN EIGHTY CHANCE OF IT.',
         'HE SAYS HE IS NOT ALLOWED TO TELL YOU THAT. HE TELLS EVERYBODY THAT.'] }
   ];
+  /* --------------------------------------------------------- more of them */
+  const NPCS2 = [
+    { id: 'tout', deck: 0, x: 700, kin: 'SPARKS', name: 'THE TOUT', range: 90,
+      says: ['I HAVE A TIP.', 'THE WHEEL IS DUE.', 'WHAT DO YOU DO?', 'I WORK HERE.', 'NO I DO NOT.'],
+      lines: ['HE HAS A TIP. HE HAS A TIP FOR EVERYBODY AND THEY ARE ALL DIFFERENT.',
+        'HE SAYS THE WHEEL IS DUE. THE WHEEL IS NEVER DUE.',
+        'HE ASKS WHAT YOU DO. HE IS NOT LISTENING TO THE ANSWER.',
+        'HE SAYS HE WORKS HERE. HE DOES NOT WORK HERE.'] },
+    { id: 'widow', deck: 2, x: 880, kin: 'THE HERO', name: 'THE WIDOW', range: 60,
+      says: ['HE WENT UP IN NINETY ONE.', 'HAVE YOU SEEN A GREY COAT?', 'I COME BACK MOST NIGHTS.', 'THEY SENT FLOWERS.', 'TALL. VERY TALL.'],
+      lines: ['SHE SAYS HER HUSBAND WENT UP TO THE FOURTH FLOOR IN NINETY ONE.',
+        'SHE SAYS SHE COMES BACK ON THE ANNIVERSARY. SHE COMES BACK MOST NIGHTS.',
+        'SHE ASKS IF YOU HAVE SEEN A TALL ONE IN A GREY COAT.',
+        'SHE SAYS THE HOUSE SENT FLOWERS. THE HOUSE SENDS FLOWERS.'] },
+    { id: 'kid', deck: 1, x: 1180, kin: 'CHOMPY', name: 'THE KID', range: 120,
+      says: ['I AM UP!', 'IS THAT THE PLANET ONE?', 'MY DAD IS UPSTAIRS.', 'HE HAS BEEN A WHILE.', 'CAN I HAVE A GO?'],
+      lines: ['HE IS FAR TOO YOUNG TO BE IN HERE AND NOBODY HAS SAID ANYTHING.',
+        'HE SAYS HE IS UP. HE IS PLAYING A MACHINE THAT DOES NOT PAY OUT.',
+        'HE ASKS IF YOU HAVE SEEN THE ONE WITH THE PLANETS ON IT.',
+        'HE SAYS HIS DAD IS UPSTAIRS. HIS DAD HAS BEEN UPSTAIRS A LONG TIME.'] },
+    { id: 'sweep', deck: 3, x: 1250, kin: 'UNIT 12', name: 'THE SWEEPER', range: 200,
+      says: ['MIND OUT.', 'YOU ARE STANDING IN IT.', 'THIRTY ONE RINGS.', 'THE GALLERY IS THE WORST.', 'BEEP.'],
+      lines: ['IT SWEEPS UP WHAT PEOPLE DROP AND IT DOES NOT LOOK AT ANY OF IT.',
+        'IT SAYS THE GALLERY IS THE WORST OF THEM. THEY LEAVE EVERYTHING.',
+        'IT HAS FOUND THIRTY ONE WEDDING RINGS UNDER THAT MACHINE.',
+        'IT ASKS YOU NOT TO STAND THERE. YOU ARE STANDING IN IT.'] }
+  ];
+  for (const n of NPCS2) NPCS.push(n);
+
+  /* What they say when they have already said everything: it depends on what
+     kind of night you are having, which is the only thing any of them can see. */
+  const NPC_MOOD = {
+    rich: ['HE LOOKS AT YOUR CHIPS AND STANDS A LITTLE STRAIGHTER.',
+      'HE SAYS NOBODY LEAVES WITH THAT. NOBODY EVER HAS.',
+      'HE ASKS WHETHER YOU HAVE CONSIDERED GOING HOME. HE MEANS IT KINDLY.'],
+    broke: ['HE HAS SEEN THIS BEFORE. HE DOES NOT SAY SO.',
+      'HE ASKS IF YOU WANT HIM TO CALL YOU SOMETHING. A CAR. ANYTHING.',
+      'HE SAYS THE CASHIER IS OPEN ALL NIGHT. HE SAYS IT VERY GENTLY.'],
+    owing: ['HE GLANCES AT THE DOOR. SOMEBODY IS ALWAYS AT THE DOOR.',
+      'HE SAYS THE SHARK ASKED AFTER YOU. HE SAYS IT LIKE THE WEATHER.',
+      'HE ASKS HOW MUCH. HE DOES NOT WANT THE NUMBER.']
+  };
+
+  /* ========================================================= THE PEOPLE WHO WORK HERE
+     They used to be a sprite with a brass plate under it. They are people now:
+     they walk their own bit of floor, they stop, they turn and look at you when
+     you come near, they blink, and when they talk it comes out of their head in
+     a bubble like everybody else's rather than out of the bottom of the screen.
+     Everything they do goes through the same seven frames the crowd uses, so a
+     doorman and a drunk are animated by exactly the same code. */
   const NPC_STATE = {};
+  function npcState(n) {
+    return NPC_STATE[n.id] || (NPC_STATE[n.id] = {
+      i: -1, t: 0, x: n.x, vx: 0, face: -1, wait: U.rand(0.5, 2.5),
+      blink: U.rand(1, 5), say: null, sayT: 0, sayMax: 1, met: 0, anim: U.rand(0, 9)
+    });
+  }
   function npcKin(nm) {
     const i = AH.KIN.findIndex(k => k.celeb === nm);
     return i < 0 ? 0 : i;
   }
+
+  function npcMood(g) {
+    if ((g.save.debt || 0) > 2000000) return 'owing';
+    if (g.save.credits < 2000) return 'broke';
+    if (g.save.credits > 400000) return 'rich';
+    return null;
+  }
+
   function talkTo(g, id) {
     const n = NPCS.find(q => q.id === id);
     if (!n) return;
-    const st = NPC_STATE[id] || (NPC_STATE[id] = { i: -1, t: 0 });
-    st.i = (st.i + 1) % n.lines.length;
+    const st = npcState(n);
+    st.i++;
+    /* Once you have heard everything they have, they start saying what they
+       think of the night you are having instead of repeating themselves. */
+    let line;
+    if (st.i < n.lines.length) line = n.lines[st.i];
+    else {
+      const m = npcMood(g);
+      const pool = m ? NPC_MOOD[m] : n.lines;
+      line = pool[(st.i - n.lines.length) % pool.length];
+    }
     st.t = 3.4;
-    say(n.lines[st.i]);
+    /* TWO CHANNELS. `lines` is the narrator -- HE SAYS THE ROPE IS THE ROPE --
+       and that belongs on the sign at the bottom where the rest of the
+       narration lives. What comes out of his head in a bubble is what he
+       actually says out loud, which is short, because people are. */
+    say(line);
+    const spoken = (n.says && n.says.length) ? n.says[st.i % n.says.length] : null;
+    st.say = spoken;
+    st.sayT = st.sayMax = spoken ? 1.3 + spoken.length * 0.05 : 0;
+    st.face = Math.sign(P.x - st.x) || st.face;
+    st.vx = 0; st.wait = st.sayT + 0.6;
     A.sfx.tone(700 + (st.i % 3) * 90, { type: 'triangle', to: 900, dur: 0.1, vol: 0.05 });
     if (!g.save.seen['met_' + id]) {
       g.save.seen['met_' + id] = 1;
@@ -4653,31 +4767,86 @@
       FX.text(P.x, P.y - 50, '+20 THOTS', '#4cff9a', 1);
       g.saveGame();
     }
+    st.met++;
   }
+
+  function updateNPCs(dt, g) {
+    for (const n of NPCS) {
+      const st = npcState(n);
+      st.t = Math.max(0, st.t - dt);
+      st.sayT = Math.max(0, st.sayT - dt);
+      if (st.sayT <= 0) st.say = null;
+      if (n.deck !== cdeck() || S.scene !== 'club') continue;
+      st.anim += dt;
+      st.blink -= dt;
+      if (st.blink < -0.12) st.blink = U.rand(2.5, 6);
+
+      /* If you are standing next to them they stop what they are doing and
+         turn round, which is most of what makes somebody feel present. */
+      const near = Math.abs(P.x - st.x) < 62;
+      if (near || st.sayT > 0) {
+        st.vx = 0;
+        st.face = Math.sign(P.x - st.x) || st.face;
+        st.wait = Math.max(st.wait, 0.4);
+        continue;
+      }
+      st.wait -= dt;
+      if (st.wait <= 0) {
+        const r = n.range || 40;
+        st.wait = U.rand(1.6, 5);
+        if (U.rand() < 0.45) st.vx = 0;
+        else {
+          st.vx = (st.x > n.x ? -1 : 1) * (U.rand() < 0.6 ? 1 : -1) * U.rand(9, 17);
+          st.face = Math.sign(st.vx);
+        }
+        if (Math.abs(st.x - n.x) > r * 0.9) { st.vx = Math.sign(n.x - st.x) * 13; st.face = Math.sign(st.vx); }
+      }
+      st.x += st.vx * dt;
+      const r2 = n.range || 40;
+      if (st.x < n.x - r2) { st.x = n.x - r2; st.vx = Math.abs(st.vx); st.face = 1; }
+      if (st.x > n.x + r2) { st.x = n.x + r2; st.vx = -Math.abs(st.vx); st.face = -1; }
+    }
+  }
+
+  /* Where they are right now, so the prompt and the spots follow them about. */
+  function npcX(n) { const st = NPC_STATE[n.id]; return st ? st.x : n.x; }
+
   function drawNPCs(ctx, g, t, cam) {
     for (const n of NPCS) {
       if (n.deck !== cdeck()) continue;
-      const x = n.x - cam;
-      if (x < -40 || x > VW + 40) continue;
+      const st = npcState(n);
+      const x = st.x - cam;
+      if (x < -50 || x > VW + 50) continue;
       const K = AH.KIN[npcKin(n.kin)];
-      const st = NPC_STATE[n.id];
-      const talking = st && st.t > 0;
-      const bob = Math.sin(t * 1.5 + n.x) * 1;
+      const moving = Math.abs(st.vx) > 1;
+      const bob = Math.sin(st.anim * (moving ? 7 : 1.5)) * (moving ? 1.6 : 1);
+      // the same seven frames as everybody else in the building
+      const frame = st.sayT > 0 ? ((Math.floor(t * 5) % 2) ? 3 : 0)
+        : (st.blink < 0 ? 5
+          : (moving ? (Math.floor(st.anim * 4.4) % 2 ? 1 : 2) : 0));
       kinShadow(ctx, x, FLOOR, K);
-      AH.blit(ctx, AH.S[K.key], talking ? ((Math.floor(t * 5) % 2) ? 3 : 0)
-        : ((Math.floor(t * 1.1 + n.x) % 9) === 0 ? 5 : 0), x, FLOOR + bob, n.x > P.x);
-      // a little brass name plate on the floor in front of them
-      X.plate(ctx, x - 24, FLOOR + 2, 49, 9, CAS.goldD, '#ffe9a8', '#4a3410', 2);
-      F.draw(ctx, n.name, x, FLOOR + 4, '#2a1c06', { center: true, shadow: false });
-      if (talking) {
+      AH.blit(ctx, AH.S[K.key], frame, x, FLOOR + bob, st.face < 0);
+      // a little brass name plate, on the floor where they started
+      const px = n.x - cam;
+      X.plate(ctx, px - 24, FLOOR + 2, 49, 9, CAS.goldD, '#ffe9a8', '#4a3410', 2);
+      F.draw(ctx, n.name, px, FLOOR + 4, '#2a1c06', { center: true, shadow: false });
+      if (st.t > 0) {
         ctx.globalAlpha = 0.16 + Math.sin(t * 7) * 0.06;
         X.blob(ctx, x, FLOOR - K.h * 0.5, 22, 26, CAS.gold);
         ctx.globalAlpha = 1;
       }
     }
   }
-  function updateNPCs(dt) {
-    for (const k in NPC_STATE) NPC_STATE[k].t = Math.max(0, NPC_STATE[k].t - dt);
+
+  /* Their speech goes on last, over the top of the room, like the crowd's. */
+  function drawNPCSay(ctx, t, cam) {
+    for (const n of NPCS) {
+      if (n.deck !== cdeck()) continue;
+      const st = NPC_STATE[n.id];
+      if (!st || !st.say) continue;
+      const K = AH.KIN[npcKin(n.kin)];
+      sayBubble(ctx, st.x - cam, FLOOR - K.h - 2, st.say, st.sayT, st.sayMax, CAS.gold, null, t);
+    }
   }
 
   /* ================================================================ THE ADVANCE
@@ -4708,6 +4877,13 @@
     if (!g.save.seen.loan) {
       g.save.seen.loan = 1;
       g.save.thots = (g.save.thots || 0) + 40;
+      /* THE FIRST ONE. He does not send a letter. The whole point of the shark
+         is that at some stage he stops being a voice on a watch. */
+      P.lock = Math.max(P.lock, 2.6);
+      PD.chum.bite(g, 'loan');
+    } else if ((g.save.debt || 0) > 4000000 && U.chance(0.34)) {
+      P.lock = Math.max(P.lock, 2.6);
+      PD.chum.bite(g, 'late');
     }
     g.saveGame();
   }
@@ -4834,6 +5010,7 @@
         X.blob(ctx, hx, FLOOR - 26 - U.hash2(i, 11) * 44, 26, 9, '#c9bce8');
         ctx.globalAlpha = 1;
       }
+      drawNPCSay(ctx, t, cam);
       return;
     }
 
@@ -4867,6 +5044,7 @@
     drawWin(ctx, t, cam);
     drawNPCs(ctx, g, t, cam);
     drawCry(ctx, cam);
+    drawNPCSay(ctx, t, cam);
     const nx = chatNext();
     if (nx && nx.at < 0.55 && !nx.who.say && !nx.who.emote) {
       const K = AH.KIN[nx.who.k % AH.KIN.length];
@@ -5394,7 +5572,8 @@
     const top = y + bob;
     kinShadow(ctx, x, y, K);
     const moving = Math.abs(c.vx) > 1 || c.dance > 0;
-    const face = c.kiss > 0 ? 4 : (c.blink < 0 ? 5 : (c.say ? 3 : (moving ? (Math.floor(c.t * fast * 0.6) % 2 ? 1 : 2) : 0)));
+    const face = c.cheer > 0 ? 6
+      : (c.kiss > 0 ? 4 : (c.blink < 0 ? 5 : (c.say ? 3 : (moving ? (Math.floor(c.t * fast * 0.6) % 2 ? 1 : 2) : 0))));
     AH.blit(ctx, AH.S[K.key], face, x + lean, top, c.face < 0);
     // whatever they came in with, still in a tentacle
     if (c.drink >= 0 && c.kiss <= 0) {
@@ -5907,6 +6086,6 @@
     TRASH, CLUB_X, CLUB_SPOTS, CLUBBERS, moonClean, trashLeft, sweep, goClub, leaveClub, spots, nearest, use,
     playCards, playRoulette, CARD, ROU, POKER_X, ROU_X, JACK_X, BAR_X, CAGE_X,
     vipTier, VIP, salonOpen, ROPE_X, CRAPS_X, STAGE_X, BACC_X, SONGS,
-    clubW, CDECKS, LIFT_X, rideLift, NPCS, MEGA, MEGA_X, CLAW_X, LOAN_X, PRIZE_X, CRY,
+    clubW, CDECKS, LIFT_X, rideLift, NPCS, NPC_STATE, talkTo, MEGA, MEGA_X, CLAW_X, LOAN_X, PRIZE_X, CRY,
     goHub, leaveHub, HUB, HUB_W, DECK_Y, STALLS };
 })(window.PD);

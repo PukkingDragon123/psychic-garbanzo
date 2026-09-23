@@ -4543,15 +4543,28 @@ window.PD = window.PD || {};
      shape their head is, and how the body between them is put together -- and
      they are rolled separately, so a lanky one on bird legs with pincers and a
      long flat head is a different animal from the round one beside him. */
-  const LEGK = ['normal', 'normal', 'digi', 'hoof', 'talon', 'stump', 'stilt', 'skirt', 'wheel'];
+  const LEGK = ['normal', 'normal', 'digi', 'hoof', 'talon', 'stump', 'stilt', 'skirt', 'wheel', 'hover'];
   const ARMK = ['normal', 'normal', 'tentacle', 'claw', 'mitt', 'thin', 'wing', 'stub', 'four'];
-  const HEADK = ['round', 'round', 'dome', 'pear', 'anvil', 'tall', 'wide', 'split', 'egg'];
+  /* Across, down, and how wide the jaw is, as multipliers on the head radius.
+     One table, because the test harness needs the same numbers and a second
+     copy of them went stale the first time a head was added. */
+  const HEAD_PROFILE = {
+    round: [1, 1, 1], dome: [1, 1.04, 1], pear: [0.94, 1.02, 1.16], anvil: [1.14, 0.88, 0.7],
+    tall: [0.84, 1.2, 0.86], wide: [1.24, 0.82, 1.2], split: [1.08, 0.96, 1], egg: [1.02, 1.06, 0.78],
+    beak: [0.9, 1, 0.8]
+  };
+  const HEADK = ['round', 'round', 'dome', 'pear', 'anvil', 'tall', 'wide', 'split', 'egg', 'beak', 'beak'];
   const EYEK = ['row', 'row', 'row', 'row', 'stack', 'tri', 'stalk'];
   const MOUTHK = ['grin', 'grin', 'smirk', 'tusk', 'beak', 'straw', 'mandible', 'lips', 'grill', 'sucker'];
   const CROWNK = ['none', 'antenna', 'antenna', 'horns', 'fin', 'hat', 'tuft', 'ears',
     'mohawk', 'tendrils', 'cap', 'crest', 'quiff', 'bald'];
   const SKINK = ['plain', 'plain', 'speckle', 'scale', 'stripe', 'plate', 'spot', 'glow'];
-  const WEARK = ['vest', 'jacket', 'tank', 'sash', 'coat', 'bare', 'sequin', 'shirt'];
+  /* WHAT HE CAME OUT IN. The long ones matter most: a coat that goes past the
+     knee, a cloak, a full robe -- they change the SILHOUETTE, which is the
+     only thing you can read on somebody standing forty feet away in a dark
+     room, and half a wardrobe of waistcoats never did. */
+  const WEARK = ['vest', 'jacket', 'tank', 'sash', 'coat', 'bare', 'sequin', 'shirt',
+    'longcoat', 'longcoat', 'cloak', 'cloak', 'robe', 'harness', 'poncho'];
   /* What is on his face, which is the single biggest thing that turns a
      generated body into somebody you would recognise again. */
   const HAIRK = ['none', 'none', 'none', 'walrus', 'walrus', 'handlebar', 'pencil',
@@ -4583,6 +4596,10 @@ window.PD = window.PD || {};
          line-up: eyewear, jewellery, something lit in the mouth */
       shades: R() < 0.18 ? (R() < 0.4 ? 'visor' : 'specs') : null,
       chain: R() < 0.3, ring: R() < 0.22, smoke: R() < 0.16,
+      /* the working kit: straps, pouches and a bandolier. Everybody in that
+         reference sheet is carrying something, and it is what stops a coat
+         being a coloured rectangle */
+      pouches: R() < 0.44, bandolier: R() < 0.26, strap: R() < 0.34,
       glowCol: hsl(hue + 160 + R() * 120, 84, 62)
     };
     t.clothL = hsl(hue + 140, 34, 66);
@@ -4624,6 +4641,9 @@ window.PD = window.PD || {};
     }
     // a wheel is a machine, and machines do not have tentacles for arms
     if (t.legs === 'wheel') { t.arms = pick(['normal', 'claw', 'thin', 'mitt']); t.boots = false; }
+    if (t.legs === 'hover') { t.boots = false; if (t.wear === 'bare') t.wear = 'robe'; }
+    // a beak is a face, so nothing else goes on the front of it
+    if (t.headK === 'beak') { t.mouth = 'beak'; t.hair = 'none'; if (t.crown === 'hat') t.crown = 'brim'; }
     if (t.arms === 'wing' && t.legs === 'skirt') t.legs = 'talon';
     // three eyes in a row across a face this size is a crowd; keep it to two
     // unless the layout is deliberately a stack or a triangle
@@ -4639,10 +4659,7 @@ window.PD = window.PD || {};
        one across, one down -- and they are chosen so the pair of them stays
        near enough to one, because the eyes and the mouth are laid out off that
        radius and a head twice as tall would put the mouth on the chest. */
-    const HP = {
-      round: [1, 1, 1], dome: [1, 1.04, 1], pear: [0.94, 1.02, 1.16], anvil: [1.14, 0.88, 0.7],
-      tall: [0.84, 1.2, 0.86], wide: [1.24, 0.82, 1.2], split: [1.08, 0.96, 1], egg: [1.02, 1.06, 0.78]
-    }[t.headK] || [1, 1, 1];
+    const HP = HEAD_PROFILE[t.headK] || [1, 1, 1];
     t.hx = HP[0]; t.hy = HP[1]; t.jaw = HP[2];
     t.eyeSpread = 0.4 * (0.6 + t.hx * 0.4);
     /* THE PROPORTIONS. The old ones were a realistic seven-and-a-half heads
@@ -4653,12 +4670,24 @@ window.PD = window.PD || {};
        room full of people. */
     /*          lanky stout normal hulk pear barrel wedge blob */
     const B = { lanky: 0, stout: 1, normal: 2, hulk: 3, pear: 4, barrel: 5, wedge: 6, blob: 7 }[t.build];
-    t.hr = Math.round([13, 15, 14, 14, 14, 13, 13, 16][B] * (0.94 + t.big * 0.1));
-    t.sw = Math.round([9, 13, 11, 15, 12, 14, 17, 15][B] * t.big);
-    t.hw = Math.round([8, 14, 11, 13, 15, 14, 8, 17][B] * t.big);   // hips, which need not match
-    t.th = Math.round([20, 15, 17, 17, 17, 19, 18, 14][B] * t.big);
-    t.lh = Math.round([23, 18, 20, 20, 19, 17, 21, 14][B] * t.big);
-    t.aw = Math.max(4, Math.round([4, 6, 5, 7, 5, 6, 5, 7][B] * t.big));
+    /* STATURE. The thing the whole crowd was missing. `big` only ever moved a
+       body about a fifth either way, so twenty aliens came out twenty aliens
+       tall and the room read as a school photograph. This is a separate roll
+       on the WHOLE animal, head included: a knee-high one standing next to
+       something half again your size is worth more than any amount of paint.
+       Drawn from a table rather than a range, so the small and the enormous
+       actually turn up instead of everybody landing on the average. */
+    const SCALES = [0.56, 0.62, 0.7, 0.78, 0.86, 0.94, 1, 1, 1.06, 1.14, 1.24, 1.38, 1.52, 1.68];
+    t.stature = SCALES[(R() * SCALES.length) | 0];
+    if (t.build === 'hulk' || t.build === 'barrel') t.stature = Math.max(t.stature, 1.14);
+    if (t.build === 'blob') t.stature = Math.min(t.stature, 1.06);
+    const SC = t.big * t.stature;
+    t.hr = Math.round([13, 15, 14, 14, 14, 13, 13, 16][B] * (0.94 + t.big * 0.1) * t.stature);
+    t.sw = Math.round([9, 13, 11, 15, 12, 14, 17, 15][B] * SC);
+    t.hw = Math.round([8, 14, 11, 13, 15, 14, 8, 17][B] * SC);   // hips, which need not match
+    t.th = Math.round([20, 15, 17, 17, 17, 19, 18, 14][B] * SC);
+    t.lh = Math.round([23, 18, 20, 20, 19, 17, 21, 14][B] * SC);
+    t.aw = Math.max(3, Math.round([4, 6, 5, 7, 5, 6, 5, 7][B] * SC));
     // a ring of tentacles needs room to be a ring of tentacles rather than a fringe
     if (t.legs === 'skirt') t.lh = Math.round(t.lh * 1.45);
     if (t.legs === 'stilt') t.lh = Math.round(t.lh * 1.2);
@@ -4760,6 +4789,21 @@ window.PD = window.PD || {};
     if (t.legs === 'skirt') {
       /* drawn after the clothing instead, further down this function: a coat
          that hangs past the hip was covering the whole ring of them. */
+    } else if (t.legs === 'hover') {
+      /* NOTHING UNDER HIM AT ALL. He hangs a few inches off the carpet with a
+         ring of light beneath and two dangling feet that have never been put
+         down. Straight off the sheet: the one with the planet for a head. */
+      const rest = FOOT - Math.round(t.lh * 0.34);
+      for (const sd7 of [-1, 1]) {
+        const hx3 = cx + sd7 * Math.max(3, Math.round(t.hw * 0.5));
+        limb(p, hx3, hipY - 1, hx3 + sd7 * 2, rest - 4, Math.max(2, t.aw - 1), 2, t.dark, t.skin, INK);
+        p.round(hx3 + sd7 * 2 - 3, rest - 5, 7, 4, 2, t.accD);
+      }
+      // the field it is standing on, brightest in the middle
+      for (let i = 0; i < 3; i++) {
+        const w = Math.round(t.hw * (1.5 - i * 0.35));
+        p.ellipse(cx, FOOT - 2 + i, w, Math.max(1, Math.round(w * 0.22)), i === 0 ? t.accD : (i === 1 ? t.acc : t.lite));
+      }
     } else if (t.legs === 'wheel') {
       /* A MACHINE. One column down the middle and a wheel on the bottom of it
          that turns, so the walk frames read as rolling rather than walking. */
@@ -4914,6 +4958,81 @@ window.PD = window.PD || {};
       }
       p.rect(cx - 4, shY + 10, 9, 6, t.clothD);
       p.round(cx - t.sw + 1, shY + t.th, (t.sw - 1) * 2, 5, 2, t.clothD);
+    } else if (t.wear === 'longcoat') {
+      /* PAST THE KNEE, and split up the middle so it moves. The two skirts
+         flare apart with the stride, which is the whole reason to have one. */
+      const hem = hipY + Math.round(t.lh * 0.72);
+      const flare = 3 + Math.abs(step) * 2;
+      for (let y = colY; y < hem; y++) {
+        const f = (y - colY) / (hem - colY);
+        const wAt = Math.round(t.sw + (t.hw + flare - t.sw) * f);
+        if (y < hipY + 2) { p.rect(cx - wAt, y, wAt * 2, 1, C); continue; }
+        // below the hip it is two panels with daylight between them
+        const gap = Math.round(1 + (y - hipY) * 0.22) + Math.abs(step);
+        p.rect(cx - wAt - step, y, wAt - gap, 1, C);
+        p.rect(cx + gap + step, y, wAt - gap, 1, C);
+      }
+      p.rect(cx - t.sw, colY, 2, hem - colY, CL);                  // a lit front edge
+      p.rect(cx + t.sw - 2, colY, 2, t.th, CD);
+      p.round(cx - t.sw - 1, colY - 3, 8, 11, 3, CL);              // a big collar
+      p.round(cx + t.sw - 7, colY - 3, 8, 11, 3, CL);
+      for (let i = 0; i < 4; i++) p.set(cx + 2, colY + 5 + i * 5, t.acc);
+      p.rect(cx - t.hw - flare, hem - 2, (t.hw + flare) * 2, 2, CD);
+    } else if (t.wear === 'cloak') {
+      // a shirt under it, then the cloak itself off one shoulder
+      p.round(cx - t.sw + 2, colY, (t.sw - 2) * 2, t.th + 2, 2, CD);
+      const hem = hipY + Math.round(t.lh * 0.5);
+      const sd = t.lean > 0 ? 1 : -1;
+      for (let y = colY - 2; y < hem; y++) {
+        const f = (y - colY + 2) / (hem - colY + 2);
+        const wAt = Math.round(t.sw + 2 + (t.hw + 7) * f);
+        p.rect(sd > 0 ? cx - 2 : cx - wAt, y, wAt + 2, 1, f > 0.72 ? CD : C);
+      }
+      // the folds, three of them, running the length of it
+      for (let i = 0; i < 3; i++) {
+        const fx2 = cx + sd * (4 + i * 5);
+        p.rect(fx2, colY + 2 + i * 2, 1, hem - colY - 6 - i * 3, CL);
+      }
+      p.round(cx - 5, colY - 4, 11, 6, 2, CL);                     // the shoulder of it
+      p.disc(cx + sd * 4, colY - 2, 2.5, t.acc);                   // and the clasp
+    } else if (t.wear === 'robe') {
+      // all the way down, with a hem band and a sash at the waist
+      const hem = FOOT - 4;
+      for (let y = colY - 2; y < hem; y++) {
+        const f = (y - colY + 2) / (hem - colY + 2);
+        // it falls almost straight and only opens out at the very bottom
+        const wAt = Math.round(t.sw - 1 + (t.hw + 2 - t.sw) * f * f);
+        p.rect(cx - wAt, y, wAt * 2, 1, C);
+      }
+      p.rect(cx - t.sw + 1, colY - 2, 2, hem - colY, CL);
+      p.rect(cx + t.sw - 3, colY - 2, 2, hem - colY, CD);
+      for (let i = -1; i <= 1; i += 2) {                             // two folds, low down
+        p.rect(cx + i * Math.max(3, Math.round(t.hw * 0.55)), hipY + 2, 1, hem - hipY - 4, CD);
+      }
+      p.rect(cx - t.hw - 2, hem - 3, (t.hw + 2) * 2, 3, t.acc);      // the hem band
+      p.rect(cx - t.hw - 2, hem - 3, (t.hw + 2) * 2, 1, CL);
+      p.round(cx - 6, colY - 4, 13, 7, 3, CL);                       // a narrow shawl collar
+      p.rect(cx - t.sw + 2, shY + t.th - 1, t.sw * 2 - 4, 4, t.accD);
+    } else if (t.wear === 'harness') {
+      // no shirt. Two straps across the chest, a shoulder pad and the buckles
+      for (const sd2 of [-1, 1]) {
+        for (let i = 0; i < t.th + 2; i++) {
+          p.rect(cx + sd2 * Math.round((t.sw - 3) * (1 - i / (t.th + 2))) - 1, colY + i, 3, 1, C);
+        }
+      }
+      p.round(cx - t.sw - 1, colY - 3, 9, 8, 3, CD);
+      p.round(cx - t.sw, colY - 2, 7, 4, 2, CL);
+      p.round(cx - 3, colY + Math.round(t.th * 0.4), 7, 6, 2, t.acc);
+      p.set(cx, colY + Math.round(t.th * 0.4) + 2, t.accD);
+    } else if (t.wear === 'poncho') {
+      const hem = hipY + Math.round(t.lh * 0.3);
+      for (let y = colY - 3; y < hem; y++) {
+        const f = (y - colY + 3) / (hem - colY + 3);
+        const wAt = Math.round(t.sw + 1 + (t.hw + 8) * f * 0.9);
+        p.rect(cx - wAt, y, wAt * 2, 1, (y - colY) % 7 === 3 ? CL : C);
+      }
+      for (let i = 0; i < 9; i++) p.rect(cx - t.hw - 7 + i * Math.max(2, Math.round((t.hw + 7) * 2 / 9)), hem, 1, 3, CD);
+      p.round(cx - 5, colY - 5, 11, 6, 3, CD);                      // the neck hole
     } else if (t.wear === 'shirt') {
       p.round(cx - t.sw, colY, t.sw * 2, t.th + 2, 2, C);
       p.spike(cx, colY, 10, Math.round(t.th * 0.7), 1, t.skin);   // an open collar
@@ -4936,6 +5055,47 @@ window.PD = window.PD || {};
       }
       p.round(cx - 2, colY + 8, 5, 5, 1, t.acc);
       p.set(cx - 1, colY + 9, '#ffffff');
+    }
+
+    /* ------------------------------------------------------- the working kit
+       Straps, pouches and a bandolier, over the top of whatever the garment
+       is. Every single one of them in that reference sheet is carrying
+       something, and it is the difference between a coat and a coloured
+       rectangle: the eye reads the little hard shapes first. */
+    const LEA = '#4a3020', LEAL = '#6e4a30', LEAD = '#2a1a10';
+    if (t.bandolier) {
+      const sd3 = t.lean > 0 ? 1 : -1;
+      const n = Math.max(4, Math.round(t.th * 0.45));
+      for (let i = 0; i <= n; i++) {
+        const f = i / n;
+        const bx3 = cx + sd3 * Math.round((t.sw - 1) * (1 - f * 2));
+        const by3 = colY + Math.round(f * (t.th + 2));
+        p.rect(bx3 - 2, by3, 5, 2, LEA);
+        p.rect(bx3 - 2, by3, 5, 1, LEAL);
+        if (i % 2 === 0) { p.rect(bx3 - 1, by3, 3, 2, t.acc); p.set(bx3, by3, '#ffe9a8'); }
+      }
+    }
+    if (t.strap) {
+      // one shoulder strap, and whatever is on the end of it out of sight
+      const sd4 = t.lean > 0 ? -1 : 1;
+      for (let i = 0; i < t.th + 4; i++) {
+        p.rect(cx + sd4 * Math.round((t.sw - 2) * (1 - i / (t.th + 4))) - 1, colY - 2 + i, 3, 1, LEA);
+      }
+      p.round(cx + sd4 * (t.sw - 3) - 3, colY - 3, 7, 4, 1, LEAL);
+    }
+    if (t.pouches) {
+      const by4 = shY + t.th + 1;
+      for (const sd5 of [-1, 1]) {
+        const px3 = cx + sd5 * Math.max(4, t.hw - 3);
+        p.round(px3 - 4, by4 + 1, 9, 8, 2, LEA);
+        p.round(px3 - 4, by4 + 1, 9, 3, 2, LEAL);
+        p.rect(px3 - 1, by4 + 4, 2, 1, t.acc);
+      }
+      // and a canteen or a lamp hanging off the belt, on one side only
+      const px4 = cx + (t.lean > 0 ? 1 : -1) * (t.hw + 5);
+      p.rect(px4 - 1, by4 + 2, 2, 3, LEAD);
+      p.round(px4 - 3, by4 + 4, 7, 8, 2, t.accD);
+      p.round(px4 - 2, by4 + 5, 5, 3, 1, t.acc);
     }
 
     // ------------------------------------------- the ring, if that is his legs
@@ -5149,6 +5309,30 @@ window.PD = window.PD || {};
         p.ellipse(cx, headY - Math.round(RY * 0.22), RX, Math.round(RY * 1.02), t.skin);
         p.ellipse(cx, headY + Math.round(RY * 0.5), JW, Math.round(RY * 0.44), t.skin);
         p.ellipse(cx, headY - Math.round(RY * 0.55), Math.round(RX * 0.7), Math.round(RY * 0.34), t.lite);
+      } else if (t.headK === 'beak') {
+        /* THE BIRD. A narrow skull and a long beak that comes down off the
+           front of it -- the single most readable head on the sheet, because
+           the silhouette does the work before you have seen a colour. */
+        const sd6 = t.lean > 0 ? 1 : -1;
+        p.ellipse(cx, headY - 1, Math.round(RX * 0.9), RY, t.skin);
+        p.round(cx - JW + 1, headY + 1, (JW - 1) * 2, RY - 2, 3, t.skin);
+        /* It starts at the front of the face, at mouth height, and it is long:
+           a short beak just looks like a chipped head. */
+        const bl = Math.round(RX * 2.1), bx5 = cx + sd6 * Math.round(RX * 0.55);
+        const by5 = headY + Math.round(RY * 0.22);
+        for (let i = 0; i < bl; i++) {
+          const f = i / bl;
+          const h = Math.max(1, Math.round(RY * (0.42 - f * 0.34)));
+          const dropY = by5 + Math.round(f * f * RY * 1.05);
+          const col = f > 0.65 ? t.dark : t.accD;
+          p.rect(bx5 + sd6 * i - (sd6 > 0 ? 0 : 1), dropY - h, 1, h * 2, col);
+          p.rect(bx5 + sd6 * i - (sd6 > 0 ? 0 : 1), dropY - h, 1, 1, f > 0.5 ? t.accD : t.acc);
+        }
+        // the nostril, and the fold where the beak meets the skull
+        p.set(bx5 + sd6 * 2, by5 - Math.round(RY * 0.2), t.dark);
+        p.rect(bx5 - (sd6 > 0 ? 1 : 0), by5 - Math.round(RY * 0.42), 2, Math.round(RY * 0.8), t.dark);
+        p.rect(cx - JW, headY - Math.round(RY * 0.1), JW * 2, 2, t.dark);      // the seam of it
+        p.ellipse(cx, headY - Math.round(RY * 0.5), Math.round(RX * 0.6), Math.round(RY * 0.3), t.lite);
       } else {
         p.ellipse(cx, headY, RX, RY - 1, t.skin);
         p.round(cx - JW, headY + 2, JW * 2, RY - 1, 4, t.skin);               // the jaw
@@ -5940,13 +6124,13 @@ window.PD = window.PD || {};
   function axisProbe(axis, kinds) {
     return kinds.map(k => {
       const t = alienKin(4242, 'biped');
-      t.wear = 'vest'; t.crown = 'none'; t.hair = 'none'; t.tex = 'plain'; t.shades = null;
+      t.crown = 'none'; t.hair = 'none'; t.tex = 'plain'; t.shades = null;
+      if (axis !== 'wear') t.wear = 'vest';
       t[axis] = k;
       if (axis === 'headK') {
-        const HP = { round: [1, 1, 1], dome: [1, 1.04, 1], pear: [0.94, 1.02, 1.16],
-          anvil: [1.14, 0.88, 0.7], tall: [0.84, 1.2, 0.86], wide: [1.24, 0.82, 1.2],
-          split: [1.08, 0.96, 1], egg: [1.02, 1.06, 0.78] }[k];
+        const HP = HEAD_PROFILE[k] || [1, 1, 1];
         t.hx = HP[0]; t.hy = HP[1]; t.jaw = HP[2];
+        if (k === 'beak') t.mouth = 'beak';
       }
       const cv = buildAlien(t, 0).toCanvas();
       return { frames: [cv], w: cv.width / HD, h: cv.height / HD, hd: HD,
@@ -11781,18 +11965,46 @@ window.PD = window.PD || {};
     ctx.fillStyle = 'rgba(8,4,18,0.7)';
     ctx.fillRect(0, 0, VW, VH);
     const m = PD.input.mouse;
+    const BY = VH - 40;                       // the row of buttons, down out of the way
     const keys = [
       { g: 'play', x: VW / 2 - 78, col: '#2f7a4a', id: 'resume' },
       { g: A.state.sfx ? 'check' : 'cross', x: VW / 2 - 26, col: '#3f6ea8', id: 'sfx' },
       { g: 'star', x: VW / 2 + 26, col: A.state.music ? '#6b3fb5' : '#2a1c4a', id: 'music' },
       { g: 'home', x: VW / 2 + 78, col: '#8a2f4a', id: 'ship' }
     ];
+    /* WHAT THE KEYS DO. It used to be four hexagons and nothing else, and the
+       only place the controls were written down was a line in a readme
+       nobody has. Pause is where people go when they do not know what to
+       press, so this is where it says. */
+    const CTRL = [
+      ['arrowR', 'A D  /  ARROWS', 'WALK'],
+      ['arrowD', 'S  /  DOWN', 'DIG DOWN'],
+      ['drill', 'HOLD A DIRECTION', 'DIG THAT WAY'],
+      ['hand', 'E  /  SPACE', 'USE AND TALK'],
+      ['up', 'W  /  UP', 'THRUST'],
+      ['gun', 'J  /  CLICK', 'SHOOT'],
+      ['dash', 'K  /  SHIFT', 'DASH'],
+      ['clock', 'ESC  /  P', 'THIS SCREEN']
+    ];
+    const cw = 200, ch = CTRL.length * 13 + 22;
+    const cx0 = Math.round((VW - cw) / 2), cy0 = 22;
+    PD.pxd.plate(ctx, cx0 - 2, cy0 - 2, cw + 4, ch + 4, '#0d0918', null, null, 5);
+    PD.pxd.plate(ctx, cx0, cy0, cw, ch, '#16122a', '#2a2448', '#0a0614', 4);
+    PD.pxd.rect(ctx, cx0 + 4, cy0, cw - 8, 2, '#ffd34d');
+    F.draw(ctx, 'CONTROLS', cx0 + cw / 2, cy0 + 5, '#ffd34d', { center: true, shadow: '#0a0614' });
+    for (let i = 0; i < CTRL.length; i++) {
+      const yy = cy0 + 17 + i * 13;
+      PD.glyph.draw(ctx, CTRL[i][0], cx0 + 5, yy - 3, '#8a84b0', '#4a4470');
+      F.draw(ctx, CTRL[i][1], cx0 + 22, yy, '#e8e2f4', { shadow: false });
+      F.draw(ctx, CTRL[i][2], cx0 + cw - 6, yy, '#8a84b0', { right: true, shadow: false });
+    }
+
     const r = { resume: false, ship: false };
     for (const k of keys) {
-      const hot = m.inside && U.dist(m.x, m.y, k.x, VH / 2) < 20;
-      PD.glyph.hex(ctx, k.x, VH / 2, 20 + (hot ? 2 : 0), k.col, hot ? '#ffffff' : COL.lineHi, 1.5);
-      if (k.g === 'play') { ctx.save(); ctx.translate(k.x + 2, VH / 2); ctx.rotate(-Math.PI / 2); PD.glyph.draw(ctx, 'play', -7, -7, '#ffffff', k.col); ctx.restore(); }
-      else PD.glyph.draw(ctx, k.g, k.x - 7, VH / 2 - 7, '#ffffff', k.col);
+      const hot = m.inside && U.dist(m.x, m.y, k.x, BY) < 20;
+      PD.glyph.hex(ctx, k.x, BY, 20 + (hot ? 2 : 0), k.col, hot ? '#ffffff' : COL.lineHi, 1.5);
+      if (k.g === 'play') { ctx.save(); ctx.translate(k.x + 2, BY); ctx.rotate(-Math.PI / 2); PD.glyph.draw(ctx, 'play', -7, -7, '#ffffff', k.col); ctx.restore(); }
+      else PD.glyph.draw(ctx, k.g, k.x - 7, BY - 7, '#ffffff', k.col);
       if (hot && m.leftPressed) {
         A.sfx.click();
         if (k.id === 'resume') r.resume = true;
@@ -11894,6 +12106,7 @@ window.PD = window.PD || {};
   const X = PD.pxd;
   const F = PD.font;
   const A = PD.audio;
+  const FX = PD.fx;
   const pix = PD.pix;
 
   const VW = 480, VH = 270;
@@ -12368,7 +12581,227 @@ window.PD = window.PD || {};
     }
   }
 
-  function active() { return !!S.call; }
+  /* ============================================================== THE BITE
+     Mr Chum is a shark. For eleven hours of this game he is a small round
+     shark in a suit who makes jokes about your air supply, and the whole time
+     the joke is that he is a shark. This is the moment the joke stops.
+
+     He stops pacing, the room goes out, and he comes at the camera: the head
+     grows until it is bigger than the screen, the jaws open past anything a
+     face that size should open, and they shut. It is one piece of drawing
+     scaled up rather than a separate sprite, so he is recognisably HIM the
+     whole way in -- same skin, same teeth, same little collar -- right up to
+     the point where the collar is eight feet across.
+
+     Nothing about it is a particle, and nothing about it survives the frame it
+     ends on. */
+  const BITE = { t: 0, max: 0, why: '', onEnd: null, said: 0 };
+  const BITE_WORD = {
+    loan: 'YOU SIGNED IT',
+    late: 'YOU ARE LATE',
+    broke: 'THERE IS NOTHING LEFT',
+    warn: 'DO NOT MAKE ME COME OUT THERE',
+    core: 'GOOD. AGAIN.'
+  };
+
+  function bite(g, why, onEnd) {
+    if (BITE.t > 0) return;
+    BITE.why = why || 'warn';
+    BITE.t = BITE.max = 2.5;
+    BITE.onEnd = onEnd || null;
+    BITE.said = 0;
+    A.sfx.rumble && A.sfx.rumble();
+    A.sfx.tone(180, { type: 'sawtooth', to: 60, dur: 0.5, vol: 0.1 });
+    FX.shake(0.5);
+  }
+  function biting() { return BITE.t > 0; }
+
+  function updateBite(dt, g) {
+    if (BITE.t <= 0) return;
+    const was = BITE.t;
+    BITE.t = Math.max(0, BITE.t - dt);
+    const q = 1 - BITE.t / BITE.max;
+    // the snap, once, at the moment the jaws meet
+    if (!BITE.said && q > 0.52) {
+      BITE.said = 1;
+      A.sfx.punch && A.sfx.punch();
+      A.sfx.tone(90, { type: 'square', to: 40, dur: 0.22, vol: 0.14 });
+      A.sfx.crack && A.sfx.crack();
+      FX.shake(1.1);
+      FX.hitStop(0.1);
+      FX.flash(0.6, '#ffffff');
+    }
+    if (was > 0 && BITE.t <= 0 && BITE.onEnd) { const f = BITE.onEnd; BITE.onEnd = null; f(g); }
+  }
+
+  /* ONE HEAD, ANY SIZE. `r` is the half-width of the snout in pixels, `open`
+     is how far the jaws are apart (0 shut, 1 as wide as it goes), and every
+     other number in here is a fraction of `r`, so the same code draws him at
+     nine pixels across and at nine hundred. */
+  function sharkHead(ctx, cx, cy, r, open, t, skin, skinD, teeth) {
+    const gape = open * r * 1.15;
+    const snout = r * 1.35;
+    const gum = '#8a2a44', throat = '#2a0a16';
+
+    /* THE THROAT, first, because everything else closes over it. */
+    X.poly(ctx, [[cx - r * 0.86, cy - gape * 0.2], [cx + r * 0.86, cy - gape * 0.2],
+      [cx + r * 0.6, cy + gape + r * 0.1], [cx - r * 0.6, cy + gape + r * 0.1]], throat);
+    ctx.globalAlpha = 0.5;
+    X.blob(ctx, cx, cy + gape * 0.6, r * 0.42, gape * 0.5 + 2, '#12040a');
+    ctx.globalAlpha = 1;
+    // the tongue, down in it
+    X.blob(ctx, cx, cy + gape * 0.85, r * 0.4, gape * 0.3 + 2, '#6a1830');
+
+    /* THE LOWER JAW. */
+    const ly = cy + gape;
+    X.poly(ctx, [[cx - r * 1.02, ly - r * 0.1], [cx + r * 1.02, ly - r * 0.1],
+      [cx + r * 0.78, ly + r * 0.9], [cx - r * 0.78, ly + r * 0.9]], skinD);
+    X.poly(ctx, [[cx - r * 0.95, ly - r * 0.06], [cx + r * 0.95, ly - r * 0.06],
+      [cx + r * 0.74, ly + r * 0.5], [cx - r * 0.74, ly + r * 0.5]], skin);
+    X.rect(ctx, cx - r * 0.98, ly - r * 0.1, r * 1.96, Math.max(1, r * 0.08), gum);
+    X.rect(ctx, cx - r * 0.98, ly - r * 0.1, r * 1.96, Math.max(1, r * 0.03), '#b04060');
+    // the bottom row
+    const nb = Math.max(4, Math.round(r / 9));
+    for (let i = 0; i < nb; i++) {
+      const f = (i + 0.5) / nb;
+      const tx = cx - r * 0.9 + f * r * 1.8;
+      const tw = Math.max(2, r * 0.13 * (1.25 - Math.abs(f - 0.5)));
+      const th = Math.min(Math.max(3, r * 0.3 * (1.3 - Math.abs(f - 0.5) * 1.2)), gape + r * 0.06);
+      X.poly(ctx, [[tx - tw, ly + r * 0.02], [tx + tw, ly + r * 0.02], [tx, ly - th]], teeth);
+      X.poly(ctx, [[tx - tw * 0.4, ly + r * 0.02], [tx + tw * 0.2, ly + r * 0.02], [tx, ly - th * 0.7]], '#ffffff');
+    }
+
+    /* THE UPPER JAW AND THE WHOLE HEAD BEHIND IT. */
+    const uy = cy - gape * 0.35;
+    X.poly(ctx, [[cx - r * 1.12, uy - r * 1.5], [cx + r * 1.12, uy - r * 1.5],
+      [cx + r * 1.04, uy + r * 0.06], [cx - r * 1.04, uy + r * 0.06]], skinD);
+    // the snout, a wedge coming at you
+    X.poly(ctx, [[cx - r * 1.04, uy - r * 0.9], [cx + r * 1.04, uy - r * 0.9],
+      [cx + snout * 0.58, uy + r * 0.04], [cx - snout * 0.58, uy + r * 0.04]], skin);
+    ctx.globalAlpha = 0.25;
+    X.poly(ctx, [[cx - r * 0.9, uy - r * 1.4], [cx + r * 0.2, uy - r * 1.4],
+      [cx - r * 0.2, uy - r * 0.2], [cx - r * 0.8, uy - r * 0.2]], '#ffffff');
+    ctx.globalAlpha = 1;
+    X.rect(ctx, cx - r * 1.02, uy - r * 0.08, r * 2.04, Math.max(1, r * 0.09), gum);
+    X.rect(ctx, cx - r * 1.02, uy - r * 0.08 + Math.max(1, r * 0.07), r * 2.04, Math.max(1, r * 0.02), '#5e1428');
+    // the top row, longer than the bottom
+    const nt = Math.max(5, Math.round(r / 7.5));
+    for (let i = 0; i < nt; i++) {
+      const f = (i + 0.5) / nt;
+      const tx = cx - r * 0.96 + f * r * 1.92;
+      const tw = Math.max(2, r * 0.14 * (1.3 - Math.abs(f - 0.5)));
+      const th = Math.min(Math.max(4, r * 0.4 * (1.35 - Math.abs(f - 0.5) * 1.1)), gape + r * 0.09);
+      X.poly(ctx, [[tx - tw, uy - r * 0.02], [tx + tw, uy - r * 0.02], [tx, uy + th]], teeth);
+      X.poly(ctx, [[tx - tw * 0.4, uy - r * 0.02], [tx + tw * 0.2, uy - r * 0.02], [tx, uy + th * 0.7]], '#ffffff');
+    }
+    // where the two jaws meet, when they have
+    if (open < 0.2) {
+      ctx.globalAlpha = 0.5 * (1 - open * 5);
+      X.rect(ctx, cx - r * 0.98, cy + r * 0.02, r * 1.96, Math.max(1, r * 0.02), '#2a0a16');
+      ctx.globalAlpha = 1;
+    }
+    // the nostrils and the seam down the snout
+    X.blob(ctx, cx - r * 0.34, uy - r * 0.62, Math.max(1, r * 0.06), Math.max(1, r * 0.04), skinD);
+    X.blob(ctx, cx + r * 0.34, uy - r * 0.62, Math.max(1, r * 0.06), Math.max(1, r * 0.04), skinD);
+
+    /* THE EYES. Black, and they roll back at the moment of the bite, which is
+       the one detail everybody knows about a shark. */
+    const roll = U.clamp((open - 0.55) * 3, 0, 1);
+    for (const sd of [-1, 1]) {
+      const ex = cx + sd * r * 0.82, ey = uy - r * 1.0;
+      X.blob(ctx, ex, ey, r * 0.2, r * 0.19, '#f2ecff');
+      X.blob(ctx, ex, ey + r * 0.06 * (1 - roll), r * 0.13, r * 0.13, '#0d0714');
+      if (roll < 0.9) X.blob(ctx, ex - r * 0.05, ey - r * 0.04, r * 0.05, r * 0.04, '#ffffff');
+      // the membrane coming across
+      if (roll > 0) {
+        X.poly(ctx, [[ex - r * 0.22, ey - r * 0.22], [ex + r * 0.22, ey - r * 0.22],
+          [ex + r * 0.22, ey - r * 0.22 + r * 0.44 * roll], [ex - r * 0.22, ey - r * 0.22 + r * 0.44 * roll]], '#cfc2e0');
+      }
+    }
+    // gill slits down the side of him
+    for (let i = 0; i < 4; i++) {
+      for (const sd of [-1, 1]) {
+        X.rect(ctx, cx + sd * (r * 1.02 + i * r * 0.1) - 1, uy - r * 1.3, Math.max(1, r * 0.04), r * 0.5, skinD);
+      }
+    }
+    /* AND THE COLLAR. He is wearing a suit through all of this. */
+    const cyy = ly + r * 0.82;
+    X.poly(ctx, [[cx - r * 1.3, cyy], [cx + r * 1.3, cyy],
+      [cx + r * 1.5, cyy + r * 0.7], [cx - r * 1.5, cyy + r * 0.7]], '#2a2438');
+    X.poly(ctx, [[cx - r * 0.5, cyy], [cx + r * 0.5, cyy], [cx, cyy + r * 0.55]], '#e8e2f4');
+    X.poly(ctx, [[cx - r * 0.2, cyy + r * 0.06], [cx + r * 0.2, cyy + r * 0.06],
+      [cx + r * 0.1, cyy + r * 0.6], [cx - r * 0.1, cyy + r * 0.6]], '#9e1730');
+  }
+
+  function drawBite(ctx, g, t) {
+    if (BITE.t <= 0) return;
+    const q = 1 - BITE.t / BITE.max;
+    const skin = REAL.skin, skinD = REAL.skinD, teeth = REAL.teeth;
+
+    /* Four movements: he rears back, he comes at you, the jaws shut, and then
+       there is a shark's face where the room used to be. */
+    /* The sizes are chosen so the HELD pose is a readable shark face -- eyes
+       near the top of the frame, jaws across the middle, collar off the bottom
+       -- rather than a screenful of tooth. The first pass went to three
+       hundred and the whole screen ended up inside his mouth, which reads as
+       a white rectangle and nothing else. */
+    let r, open, cy;
+    if (q < 0.16) {                                    // WIND UP
+      const k = q / 0.16;
+      r = 26 + k * 22;
+      open = k * 0.45;
+      cy = VH * 0.62 - k * 14;
+    } else if (q < 0.5) {                              // LUNGE
+      const k = (q - 0.16) / 0.34, e = k * k;
+      r = 48 + e * 168;
+      open = 0.45 + k * 0.6;
+      cy = VH * 0.52 + e * 34;
+    } else if (q < 0.58) {                             // SNAP
+      const k = (q - 0.5) / 0.08;
+      r = 216 - k * 42;
+      open = Math.max(0, 1.05 * (1 - k * 1.3));
+      cy = VH * 0.7 + k * 4;
+    } else if (q < 0.86) {                             // HOLD, jaws shut, looking at you
+      const k = (q - 0.58) / 0.28;
+      r = 174 - k * 16;
+      open = 0.015 + Math.abs(Math.sin(k * 11)) * 0.025;
+      cy = VH * 0.73 + k * 2;
+    } else {                                           // and back down the hole
+      const k = (q - 0.86) / 0.14;
+      r = 158 - k * 104;
+      open = 0.02 + k * 0.3;
+      cy = VH * 0.75 - k * 26;
+    }
+
+    // the room goes out behind him
+    const dark = U.clamp(q * 6, 0, 1) * (q > 0.88 ? (1 - q) / 0.12 : 1);
+    ctx.globalAlpha = dark;
+    X.rect(ctx, 0, 0, VW, VH, '#0a0410');
+    ctx.globalAlpha = dark * 0.85;
+    X.rect(ctx, 0, 0, VW, VH, '#0a0410');
+    ctx.globalAlpha = 1;
+    // and a red wash, because this has stopped being funny
+    ctx.globalAlpha = 0.1 + 0.12 * Math.sin(q * 9);
+    X.rect(ctx, 0, 0, VW, VH, '#5e0c1e');
+    ctx.globalAlpha = 1;
+
+    const sway = Math.sin(t * 9) * (q < 0.52 ? 5 : 1.5);
+    sharkHead(ctx, VW / 2 + sway, cy, r, open, t, skin, skinD, teeth);
+
+    /* WHAT HE SAYS THROUGH IT. One line, in his own colour, held over the
+       teeth once they have met. */
+    if (q > 0.58) {
+      const word = BITE_WORD[BITE.why] || BITE_WORD.warn;
+      const fade = U.clamp((q - 0.58) / 0.08, 0, 1) * U.clamp((1 - q) / 0.12, 0, 1);
+      ctx.globalAlpha = fade;
+      let sc = 4;
+      while (sc > 1 && F.width(word, sc) > VW - 40) sc--;
+      F.draw(ctx, word, VW / 2, 12, '#ffd34d', { center: true, scale: sc, shadow: '#0a0410' });
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  function active() { return !!S.call || BITE.t > 0; }
 
   /* What the band plays through the night you lost it. The casino, then the
      rain, then whatever Mr Chum has on in his own house. */
@@ -12380,6 +12813,8 @@ window.PD = window.PD || {};
   }
 
   function update(dt, g) {
+    updateBite(dt, g);
+    if (BITE.t > 0) return;                    // nothing else moves during it
     if (!S.call) return;
     S.t += dt;
     S.pop = Math.min(1, S.pop + dt * 4.5);
@@ -12407,7 +12842,12 @@ window.PD = window.PD || {};
     if (S.chars < line.length) { S.chars = line.length; return; }   // finish the line first
     S.line++; S.chars = 0; S.pop = 0;
     A.sfx.click();
-    if (S.line >= S.lines.length) hangUp();
+    if (S.line >= S.lines.length) {
+      /* Some of these he does not sign off politely. */
+      const angry = S.call === 'debt0' || S.call === 'late' || S.call === 'owe';
+      hangUp();
+      if (angry) bite(g, 'warn');
+    }
   }
 
   /* ------------------------------------------------------------- the bubble
@@ -12531,6 +12971,7 @@ window.PD = window.PD || {};
   }
 
   function draw(ctx, g, t) {
+    if (BITE.t > 0) { drawBite(ctx, g, t); return; }
     if (!S.call) return;
     const gy = groundY(g);
     const a = ensureArt();
@@ -15031,7 +15472,7 @@ window.PD = window.PD || {};
 
   PD.chum = {
     enterIntro, updateIntro, drawIntro, enterGamble, B_OF,
-    call, update, draw, active, takeCut, drawDebt, DEBT0, S, IN_S, HS, LESSONS, track, BEATS, DRAG, WET,
+    call, update, draw, active, bite, biting, sharkHead, takeCut, drawDebt, DEBT0, S, IN_S, HS, LESSONS, track, BEATS, DRAG, WET,
     leadStep, drawMini, miniFrame, MS, MW, MH, MCX, MBASE,
     artFor: ensureArt, CW, CH, CCX, CBASE, UNI, CAM, CROWD,
     /* the house style, shared with the room you walk through to get here */
@@ -18792,7 +19233,7 @@ window.PD = window.PD || {};
     updateBacc(dt, g);
     updateMega(dt, g);
     updateClaw(dt, g);
-    updateNPCs(dt);
+    updateNPCs(dt, g);
     updateCry(dt);
     LOAN.t = Math.max(0, LOAN.t - dt);
     S.clap = Math.max(0, S.clap - dt);
@@ -18829,6 +19270,7 @@ window.PD = window.PD || {};
       }
       /* `dance` is what it was called when this was a nightclub. In here it
          is standing at a table watching somebody else's money go. */
+      c.cheer = Math.max(0, (c.cheer || 0) - dt);
       if (c.dance > 0) { c.dance -= dt; c.vx = 0; continue; }
       c.wait -= dt;
       if (c.wait <= 0) {
@@ -18881,6 +19323,8 @@ window.PD = window.PD || {};
   const CHAT = { steps: null, i: 0, at: 0 };
 
   function startChat() {
+    // nobody talks over the staff
+    for (const n of NPCS) { const q = NPC_STATE[n.id]; if (q && q.sayT > 0) return; }
     const pool = CLUBBERS.filter(c => c.kiss <= 0 && c.sayT <= 0);
     if (!pool.length) return;
     const a = U.pick(pool);
@@ -18947,6 +19391,20 @@ window.PD = window.PD || {};
     WIN.x = x; WIN.y = y; WIN.big = big || 1;
     WIN.t = WIN.max = 0.55 + (big || 1) * 0.35;
     WIN.col = col || CAS.gold;
+    /* AND THE ROOM TURNS ROUND. Everybody within earshot stops what they are
+       doing, faces the noise and cheers, which is the single cheapest way to
+       make a win feel like it happened in a room full of people rather than
+       in a spreadsheet. */
+    let heard = 0;
+    for (const c of CLUBBERS) {
+      if (Math.abs(c.x - x) > 150 + 90 * (big || 1)) continue;
+      c.face = Math.sign(x - c.x) || c.face;
+      c.dance = U.rand(1.4, 2.6);
+      c.vx = 0;
+      c.cheer = 1.1 + (big || 1) * 0.3;
+      heard++;
+    }
+    if (heard > 2) A.sfx.applause && A.sfx.applause();
   }
   function updateWin(dt) { WIN.t = Math.max(0, WIN.t - dt); }
   function drawWin(ctx, t, cam) {
@@ -19047,9 +19505,12 @@ window.PD = window.PD || {};
          and you leave, stand a step inside it and you get the lift. */
       const out = [{ id: 'lift', x: LIFT_X - 54, lo: 52, hi: LIFT_X + 16,
         name: 'THE LIFT', sub: CDECKS[cdeck()].name + '  -  FOUR FLOORS' }];
+      /* The spot follows them about, because they walk now: a prompt nailed
+         to where somebody used to stand is worse than no prompt. */
       for (const n of NPCS) {
-        if (n.deck === cdeck()) out.push({ id: 'npc', npc: n.id, x: n.x - 26, r: 24,
-          name: n.name, sub: 'HAVE A WORD' });
+        if (n.deck !== cdeck()) continue;
+        const nx = npcX(n);
+        out.push({ id: 'npc', npc: n.id, x: nx - 26, r: 26, name: n.name, sub: 'HAVE A WORD' });
       }
       if (cdeck() === 1) {
         out.push({ id: 'claw', x: CLAW_X - 44, lo: CLAW_X - 40, hi: CLAW_X + 40,
@@ -22338,6 +22799,11 @@ window.PD = window.PD || {};
       FX.text(MEGA_X, 60, '-$' + U.fmt(MEGA_STAKE), '#ff5a4d', 0);
       A.sfx.deny();
       cryAboutIt(g, MEGA_STAKE);
+      // ten thousand gone and nothing left to put in: he comes and finds you
+      if (g.save.credits < MEGA_STAKE) {
+        P.lock = Math.max(P.lock, 2.6);
+        PD.chum.bite(g, 'broke');
+      }
     }
     g.saveGame();
   }
@@ -22642,53 +23108,142 @@ window.PD = window.PD || {};
      this building has anything new to tell you, which is the point of them. */
   const NPCS = [
     { id: 'door', deck: 0, x: 1400, kin: 'THE PLUMBER', name: 'THE FLOOR MAN',
+      says: ['THE ROPE IS THE ROPE.', 'I DO NOT MAKE THE ROPE.', 'YOU AGAIN.', 'FOUR FLOORS. ONE DIRECTION.', 'MIND THE STEP.'],
       lines: ['HE SAYS THE ROPE IS THE ROPE AND HE DOES NOT MAKE THE ROPE.',
         'HE ASKS IF YOU ARE HERE ABOUT THE MACHINE. EVERYBODY IS.',
         'HE SAYS FOUR FLOORS AND THE MONEY ONLY EVER GOES ONE WAY.',
         'HE HAS SEEN YOUR FACE BEFORE. HE DOES NOT SAY WHERE.'] },
     { id: 'pit', deck: 0, x: 1462, kin: 'THE BARBARIAN', name: 'THE PIT BOSS',
+      says: ['THE EDGE IS PUBLIC.', 'NOBODY EVER ASKS.', 'HOW ARE WE GETTING ON?', 'MOST PEOPLE NEVER PRESS FOUR.', 'I WATCHED BOTH OF THEM.'],
       lines: ['HE SAYS THE HOUSE EDGE IS PUBLIC INFORMATION AND NOBODY EVER ASKS.',
         'HE SAYS THE WHEEL HAS PAID OUT TWICE THIS YEAR AND HE WATCHED BOTH.',
         'HE ASKS HOW YOU ARE GETTING ON. HE ALREADY KNOWS.',
         'HE SAYS THE LIFT GOES TO FOUR. MOST PEOPLE NEVER PRESS FOUR.'] },
     { id: 'change', deck: 1, x: 780, kin: 'DUCKY', name: 'THE CHANGE GIRL',
+      says: ['SMALLER COINS LAST LONGER.', 'TRAY IS OPEN.', 'THE CLAW IS HONEST.', 'NOT MY EVENING, IS IT.', 'NEXT.'],
       lines: ['SHE HAS A TRAY OF COINS AND NO INTEREST IN YOUR EVENING.',
         'SHE SAYS THE CLAW IS HONEST. SHE SAYS IT WITHOUT MOVING HER FACE.',
         'SHE SAYS THE TELEVISIONS HAVE BEEN SHOWING THE SAME RACE SINCE SHE STARTED.',
         'SHE ASKS IF YOU WANT IT IN SMALLER COINS. IT LASTS LONGER IN SMALLER COINS.'] },
     { id: 'mechanic', deck: 1, x: 990, kin: 'UNIT 12', name: 'THE MECHANIC',
+      says: ['IT IS FINE.', 'READ THE BACK OF THE CABINET.', 'NOBODY READS THE BACK.', 'ONE MOMENT.', 'THIS IS NORMAL.'],
       lines: ['IT IS INSIDE A MACHINE UP TO THE SHOULDER AND DOES NOT LOOK UP.',
         'IT SAYS THE MACHINES ARE FINE. IT SAYS THIS WHILE REPAIRING ONE.',
         'IT SAYS THE ODDS ARE PRINTED ON THE BACK OF EVERY CABINET.',
         'IT SAYS NOBODY HAS EVER READ THE BACK OF A CABINET.'] },
     { id: 'gardener', deck: 2, x: 1190, kin: 'POTTED PETE', name: 'THE GARDENER',
+      says: ['THEY WERE ALL CUSTOMERS.', 'THAT IS A JOKE.', 'IT IS NOT WATER.', 'STOP ASKING.', 'SUNNY NEVER LOSES.'],
       lines: ['HE SAYS THE PLANTS ON THIS FLOOR ARE ALL FORMER CUSTOMERS.',
         'HE SAYS THAT AS A JOKE. HE DOES NOT LAUGH.',
         'HE SAYS THE FOUNTAIN IS NOT WATER AND TO STOP ASKING.',
         'HE SAYS SUNNY HAS NOT LOST A BET IN SIX YEARS.'] },
     { id: 'concierge', deck: 2, x: 780, kin: 'THE JAR', name: 'THE CONCIERGE',
+      says: ['BLUB.', 'BLUB BLUB.', 'BLUUUB.', 'BLUB?', '...BLUB.'],
       lines: ['IT BUBBLES ONCE. SOMEHOW THIS IS A GREETING.',
         'IT BUBBLES TWICE. SOMEHOW THIS IS THE ENTIRE HISTORY OF THE BUILDING.',
         'IT SAYS THE TOP FLOOR IS NOT FOR EVERYBODY. THE BUBBLES ARE VERY CLEAR.',
         'IT ASKS, IN BUBBLES, WHETHER YOU HAVE CONSIDERED STOPPING.'] },
     { id: 'usher', deck: 3, x: 960, kin: 'THE WIZARD', name: 'THE USHER',
+      says: ['PEOPLE COME UP JUST TO LOOK.', 'ONE IN EIGHTY.', 'I AM NOT MEANT TO SAY THAT.', 'I TELL EVERYBODY THAT.', 'GO ON THEN.'],
       lines: ['HE SAYS PEOPLE COME UP HERE JUST TO LOOK AT IT.',
         'HE SAYS THE BOARD HAS NEVER BEEN RESET BECAUSE IT HAS NEVER BEEN PAID.',
         'HE SAYS SIXTY TIMES YOUR MONEY AND A ONE IN EIGHTY CHANCE OF IT.',
         'HE SAYS HE IS NOT ALLOWED TO TELL YOU THAT. HE TELLS EVERYBODY THAT.'] }
   ];
+  /* --------------------------------------------------------- more of them */
+  const NPCS2 = [
+    { id: 'tout', deck: 0, x: 700, kin: 'SPARKS', name: 'THE TOUT', range: 90,
+      says: ['I HAVE A TIP.', 'THE WHEEL IS DUE.', 'WHAT DO YOU DO?', 'I WORK HERE.', 'NO I DO NOT.'],
+      lines: ['HE HAS A TIP. HE HAS A TIP FOR EVERYBODY AND THEY ARE ALL DIFFERENT.',
+        'HE SAYS THE WHEEL IS DUE. THE WHEEL IS NEVER DUE.',
+        'HE ASKS WHAT YOU DO. HE IS NOT LISTENING TO THE ANSWER.',
+        'HE SAYS HE WORKS HERE. HE DOES NOT WORK HERE.'] },
+    { id: 'widow', deck: 2, x: 880, kin: 'THE HERO', name: 'THE WIDOW', range: 60,
+      says: ['HE WENT UP IN NINETY ONE.', 'HAVE YOU SEEN A GREY COAT?', 'I COME BACK MOST NIGHTS.', 'THEY SENT FLOWERS.', 'TALL. VERY TALL.'],
+      lines: ['SHE SAYS HER HUSBAND WENT UP TO THE FOURTH FLOOR IN NINETY ONE.',
+        'SHE SAYS SHE COMES BACK ON THE ANNIVERSARY. SHE COMES BACK MOST NIGHTS.',
+        'SHE ASKS IF YOU HAVE SEEN A TALL ONE IN A GREY COAT.',
+        'SHE SAYS THE HOUSE SENT FLOWERS. THE HOUSE SENDS FLOWERS.'] },
+    { id: 'kid', deck: 1, x: 1180, kin: 'CHOMPY', name: 'THE KID', range: 120,
+      says: ['I AM UP!', 'IS THAT THE PLANET ONE?', 'MY DAD IS UPSTAIRS.', 'HE HAS BEEN A WHILE.', 'CAN I HAVE A GO?'],
+      lines: ['HE IS FAR TOO YOUNG TO BE IN HERE AND NOBODY HAS SAID ANYTHING.',
+        'HE SAYS HE IS UP. HE IS PLAYING A MACHINE THAT DOES NOT PAY OUT.',
+        'HE ASKS IF YOU HAVE SEEN THE ONE WITH THE PLANETS ON IT.',
+        'HE SAYS HIS DAD IS UPSTAIRS. HIS DAD HAS BEEN UPSTAIRS A LONG TIME.'] },
+    { id: 'sweep', deck: 3, x: 1250, kin: 'UNIT 12', name: 'THE SWEEPER', range: 200,
+      says: ['MIND OUT.', 'YOU ARE STANDING IN IT.', 'THIRTY ONE RINGS.', 'THE GALLERY IS THE WORST.', 'BEEP.'],
+      lines: ['IT SWEEPS UP WHAT PEOPLE DROP AND IT DOES NOT LOOK AT ANY OF IT.',
+        'IT SAYS THE GALLERY IS THE WORST OF THEM. THEY LEAVE EVERYTHING.',
+        'IT HAS FOUND THIRTY ONE WEDDING RINGS UNDER THAT MACHINE.',
+        'IT ASKS YOU NOT TO STAND THERE. YOU ARE STANDING IN IT.'] }
+  ];
+  for (const n of NPCS2) NPCS.push(n);
+
+  /* What they say when they have already said everything: it depends on what
+     kind of night you are having, which is the only thing any of them can see. */
+  const NPC_MOOD = {
+    rich: ['HE LOOKS AT YOUR CHIPS AND STANDS A LITTLE STRAIGHTER.',
+      'HE SAYS NOBODY LEAVES WITH THAT. NOBODY EVER HAS.',
+      'HE ASKS WHETHER YOU HAVE CONSIDERED GOING HOME. HE MEANS IT KINDLY.'],
+    broke: ['HE HAS SEEN THIS BEFORE. HE DOES NOT SAY SO.',
+      'HE ASKS IF YOU WANT HIM TO CALL YOU SOMETHING. A CAR. ANYTHING.',
+      'HE SAYS THE CASHIER IS OPEN ALL NIGHT. HE SAYS IT VERY GENTLY.'],
+    owing: ['HE GLANCES AT THE DOOR. SOMEBODY IS ALWAYS AT THE DOOR.',
+      'HE SAYS THE SHARK ASKED AFTER YOU. HE SAYS IT LIKE THE WEATHER.',
+      'HE ASKS HOW MUCH. HE DOES NOT WANT THE NUMBER.']
+  };
+
+  /* ========================================================= THE PEOPLE WHO WORK HERE
+     They used to be a sprite with a brass plate under it. They are people now:
+     they walk their own bit of floor, they stop, they turn and look at you when
+     you come near, they blink, and when they talk it comes out of their head in
+     a bubble like everybody else's rather than out of the bottom of the screen.
+     Everything they do goes through the same seven frames the crowd uses, so a
+     doorman and a drunk are animated by exactly the same code. */
   const NPC_STATE = {};
+  function npcState(n) {
+    return NPC_STATE[n.id] || (NPC_STATE[n.id] = {
+      i: -1, t: 0, x: n.x, vx: 0, face: -1, wait: U.rand(0.5, 2.5),
+      blink: U.rand(1, 5), say: null, sayT: 0, sayMax: 1, met: 0, anim: U.rand(0, 9)
+    });
+  }
   function npcKin(nm) {
     const i = AH.KIN.findIndex(k => k.celeb === nm);
     return i < 0 ? 0 : i;
   }
+
+  function npcMood(g) {
+    if ((g.save.debt || 0) > 2000000) return 'owing';
+    if (g.save.credits < 2000) return 'broke';
+    if (g.save.credits > 400000) return 'rich';
+    return null;
+  }
+
   function talkTo(g, id) {
     const n = NPCS.find(q => q.id === id);
     if (!n) return;
-    const st = NPC_STATE[id] || (NPC_STATE[id] = { i: -1, t: 0 });
-    st.i = (st.i + 1) % n.lines.length;
+    const st = npcState(n);
+    st.i++;
+    /* Once you have heard everything they have, they start saying what they
+       think of the night you are having instead of repeating themselves. */
+    let line;
+    if (st.i < n.lines.length) line = n.lines[st.i];
+    else {
+      const m = npcMood(g);
+      const pool = m ? NPC_MOOD[m] : n.lines;
+      line = pool[(st.i - n.lines.length) % pool.length];
+    }
     st.t = 3.4;
-    say(n.lines[st.i]);
+    /* TWO CHANNELS. `lines` is the narrator -- HE SAYS THE ROPE IS THE ROPE --
+       and that belongs on the sign at the bottom where the rest of the
+       narration lives. What comes out of his head in a bubble is what he
+       actually says out loud, which is short, because people are. */
+    say(line);
+    const spoken = (n.says && n.says.length) ? n.says[st.i % n.says.length] : null;
+    st.say = spoken;
+    st.sayT = st.sayMax = spoken ? 1.3 + spoken.length * 0.05 : 0;
+    st.face = Math.sign(P.x - st.x) || st.face;
+    st.vx = 0; st.wait = st.sayT + 0.6;
     A.sfx.tone(700 + (st.i % 3) * 90, { type: 'triangle', to: 900, dur: 0.1, vol: 0.05 });
     if (!g.save.seen['met_' + id]) {
       g.save.seen['met_' + id] = 1;
@@ -22696,31 +23251,86 @@ window.PD = window.PD || {};
       FX.text(P.x, P.y - 50, '+20 THOTS', '#4cff9a', 1);
       g.saveGame();
     }
+    st.met++;
   }
+
+  function updateNPCs(dt, g) {
+    for (const n of NPCS) {
+      const st = npcState(n);
+      st.t = Math.max(0, st.t - dt);
+      st.sayT = Math.max(0, st.sayT - dt);
+      if (st.sayT <= 0) st.say = null;
+      if (n.deck !== cdeck() || S.scene !== 'club') continue;
+      st.anim += dt;
+      st.blink -= dt;
+      if (st.blink < -0.12) st.blink = U.rand(2.5, 6);
+
+      /* If you are standing next to them they stop what they are doing and
+         turn round, which is most of what makes somebody feel present. */
+      const near = Math.abs(P.x - st.x) < 62;
+      if (near || st.sayT > 0) {
+        st.vx = 0;
+        st.face = Math.sign(P.x - st.x) || st.face;
+        st.wait = Math.max(st.wait, 0.4);
+        continue;
+      }
+      st.wait -= dt;
+      if (st.wait <= 0) {
+        const r = n.range || 40;
+        st.wait = U.rand(1.6, 5);
+        if (U.rand() < 0.45) st.vx = 0;
+        else {
+          st.vx = (st.x > n.x ? -1 : 1) * (U.rand() < 0.6 ? 1 : -1) * U.rand(9, 17);
+          st.face = Math.sign(st.vx);
+        }
+        if (Math.abs(st.x - n.x) > r * 0.9) { st.vx = Math.sign(n.x - st.x) * 13; st.face = Math.sign(st.vx); }
+      }
+      st.x += st.vx * dt;
+      const r2 = n.range || 40;
+      if (st.x < n.x - r2) { st.x = n.x - r2; st.vx = Math.abs(st.vx); st.face = 1; }
+      if (st.x > n.x + r2) { st.x = n.x + r2; st.vx = -Math.abs(st.vx); st.face = -1; }
+    }
+  }
+
+  /* Where they are right now, so the prompt and the spots follow them about. */
+  function npcX(n) { const st = NPC_STATE[n.id]; return st ? st.x : n.x; }
+
   function drawNPCs(ctx, g, t, cam) {
     for (const n of NPCS) {
       if (n.deck !== cdeck()) continue;
-      const x = n.x - cam;
-      if (x < -40 || x > VW + 40) continue;
+      const st = npcState(n);
+      const x = st.x - cam;
+      if (x < -50 || x > VW + 50) continue;
       const K = AH.KIN[npcKin(n.kin)];
-      const st = NPC_STATE[n.id];
-      const talking = st && st.t > 0;
-      const bob = Math.sin(t * 1.5 + n.x) * 1;
+      const moving = Math.abs(st.vx) > 1;
+      const bob = Math.sin(st.anim * (moving ? 7 : 1.5)) * (moving ? 1.6 : 1);
+      // the same seven frames as everybody else in the building
+      const frame = st.sayT > 0 ? ((Math.floor(t * 5) % 2) ? 3 : 0)
+        : (st.blink < 0 ? 5
+          : (moving ? (Math.floor(st.anim * 4.4) % 2 ? 1 : 2) : 0));
       kinShadow(ctx, x, FLOOR, K);
-      AH.blit(ctx, AH.S[K.key], talking ? ((Math.floor(t * 5) % 2) ? 3 : 0)
-        : ((Math.floor(t * 1.1 + n.x) % 9) === 0 ? 5 : 0), x, FLOOR + bob, n.x > P.x);
-      // a little brass name plate on the floor in front of them
-      X.plate(ctx, x - 24, FLOOR + 2, 49, 9, CAS.goldD, '#ffe9a8', '#4a3410', 2);
-      F.draw(ctx, n.name, x, FLOOR + 4, '#2a1c06', { center: true, shadow: false });
-      if (talking) {
+      AH.blit(ctx, AH.S[K.key], frame, x, FLOOR + bob, st.face < 0);
+      // a little brass name plate, on the floor where they started
+      const px = n.x - cam;
+      X.plate(ctx, px - 24, FLOOR + 2, 49, 9, CAS.goldD, '#ffe9a8', '#4a3410', 2);
+      F.draw(ctx, n.name, px, FLOOR + 4, '#2a1c06', { center: true, shadow: false });
+      if (st.t > 0) {
         ctx.globalAlpha = 0.16 + Math.sin(t * 7) * 0.06;
         X.blob(ctx, x, FLOOR - K.h * 0.5, 22, 26, CAS.gold);
         ctx.globalAlpha = 1;
       }
     }
   }
-  function updateNPCs(dt) {
-    for (const k in NPC_STATE) NPC_STATE[k].t = Math.max(0, NPC_STATE[k].t - dt);
+
+  /* Their speech goes on last, over the top of the room, like the crowd's. */
+  function drawNPCSay(ctx, t, cam) {
+    for (const n of NPCS) {
+      if (n.deck !== cdeck()) continue;
+      const st = NPC_STATE[n.id];
+      if (!st || !st.say) continue;
+      const K = AH.KIN[npcKin(n.kin)];
+      sayBubble(ctx, st.x - cam, FLOOR - K.h - 2, st.say, st.sayT, st.sayMax, CAS.gold, null, t);
+    }
   }
 
   /* ================================================================ THE ADVANCE
@@ -22751,6 +23361,13 @@ window.PD = window.PD || {};
     if (!g.save.seen.loan) {
       g.save.seen.loan = 1;
       g.save.thots = (g.save.thots || 0) + 40;
+      /* THE FIRST ONE. He does not send a letter. The whole point of the shark
+         is that at some stage he stops being a voice on a watch. */
+      P.lock = Math.max(P.lock, 2.6);
+      PD.chum.bite(g, 'loan');
+    } else if ((g.save.debt || 0) > 4000000 && U.chance(0.34)) {
+      P.lock = Math.max(P.lock, 2.6);
+      PD.chum.bite(g, 'late');
     }
     g.saveGame();
   }
@@ -22877,6 +23494,7 @@ window.PD = window.PD || {};
         X.blob(ctx, hx, FLOOR - 26 - U.hash2(i, 11) * 44, 26, 9, '#c9bce8');
         ctx.globalAlpha = 1;
       }
+      drawNPCSay(ctx, t, cam);
       return;
     }
 
@@ -22910,6 +23528,7 @@ window.PD = window.PD || {};
     drawWin(ctx, t, cam);
     drawNPCs(ctx, g, t, cam);
     drawCry(ctx, cam);
+    drawNPCSay(ctx, t, cam);
     const nx = chatNext();
     if (nx && nx.at < 0.55 && !nx.who.say && !nx.who.emote) {
       const K = AH.KIN[nx.who.k % AH.KIN.length];
@@ -23437,7 +24056,8 @@ window.PD = window.PD || {};
     const top = y + bob;
     kinShadow(ctx, x, y, K);
     const moving = Math.abs(c.vx) > 1 || c.dance > 0;
-    const face = c.kiss > 0 ? 4 : (c.blink < 0 ? 5 : (c.say ? 3 : (moving ? (Math.floor(c.t * fast * 0.6) % 2 ? 1 : 2) : 0)));
+    const face = c.cheer > 0 ? 6
+      : (c.kiss > 0 ? 4 : (c.blink < 0 ? 5 : (c.say ? 3 : (moving ? (Math.floor(c.t * fast * 0.6) % 2 ? 1 : 2) : 0))));
     AH.blit(ctx, AH.S[K.key], face, x + lean, top, c.face < 0);
     // whatever they came in with, still in a tentacle
     if (c.drink >= 0 && c.kiss <= 0) {
@@ -23950,7 +24570,7 @@ window.PD = window.PD || {};
     TRASH, CLUB_X, CLUB_SPOTS, CLUBBERS, moonClean, trashLeft, sweep, goClub, leaveClub, spots, nearest, use,
     playCards, playRoulette, CARD, ROU, POKER_X, ROU_X, JACK_X, BAR_X, CAGE_X,
     vipTier, VIP, salonOpen, ROPE_X, CRAPS_X, STAGE_X, BACC_X, SONGS,
-    clubW, CDECKS, LIFT_X, rideLift, NPCS, MEGA, MEGA_X, CLAW_X, LOAN_X, PRIZE_X, CRY,
+    clubW, CDECKS, LIFT_X, rideLift, NPCS, NPC_STATE, talkTo, MEGA, MEGA_X, CLAW_X, LOAN_X, PRIZE_X, CRY,
     goHub, leaveHub, HUB, HUB_W, DECK_Y, STALLS };
 })(window.PD);
 
@@ -24502,6 +25122,7 @@ window.PD = window.PD || {};
   g.decant = function (slot) {
     loadGame(slot);
     startBody(g.save.bodyIndex || 0, false);
+    tutCheckLegacy(g);
     if (!g.save.seenIntro) { g.player.docked = true; PD.chum.enterIntro(g); }
     else dock(true);
   };
@@ -24589,9 +25210,127 @@ window.PD = window.PD || {};
      is said in the world -- a floating number, a sign on a building, a light
      that changes colour. These stay as no-ops so callers read cleanly. */
   function toast() {}
+  /* ====================================================== THE FORCED TUTORIAL
+     The old one was a row of little hint cards that came and went on a timer
+     and could be ignored from beginning to end, which meant people arrived in
+     the casino without having worked out that you hold a direction to dig.
+
+     This one does not go away. One step is up at a time, in a card at the top
+     of the screen, and it stays up until you have DONE the thing -- the game
+     watches for the action rather than for a keypress, so pressing the key and
+     not moving does not count. It also gates: you cannot dock the ship out of
+     your first dive until the sack has something in it, because leaving with
+     an empty sack is the one mistake that teaches you nothing.
+
+     Five steps and it is over for good, remembered in the save. */
+  const TUT = [
+    { id: 'move', key: ['arrowR'], text: 'WALK', sub: 'A AND D, OR THE ARROWS' },
+    { id: 'dig',  key: ['arrowD', 'drill'], text: 'HOLD DOWN TO DIG', sub: 'S OR THE DOWN ARROW' },
+    { id: 'sack', key: ['ore', 'cargo'], text: 'FILL THE SACK', sub: 'DIG OUT FIVE MORE' },
+    { id: 'ship', key: ['home'], text: 'BACK TO THE SHIP', sub: 'STAND UNDER IT AND PRESS E' },
+    { id: 'sell', key: ['coin'], text: 'SELL WHAT YOU DUG', sub: 'THE COMPUTER IN THE HOUSE' }
+  ];
+  const TS = { step: 0, t: 0, flash: 0, done: 0, movedFrom: null, minedAt: 0, shown: 0 };
+
+  /* Anybody who was already playing before this existed does not get taught to
+     walk. A save with money in it has plainly worked the controls out. */
+  function tutCheckLegacy(g2) {
+    if (!g2.save.seen) g2.save.seen = {};
+    if (g2.save.seen.tut) { TS.done = 1; return; }
+    if ((g2.save.totalEarned || 0) > 0 || (g2.save.totalMined || 0) > 12 || (g2.save.story || 0) > 0) {
+      g2.save.seen.tut = 1; TS.done = 1;
+    }
+  }
+  function tutStep() { return TS.done ? null : TUT[TS.step]; }
+  function tutDone(g2) { return !!(g2.save.seen && g2.save.seen.tut); }
+
+  function tutAdvance() {
+    TS.step++;
+    TS.flash = 1;
+    TS.t = 0;
+    // snapshot the counter the next step measures against
+    TS.minedAt = g.save.totalMined;
+    A.sfx.tone(880, { type: 'triangle', to: 1320, dur: 0.14, vol: 0.07 });
+    if (TS.step >= TUT.length) {
+      TS.done = 1;
+      g.save.seen.tut = 1;
+      saveGame();
+      A.sfx.fanfare && A.sfx.fanfare();
+    }
+  }
+
+  /* Watch for the ACTION, not the key. Holding right against a wall is not
+     walking and does not tick the box. */
+  function tutUpdate(dt) {
+    if (TS.done || tutDone(g)) { TS.done = 1; return; }
+    TS.t += dt;
+    TS.flash = Math.max(0, TS.flash - dt * 2);
+    TS.warnT = Math.max(0, (TS.warnT || 0) - dt);
+    const st = TUT[TS.step];
+    if (!st) return;
+    const p = g.player;
+    if (st.id === 'move') {
+      if (g.state !== 'play' || !p || p.docked) return;
+      if (TS.movedFrom === null) TS.movedFrom = p.x;
+      if (Math.abs(p.x - TS.movedFrom) > 26) tutAdvance();
+    } else if (st.id === 'dig') {
+      if (g.save.totalMined > TS.minedAt) tutAdvance();
+    } else if (st.id === 'sack') {
+      if (g.save.totalMined >= TS.minedAt + 6) tutAdvance();
+    } else if (st.id === 'ship') {
+      if (p && p.docked && g.state !== 'play') tutAdvance();
+      else if (p && p.docked) tutAdvance();
+    } else if (st.id === 'sell') {
+      if (g.save.totalEarned > 0) tutAdvance();
+    }
+  }
+
+  /* The gate. Until the sack has something in it, the ship will not take you
+     home -- he says so, and he is right. */
+  function tutBlocksDock() {
+    if (TS.done || tutDone(g)) return false;
+    return TUT[TS.step] && (TUT[TS.step].id === 'dig' || TUT[TS.step].id === 'sack');
+  }
+  function tutWarn(msg) { TS.warn = msg; TS.warnT = 2.4; }
+
+  function tutDraw(ctx) {
+    if (TS.done || tutDone(g)) return;
+    const st = TUT[TS.step];
+    if (!st) return;
+    if (g.state !== 'play' && g.state !== 'home' && g.state !== 'desk') return;
+    // the first two steps are about the dig and have no business up on the moon
+    if (g.state !== 'play' && (st.id === 'move' || st.id === 'dig' || st.id === 'sack')) return;
+
+    const pulse = 0.5 + 0.5 * Math.sin(g.time * 3.4);
+    const warn = TS.warnT > 0 ? TS.warn : null;
+    const sub = warn || st.sub;
+    const w = Math.max(F.width(st.text, 2), F.width(sub, 1)) + 44;
+    const h = 32;
+    const x = Math.round((VW - w) / 2), y = 8 + (TS.flash > 0 ? Math.round(TS.flash * 4) : 0);
+    PD.pxd.plate(ctx, x - 2, y - 2, w + 4, h + 4, '#0d0918', null, null, 5);
+    PD.pxd.plate(ctx, x, y, w, h, '#1a1430', '#2e2450', '#0a0614', 4);
+    PD.pxd.rect(ctx, x + 4, y, w - 8, 2, TS.flash > 0 ? '#8affa0' : '#ffd34d');
+    ctx.globalAlpha = 0.14 + pulse * 0.1;
+    PD.pxd.rect(ctx, x, y, w, h, '#ffd34d');
+    ctx.globalAlpha = 1;
+    // the key glyphs on the left of it
+    for (let i = 0; i < st.key.length; i++) {
+      PD.glyph.draw(ctx, st.key[i], x + 5 + i * 15, y + 9, '#ffd34d', '#c2932a');
+    }
+    const tx = x + 8 + st.key.length * 15;
+    F.draw(ctx, st.text, tx, y + 5, '#ffe9a8', { scale: 2, shadow: '#0a0614' });
+    F.draw(ctx, sub, tx, y + 22, warn ? '#ff5a4d' : '#8a84b0', { shadow: false });
+    // and how far through it you are
+    for (let i = 0; i < TUT.length; i++) {
+      PD.pxd.rect(ctx, x + w - 8 - (TUT.length - i) * 6, y + h - 6, 4, 3,
+        i < TS.step ? '#8affa0' : (i === TS.step ? '#ffd34d' : '#3a3152'));
+    }
+  }
+
   function hint() {}
   g.hint = hint;
   g.objective = function () { return null; };
+  g.tut = TS;
 
   /* -------------------------------------------------------------- world setup */
   function startBody(index, freshPlayer) {
@@ -24989,6 +25728,12 @@ window.PD = window.PD || {};
      after being eaten. */
   function dock(teleport) {
     const p = g.player;
+    /* THE GATE. Your first dive does not end with an empty sack. */
+    if (tutBlocksDock() && !teleport) {
+      A.sfx.deny();
+      tutWarn('NOT WITH AN EMPTY SACK');
+      return;
+    }
     if (teleport && g.ship) { p.x = g.ship.x; p.y = g.ship.y + 34; p.vx = p.vy = 0; }
     p.docked = true;
     p.o2 = p.stat('oxygen');
@@ -25257,6 +26002,7 @@ window.PD = window.PD || {};
 
     g.uiBlocking = g.state !== 'play';
     if (g.state !== 'intro' && g.state !== 'travel') PD.chum.update(dt, g);
+    tutUpdate(dt);
     handleStateKeys();
 
     // Zaz keeps working in every state where time passes
@@ -25710,6 +26456,7 @@ window.PD = window.PD || {};
         }
       }
       PD.home.drawOverlay(ctx, g, g.time);
+      tutDraw(ctx);
       PD.touch.draw(ctx, PD.home.touchMode(), g);
       UI.endFrame();
       blit();
@@ -25775,6 +26522,7 @@ window.PD = window.PD || {};
 
     if (g.state !== 'victory' && g.state !== 'ending') UI.hud(ctx, g);
     UI.sellSplash(ctx, g);
+    tutDraw(ctx);
 
     if (g.state === 'pause') {
       const r = UI.pause(ctx, g);

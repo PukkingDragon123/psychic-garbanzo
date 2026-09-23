@@ -1197,18 +1197,46 @@
     ctx.fillStyle = 'rgba(8,4,18,0.7)';
     ctx.fillRect(0, 0, VW, VH);
     const m = PD.input.mouse;
+    const BY = VH - 40;                       // the row of buttons, down out of the way
     const keys = [
       { g: 'play', x: VW / 2 - 78, col: '#2f7a4a', id: 'resume' },
       { g: A.state.sfx ? 'check' : 'cross', x: VW / 2 - 26, col: '#3f6ea8', id: 'sfx' },
       { g: 'star', x: VW / 2 + 26, col: A.state.music ? '#6b3fb5' : '#2a1c4a', id: 'music' },
       { g: 'home', x: VW / 2 + 78, col: '#8a2f4a', id: 'ship' }
     ];
+    /* WHAT THE KEYS DO. It used to be four hexagons and nothing else, and the
+       only place the controls were written down was a line in a readme
+       nobody has. Pause is where people go when they do not know what to
+       press, so this is where it says. */
+    const CTRL = [
+      ['arrowR', 'A D  /  ARROWS', 'WALK'],
+      ['arrowD', 'S  /  DOWN', 'DIG DOWN'],
+      ['drill', 'HOLD A DIRECTION', 'DIG THAT WAY'],
+      ['hand', 'E  /  SPACE', 'USE AND TALK'],
+      ['up', 'W  /  UP', 'THRUST'],
+      ['gun', 'J  /  CLICK', 'SHOOT'],
+      ['dash', 'K  /  SHIFT', 'DASH'],
+      ['clock', 'ESC  /  P', 'THIS SCREEN']
+    ];
+    const cw = 200, ch = CTRL.length * 13 + 22;
+    const cx0 = Math.round((VW - cw) / 2), cy0 = 22;
+    PD.pxd.plate(ctx, cx0 - 2, cy0 - 2, cw + 4, ch + 4, '#0d0918', null, null, 5);
+    PD.pxd.plate(ctx, cx0, cy0, cw, ch, '#16122a', '#2a2448', '#0a0614', 4);
+    PD.pxd.rect(ctx, cx0 + 4, cy0, cw - 8, 2, '#ffd34d');
+    F.draw(ctx, 'CONTROLS', cx0 + cw / 2, cy0 + 5, '#ffd34d', { center: true, shadow: '#0a0614' });
+    for (let i = 0; i < CTRL.length; i++) {
+      const yy = cy0 + 17 + i * 13;
+      PD.glyph.draw(ctx, CTRL[i][0], cx0 + 5, yy - 3, '#8a84b0', '#4a4470');
+      F.draw(ctx, CTRL[i][1], cx0 + 22, yy, '#e8e2f4', { shadow: false });
+      F.draw(ctx, CTRL[i][2], cx0 + cw - 6, yy, '#8a84b0', { right: true, shadow: false });
+    }
+
     const r = { resume: false, ship: false };
     for (const k of keys) {
-      const hot = m.inside && U.dist(m.x, m.y, k.x, VH / 2) < 20;
-      PD.glyph.hex(ctx, k.x, VH / 2, 20 + (hot ? 2 : 0), k.col, hot ? '#ffffff' : COL.lineHi, 1.5);
-      if (k.g === 'play') { ctx.save(); ctx.translate(k.x + 2, VH / 2); ctx.rotate(-Math.PI / 2); PD.glyph.draw(ctx, 'play', -7, -7, '#ffffff', k.col); ctx.restore(); }
-      else PD.glyph.draw(ctx, k.g, k.x - 7, VH / 2 - 7, '#ffffff', k.col);
+      const hot = m.inside && U.dist(m.x, m.y, k.x, BY) < 20;
+      PD.glyph.hex(ctx, k.x, BY, 20 + (hot ? 2 : 0), k.col, hot ? '#ffffff' : COL.lineHi, 1.5);
+      if (k.g === 'play') { ctx.save(); ctx.translate(k.x + 2, BY); ctx.rotate(-Math.PI / 2); PD.glyph.draw(ctx, 'play', -7, -7, '#ffffff', k.col); ctx.restore(); }
+      else PD.glyph.draw(ctx, k.g, k.x - 7, BY - 7, '#ffffff', k.col);
       if (hot && m.leftPressed) {
         A.sfx.click();
         if (k.id === 'resume') r.resume = true;

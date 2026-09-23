@@ -153,6 +153,7 @@
   g.decant = function (slot) {
     loadGame(slot);
     startBody(g.save.bodyIndex || 0, false);
+    tutCheckLegacy(g);
     if (!g.save.seenIntro) { g.player.docked = true; PD.chum.enterIntro(g); }
     else dock(true);
   };
@@ -240,9 +241,127 @@
      is said in the world -- a floating number, a sign on a building, a light
      that changes colour. These stay as no-ops so callers read cleanly. */
   function toast() {}
+  /* ====================================================== THE FORCED TUTORIAL
+     The old one was a row of little hint cards that came and went on a timer
+     and could be ignored from beginning to end, which meant people arrived in
+     the casino without having worked out that you hold a direction to dig.
+
+     This one does not go away. One step is up at a time, in a card at the top
+     of the screen, and it stays up until you have DONE the thing -- the game
+     watches for the action rather than for a keypress, so pressing the key and
+     not moving does not count. It also gates: you cannot dock the ship out of
+     your first dive until the sack has something in it, because leaving with
+     an empty sack is the one mistake that teaches you nothing.
+
+     Five steps and it is over for good, remembered in the save. */
+  const TUT = [
+    { id: 'move', key: ['arrowR'], text: 'WALK', sub: 'A AND D, OR THE ARROWS' },
+    { id: 'dig',  key: ['arrowD', 'drill'], text: 'HOLD DOWN TO DIG', sub: 'S OR THE DOWN ARROW' },
+    { id: 'sack', key: ['ore', 'cargo'], text: 'FILL THE SACK', sub: 'DIG OUT FIVE MORE' },
+    { id: 'ship', key: ['home'], text: 'BACK TO THE SHIP', sub: 'STAND UNDER IT AND PRESS E' },
+    { id: 'sell', key: ['coin'], text: 'SELL WHAT YOU DUG', sub: 'THE COMPUTER IN THE HOUSE' }
+  ];
+  const TS = { step: 0, t: 0, flash: 0, done: 0, movedFrom: null, minedAt: 0, shown: 0 };
+
+  /* Anybody who was already playing before this existed does not get taught to
+     walk. A save with money in it has plainly worked the controls out. */
+  function tutCheckLegacy(g2) {
+    if (!g2.save.seen) g2.save.seen = {};
+    if (g2.save.seen.tut) { TS.done = 1; return; }
+    if ((g2.save.totalEarned || 0) > 0 || (g2.save.totalMined || 0) > 12 || (g2.save.story || 0) > 0) {
+      g2.save.seen.tut = 1; TS.done = 1;
+    }
+  }
+  function tutStep() { return TS.done ? null : TUT[TS.step]; }
+  function tutDone(g2) { return !!(g2.save.seen && g2.save.seen.tut); }
+
+  function tutAdvance() {
+    TS.step++;
+    TS.flash = 1;
+    TS.t = 0;
+    // snapshot the counter the next step measures against
+    TS.minedAt = g.save.totalMined;
+    A.sfx.tone(880, { type: 'triangle', to: 1320, dur: 0.14, vol: 0.07 });
+    if (TS.step >= TUT.length) {
+      TS.done = 1;
+      g.save.seen.tut = 1;
+      saveGame();
+      A.sfx.fanfare && A.sfx.fanfare();
+    }
+  }
+
+  /* Watch for the ACTION, not the key. Holding right against a wall is not
+     walking and does not tick the box. */
+  function tutUpdate(dt) {
+    if (TS.done || tutDone(g)) { TS.done = 1; return; }
+    TS.t += dt;
+    TS.flash = Math.max(0, TS.flash - dt * 2);
+    TS.warnT = Math.max(0, (TS.warnT || 0) - dt);
+    const st = TUT[TS.step];
+    if (!st) return;
+    const p = g.player;
+    if (st.id === 'move') {
+      if (g.state !== 'play' || !p || p.docked) return;
+      if (TS.movedFrom === null) TS.movedFrom = p.x;
+      if (Math.abs(p.x - TS.movedFrom) > 26) tutAdvance();
+    } else if (st.id === 'dig') {
+      if (g.save.totalMined > TS.minedAt) tutAdvance();
+    } else if (st.id === 'sack') {
+      if (g.save.totalMined >= TS.minedAt + 6) tutAdvance();
+    } else if (st.id === 'ship') {
+      if (p && p.docked && g.state !== 'play') tutAdvance();
+      else if (p && p.docked) tutAdvance();
+    } else if (st.id === 'sell') {
+      if (g.save.totalEarned > 0) tutAdvance();
+    }
+  }
+
+  /* The gate. Until the sack has something in it, the ship will not take you
+     home -- he says so, and he is right. */
+  function tutBlocksDock() {
+    if (TS.done || tutDone(g)) return false;
+    return TUT[TS.step] && (TUT[TS.step].id === 'dig' || TUT[TS.step].id === 'sack');
+  }
+  function tutWarn(msg) { TS.warn = msg; TS.warnT = 2.4; }
+
+  function tutDraw(ctx) {
+    if (TS.done || tutDone(g)) return;
+    const st = TUT[TS.step];
+    if (!st) return;
+    if (g.state !== 'play' && g.state !== 'home' && g.state !== 'desk') return;
+    // the first two steps are about the dig and have no business up on the moon
+    if (g.state !== 'play' && (st.id === 'move' || st.id === 'dig' || st.id === 'sack')) return;
+
+    const pulse = 0.5 + 0.5 * Math.sin(g.time * 3.4);
+    const warn = TS.warnT > 0 ? TS.warn : null;
+    const sub = warn || st.sub;
+    const w = Math.max(F.width(st.text, 2), F.width(sub, 1)) + 44;
+    const h = 32;
+    const x = Math.round((VW - w) / 2), y = 8 + (TS.flash > 0 ? Math.round(TS.flash * 4) : 0);
+    PD.pxd.plate(ctx, x - 2, y - 2, w + 4, h + 4, '#0d0918', null, null, 5);
+    PD.pxd.plate(ctx, x, y, w, h, '#1a1430', '#2e2450', '#0a0614', 4);
+    PD.pxd.rect(ctx, x + 4, y, w - 8, 2, TS.flash > 0 ? '#8affa0' : '#ffd34d');
+    ctx.globalAlpha = 0.14 + pulse * 0.1;
+    PD.pxd.rect(ctx, x, y, w, h, '#ffd34d');
+    ctx.globalAlpha = 1;
+    // the key glyphs on the left of it
+    for (let i = 0; i < st.key.length; i++) {
+      PD.glyph.draw(ctx, st.key[i], x + 5 + i * 15, y + 9, '#ffd34d', '#c2932a');
+    }
+    const tx = x + 8 + st.key.length * 15;
+    F.draw(ctx, st.text, tx, y + 5, '#ffe9a8', { scale: 2, shadow: '#0a0614' });
+    F.draw(ctx, sub, tx, y + 22, warn ? '#ff5a4d' : '#8a84b0', { shadow: false });
+    // and how far through it you are
+    for (let i = 0; i < TUT.length; i++) {
+      PD.pxd.rect(ctx, x + w - 8 - (TUT.length - i) * 6, y + h - 6, 4, 3,
+        i < TS.step ? '#8affa0' : (i === TS.step ? '#ffd34d' : '#3a3152'));
+    }
+  }
+
   function hint() {}
   g.hint = hint;
   g.objective = function () { return null; };
+  g.tut = TS;
 
   /* -------------------------------------------------------------- world setup */
   function startBody(index, freshPlayer) {
@@ -640,6 +759,12 @@
      after being eaten. */
   function dock(teleport) {
     const p = g.player;
+    /* THE GATE. Your first dive does not end with an empty sack. */
+    if (tutBlocksDock() && !teleport) {
+      A.sfx.deny();
+      tutWarn('NOT WITH AN EMPTY SACK');
+      return;
+    }
     if (teleport && g.ship) { p.x = g.ship.x; p.y = g.ship.y + 34; p.vx = p.vy = 0; }
     p.docked = true;
     p.o2 = p.stat('oxygen');
@@ -908,6 +1033,7 @@
 
     g.uiBlocking = g.state !== 'play';
     if (g.state !== 'intro' && g.state !== 'travel') PD.chum.update(dt, g);
+    tutUpdate(dt);
     handleStateKeys();
 
     // Zaz keeps working in every state where time passes
@@ -1361,6 +1487,7 @@
         }
       }
       PD.home.drawOverlay(ctx, g, g.time);
+      tutDraw(ctx);
       PD.touch.draw(ctx, PD.home.touchMode(), g);
       UI.endFrame();
       blit();
@@ -1426,6 +1553,7 @@
 
     if (g.state !== 'victory' && g.state !== 'ending') UI.hud(ctx, g);
     UI.sellSplash(ctx, g);
+    tutDraw(ctx);
 
     if (g.state === 'pause') {
       const r = UI.pause(ctx, g);

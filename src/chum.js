@@ -19,6 +19,7 @@
   const X = PD.pxd;
   const F = PD.font;
   const A = PD.audio;
+  const FX = PD.fx;
   const pix = PD.pix;
 
   const VW = 480, VH = 270;
@@ -493,7 +494,227 @@
     }
   }
 
-  function active() { return !!S.call; }
+  /* ============================================================== THE BITE
+     Mr Chum is a shark. For eleven hours of this game he is a small round
+     shark in a suit who makes jokes about your air supply, and the whole time
+     the joke is that he is a shark. This is the moment the joke stops.
+
+     He stops pacing, the room goes out, and he comes at the camera: the head
+     grows until it is bigger than the screen, the jaws open past anything a
+     face that size should open, and they shut. It is one piece of drawing
+     scaled up rather than a separate sprite, so he is recognisably HIM the
+     whole way in -- same skin, same teeth, same little collar -- right up to
+     the point where the collar is eight feet across.
+
+     Nothing about it is a particle, and nothing about it survives the frame it
+     ends on. */
+  const BITE = { t: 0, max: 0, why: '', onEnd: null, said: 0 };
+  const BITE_WORD = {
+    loan: 'YOU SIGNED IT',
+    late: 'YOU ARE LATE',
+    broke: 'THERE IS NOTHING LEFT',
+    warn: 'DO NOT MAKE ME COME OUT THERE',
+    core: 'GOOD. AGAIN.'
+  };
+
+  function bite(g, why, onEnd) {
+    if (BITE.t > 0) return;
+    BITE.why = why || 'warn';
+    BITE.t = BITE.max = 2.5;
+    BITE.onEnd = onEnd || null;
+    BITE.said = 0;
+    A.sfx.rumble && A.sfx.rumble();
+    A.sfx.tone(180, { type: 'sawtooth', to: 60, dur: 0.5, vol: 0.1 });
+    FX.shake(0.5);
+  }
+  function biting() { return BITE.t > 0; }
+
+  function updateBite(dt, g) {
+    if (BITE.t <= 0) return;
+    const was = BITE.t;
+    BITE.t = Math.max(0, BITE.t - dt);
+    const q = 1 - BITE.t / BITE.max;
+    // the snap, once, at the moment the jaws meet
+    if (!BITE.said && q > 0.52) {
+      BITE.said = 1;
+      A.sfx.punch && A.sfx.punch();
+      A.sfx.tone(90, { type: 'square', to: 40, dur: 0.22, vol: 0.14 });
+      A.sfx.crack && A.sfx.crack();
+      FX.shake(1.1);
+      FX.hitStop(0.1);
+      FX.flash(0.6, '#ffffff');
+    }
+    if (was > 0 && BITE.t <= 0 && BITE.onEnd) { const f = BITE.onEnd; BITE.onEnd = null; f(g); }
+  }
+
+  /* ONE HEAD, ANY SIZE. `r` is the half-width of the snout in pixels, `open`
+     is how far the jaws are apart (0 shut, 1 as wide as it goes), and every
+     other number in here is a fraction of `r`, so the same code draws him at
+     nine pixels across and at nine hundred. */
+  function sharkHead(ctx, cx, cy, r, open, t, skin, skinD, teeth) {
+    const gape = open * r * 1.15;
+    const snout = r * 1.35;
+    const gum = '#8a2a44', throat = '#2a0a16';
+
+    /* THE THROAT, first, because everything else closes over it. */
+    X.poly(ctx, [[cx - r * 0.86, cy - gape * 0.2], [cx + r * 0.86, cy - gape * 0.2],
+      [cx + r * 0.6, cy + gape + r * 0.1], [cx - r * 0.6, cy + gape + r * 0.1]], throat);
+    ctx.globalAlpha = 0.5;
+    X.blob(ctx, cx, cy + gape * 0.6, r * 0.42, gape * 0.5 + 2, '#12040a');
+    ctx.globalAlpha = 1;
+    // the tongue, down in it
+    X.blob(ctx, cx, cy + gape * 0.85, r * 0.4, gape * 0.3 + 2, '#6a1830');
+
+    /* THE LOWER JAW. */
+    const ly = cy + gape;
+    X.poly(ctx, [[cx - r * 1.02, ly - r * 0.1], [cx + r * 1.02, ly - r * 0.1],
+      [cx + r * 0.78, ly + r * 0.9], [cx - r * 0.78, ly + r * 0.9]], skinD);
+    X.poly(ctx, [[cx - r * 0.95, ly - r * 0.06], [cx + r * 0.95, ly - r * 0.06],
+      [cx + r * 0.74, ly + r * 0.5], [cx - r * 0.74, ly + r * 0.5]], skin);
+    X.rect(ctx, cx - r * 0.98, ly - r * 0.1, r * 1.96, Math.max(1, r * 0.08), gum);
+    X.rect(ctx, cx - r * 0.98, ly - r * 0.1, r * 1.96, Math.max(1, r * 0.03), '#b04060');
+    // the bottom row
+    const nb = Math.max(4, Math.round(r / 9));
+    for (let i = 0; i < nb; i++) {
+      const f = (i + 0.5) / nb;
+      const tx = cx - r * 0.9 + f * r * 1.8;
+      const tw = Math.max(2, r * 0.13 * (1.25 - Math.abs(f - 0.5)));
+      const th = Math.min(Math.max(3, r * 0.3 * (1.3 - Math.abs(f - 0.5) * 1.2)), gape + r * 0.06);
+      X.poly(ctx, [[tx - tw, ly + r * 0.02], [tx + tw, ly + r * 0.02], [tx, ly - th]], teeth);
+      X.poly(ctx, [[tx - tw * 0.4, ly + r * 0.02], [tx + tw * 0.2, ly + r * 0.02], [tx, ly - th * 0.7]], '#ffffff');
+    }
+
+    /* THE UPPER JAW AND THE WHOLE HEAD BEHIND IT. */
+    const uy = cy - gape * 0.35;
+    X.poly(ctx, [[cx - r * 1.12, uy - r * 1.5], [cx + r * 1.12, uy - r * 1.5],
+      [cx + r * 1.04, uy + r * 0.06], [cx - r * 1.04, uy + r * 0.06]], skinD);
+    // the snout, a wedge coming at you
+    X.poly(ctx, [[cx - r * 1.04, uy - r * 0.9], [cx + r * 1.04, uy - r * 0.9],
+      [cx + snout * 0.58, uy + r * 0.04], [cx - snout * 0.58, uy + r * 0.04]], skin);
+    ctx.globalAlpha = 0.25;
+    X.poly(ctx, [[cx - r * 0.9, uy - r * 1.4], [cx + r * 0.2, uy - r * 1.4],
+      [cx - r * 0.2, uy - r * 0.2], [cx - r * 0.8, uy - r * 0.2]], '#ffffff');
+    ctx.globalAlpha = 1;
+    X.rect(ctx, cx - r * 1.02, uy - r * 0.08, r * 2.04, Math.max(1, r * 0.09), gum);
+    X.rect(ctx, cx - r * 1.02, uy - r * 0.08 + Math.max(1, r * 0.07), r * 2.04, Math.max(1, r * 0.02), '#5e1428');
+    // the top row, longer than the bottom
+    const nt = Math.max(5, Math.round(r / 7.5));
+    for (let i = 0; i < nt; i++) {
+      const f = (i + 0.5) / nt;
+      const tx = cx - r * 0.96 + f * r * 1.92;
+      const tw = Math.max(2, r * 0.14 * (1.3 - Math.abs(f - 0.5)));
+      const th = Math.min(Math.max(4, r * 0.4 * (1.35 - Math.abs(f - 0.5) * 1.1)), gape + r * 0.09);
+      X.poly(ctx, [[tx - tw, uy - r * 0.02], [tx + tw, uy - r * 0.02], [tx, uy + th]], teeth);
+      X.poly(ctx, [[tx - tw * 0.4, uy - r * 0.02], [tx + tw * 0.2, uy - r * 0.02], [tx, uy + th * 0.7]], '#ffffff');
+    }
+    // where the two jaws meet, when they have
+    if (open < 0.2) {
+      ctx.globalAlpha = 0.5 * (1 - open * 5);
+      X.rect(ctx, cx - r * 0.98, cy + r * 0.02, r * 1.96, Math.max(1, r * 0.02), '#2a0a16');
+      ctx.globalAlpha = 1;
+    }
+    // the nostrils and the seam down the snout
+    X.blob(ctx, cx - r * 0.34, uy - r * 0.62, Math.max(1, r * 0.06), Math.max(1, r * 0.04), skinD);
+    X.blob(ctx, cx + r * 0.34, uy - r * 0.62, Math.max(1, r * 0.06), Math.max(1, r * 0.04), skinD);
+
+    /* THE EYES. Black, and they roll back at the moment of the bite, which is
+       the one detail everybody knows about a shark. */
+    const roll = U.clamp((open - 0.55) * 3, 0, 1);
+    for (const sd of [-1, 1]) {
+      const ex = cx + sd * r * 0.82, ey = uy - r * 1.0;
+      X.blob(ctx, ex, ey, r * 0.2, r * 0.19, '#f2ecff');
+      X.blob(ctx, ex, ey + r * 0.06 * (1 - roll), r * 0.13, r * 0.13, '#0d0714');
+      if (roll < 0.9) X.blob(ctx, ex - r * 0.05, ey - r * 0.04, r * 0.05, r * 0.04, '#ffffff');
+      // the membrane coming across
+      if (roll > 0) {
+        X.poly(ctx, [[ex - r * 0.22, ey - r * 0.22], [ex + r * 0.22, ey - r * 0.22],
+          [ex + r * 0.22, ey - r * 0.22 + r * 0.44 * roll], [ex - r * 0.22, ey - r * 0.22 + r * 0.44 * roll]], '#cfc2e0');
+      }
+    }
+    // gill slits down the side of him
+    for (let i = 0; i < 4; i++) {
+      for (const sd of [-1, 1]) {
+        X.rect(ctx, cx + sd * (r * 1.02 + i * r * 0.1) - 1, uy - r * 1.3, Math.max(1, r * 0.04), r * 0.5, skinD);
+      }
+    }
+    /* AND THE COLLAR. He is wearing a suit through all of this. */
+    const cyy = ly + r * 0.82;
+    X.poly(ctx, [[cx - r * 1.3, cyy], [cx + r * 1.3, cyy],
+      [cx + r * 1.5, cyy + r * 0.7], [cx - r * 1.5, cyy + r * 0.7]], '#2a2438');
+    X.poly(ctx, [[cx - r * 0.5, cyy], [cx + r * 0.5, cyy], [cx, cyy + r * 0.55]], '#e8e2f4');
+    X.poly(ctx, [[cx - r * 0.2, cyy + r * 0.06], [cx + r * 0.2, cyy + r * 0.06],
+      [cx + r * 0.1, cyy + r * 0.6], [cx - r * 0.1, cyy + r * 0.6]], '#9e1730');
+  }
+
+  function drawBite(ctx, g, t) {
+    if (BITE.t <= 0) return;
+    const q = 1 - BITE.t / BITE.max;
+    const skin = REAL.skin, skinD = REAL.skinD, teeth = REAL.teeth;
+
+    /* Four movements: he rears back, he comes at you, the jaws shut, and then
+       there is a shark's face where the room used to be. */
+    /* The sizes are chosen so the HELD pose is a readable shark face -- eyes
+       near the top of the frame, jaws across the middle, collar off the bottom
+       -- rather than a screenful of tooth. The first pass went to three
+       hundred and the whole screen ended up inside his mouth, which reads as
+       a white rectangle and nothing else. */
+    let r, open, cy;
+    if (q < 0.16) {                                    // WIND UP
+      const k = q / 0.16;
+      r = 26 + k * 22;
+      open = k * 0.45;
+      cy = VH * 0.62 - k * 14;
+    } else if (q < 0.5) {                              // LUNGE
+      const k = (q - 0.16) / 0.34, e = k * k;
+      r = 48 + e * 168;
+      open = 0.45 + k * 0.6;
+      cy = VH * 0.52 + e * 34;
+    } else if (q < 0.58) {                             // SNAP
+      const k = (q - 0.5) / 0.08;
+      r = 216 - k * 42;
+      open = Math.max(0, 1.05 * (1 - k * 1.3));
+      cy = VH * 0.7 + k * 4;
+    } else if (q < 0.86) {                             // HOLD, jaws shut, looking at you
+      const k = (q - 0.58) / 0.28;
+      r = 174 - k * 16;
+      open = 0.015 + Math.abs(Math.sin(k * 11)) * 0.025;
+      cy = VH * 0.73 + k * 2;
+    } else {                                           // and back down the hole
+      const k = (q - 0.86) / 0.14;
+      r = 158 - k * 104;
+      open = 0.02 + k * 0.3;
+      cy = VH * 0.75 - k * 26;
+    }
+
+    // the room goes out behind him
+    const dark = U.clamp(q * 6, 0, 1) * (q > 0.88 ? (1 - q) / 0.12 : 1);
+    ctx.globalAlpha = dark;
+    X.rect(ctx, 0, 0, VW, VH, '#0a0410');
+    ctx.globalAlpha = dark * 0.85;
+    X.rect(ctx, 0, 0, VW, VH, '#0a0410');
+    ctx.globalAlpha = 1;
+    // and a red wash, because this has stopped being funny
+    ctx.globalAlpha = 0.1 + 0.12 * Math.sin(q * 9);
+    X.rect(ctx, 0, 0, VW, VH, '#5e0c1e');
+    ctx.globalAlpha = 1;
+
+    const sway = Math.sin(t * 9) * (q < 0.52 ? 5 : 1.5);
+    sharkHead(ctx, VW / 2 + sway, cy, r, open, t, skin, skinD, teeth);
+
+    /* WHAT HE SAYS THROUGH IT. One line, in his own colour, held over the
+       teeth once they have met. */
+    if (q > 0.58) {
+      const word = BITE_WORD[BITE.why] || BITE_WORD.warn;
+      const fade = U.clamp((q - 0.58) / 0.08, 0, 1) * U.clamp((1 - q) / 0.12, 0, 1);
+      ctx.globalAlpha = fade;
+      let sc = 4;
+      while (sc > 1 && F.width(word, sc) > VW - 40) sc--;
+      F.draw(ctx, word, VW / 2, 12, '#ffd34d', { center: true, scale: sc, shadow: '#0a0410' });
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  function active() { return !!S.call || BITE.t > 0; }
 
   /* What the band plays through the night you lost it. The casino, then the
      rain, then whatever Mr Chum has on in his own house. */
@@ -505,6 +726,8 @@
   }
 
   function update(dt, g) {
+    updateBite(dt, g);
+    if (BITE.t > 0) return;                    // nothing else moves during it
     if (!S.call) return;
     S.t += dt;
     S.pop = Math.min(1, S.pop + dt * 4.5);
@@ -532,7 +755,12 @@
     if (S.chars < line.length) { S.chars = line.length; return; }   // finish the line first
     S.line++; S.chars = 0; S.pop = 0;
     A.sfx.click();
-    if (S.line >= S.lines.length) hangUp();
+    if (S.line >= S.lines.length) {
+      /* Some of these he does not sign off politely. */
+      const angry = S.call === 'debt0' || S.call === 'late' || S.call === 'owe';
+      hangUp();
+      if (angry) bite(g, 'warn');
+    }
   }
 
   /* ------------------------------------------------------------- the bubble
@@ -656,6 +884,7 @@
   }
 
   function draw(ctx, g, t) {
+    if (BITE.t > 0) { drawBite(ctx, g, t); return; }
     if (!S.call) return;
     const gy = groundY(g);
     const a = ensureArt();
@@ -3156,7 +3385,7 @@
 
   PD.chum = {
     enterIntro, updateIntro, drawIntro, enterGamble, B_OF,
-    call, update, draw, active, takeCut, drawDebt, DEBT0, S, IN_S, HS, LESSONS, track, BEATS, DRAG, WET,
+    call, update, draw, active, bite, biting, sharkHead, takeCut, drawDebt, DEBT0, S, IN_S, HS, LESSONS, track, BEATS, DRAG, WET,
     leadStep, drawMini, miniFrame, MS, MW, MH, MCX, MBASE,
     artFor: ensureArt, CW, CH, CCX, CBASE, UNI, CAM, CROWD,
     /* the house style, shared with the room you walk through to get here */

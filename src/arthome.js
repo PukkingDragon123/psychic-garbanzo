@@ -1125,15 +1125,28 @@
      shape their head is, and how the body between them is put together -- and
      they are rolled separately, so a lanky one on bird legs with pincers and a
      long flat head is a different animal from the round one beside him. */
-  const LEGK = ['normal', 'normal', 'digi', 'hoof', 'talon', 'stump', 'stilt', 'skirt', 'wheel'];
+  const LEGK = ['normal', 'normal', 'digi', 'hoof', 'talon', 'stump', 'stilt', 'skirt', 'wheel', 'hover'];
   const ARMK = ['normal', 'normal', 'tentacle', 'claw', 'mitt', 'thin', 'wing', 'stub', 'four'];
-  const HEADK = ['round', 'round', 'dome', 'pear', 'anvil', 'tall', 'wide', 'split', 'egg'];
+  /* Across, down, and how wide the jaw is, as multipliers on the head radius.
+     One table, because the test harness needs the same numbers and a second
+     copy of them went stale the first time a head was added. */
+  const HEAD_PROFILE = {
+    round: [1, 1, 1], dome: [1, 1.04, 1], pear: [0.94, 1.02, 1.16], anvil: [1.14, 0.88, 0.7],
+    tall: [0.84, 1.2, 0.86], wide: [1.24, 0.82, 1.2], split: [1.08, 0.96, 1], egg: [1.02, 1.06, 0.78],
+    beak: [0.9, 1, 0.8]
+  };
+  const HEADK = ['round', 'round', 'dome', 'pear', 'anvil', 'tall', 'wide', 'split', 'egg', 'beak', 'beak'];
   const EYEK = ['row', 'row', 'row', 'row', 'stack', 'tri', 'stalk'];
   const MOUTHK = ['grin', 'grin', 'smirk', 'tusk', 'beak', 'straw', 'mandible', 'lips', 'grill', 'sucker'];
   const CROWNK = ['none', 'antenna', 'antenna', 'horns', 'fin', 'hat', 'tuft', 'ears',
     'mohawk', 'tendrils', 'cap', 'crest', 'quiff', 'bald'];
   const SKINK = ['plain', 'plain', 'speckle', 'scale', 'stripe', 'plate', 'spot', 'glow'];
-  const WEARK = ['vest', 'jacket', 'tank', 'sash', 'coat', 'bare', 'sequin', 'shirt'];
+  /* WHAT HE CAME OUT IN. The long ones matter most: a coat that goes past the
+     knee, a cloak, a full robe -- they change the SILHOUETTE, which is the
+     only thing you can read on somebody standing forty feet away in a dark
+     room, and half a wardrobe of waistcoats never did. */
+  const WEARK = ['vest', 'jacket', 'tank', 'sash', 'coat', 'bare', 'sequin', 'shirt',
+    'longcoat', 'longcoat', 'cloak', 'cloak', 'robe', 'harness', 'poncho'];
   /* What is on his face, which is the single biggest thing that turns a
      generated body into somebody you would recognise again. */
   const HAIRK = ['none', 'none', 'none', 'walrus', 'walrus', 'handlebar', 'pencil',
@@ -1165,6 +1178,10 @@
          line-up: eyewear, jewellery, something lit in the mouth */
       shades: R() < 0.18 ? (R() < 0.4 ? 'visor' : 'specs') : null,
       chain: R() < 0.3, ring: R() < 0.22, smoke: R() < 0.16,
+      /* the working kit: straps, pouches and a bandolier. Everybody in that
+         reference sheet is carrying something, and it is what stops a coat
+         being a coloured rectangle */
+      pouches: R() < 0.44, bandolier: R() < 0.26, strap: R() < 0.34,
       glowCol: hsl(hue + 160 + R() * 120, 84, 62)
     };
     t.clothL = hsl(hue + 140, 34, 66);
@@ -1206,6 +1223,9 @@
     }
     // a wheel is a machine, and machines do not have tentacles for arms
     if (t.legs === 'wheel') { t.arms = pick(['normal', 'claw', 'thin', 'mitt']); t.boots = false; }
+    if (t.legs === 'hover') { t.boots = false; if (t.wear === 'bare') t.wear = 'robe'; }
+    // a beak is a face, so nothing else goes on the front of it
+    if (t.headK === 'beak') { t.mouth = 'beak'; t.hair = 'none'; if (t.crown === 'hat') t.crown = 'brim'; }
     if (t.arms === 'wing' && t.legs === 'skirt') t.legs = 'talon';
     // three eyes in a row across a face this size is a crowd; keep it to two
     // unless the layout is deliberately a stack or a triangle
@@ -1221,10 +1241,7 @@
        one across, one down -- and they are chosen so the pair of them stays
        near enough to one, because the eyes and the mouth are laid out off that
        radius and a head twice as tall would put the mouth on the chest. */
-    const HP = {
-      round: [1, 1, 1], dome: [1, 1.04, 1], pear: [0.94, 1.02, 1.16], anvil: [1.14, 0.88, 0.7],
-      tall: [0.84, 1.2, 0.86], wide: [1.24, 0.82, 1.2], split: [1.08, 0.96, 1], egg: [1.02, 1.06, 0.78]
-    }[t.headK] || [1, 1, 1];
+    const HP = HEAD_PROFILE[t.headK] || [1, 1, 1];
     t.hx = HP[0]; t.hy = HP[1]; t.jaw = HP[2];
     t.eyeSpread = 0.4 * (0.6 + t.hx * 0.4);
     /* THE PROPORTIONS. The old ones were a realistic seven-and-a-half heads
@@ -1235,12 +1252,24 @@
        room full of people. */
     /*          lanky stout normal hulk pear barrel wedge blob */
     const B = { lanky: 0, stout: 1, normal: 2, hulk: 3, pear: 4, barrel: 5, wedge: 6, blob: 7 }[t.build];
-    t.hr = Math.round([13, 15, 14, 14, 14, 13, 13, 16][B] * (0.94 + t.big * 0.1));
-    t.sw = Math.round([9, 13, 11, 15, 12, 14, 17, 15][B] * t.big);
-    t.hw = Math.round([8, 14, 11, 13, 15, 14, 8, 17][B] * t.big);   // hips, which need not match
-    t.th = Math.round([20, 15, 17, 17, 17, 19, 18, 14][B] * t.big);
-    t.lh = Math.round([23, 18, 20, 20, 19, 17, 21, 14][B] * t.big);
-    t.aw = Math.max(4, Math.round([4, 6, 5, 7, 5, 6, 5, 7][B] * t.big));
+    /* STATURE. The thing the whole crowd was missing. `big` only ever moved a
+       body about a fifth either way, so twenty aliens came out twenty aliens
+       tall and the room read as a school photograph. This is a separate roll
+       on the WHOLE animal, head included: a knee-high one standing next to
+       something half again your size is worth more than any amount of paint.
+       Drawn from a table rather than a range, so the small and the enormous
+       actually turn up instead of everybody landing on the average. */
+    const SCALES = [0.56, 0.62, 0.7, 0.78, 0.86, 0.94, 1, 1, 1.06, 1.14, 1.24, 1.38, 1.52, 1.68];
+    t.stature = SCALES[(R() * SCALES.length) | 0];
+    if (t.build === 'hulk' || t.build === 'barrel') t.stature = Math.max(t.stature, 1.14);
+    if (t.build === 'blob') t.stature = Math.min(t.stature, 1.06);
+    const SC = t.big * t.stature;
+    t.hr = Math.round([13, 15, 14, 14, 14, 13, 13, 16][B] * (0.94 + t.big * 0.1) * t.stature);
+    t.sw = Math.round([9, 13, 11, 15, 12, 14, 17, 15][B] * SC);
+    t.hw = Math.round([8, 14, 11, 13, 15, 14, 8, 17][B] * SC);   // hips, which need not match
+    t.th = Math.round([20, 15, 17, 17, 17, 19, 18, 14][B] * SC);
+    t.lh = Math.round([23, 18, 20, 20, 19, 17, 21, 14][B] * SC);
+    t.aw = Math.max(3, Math.round([4, 6, 5, 7, 5, 6, 5, 7][B] * SC));
     // a ring of tentacles needs room to be a ring of tentacles rather than a fringe
     if (t.legs === 'skirt') t.lh = Math.round(t.lh * 1.45);
     if (t.legs === 'stilt') t.lh = Math.round(t.lh * 1.2);
@@ -1342,6 +1371,21 @@
     if (t.legs === 'skirt') {
       /* drawn after the clothing instead, further down this function: a coat
          that hangs past the hip was covering the whole ring of them. */
+    } else if (t.legs === 'hover') {
+      /* NOTHING UNDER HIM AT ALL. He hangs a few inches off the carpet with a
+         ring of light beneath and two dangling feet that have never been put
+         down. Straight off the sheet: the one with the planet for a head. */
+      const rest = FOOT - Math.round(t.lh * 0.34);
+      for (const sd7 of [-1, 1]) {
+        const hx3 = cx + sd7 * Math.max(3, Math.round(t.hw * 0.5));
+        limb(p, hx3, hipY - 1, hx3 + sd7 * 2, rest - 4, Math.max(2, t.aw - 1), 2, t.dark, t.skin, INK);
+        p.round(hx3 + sd7 * 2 - 3, rest - 5, 7, 4, 2, t.accD);
+      }
+      // the field it is standing on, brightest in the middle
+      for (let i = 0; i < 3; i++) {
+        const w = Math.round(t.hw * (1.5 - i * 0.35));
+        p.ellipse(cx, FOOT - 2 + i, w, Math.max(1, Math.round(w * 0.22)), i === 0 ? t.accD : (i === 1 ? t.acc : t.lite));
+      }
     } else if (t.legs === 'wheel') {
       /* A MACHINE. One column down the middle and a wheel on the bottom of it
          that turns, so the walk frames read as rolling rather than walking. */
@@ -1496,6 +1540,81 @@
       }
       p.rect(cx - 4, shY + 10, 9, 6, t.clothD);
       p.round(cx - t.sw + 1, shY + t.th, (t.sw - 1) * 2, 5, 2, t.clothD);
+    } else if (t.wear === 'longcoat') {
+      /* PAST THE KNEE, and split up the middle so it moves. The two skirts
+         flare apart with the stride, which is the whole reason to have one. */
+      const hem = hipY + Math.round(t.lh * 0.72);
+      const flare = 3 + Math.abs(step) * 2;
+      for (let y = colY; y < hem; y++) {
+        const f = (y - colY) / (hem - colY);
+        const wAt = Math.round(t.sw + (t.hw + flare - t.sw) * f);
+        if (y < hipY + 2) { p.rect(cx - wAt, y, wAt * 2, 1, C); continue; }
+        // below the hip it is two panels with daylight between them
+        const gap = Math.round(1 + (y - hipY) * 0.22) + Math.abs(step);
+        p.rect(cx - wAt - step, y, wAt - gap, 1, C);
+        p.rect(cx + gap + step, y, wAt - gap, 1, C);
+      }
+      p.rect(cx - t.sw, colY, 2, hem - colY, CL);                  // a lit front edge
+      p.rect(cx + t.sw - 2, colY, 2, t.th, CD);
+      p.round(cx - t.sw - 1, colY - 3, 8, 11, 3, CL);              // a big collar
+      p.round(cx + t.sw - 7, colY - 3, 8, 11, 3, CL);
+      for (let i = 0; i < 4; i++) p.set(cx + 2, colY + 5 + i * 5, t.acc);
+      p.rect(cx - t.hw - flare, hem - 2, (t.hw + flare) * 2, 2, CD);
+    } else if (t.wear === 'cloak') {
+      // a shirt under it, then the cloak itself off one shoulder
+      p.round(cx - t.sw + 2, colY, (t.sw - 2) * 2, t.th + 2, 2, CD);
+      const hem = hipY + Math.round(t.lh * 0.5);
+      const sd = t.lean > 0 ? 1 : -1;
+      for (let y = colY - 2; y < hem; y++) {
+        const f = (y - colY + 2) / (hem - colY + 2);
+        const wAt = Math.round(t.sw + 2 + (t.hw + 7) * f);
+        p.rect(sd > 0 ? cx - 2 : cx - wAt, y, wAt + 2, 1, f > 0.72 ? CD : C);
+      }
+      // the folds, three of them, running the length of it
+      for (let i = 0; i < 3; i++) {
+        const fx2 = cx + sd * (4 + i * 5);
+        p.rect(fx2, colY + 2 + i * 2, 1, hem - colY - 6 - i * 3, CL);
+      }
+      p.round(cx - 5, colY - 4, 11, 6, 2, CL);                     // the shoulder of it
+      p.disc(cx + sd * 4, colY - 2, 2.5, t.acc);                   // and the clasp
+    } else if (t.wear === 'robe') {
+      // all the way down, with a hem band and a sash at the waist
+      const hem = FOOT - 4;
+      for (let y = colY - 2; y < hem; y++) {
+        const f = (y - colY + 2) / (hem - colY + 2);
+        // it falls almost straight and only opens out at the very bottom
+        const wAt = Math.round(t.sw - 1 + (t.hw + 2 - t.sw) * f * f);
+        p.rect(cx - wAt, y, wAt * 2, 1, C);
+      }
+      p.rect(cx - t.sw + 1, colY - 2, 2, hem - colY, CL);
+      p.rect(cx + t.sw - 3, colY - 2, 2, hem - colY, CD);
+      for (let i = -1; i <= 1; i += 2) {                             // two folds, low down
+        p.rect(cx + i * Math.max(3, Math.round(t.hw * 0.55)), hipY + 2, 1, hem - hipY - 4, CD);
+      }
+      p.rect(cx - t.hw - 2, hem - 3, (t.hw + 2) * 2, 3, t.acc);      // the hem band
+      p.rect(cx - t.hw - 2, hem - 3, (t.hw + 2) * 2, 1, CL);
+      p.round(cx - 6, colY - 4, 13, 7, 3, CL);                       // a narrow shawl collar
+      p.rect(cx - t.sw + 2, shY + t.th - 1, t.sw * 2 - 4, 4, t.accD);
+    } else if (t.wear === 'harness') {
+      // no shirt. Two straps across the chest, a shoulder pad and the buckles
+      for (const sd2 of [-1, 1]) {
+        for (let i = 0; i < t.th + 2; i++) {
+          p.rect(cx + sd2 * Math.round((t.sw - 3) * (1 - i / (t.th + 2))) - 1, colY + i, 3, 1, C);
+        }
+      }
+      p.round(cx - t.sw - 1, colY - 3, 9, 8, 3, CD);
+      p.round(cx - t.sw, colY - 2, 7, 4, 2, CL);
+      p.round(cx - 3, colY + Math.round(t.th * 0.4), 7, 6, 2, t.acc);
+      p.set(cx, colY + Math.round(t.th * 0.4) + 2, t.accD);
+    } else if (t.wear === 'poncho') {
+      const hem = hipY + Math.round(t.lh * 0.3);
+      for (let y = colY - 3; y < hem; y++) {
+        const f = (y - colY + 3) / (hem - colY + 3);
+        const wAt = Math.round(t.sw + 1 + (t.hw + 8) * f * 0.9);
+        p.rect(cx - wAt, y, wAt * 2, 1, (y - colY) % 7 === 3 ? CL : C);
+      }
+      for (let i = 0; i < 9; i++) p.rect(cx - t.hw - 7 + i * Math.max(2, Math.round((t.hw + 7) * 2 / 9)), hem, 1, 3, CD);
+      p.round(cx - 5, colY - 5, 11, 6, 3, CD);                      // the neck hole
     } else if (t.wear === 'shirt') {
       p.round(cx - t.sw, colY, t.sw * 2, t.th + 2, 2, C);
       p.spike(cx, colY, 10, Math.round(t.th * 0.7), 1, t.skin);   // an open collar
@@ -1518,6 +1637,47 @@
       }
       p.round(cx - 2, colY + 8, 5, 5, 1, t.acc);
       p.set(cx - 1, colY + 9, '#ffffff');
+    }
+
+    /* ------------------------------------------------------- the working kit
+       Straps, pouches and a bandolier, over the top of whatever the garment
+       is. Every single one of them in that reference sheet is carrying
+       something, and it is the difference between a coat and a coloured
+       rectangle: the eye reads the little hard shapes first. */
+    const LEA = '#4a3020', LEAL = '#6e4a30', LEAD = '#2a1a10';
+    if (t.bandolier) {
+      const sd3 = t.lean > 0 ? 1 : -1;
+      const n = Math.max(4, Math.round(t.th * 0.45));
+      for (let i = 0; i <= n; i++) {
+        const f = i / n;
+        const bx3 = cx + sd3 * Math.round((t.sw - 1) * (1 - f * 2));
+        const by3 = colY + Math.round(f * (t.th + 2));
+        p.rect(bx3 - 2, by3, 5, 2, LEA);
+        p.rect(bx3 - 2, by3, 5, 1, LEAL);
+        if (i % 2 === 0) { p.rect(bx3 - 1, by3, 3, 2, t.acc); p.set(bx3, by3, '#ffe9a8'); }
+      }
+    }
+    if (t.strap) {
+      // one shoulder strap, and whatever is on the end of it out of sight
+      const sd4 = t.lean > 0 ? -1 : 1;
+      for (let i = 0; i < t.th + 4; i++) {
+        p.rect(cx + sd4 * Math.round((t.sw - 2) * (1 - i / (t.th + 4))) - 1, colY - 2 + i, 3, 1, LEA);
+      }
+      p.round(cx + sd4 * (t.sw - 3) - 3, colY - 3, 7, 4, 1, LEAL);
+    }
+    if (t.pouches) {
+      const by4 = shY + t.th + 1;
+      for (const sd5 of [-1, 1]) {
+        const px3 = cx + sd5 * Math.max(4, t.hw - 3);
+        p.round(px3 - 4, by4 + 1, 9, 8, 2, LEA);
+        p.round(px3 - 4, by4 + 1, 9, 3, 2, LEAL);
+        p.rect(px3 - 1, by4 + 4, 2, 1, t.acc);
+      }
+      // and a canteen or a lamp hanging off the belt, on one side only
+      const px4 = cx + (t.lean > 0 ? 1 : -1) * (t.hw + 5);
+      p.rect(px4 - 1, by4 + 2, 2, 3, LEAD);
+      p.round(px4 - 3, by4 + 4, 7, 8, 2, t.accD);
+      p.round(px4 - 2, by4 + 5, 5, 3, 1, t.acc);
     }
 
     // ------------------------------------------- the ring, if that is his legs
@@ -1731,6 +1891,30 @@
         p.ellipse(cx, headY - Math.round(RY * 0.22), RX, Math.round(RY * 1.02), t.skin);
         p.ellipse(cx, headY + Math.round(RY * 0.5), JW, Math.round(RY * 0.44), t.skin);
         p.ellipse(cx, headY - Math.round(RY * 0.55), Math.round(RX * 0.7), Math.round(RY * 0.34), t.lite);
+      } else if (t.headK === 'beak') {
+        /* THE BIRD. A narrow skull and a long beak that comes down off the
+           front of it -- the single most readable head on the sheet, because
+           the silhouette does the work before you have seen a colour. */
+        const sd6 = t.lean > 0 ? 1 : -1;
+        p.ellipse(cx, headY - 1, Math.round(RX * 0.9), RY, t.skin);
+        p.round(cx - JW + 1, headY + 1, (JW - 1) * 2, RY - 2, 3, t.skin);
+        /* It starts at the front of the face, at mouth height, and it is long:
+           a short beak just looks like a chipped head. */
+        const bl = Math.round(RX * 2.1), bx5 = cx + sd6 * Math.round(RX * 0.55);
+        const by5 = headY + Math.round(RY * 0.22);
+        for (let i = 0; i < bl; i++) {
+          const f = i / bl;
+          const h = Math.max(1, Math.round(RY * (0.42 - f * 0.34)));
+          const dropY = by5 + Math.round(f * f * RY * 1.05);
+          const col = f > 0.65 ? t.dark : t.accD;
+          p.rect(bx5 + sd6 * i - (sd6 > 0 ? 0 : 1), dropY - h, 1, h * 2, col);
+          p.rect(bx5 + sd6 * i - (sd6 > 0 ? 0 : 1), dropY - h, 1, 1, f > 0.5 ? t.accD : t.acc);
+        }
+        // the nostril, and the fold where the beak meets the skull
+        p.set(bx5 + sd6 * 2, by5 - Math.round(RY * 0.2), t.dark);
+        p.rect(bx5 - (sd6 > 0 ? 1 : 0), by5 - Math.round(RY * 0.42), 2, Math.round(RY * 0.8), t.dark);
+        p.rect(cx - JW, headY - Math.round(RY * 0.1), JW * 2, 2, t.dark);      // the seam of it
+        p.ellipse(cx, headY - Math.round(RY * 0.5), Math.round(RX * 0.6), Math.round(RY * 0.3), t.lite);
       } else {
         p.ellipse(cx, headY, RX, RY - 1, t.skin);
         p.round(cx - JW, headY + 2, JW * 2, RY - 1, 4, t.skin);               // the jaw
@@ -2522,13 +2706,13 @@
   function axisProbe(axis, kinds) {
     return kinds.map(k => {
       const t = alienKin(4242, 'biped');
-      t.wear = 'vest'; t.crown = 'none'; t.hair = 'none'; t.tex = 'plain'; t.shades = null;
+      t.crown = 'none'; t.hair = 'none'; t.tex = 'plain'; t.shades = null;
+      if (axis !== 'wear') t.wear = 'vest';
       t[axis] = k;
       if (axis === 'headK') {
-        const HP = { round: [1, 1, 1], dome: [1, 1.04, 1], pear: [0.94, 1.02, 1.16],
-          anvil: [1.14, 0.88, 0.7], tall: [0.84, 1.2, 0.86], wide: [1.24, 0.82, 1.2],
-          split: [1.08, 0.96, 1], egg: [1.02, 1.06, 0.78] }[k];
+        const HP = HEAD_PROFILE[k] || [1, 1, 1];
         t.hx = HP[0]; t.hy = HP[1]; t.jaw = HP[2];
+        if (k === 'beak') t.mouth = 'beak';
       }
       const cv = buildAlien(t, 0).toCanvas();
       return { frames: [cv], w: cv.width / HD, h: cv.height / HD, hd: HD,

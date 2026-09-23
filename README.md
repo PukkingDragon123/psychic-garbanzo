@@ -1317,6 +1317,64 @@ you have one, most of them with a drink on the arm of the seat. On the wall,
 name, what it took off them. Ten thousand a pull. Three worlds pays sixty times.
 The board has never been reset because it has never been paid.
 
+## Nobody is the same size
+
+A crowd of aliens who are all the same height is a school photograph. There is
+now a **stature** roll on the whole animal, head included, drawn from a table
+rather than a range so the very small and the very large actually turn up
+instead of everybody landing on the average: the shortest come out at a bit
+over half height and the tallest at two thirds again, and a knee-high one
+standing next to something half your size again is worth more than any amount
+of paint.
+
+They are also **dressed**. The long garments are the ones that matter, because
+silhouette is the only thing you can read on somebody forty feet away in a dark
+room: a **long coat** past the knee, split up the middle so the two skirts flare
+apart with the stride; a **cloak** off one shoulder with a clasp and folds down
+the length of it; a **robe** to the floor with a hem band; a **harness** of
+straps over bare skin; a **poncho**. Over the top of any of them: a bandolier of
+shells, a shoulder strap, belt pouches and a canteen. Everything on that
+reference sheet is carrying something, and the little hard shapes are what the
+eye reads first.
+
+Two more off the sheet: a **beak** head — a narrow skull and a long beak that
+comes down off the front of it, the most readable silhouette in the set — and
+**hover**, which is not legs at all: two feet that have never been put down and
+a ring of light under them.
+
+## Mr Chum bites
+
+For most of this game he is a small round shark in a suit who makes jokes about
+your air supply, and the whole time the joke is that he is a shark.
+
+Take your first advance from the desk on the second floor and the joke stops. He
+stops pacing, the room goes out, and he comes at the camera: the head grows
+until it is bigger than the screen, the jaws open past anything a face that size
+should open, the eyes roll back behind the membrane, and they shut. Then there
+is a shark's face where the room used to be, looking at you, saying YOU SIGNED
+IT.
+
+It is **one piece of drawing scaled up** rather than a separate sprite — the
+head takes a half-width in pixels and works everything else out as a fraction of
+it, so he is recognisably him the whole way in: same skin, same teeth, same
+little collar and red tie, right up to the point where the collar is eight feet
+across. He also comes out on a pull you cannot cover, when the debt gets away
+from you, and at the end of anything he says in that tone.
+
+## The tutorial does not go away
+
+The old one was hint cards on a timer that could be ignored from beginning to
+end, which meant people arrived in the casino without having worked out that you
+hold a direction to dig. The new one is five steps, one at a time, in a card at
+the top of the screen that **stays up until you have done the thing** — and it
+watches for the action rather than the keypress, so holding right against a wall
+is not walking and does not tick the box.
+
+It also gates. Until the sack has something in it the ship will not take you
+home, because leaving your first dive with an empty sack is the one mistake that
+teaches you nothing. And **pause now lists the controls**, because pause is
+where people go when they do not know what to press.
+
 ## Four axes of alien
 
 Skin colour and a hat were never going to be enough. A room of twenty still
