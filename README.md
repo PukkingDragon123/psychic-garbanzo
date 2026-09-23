@@ -1317,6 +1317,87 @@ you have one, most of them with a drink on the arm of the seat. On the wall,
 name, what it took off them. Ten thousand a pull. Three worlds pays sixty times.
 The board has never been reset because it has never been paid.
 
+## Four axes of alien
+
+Skin colour and a hat were never going to be enough. A room of twenty still
+read as one alien in twenty coats, because underneath the paint every one of
+them had the same body. There are now **four separate rolls** that decide what
+somebody actually *is*, and between them they are the difference between a
+colour swap and a species:
+
+- **What he stands on.** Ordinary legs; **digitigrade**, where the knee goes
+  forward and the ankle back and he stands on his toes; **hooves**, one hard
+  split block; **talons**, thin scaled shins with three toes forward and one
+  back; **stumps**, barely a leg at all; **stilts**, two pins with a knob for a
+  knee; a **skirt** of short tentacles and no legs whatsoever; and a **wheel**,
+  which is a machine and knows it.
+- **What he reaches with.** Hands; **tentacles** that curl away from the body
+  with suckers down them; **pincers** that leave a gap you can see through;
+  **mittens** with a thumb and no fingers; **thin** spindly arms with a knobbly
+  elbow that reach past the hip; **wings**, a scalloped membrane from shoulder
+  to hip with the bones showing through; **stubs** that are no use to anybody;
+  and **four arms**, because why stop at two.
+- **The shape of his head.** Round, **dome**, **pear**, **anvil** (a wide slab
+  and a chin you could open a tin with), **tall**, **wide**, **split** into two
+  lobes with a groove between them, and **egg** — a big cranium and hardly any
+  face under it. All eight are built off the same radius, so the eyes and the
+  mouth still land where the face code expects them; what changes is the skull
+  around them.
+- **How the body between them is put together.** Lanky, stout, normal, hulk,
+  pear, **barrel**, **wedge** and **blob**, each with its own shoulder width,
+  hip width, torso length and leg length.
+
+The body plan overrules the rolls where it has to — a mushroom stands on a
+stalk and reaches with tentacles, a bug gets pincers and bird legs, and a wheel
+does not get tentacles for arms — so nothing ever comes out of the generator
+that could not walk into a room.
+
+The arms bow **out** from the body now. The first pass hung them straight down
+against the ribs, and a pincer, a mitten and a hand were the same silhouette:
+you could not tell what anybody had on the end of their arm.
+
+## They talk to each other
+
+One alien saying one line at nothing in particular is a sign, not a
+conversation. The floor now runs **two-handers**: somebody says the first thing,
+whoever is standing nearest says the second thing back, and both of them turn to
+look at each other while they do it. Half of them are only funny because of the
+reply, and a few run to three or four beats:
+
+> — I HAVE A GOOD FEELING
+> — YOU HAD A GOOD FEELING LAST TIME.
+> — AND I WAS RIGHT
+> — YOU WERE NOT.
+
+The bubble pops open, holds two lines when it needs them, wraps at the point
+that balances the two, carries the speaker's own colour along the top so you can
+tell who is talking without following the tail, and bobs, because a bubble that
+sits perfectly still looks painted on. It **squashes** open rather than growing
+sideways — a box that grows sideways spends a tenth of a second at the wrong
+width with nothing in it, and if you catch that frame it reads as broken. Two
+dots appear over the head of whoever is about to come in, which is the
+difference between a conversation and two signs taking turns. And sometimes the
+last word is not a word at all but a small drawn noise: a heart, a skull, a
+coin, a droplet, three Zs.
+
+## No particles in the house
+
+The casino is a room with a floor and a ceiling and a lot of gold on it. Loose
+glowing dots floating about in it never read as anything — not as smoke, not as
+confetti, not as sparkle — they read as a bug, and that is exactly what they
+were reported as. Every particle emitter in the home file now goes through a
+gate: outside the club they work as they always did, and inside it they do
+nothing at all. Floating text, screen shake, the flash and the wipe go straight
+through, because none of them is a loose dot.
+
+What replaced them is **drawn light**. A win is three hard rings going out, a
+set of spokes that turn, and a pool of it on the carpet under whatever just
+paid. Every chandelier and pendant throws its own pool down the floor, with a
+bright core and two dithered steps out. The smokers got their smoke back as a
+curl of five discs on a slow sine, attached to the head it comes out of. All of
+it is made of whole pixels, and when it is over there is nothing left behind to
+chase round the building.
+
 ## Filling the room
 
 A casino is not the tables. It is the forty feet between them, and for a while
@@ -1542,7 +1623,7 @@ a line of history under its blurb.
 | `src/pix.js` | Tiny pixel-drawing surface, where every round primitive is really an octagon or a chamfer; `outline()` traces the dark cartoon border that gives everything its look |
 | `src/pxd.js` | Runtime pixel primitives: hard-edged scanline polygons (no anti-aliased diagonals anywhere), octagons, hexagons, stepped rings, tapering limb segments, and a cached dither pattern |
 | `src/art.js` | The alien at 2x in idle, walk, fly, drill and roll poses, the drill, the pod, guns, six enemies, ore chunks, UI icons — all procedural |
-| `src/arthome.js` | Home at 2x: **the alien generator** (body plan, size, hue ramp, eyes, mouth, head, markings, extras — one seed each), the planet generator (cratered, iced, living, cracked, cut, plated), the small rock house seen from outside, wall and floor, the desk with the human computer, **the brain in the jar**, the moon rat, the cheese, the fridge, junk piles, litter, posters, ruins, and the cratered-moon generator |
+| `src/arthome.js` | Home at 2x: **the alien generator** (body plan, build, **leg type, arm type and head shape**, size, hue ramp, eyes, mouth, markings, extras — one seed each), the planet generator (cratered, iced, living, cracked, cut, plated), the small rock house seen from outside, wall and floor, the desk with the human computer, **the brain in the jar**, the moon rat, the cheese, the fridge, junk piles, litter, posters, ruins, and the cratered-moon generator |
 | `src/rig.js` | The limb rig: two-bone solves that stretch, a walk cycle driven by ground covered, the drilling brace, the recoil, the snatch, the seven idle flourishes, and hard-pixel limb segments |
 | `src/mind.js` | The brain in the jar: the acid tank, the faceted brain, the neuron lattice and what each neuron grows into you |
 | `src/font.js` | Hand-drawn 5×7 bitmap font, cached per colour |

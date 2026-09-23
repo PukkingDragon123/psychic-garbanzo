@@ -16,7 +16,26 @@
   const U = PD.util;
   const F = PD.font;
   const A = PD.audio;
-  const FX = PD.fx;
+  /* NO PARTICLES IN THE HOUSE.
+     The casino is a room with a floor and a ceiling and a lot of gold on it.
+     Loose glowing dots floating about in it never read as anything -- not as
+     smoke, not as confetti, not as sparkle -- they just read as a bug, and
+     that is exactly what they were reported as. So every particle emitter in
+     this file goes through a gate: outside the club they work as they always
+     did; inside it they do nothing at all, and the room is dressed with drawn
+     light instead. Floating text, screen shake, the flash and the wipe all go
+     straight through, because none of them is a loose dot. */
+  const RAW = PD.fx;
+  const FX = Object.create(RAW);
+  for (const k of ['spawn', 'sparks', 'dust', 'burst', 'smoke', 'trail', 'ring', 'chunk',
+    'shards', 'crumble', 'pop', 'puff', 'stars']) {
+    FX[k] = (function (fn) {
+      return function () { if (S.scene !== 'club') return fn.apply(RAW, arguments); };
+    })(RAW[k]);
+  }
+  ['reset', 'clearParts', 'text', 'beginWipe', 'wipeActive', 'wipeBusy', 'updateWipe', 'drawWipe',
+    'shake', 'flash', 'hitStop', 'update', 'tickFreeze', 'shakeOffset',
+    'drawWorld', 'drawFloaters', 'drawOverlay'].forEach(k => { FX[k] = RAW[k].bind(RAW); });
   const D = PD.data;
   const AH = PD.arthome;
   const X = PD.pxd;
@@ -229,24 +248,66 @@
     const b = BANDS[i % BANDS.length];
     CLUBBERS.push({ x: U.rand(b[0], b[1]), lo: b[0], hi: b[1], vx: 0, k: kinAt(i), t: U.rand(0, 6),
       face: i % 2 ? 1 : -1, dance: U.rand(0, 3), kiss: 0, mate: -1, wait: U.rand(0, 2),
-      blink: U.rand(0, 4), say: null, sayT: 0, drink: i % 3 === 0 ? i % 4 : -1 });
+      blink: U.rand(0, 4), say: null, emote: null, sayT: 0, sayMax: 1, drink: i % 3 === 0 ? i % 4 : -1 });
   }
 
   /* -------------------------------------------------------------- the patter
      Nobody in here has anything useful to say and all of them say it. Lines
      surface over whoever happens to be standing still. */
-  const CHATTER = [
-    'I AM UP. I AM DEFINITELY UP.', 'THE WHEEL IS COLD TONIGHT',
-    'MY PLANET GOT DRILLED LAST WEEK', 'HE IS A SHARK. LITERALLY.',
-    'ONE MORE SHOE AND I GO HOME', 'I CAME HERE IN A BIN',
-    'NINE HEARTS. ALL OF THEM HURT.', 'WHOSE TENTACLE IS THIS',
-    'THE BARMAN KNOWS MY ORDER', 'NOT DRUNK. GASEOUS.',
-    'RED. RED. RED. IT WAS BLACK.', 'YOU CLEANED UP OUT THERE? FINALLY.',
-    'I LOST A MOON IN A CARD GAME', 'NICE SUIT. I MEAN IT. NICE SUIT.',
-    'THE SHARK OWNS THIS PLACE NOW', 'THERE IS NO CLOCK IN HERE. LOOK.',
-    'I ONLY PLAY WITH THE HOUSE MONEY', 'MY EX IS HERE. ALL FOUR OF HER.',
-    'THE DEALER HAS NOT BLINKED ONCE', 'CHIPS ARE NOT MONEY. THAT IS THE TRICK.'
+  /* ====================================================== WHAT THEY ALL SAY
+     One alien saying one line at nothing in particular is a sign, not a
+     conversation. These are two-handers: somebody says the first thing, and a
+     second or so later whoever is standing nearest says the second thing back
+     at them, and both of them turn to look at each other while they do it.
+     Half of them are only funny because of the reply. */
+  const CHAT_DUO = [
+    ['I AM UP. I AM DEFINITELY UP.', 'YOU ARE HOLDING ONE CHIP.'],
+    ['THE WHEEL IS COLD TONIGHT', 'THE WHEEL IS A WHEEL, GERALD.'],
+    ['MY PLANET GOT DRILLED LAST WEEK', 'MINE TOO! SMALL GALAXY.'],
+    ['HE IS A SHARK. LITERALLY.', 'I THOUGHT THAT WAS A METAPHOR.'],
+    ['I CAME HERE IN A BIN', 'AND YOU WILL LEAVE IN ONE.'],
+    ['NINE HEARTS. ALL OF THEM HURT.', 'HAVE YOU TRIED HAVING FEWER.'],
+    ['WHOSE TENTACLE IS THIS', 'MINE. GIVE IT BACK.'],
+    ['NOT DRUNK. GASEOUS.', 'THAT IS WORSE. THAT IS MUCH WORSE.'],
+    ['RED. RED. RED.', 'IT WAS BLACK.'],
+    ['I LOST A MOON IN A CARD GAME', 'WAS IT YOUR MOON', 'NO'],
+    ['NICE SUIT.', 'IT IS MY SKIN.'],
+    ['THERE IS NO CLOCK IN HERE. LOOK.', 'THERE IS NO DOOR EITHER.'],
+    ['MY EX IS HERE.', 'WHICH ONE', 'ALL FOUR OF HER.'],
+    ['THE DEALER HAS NOT BLINKED ONCE', 'THE DEALER HAS NO EYELIDS.'],
+    ['CHIPS ARE NOT MONEY.', 'THAT IS THE WHOLE TRICK, YES.'],
+    ['I AM ON A SYSTEM', 'IS THE SYSTEM LOSING', 'THE SYSTEM IS LOSING.'],
+    ['I ONLY BET WHAT I CAN AFFORD', 'YOU BET YOUR HOUSE.', 'I COULD AFFORD IT.'],
+    ['THEY COMPED ME A DRINK', 'THEY COMPED YOU YOUR OWN DRINK.'],
+    ['DO YOU SMELL BURNING', 'THAT IS ME. I AM FINE.'],
+    ['ONE MORE HAND AND I GO HOME', 'YOU SAID THAT ON TUESDAY.', 'IT IS TUESDAY.'],
+    ['I HAVE A GOOD FEELING', 'YOU HAD A GOOD FEELING LAST TIME.', 'AND I WAS RIGHT', 'YOU WERE NOT.'],
+    ['THE BARMAN KNOWS MY ORDER', 'THE BARMAN KNOWS YOUR MOTHER.'],
+    ['WHAT DOES THIS BUTTON DO', 'DO NOT PRESS THE BUTTON', '...'],
+    ['I AM NOT CRYING', 'THERE IS A PUDDLE.', 'IT IS A SMALL PUDDLE.'],
+    ['THAT ONE OVER THERE IS RICH', 'THAT ONE OVER THERE IS A LAMP.'],
+    ['I TOLD MY WIFE I WAS WORKING', 'YOU ARE. YOU WORK FOR THEM NOW.'],
+    ['IS THIS THE TOP FLOOR', 'THERE IS ALWAYS ANOTHER FLOOR.'],
+    ['I WOULD LIKE TO SPEAK TO SOMEBODY', 'EVERYBODY HERE WOULD.'],
+    ['HOW MUCH HAVE YOU LOST', 'I DO NOT KEEP TRACK', 'THAT MUCH.'],
+    ['THE DRINKS ARE FREE', 'NOTHING IN HERE IS FREE.', 'THE DRINKS ARE FREE.'],
+    ['SOMEBODY DRILLED MY HOMEWORLD', 'IT WAS PROBABLY HIM.', 'IT WAS PROBABLY HIM.'],
+    ['I HAVE BEEN HERE SINCE TUESDAY', 'IT IS TUESDAY.', 'I KNOW.']
   ];
+  /* And a few that want no answer at all. */
+  const CHAT_SOLO = [
+    'I AM HAVING A LOVELY TIME',
+    'DO NOT LOOK AT MY CARDS',
+    'THE CARPET IS MOVING AGAIN',
+    'I LIKE IT IN HERE',
+    'MY LUCK IS DUE. MY LUCK IS OVERDUE.',
+    'THAT MACHINE KNOWS MY NAME',
+    'I AM NOT LOST. I LIVE HERE.',
+    'SHH. THE WHEEL IS THINKING.'
+  ];
+  /* Little drawn noises for when words would be too many. */
+  const EMOTES = ['heart', 'skull', 'coin', 'wat', 'yell', 'zzz', 'note', 'sweat', 'ok'];
+
   const CAGE_LINES = [
     'SHE COUNTS IT TWICE. SHE IS NOT COUNTING IT FOR YOU.',
     'SHE SLIDES THE TRAY OUT. THERE IS NOTHING IN IT.',
@@ -331,6 +392,7 @@
       g.save.credits += CARD.win;
       say(RANKS[CARD.you] + ' OVER ' + RANKS[CARD.dlr] + '. HE PUSHES ' + U.fmt(CARD.win) + ' ACROSS THE FELT.');
       FX.text(tx, FLOOR - 78, '+$' + U.fmt(CARD.win), '#ffd34d', 1);
+      winLight(tx, FLOOR - 44, 1);
       for (let i = 0; i < 20; i++) {
         FX.spawn({ x: tx + U.rand(-18, 18), y: FLOOR - 38, vx: U.rand(-90, 90), vy: U.rand(-170, -50),
           life: 1.2, size: 2, glow: 1, color: i % 2 ? '#ffd34d' : '#c02038', grav: 220, drag: 1 });
@@ -382,7 +444,7 @@
           FX.spawn({ x: ROU_X + U.rand(-20, 20), y: FLOOR - 40, vx: U.rand(-110, 110), vy: U.rand(-200, -60),
             life: 1.3, size: 2, glow: 1, color: i % 2 ? '#ffd34d' : '#f4f0ff', grav: 220, drag: 1 });
         }
-        FX.ring(ROU_X, FLOOR - 46, 4, 60, 1, '#ffd34d', 2);
+        winLight(ROU_X, FLOOR - 46, 1.1);
         A.sfx.tone(660, { type: 'square', to: 1200, dur: 0.2, vol: 0.08 });
       } else {
         say(ROU_NAME[ROU.land] + '. ' + U.pick(ROU_LOSE));
@@ -456,7 +518,7 @@
           FX.spawn({ x: CRAPS_X + U.rand(-26, 26), y: FLOOR - 40, vx: U.rand(-140, 140), vy: U.rand(-230, -70),
             life: 1.4, size: 2, glow: 1, color: i % 2 ? '#ffd34d' : '#f4f0ff', grav: 220, drag: 1 });
         }
-        FX.ring(CRAPS_X, FLOOR - 48, 4, 70, 1, '#ffd34d', 3);
+        winLight(CRAPS_X, FLOOR - 48, 1.3);
         A.sfx.jackpot();
         A.sfx.applause();
       } else if (DICE.win) {
@@ -517,7 +579,7 @@
           FX.spawn({ x: BACC_X + U.rand(-28, 28), y: FLOOR - 40, vx: U.rand(-150, 150), vy: U.rand(-240, -70),
             life: 1.5, size: 2, glow: 1, color: i % 3 ? '#ffd34d' : '#d63550', grav: 220, drag: 1 });
         }
-        FX.ring(BACC_X, FLOOR - 48, 4, 84, 1.1, '#ffd34d', 3);
+        winLight(BACC_X, FLOOR - 48, 1.5);
         A.sfx.jackpot();
       } else {
         say(BACC.dt + ' TO ' + BACC.yt + '. ' + U.pick(BACC_LOSE));
@@ -690,34 +752,24 @@
     updateNPCs(dt);
     updateCry(dt);
     LOAN.t = Math.max(0, LOAN.t - dt);
-    if (S.clap > 0 && cdeck() === 0 && U.chance(dt * 26)) {
-      FX.stars(STAGE_X + U.rand(-50, 50), SALON_Y - U.rand(20, 50), 1, '#ffd34d');
-    }
     S.clap = Math.max(0, S.clap - dt);
     if (cdeck() === 0) shoving(dt, g);
-    // somebody says something, roughly every couple of seconds
+    /* SOMEBODY STARTS SOMETHING. One conversation at a time -- three bubbles
+       up together papered over the whole room and you could not see which
+       table you were standing at -- and it runs its whole length before
+       anybody else gets a word in. */
     S.chatT -= dt;
-    if (S.chatT <= 0) {
-      S.chatT = U.rand(2.4, 4.6);
-      /* One at a time. Three bubbles up together papered over the whole room
-         and you could not see which table you were standing at. */
-      if (!CLUBBERS.some(c => c.sayT > 0)) {
-        const pool = CLUBBERS.filter(c => c.kiss <= 0);
-        if (pool.length) {
-          const c = U.pick(pool);
-          const K = AH.KIN[c.k % AH.KIN.length];
-          // a regular has his own thing to say and says it a third of the time
-          c.say = (K.say && U.chance(0.34)) ? K.say : U.pick(CHATTER);
-          c.sayT = U.rand(2.2, 3.2);
-        }
-      }
+    runChat(dt);
+    if (S.chatT <= 0 && !CHAT.steps && !CLUBBERS.some(c => c.sayT > 0)) {
+      S.chatT = U.rand(1.6, 3.2);
+      startChat();
     }
     for (let i = 0; i < CLUBBERS.length; i++) {
       const c = CLUBBERS[i];
       if (cdeck() !== 0) { c.t += dt * 0.4; continue; }
       c.t += dt;
       c.sayT = Math.max(0, c.sayT - dt);
-      if (c.sayT <= 0) c.say = null;
+      if (c.sayT <= 0) { c.say = null; c.emote = null; }
       c.blink -= dt;
       if (c.blink < -0.12) c.blink = U.rand(2.5, 6);
       if (c.kiss > 0) {
@@ -728,22 +780,13 @@
         if (m) {
           const mid = (c.x + m.x) / 2;
           c.x = U.damp(c.x, mid - c.face * 7, 0.2, dt);
-          if (U.chance(dt * 3.5) && c.mate > i) {
-            FX.spawn({ x: mid + U.rand(-5, 5), y: FLOOR - 36, vx: U.rand(-12, 12), vy: U.rand(-34, -14),
-              life: 1.4, size: 2, glow: 1, color: '#ff5fa8', grav: -14, drag: 1 });
-          }
         }
         if (c.kiss <= 0) c.mate = -1;
         continue;
       }
       /* `dance` is what it was called when this was a nightclub. In here it
          is standing at a table watching somebody else's money go. */
-      if (c.dance > 0) {
-        c.dance -= dt; c.vx = 0;
-        const K0 = AH.KIN[c.k % AH.KIN.length];
-        if (U.chance(dt * 3)) FX.stars(c.x, FLOOR - K0.h - 6, 1, K0.acc);
-        continue;
-      }
+      if (c.dance > 0) { c.dance -= dt; c.vx = 0; continue; }
       c.wait -= dt;
       if (c.wait <= 0) {
         c.wait = U.rand(1.4, 4);
@@ -755,9 +798,7 @@
       if (c.x > c.hi) { c.x = c.hi; c.vx = -Math.abs(c.vx); c.face = -1; }
     }
     updateTray(dt);
-    // the cleaner, still going, still shedding what it picks up
-    if (cdeck() === 0 && U.chance(dt * 1.2)) FX.puff(roombaX(S.t), FLOOR + 4, 2, '#6a4a58', 0.5);
-
+    updateWin(dt);
     // pair off whoever happens to be standing next to somebody
     S.kissT -= dt;
     if (S.kissT <= 0 && cdeck() === 0) {
@@ -770,15 +811,128 @@
         a.face = d; b.face = -d;
         a.kiss = b.kiss = U.rand(1.8, 3.2);
         a.mate = CLUBBERS.indexOf(b); b.mate = CLUBBERS.indexOf(a);
-        const mx = (a.x + b.x) / 2;
-        for (let h = 0; h < 5; h++) {
-          FX.spawn({ x: mx + U.rand(-6, 6), y: FLOOR - 34, vx: U.rand(-16, 16), vy: U.rand(-42, -18),
-            life: 1.3, size: 2, glow: 1, color: '#ff5fa8', grav: -20, drag: 1 });
-        }
         A.sfx.tone(900, { type: 'sine', to: 1300, dur: 0.09, vol: 0.03 });
         break;
       }
     }
+  }
+
+  /* ====================================================== RUNNING A CHAT
+     `speak` puts one line over one head. `startChat` finds two of them near
+     enough to hear each other, turns them to face one another and queues the
+     whole exchange up front, one line at a time, with the timing worked out
+     from how long each line takes to read. */
+  function speak(c, text, faceX) {
+    if (typeof text === 'object') { c.emote = text.e; c.say = null; c.sayT = 1.5; }
+    else { c.say = text; c.emote = null; c.sayT = 1.1 + text.length * 0.045; }
+    c.sayMax = c.sayT;
+    c.dance = 0;
+    if (faceX !== undefined && faceX !== c.x) c.face = Math.sign(faceX - c.x) || c.face;
+    c.vx = 0;
+  }
+
+  /* One conversation at a time, so the whole thing lives in one place rather
+     than in a queue on every alien in the room. A first pass hung the queue
+     off the speakers and a four-line exchange quietly overwrote its own third
+     line, because the same one of the two was up for it twice. */
+  const CHAT = { steps: null, i: 0, at: 0 };
+
+  function startChat() {
+    const pool = CLUBBERS.filter(c => c.kiss <= 0 && c.sayT <= 0);
+    if (!pool.length) return;
+    const a = U.pick(pool);
+    const K = AH.KIN[a.k % AH.KIN.length];
+    // whoever is close enough to be talking to them
+    const b = pool.find(o => o !== a && Math.abs(o.x - a.x) < 74);
+
+    // a regular has his own thing to say and says it now and then
+    if (K.say && U.chance(0.26)) { speak(a, K.say, b ? b.x : undefined); return; }
+
+    if (!b || U.chance(0.16)) {
+      // nobody to talk to, or just a noise to themselves
+      speak(a, U.chance(0.34) ? { e: U.pick(EMOTES) } : U.pick(CHAT_SOLO));
+      return;
+    }
+
+    const script = U.pick(CHAT_DUO).slice();
+    // and now and then a last word that is not a word
+    if (U.chance(0.3)) script.push({ e: U.pick(EMOTES) });
+    CHAT.steps = script.map((text, i) => {
+      const who = i % 2 ? b : a, other = who === a ? b : a;
+      return { who, text, face: other.x };
+    });
+    CHAT.i = 0; CHAT.at = 0;
+    b.face = Math.sign(a.x - b.x) || b.face;
+    b.vx = 0;
+  }
+
+  /* Who is about to speak, and how long we have got. The room draws two small
+     dots over their head just before they come in, which is the difference
+     between a conversation and two signs taking turns. */
+  function chatNext() {
+    if (!CHAT.steps || CHAT.i >= CHAT.steps.length) return null;
+    return { who: CHAT.steps[CHAT.i].who, at: CHAT.at };
+  }
+
+  function runChat(dt) {
+    if (!CHAT.steps) return;
+    CHAT.at -= dt;
+    if (CHAT.at > 0) return;
+    if (CHAT.i >= CHAT.steps.length) { CHAT.steps = null; return; }
+    /* One bubble in the air at a time, whatever the clock says. Working the
+       gap out from how long the last line takes to read got it right to within
+       a frame or two and wrong the rest of the time, and two bubbles on top of
+       each other is unreadable. Nobody comes in until the room is quiet. */
+    if (CLUBBERS.some(c => c.say || c.emote)) return;
+    const st = CHAT.steps[CHAT.i++];
+    // if one of them has wandered out of earshot the exchange simply stops
+    if (Math.abs(st.who.x - st.face) > 130) { CHAT.steps = null; return; }
+    speak(st.who, st.text, st.face);
+    CHAT.at = st.who.sayT + 0.28;
+  }
+
+
+  /* ================================================= THE WIN, WITHOUT DOTS
+     Every table in here used to throw a handful of glowing specks at the
+     ceiling when it paid. In a room this gold they never read as confetti --
+     they read as the screen being broken. So a win is drawn light instead:
+     hard concentric rings going out, a pool of it on the carpet, and spokes
+     that turn. It is one shape, it is made of whole pixels, and when it is
+     over there is nothing left behind to chase round the building. */
+  const WIN = { x: 0, y: 0, t: 0, max: 0, col: '#ffd34d', big: 1 };
+  function winLight(x, y, big, col) {
+    WIN.x = x; WIN.y = y; WIN.big = big || 1;
+    WIN.t = WIN.max = 0.55 + (big || 1) * 0.35;
+    WIN.col = col || CAS.gold;
+  }
+  function updateWin(dt) { WIN.t = Math.max(0, WIN.t - dt); }
+  function drawWin(ctx, t, cam) {
+    if (WIN.t <= 0) return;
+    const q = 1 - WIN.t / WIN.max;                       // 0 at the pay, 1 at the end
+    const x = WIN.x - cam, y = WIN.y;
+    if (x < -260 || x > VW + 260) return;
+    const R = 26 + 92 * WIN.big;
+    // the rings, three of them, chasing each other out and thinning as they go
+    for (let i = 0; i < 3; i++) {
+      const f = q * 1.25 - i * 0.16;
+      if (f <= 0 || f >= 1) continue;
+      ctx.globalAlpha = 0.5 * (1 - f);
+      X.ring(ctx, x, y, Math.round(R * f), WIN.col, Math.max(1, Math.round(4 - f * 3)));
+    }
+    // spokes, turning, so it reads as a machine paying rather than a bubble
+    ctx.globalAlpha = 0.28 * (1 - q);
+    for (let i = 0; i < 8; i++) {
+      const a = i / 8 * U.TAU + t * 1.6;
+      const r0 = R * 0.18, r1 = R * (0.4 + 0.5 * q);
+      X.line(ctx, x + Math.cos(a) * r0, y + Math.sin(a) * r0,
+        x + Math.cos(a) * r1, y + Math.sin(a) * r1, WIN.col, 2);
+    }
+    // and the light it puts on the carpet in front of whatever just paid
+    ctx.globalAlpha = 0.2 * (1 - q);
+    X.blob(ctx, x, FLOOR + 3, R * 0.9, 8, WIN.col);
+    ctx.globalAlpha = 0.34 * (1 - q * q);
+    X.blob(ctx, x, y, R * 0.3, R * 0.3, WIN.col);
+    ctx.globalAlpha = 1;
   }
 
   /* ---------------------------------------------------------------- the rat */
@@ -2478,6 +2632,45 @@
     }
   }
 
+  /* The light the room puts on its own floor. Every chandelier and every
+     pendant throws a pool of it down the carpet, and each pool has a hard
+     bright core and two dithered steps out -- pixels, not a gradient. It is
+     the cheapest thing in the building and it is what stops the carpet
+     reading as forty feet of wallpaper laid flat. */
+  /* Where the carpet has been walked flat: in front of whatever that deck
+     asks you to put money into. */
+  function wearSpots() {
+    const d = cdeck();
+    if (d === 0) return [CAGE_X, POKER_X, ROU_X, JACK_X, BAR_X, 1180, 1280, CRAPS_X, BACC_X];
+    if (d === 1) return [250, 330, CLAW_X, 880, 1300, 1380, PRIZE_X];
+    if (d === 2) return [LOAN_X, 700, 980, 1290];
+    return [MEGA_X, MEGA_X + MEGA_HW + 74, 300, 1390];
+  }
+
+  function casinoFloorLight(ctx, t, cam) {
+    const W = clubW();
+    for (let x = 200; x < W; x += 240) {
+      const px = x - cam;
+      if (px < -90 || px > VW + 90) continue;
+      const flick = 1 + Math.sin(t * 1.3 + x) * 0.04;
+      ctx.globalAlpha = 0.05 * flick;
+      X.blob(ctx, px, FLOOR + 14, 74, 16, CAS.gold);
+      ctx.globalAlpha = 0.06 * flick;
+      X.blob(ctx, px, FLOOR + 10, 48, 10, CAS.gold);
+      ctx.globalAlpha = 0.07 * flick;
+      X.blob(ctx, px, FLOOR + 7, 26, 5, '#ffe9a8');
+      ctx.globalAlpha = 1;
+    }
+    for (let x = 80; x < W; x += 80) {
+      if (Math.abs(((x - 200) % 240)) < 40) continue;
+      const px = x - cam;
+      if (px < -40 || px > VW + 40) continue;
+      ctx.globalAlpha = 0.045;
+      X.blob(ctx, px, FLOOR + 9, 30, 8, CAS.gold);
+      ctx.globalAlpha = 1;
+    }
+  }
+
   function casinoCarpet(ctx, t, cam) {
     X.rect(ctx, 0, FLOOR, VW, VH - FLOOR, '#5e0d1e');
     X.rect(ctx, 0, FLOOR + 12, VW, VH - FLOOR - 12, '#6e1022');
@@ -2493,6 +2686,18 @@
         X.poly(ctx, [[cx, cy - rh], [cx + rw, cy], [cx, cy + rh], [cx - rw, cy]], '#3d0a16');
         X.poly(ctx, [[cx, cy - rh * 0.45], [cx + rw * 0.45, cy], [cx, cy + rh * 0.45], [cx - rw * 0.45, cy]], '#7a3a18');
       }
+    }
+    /* THE WEAR. Wherever there is something to lose money at, the carpet in
+       front of it has been stood on by everybody who ever came in, and it has
+       gone flat and dark. It is the oldest thing in the room. */
+    for (const wx of wearSpots()) {
+      const px = wx - cam;
+      if (px < -70 || px > VW + 70) continue;
+      ctx.globalAlpha = 0.3;
+      X.blob(ctx, px, FLOOR + 10, 52, 11, '#4a0a14');
+      ctx.globalAlpha = 0.18;
+      X.blob(ctx, px, FLOOR + 8, 34, 7, '#3d0a16');
+      ctx.globalAlpha = 1;
     }
     X.rect(ctx, 0, FLOOR - 1, VW, 2, CAS.blackD);
     X.rect(ctx, 0, FLOOR + 1, VW, 1, '#8a1228');
@@ -3070,6 +3275,29 @@
       X.blob(ctx, stx, FLOOR - 17, 6, 2, CAS.red);
       X.blob(ctx, stx, FLOOR - 18, 6, 1, CAS.redL);
     }
+    /* THE HOUSE CAT. Asleep on the end of the counter since the place opened,
+       and the only thing in the building that has never lost anything. The
+       ears twitch, the tail goes, and once in a while it opens one eye. */
+    const kx = bx - 40, ky = FLOOR - 32;
+    const wake = (Math.floor(t * 0.4) % 7) === 0;
+    X.blob(ctx, kx, ky - 1, 11, 5, '#2e2438');
+    X.blob(ctx, kx - 1, ky - 3, 9, 4, '#43364f');
+    X.blob(ctx, kx + 8, ky - 4, 5, 5, '#2e2438');              // the head
+    X.blob(ctx, kx + 8, ky - 5, 4, 3, '#43364f');
+    for (const e of [-1, 1]) {                                  // ears
+      const tw = Math.sin(t * 3 + e) > 0.85 ? 1 : 0;
+      X.poly(ctx, [[kx + 6 + e * 2, ky - 7 - tw], [kx + 9 + e * 2, ky - 7 - tw],
+        [kx + 7.5 + e * 2, ky - 11 - tw]], '#43364f');
+    }
+    if (wake) {
+      X.rect(ctx, kx + 9, ky - 5, 2, 2, '#8affa0');
+      X.rect(ctx, kx + 10, ky - 5, 1, 2, '#1a1024');
+    } else {
+      X.rect(ctx, kx + 7, ky - 5, 4, 1, '#1a1024');
+    }
+    // the tail, going, whatever the rest of it is doing
+    const tl = Math.sin(t * 1.6) * 4;
+    X.curve(ctx, kx - 9, ky - 1, kx - 15, ky - 4 + tl, kx - 12, ky - 9 + tl, '#43364f', 2, 6);
     F.draw(ctx, 'BAR', bx, FLOOR - 88, CAS.gold, { center: true, scale: 2, shadow: '#0a0408' });
   }
 
@@ -3562,6 +3790,14 @@
     ctx.globalAlpha = 0.09;
     X.blob(ctx, gx, gy + 30, 60, 48, CAS.gold);
     ctx.globalAlpha = 1;
+    /* And somebody on YOUR side of it, leaning right over and looking at the
+       drop, the way people do at a stairwell they have no business at. */
+    if (W > 90) {
+      const lx = ax + W - 34, K = AH.KIN[(11 + d * 3) % AH.KIN.length];
+      kinShadow(ctx, lx, FLOOR, K);
+      AH.blit(ctx, AH.S[K.key], (Math.floor(t * 0.6) % 8) === 0 ? 5 : 0,
+        lx, FLOOR + Math.sin(t * 1.1) * 0.8, true);
+    }
     // the rail you are standing at, in front of the lot
     X.rect(ctx, ax, FLOOR - 26, W, 3, CAS.goldD);
     X.rect(ctx, ax, FLOOR - 23, W, 1, CAS.goldDD);
@@ -4051,7 +4287,7 @@
         FX.spawn({ x: MEGA_X + U.rand(-MEGA_HW, MEGA_HW), y: U.rand(70, 135), vx: U.rand(-260, 260), vy: U.rand(-340, -60),
           life: 2.6, size: 2, glow: 1, color: k % 3 ? '#ffd34d' : U.pick(WORLDS), grav: 200, drag: 1 });
       }
-      FX.ring(MEGA_X, 101, 6, three ? 300 : 170, 1.5, '#ffd34d', 5);
+      winLight(MEGA_X, 101, three ? 2.6 : 1.7);
       A.sfx.jackpot(); A.sfx.applause();
       if (three) PD.chum.call(g, 'jackpot', true);
     } else {
@@ -4505,7 +4741,7 @@
       g.save.thots = (g.save.thots || 0) + 25;
       say('IT HOLDS ON. ' + p + '. +25 THOTS.');
       FX.text(CLAW_X, FLOOR - 110, p, '#ffd34d', 1);
-      FX.stars(CLAW_X, FLOOR - 70, 16, '#ffd84a');
+      winLight(CLAW_X, FLOOR - 70, 1.2, '#ffd84a');
       A.sfx.jackpot();
     } else {
       say('IT LIFTS. IT OPENS. IT DROPS IT. IT WAS NEVER GOING TO HOLD ON.');
@@ -4529,10 +4765,9 @@
       if (U.chance(dt * 1.6)) {
         S.shoved = 0.4;
         A.sfx.tone(150, { type: 'square', to: 100, dur: 0.08, vol: 0.05 });
-        if (U.chance(0.34)) {
-          c.say = U.pick(['MIND OUT', 'SORRY. NOT SORRY.', 'WALK MUCH?', 'EXCUSE YOU',
-            'COMING THROUGH', 'THAT IS MY FLOOR']);
-          c.sayT = 1.6;
+        if (U.chance(0.4)) {
+          speak(c, U.pick(['MIND OUT', 'SORRY. NOT SORRY.', 'WALK MUCH?', 'EXCUSE YOU',
+            'COMING THROUGH', 'THAT IS MY FLOOR', 'LOVELY. THANK YOU.', { e: 'yell' }]), P.x);
         }
       }
     }
@@ -4568,6 +4803,7 @@
     casinoDressWall(ctx, t, cam);
     casinoOverhead(ctx, t, cam);
     casinoCarpet(ctx, t, cam);
+    casinoFloorLight(ctx, t, cam);
     casinoDressFloor(ctx, g, t, cam);
     drawAtrium(ctx, g, t, cam);
     drawLift(ctx, g, t, cam);
@@ -4589,6 +4825,7 @@
         AH.blit(ctx, AH.S[K.key], (Math.floor(c.t + i) % 9) === 0 ? 5 : 0, hx - cam, FLOOR + bob, i % 2 === 0);
       }
       drawTray(ctx, t, cam);
+      drawWin(ctx, t, cam);
       drawNPCs(ctx, g, t, cam);
       drawCry(ctx, cam);
       for (let i = 0; i < 8; i++) {
@@ -4627,11 +4864,23 @@
     }
 
     drawTray(ctx, t, cam);
+    drawWin(ctx, t, cam);
     drawNPCs(ctx, g, t, cam);
     drawCry(ctx, cam);
-    for (const c of CLUBBERS) if (c.say) {
+    const nx = chatNext();
+    if (nx && nx.at < 0.55 && !nx.who.say && !nx.who.emote) {
+      const K = AH.KIN[nx.who.k % AH.KIN.length];
+      const bx0 = nx.who.x - cam, by0 = FLOOR - K.h - 8;
+      for (let i = 0; i < 2; i++) {
+        const q = 1 - nx.at / 0.55;
+        if (q * 2 < i * 0.7) continue;
+        X.blob(ctx, bx0 - 2 + i * 6, by0 - i * 5, 2 + i, 2 + i, '#0d0918');
+        X.blob(ctx, bx0 - 2 + i * 6, by0 - i * 5, 1 + i, 1 + i, '#efeaf8');
+      }
+    }
+    for (const c of CLUBBERS) if (c.say || c.emote) {
       const K = AH.KIN[c.k % AH.KIN.length];
-      sayBubble(ctx, c.x - cam, FLOOR - K.h - 4, c.say, c.sayT);
+      sayBubble(ctx, c.x - cam, FLOOR - K.h - 2, c.say, c.sayT, c.sayMax, K.acc, c.emote, t);
     }
 
     // cigar smoke, drifting, which is most of the air in here
@@ -4737,7 +4986,8 @@
         FX.spawn({ x: mx + U.rand(-16, 16), y: FLOOR - 34, vx: U.rand(-140, 140), vy: U.rand(-230, -60),
           life: 1.5, size: 2, glow: 1, color: k % 3 ? '#ffd34d' : '#ff5fa8', grav: 220, drag: 1 });
       }
-      if (three) { FX.ring(mx, FLOOR - 44, 4, 80, 1, '#ffd34d', 3); PD.chum.call(g, 'jackpot', true); }
+      winLight(mx, FLOOR - 52, three ? 1.6 : 1);
+      if (three) PD.chum.call(g, 'jackpot', true);
     } else {
       say(U.pick(SLOT_LOSE));
       A.sfx.deny();
@@ -4996,18 +5246,118 @@
   }
 
   /* A small thing somebody has said, with the tail pointing down at them. */
-  function sayBubble(ctx, x, y, text, life) {
-    const w = F.width(text, 1) + 10;
+  /* ========================================================== THE BUBBLE
+     It used to be a white box with a spike on it. Now it pops open, it holds
+     two lines when it needs to, it carries the speaker's own colour along the
+     top so you can tell who is talking without following the tail, and it
+     bobs, because a bubble that sits perfectly still looks painted on. */
+  function wrapSay(text, cap) {
+    if (F.width(text, 1) <= cap) return [text];
+    const words = text.split(' ');
+    let best = 1, bestD = 1e9;
+    for (let i = 1; i < words.length; i++) {
+      const a = words.slice(0, i).join(' '), b = words.slice(i).join(' ');
+      const d = Math.abs(F.width(a, 1) - F.width(b, 1)) + Math.max(0, Math.max(F.width(a, 1), F.width(b, 1)) - cap) * 4;
+      if (d < bestD) { bestD = d; best = i; }
+    }
+    return [words.slice(0, best).join(' '), words.slice(best).join(' ')];
+  }
+
+  /* The little drawn noises. Each one is whole pixels and nothing else. */
+  function emoteArt(ctx, k, x, y, t) {
+    const pulse = 1 + Math.sin(t * 7) * 0.12;
+    if (k === 'heart') {
+      const r = 3 * pulse;
+      X.blob(ctx, x - 2, y - 1, r, r, '#ff5fa8');
+      X.blob(ctx, x + 2, y - 1, r, r, '#ff5fa8');
+      X.poly(ctx, [[x - 5, y], [x + 5, y], [x, y + 6]], '#ff5fa8');
+      X.rect(ctx, x - 3, y - 3, 2, 1, '#ffb0d8');
+    } else if (k === 'skull') {
+      X.blob(ctx, x, y, 5, 4, '#e8e2f4');
+      X.rect(ctx, x - 3, y + 3, 7, 3, '#e8e2f4');
+      X.rect(ctx, x - 3, y - 1, 2, 3, '#1a1024'); X.rect(ctx, x + 2, y - 1, 2, 3, '#1a1024');
+      X.rect(ctx, x - 1, y + 4, 1, 2, '#1a1024'); X.rect(ctx, x + 1, y + 4, 1, 2, '#1a1024');
+    } else if (k === 'coin') {
+      X.blob(ctx, x, y + 1, 5, 5, CAS.goldD);
+      X.blob(ctx, x, y + 1, 3, 3, CAS.gold);
+      F.draw(ctx, '$', x, y - 2, '#7a5c16', { center: true, shadow: false });
+    } else if (k === 'wat') {
+      F.draw(ctx, '?', x, y - 4, '#7ec8ff', { center: true, scale: 2, shadow: '#1a1024' });
+    } else if (k === 'yell') {
+      F.draw(ctx, '!', x, y - 4, '#ff5a4d', { center: true, scale: 2, shadow: '#1a1024' });
+    } else if (k === 'zzz') {
+      for (let i = 0; i < 3; i++) {
+        F.draw(ctx, 'Z', x - 4 + i * 4, y - 4 + Math.sin(t * 3 + i) * 1 + i * 1, '#9a92b4',
+          { center: true, shadow: false });
+      }
+    } else if (k === 'note') {
+      X.blob(ctx, x - 2, y + 3, 3, 2, '#c9a0ff');
+      X.rect(ctx, x, y - 4, 2, 7, '#c9a0ff');
+      X.rect(ctx, x + 2, y - 4, 4, 2, '#c9a0ff');
+    } else if (k === 'sweat') {
+      X.poly(ctx, [[x, y - 5], [x + 4, y + 3], [x - 4, y + 3]], '#7ec8ff');
+      X.blob(ctx, x, y + 2, 4, 3, '#7ec8ff');
+      X.rect(ctx, x - 2, y, 1, 2, '#dff4fa');
+    } else {                                              // ok
+      X.line(ctx, x - 4, y + 1, x - 1, y + 4, '#8affa0', 2);
+      X.line(ctx, x - 1, y + 4, x + 5, y - 4, '#8affa0', 2);
+    }
+  }
+
+  function sayBubble(ctx, x, y, text, life, max, accent, emote, t) {
+    /* Pop. The box SQUASHES open rather than growing: it is full width from
+       the first frame and only its height comes up, because a box that grows
+       sideways spends a tenth of a second at the wrong width with nothing in
+       it, and if you catch that frame it reads as a broken bubble. */
+    const m = max || 2.4;
+    const grow = U.clamp((m - life) / 0.1, 0, 1);
+    const fade = U.clamp(life * 3, 0, 1);
+    const bob = Math.sin(t * 3.4 + x) * 0.8;
+
+    const lines = emote ? [] : wrapSay(text, 132);
+    let tw = 0;
+    for (const l of lines) tw = Math.max(tw, F.width(l, 1));
+    const fullW = emote ? 22 : tw + 12;
+    const fullH = emote ? 20 : (lines.length > 1 ? 23 : 14);
+    const w = fullW;
+    const h = Math.max(5, Math.round(fullH * (0.34 + 0.66 * grow)));
+
     /* Home is zoomed: only a ZW-wide window of this frame is ever on screen,
        so clamping to the frame let bubbles slide off the side of the view. */
     const lo = Math.round(VIEW.x) + 3, hi = Math.round(VIEW.x) + ZW - w - 3;
     const bx = Math.round(U.clamp(x - w / 2, Math.min(lo, hi), Math.max(lo, hi)));
-    const by = Math.round(y - 13);
-    ctx.globalAlpha = U.clamp(life * 2, 0, 1);
-    X.plate(ctx, bx - 1, by - 1, w + 2, 15, '#0d0918', null, null, 4);
-    X.plate(ctx, bx, by, w, 13, '#e8e2f4', '#ffffff', '#9a92b4', 3);
-    X.poly(ctx, [[x - 3, by + 11], [x + 3, by + 11], [x, by + 17]], '#e8e2f4');
-    F.draw(ctx, text, bx + w / 2, by + 3, '#1a1024', { center: true });
+    const by = Math.round(y - h - 4 + bob);
+
+    ctx.globalAlpha = fade;
+    // a hard shadow, offset, so it stands off the wall behind it
+    X.plate(ctx, bx + 1, by + 2, w, h, 'rgba(10,4,12,0.5)', null, null, 4);
+    X.plate(ctx, bx - 1, by - 1, w + 2, h + 2, '#0d0918', null, null, 5);
+    X.plate(ctx, bx, by, w, h, '#efeaf8', '#ffffff', '#a89ec4', emote ? 7 : 4);
+    // the speaker's own colour, top and bottom, so you can tell who is talking
+    // without having to follow the tail down
+    X.rect(ctx, bx + 4, by, w - 8, 3, accent || '#9a92b4');
+    X.rect(ctx, bx + 4, by + 1, w - 8, 1, '#ffffff');
+    ctx.globalAlpha = fade * 0.5;
+    X.rect(ctx, bx + 5, by + h - 2, w - 10, 1, accent || '#9a92b4');
+    ctx.globalAlpha = fade;
+    // the tail, stepped down to whoever said it
+    const tx = Math.round(U.clamp(x, bx + 6, bx + w - 7));
+    const lean = Math.sign(x - (bx + w / 2)) || 0;
+    for (let i = 0; i < 6; i++) {
+      const wd = Math.max(1, 6 - i);
+      const px = tx - 2 + lean * i;
+      X.rect(ctx, px - 1, by + h - 1 + i, wd + 2, 1, '#0d0918');
+      X.rect(ctx, px, by + h - 1 + i, wd, 1, '#efeaf8');
+    }
+
+    if (grow > 0.62) {
+      ctx.globalAlpha = fade * U.clamp((grow - 0.62) / 0.3, 0, 1);
+      if (emote) emoteArt(ctx, emote, bx + w / 2, by + h / 2 - 1, t);
+      else for (let i = 0; i < lines.length; i++) {
+        F.draw(ctx, lines[i], bx + w / 2, by + (lines.length > 1 ? 5 : 4) + i * 9, '#1a1024',
+          { center: true, shadow: false });
+      }
+    }
     ctx.globalAlpha = 1;
   }
 
@@ -5019,6 +5369,21 @@
   /* They have legs now, so the walk is in the sprite rather than drawn under
      it. This is the shadow and nothing else. */
   function kinShadow(ctx, x, y, K) { X.blob(ctx, x, y + 1, Math.round(K.w * 0.42), 3, '#0a0614'); }
+
+  /* Drawn smoke. The smokers used to have no smoke at all, because the only
+     way the room had of making any was a particle, and there are no particles
+     in here. This is a curl: five discs on a slow sine, each one wider and
+     fainter than the last, and it is attached to the head it comes out of. */
+  function cigarCurl(ctx, x, y, t, seed) {
+    for (let i = 0; i < 5; i++) {
+      const q = i / 5, ph = t * 0.55 + seed;
+      const sy = y - 4 - i * 6 - (ph % 1) * 5;
+      const sx = x + Math.sin(ph * 1.7 + i * 0.9) * (2 + i * 2.2);
+      ctx.globalAlpha = 0.11 * (1 - q * 0.85);
+      X.blob(ctx, sx, sy, 3 + i * 2.4, 2 + i * 1.6, '#c9bce8');
+      ctx.globalAlpha = 1;
+    }
+  }
 
   function drawClubber(ctx, c, t, cam) {
     const K = AH.KIN[c.k % AH.KIN.length];
@@ -5040,6 +5405,7 @@
       X.rect(ctx, hx - 2, hy, 5, 1, '#d8fbff');
     }
     // one big throbbing heart over whoever is getting on with it
+    if (K.smoke && c.kiss <= 0) cigarCurl(ctx, x + c.face * 5, y - K.h, t, c.k * 1.7);
     if (c.kiss > 0 && c.mate > CLUBBERS.indexOf(c)) {
       const m = CLUBBERS[c.mate];
       const hx = (c.x + m.x) / 2 - cam, hy = y - K.h - 10 - Math.sin(t * 3) * 2;

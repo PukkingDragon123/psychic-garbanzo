@@ -1117,7 +1117,17 @@
      skeleton underneath is the same one, which is why they can all wear a
      jacket and hold a drink. */
   const PLANK = ['biped', 'biped', 'biped', 'biped', 'fungal', 'fungal', 'beast', 'beast', 'bug'];
-  const BUILDK = ['lanky', 'stout', 'normal', 'normal', 'hulk', 'pear'];
+  const BUILDK = ['lanky', 'stout', 'normal', 'normal', 'hulk', 'pear', 'barrel', 'wedge', 'blob'];
+  /* THE FOUR AXES THAT MAKE A CREATURE.
+     Skin colour and a hat were never going to be enough: a room of them still
+     read as one alien in twenty coats. These are the four things that actually
+     change what somebody IS -- what they stand on, what they reach with, what
+     shape their head is, and how the body between them is put together -- and
+     they are rolled separately, so a lanky one on bird legs with pincers and a
+     long flat head is a different animal from the round one beside him. */
+  const LEGK = ['normal', 'normal', 'digi', 'hoof', 'talon', 'stump', 'stilt', 'skirt', 'wheel'];
+  const ARMK = ['normal', 'normal', 'tentacle', 'claw', 'mitt', 'thin', 'wing', 'stub', 'four'];
+  const HEADK = ['round', 'round', 'dome', 'pear', 'anvil', 'tall', 'wide', 'split', 'egg'];
   const EYEK = ['row', 'row', 'row', 'row', 'stack', 'tri', 'stalk'];
   const MOUTHK = ['grin', 'grin', 'smirk', 'tusk', 'beak', 'straw', 'mandible', 'lips', 'grill', 'sucker'];
   const CROWNK = ['none', 'antenna', 'antenna', 'horns', 'fin', 'hat', 'tuft', 'ears',
@@ -1147,6 +1157,8 @@
       build: pick(BUILDK), eyes: ri(1, 4), eyeK: pick(EYEK),
       mouth: pick(MOUTHK), crown: pick(CROWNK), tex: pick(SKINK), wear: pick(WEARK),
       hair: pick(HAIRK), brow: pick(BROWK),
+      legs: pick(LEGK), arms: pick(ARMK), headK: pick(HEADK),
+      fingers: ri(2, 4), toes: ri(2, 4),
       big: 0.9 + R() * 0.42, lean: R() < 0.5 ? -1 : 1, ant: ri(1, 3),
       belt: R() < 0.6, boots: R() < 0.7, pads: R() < 0.4,
       /* the things that make a room of them read as a NIGHT OUT rather than a
@@ -1176,9 +1188,25 @@
     if (forcePlan) t.plan = forcePlan;
     /* the plan overrules the trimmings: a mushroom does not wear a hat, and a
        beast's ears are its ears rather than a choice */
-    if (t.plan === 'fungal') { t.crown = 'none'; t.tex = R() < 0.5 ? 'spot' : 'plain'; t.eyes = ri(2, 2); }
-    if (t.plan === 'beast') { t.crown = 'ears'; t.eyes = 2; t.mouth = R() < 0.5 ? 'tusk' : 'grin'; }
-    if (t.plan === 'bug') { t.crown = 'antenna'; t.mouth = 'mandible'; t.tex = 'plate'; t.eyes = 2; }
+    if (t.plan === 'fungal') {
+      t.crown = 'none'; t.tex = R() < 0.5 ? 'spot' : 'plain'; t.eyes = ri(2, 2);
+      // a mushroom stands on a stalk or on nothing much
+      t.legs = pick(['stump', 'stump', 'skirt', 'normal']);
+      t.arms = pick(['tentacle', 'tentacle', 'thin', 'stub']);
+    }
+    if (t.plan === 'beast') {
+      t.crown = 'ears'; t.eyes = 2; t.mouth = R() < 0.5 ? 'tusk' : 'grin';
+      t.legs = pick(['digi', 'digi', 'hoof', 'talon', 'normal']);
+      t.arms = pick(['mitt', 'mitt', 'claw', 'normal']);
+    }
+    if (t.plan === 'bug') {
+      t.crown = 'antenna'; t.mouth = 'mandible'; t.tex = 'plate'; t.eyes = 2;
+      t.legs = pick(['talon', 'talon', 'stilt', 'digi']);
+      t.arms = pick(['claw', 'claw', 'thin', 'four']);
+    }
+    // a wheel is a machine, and machines do not have tentacles for arms
+    if (t.legs === 'wheel') { t.arms = pick(['normal', 'claw', 'thin', 'mitt']); t.boots = false; }
+    if (t.arms === 'wing' && t.legs === 'skirt') t.legs = 'talon';
     // three eyes in a row across a face this size is a crowd; keep it to two
     // unless the layout is deliberately a stack or a triangle
     if (t.eyeK === 'row') t.eyes = R() < 0.82 ? 2 : 1;
@@ -1186,21 +1214,36 @@
     t.snout = 4 + Math.round(R() * 4);              // how far the face sticks out
     if (t.eyeK === 'tri') t.eyes = 3;
     if (t.eyeK === 'stalk') t.eyes = Math.min(2, t.eyes);
-    if (t.build === 'hulk') t.big = Math.max(t.big, 1.2);
+    if (t.build === 'hulk' || t.build === 'barrel') t.big = Math.max(t.big, 1.2);
     if (t.build === 'lanky') t.big = Math.min(t.big, 1.05);
+    if (t.build === 'blob') t.legs = t.legs === 'wheel' ? 'wheel' : pick(['stump', 'skirt', 'stump']);
+    /* THE HEAD SILHOUETTE. Both numbers are a multiplier on the head radius --
+       one across, one down -- and they are chosen so the pair of them stays
+       near enough to one, because the eyes and the mouth are laid out off that
+       radius and a head twice as tall would put the mouth on the chest. */
+    const HP = {
+      round: [1, 1, 1], dome: [1, 1.04, 1], pear: [0.94, 1.02, 1.16], anvil: [1.14, 0.88, 0.7],
+      tall: [0.84, 1.2, 0.86], wide: [1.24, 0.82, 1.2], split: [1.08, 0.96, 1], egg: [1.02, 1.06, 0.78]
+    }[t.headK] || [1, 1, 1];
+    t.hx = HP[0]; t.hy = HP[1]; t.jaw = HP[2];
+    t.eyeSpread = 0.4 * (0.6 + t.hx * 0.4);
     /* THE PROPORTIONS. The old ones were a realistic seven-and-a-half heads
        tall, which at forty pixels meant a head eleven pixels across and a face
        you could not draw an eye on. These are character proportions: the head
        is nearly forty per cent of him and everything else got out of its way.
        That one change is what turns the crowd from a line of smudges into a
        room full of people. */
-    const B = { lanky: 0, stout: 1, normal: 2, hulk: 3, pear: 4 }[t.build];
-    t.hr = Math.round([13, 15, 14, 14, 14][B] * (0.94 + t.big * 0.1));
-    t.sw = Math.round([9, 13, 11, 15, 12][B] * t.big);
-    t.hw = Math.round([8, 14, 11, 13, 15][B] * t.big);   // hips, which need not match
-    t.th = Math.round([20, 15, 17, 17, 17][B] * t.big);
-    t.lh = Math.round([20, 14, 17, 17, 16][B] * t.big);
-    t.aw = Math.max(4, Math.round([4, 6, 5, 7, 5][B] * t.big));
+    /*          lanky stout normal hulk pear barrel wedge blob */
+    const B = { lanky: 0, stout: 1, normal: 2, hulk: 3, pear: 4, barrel: 5, wedge: 6, blob: 7 }[t.build];
+    t.hr = Math.round([13, 15, 14, 14, 14, 13, 13, 16][B] * (0.94 + t.big * 0.1));
+    t.sw = Math.round([9, 13, 11, 15, 12, 14, 17, 15][B] * t.big);
+    t.hw = Math.round([8, 14, 11, 13, 15, 14, 8, 17][B] * t.big);   // hips, which need not match
+    t.th = Math.round([20, 15, 17, 17, 17, 19, 18, 14][B] * t.big);
+    t.lh = Math.round([23, 18, 20, 20, 19, 17, 21, 14][B] * t.big);
+    t.aw = Math.max(4, Math.round([4, 6, 5, 7, 5, 6, 5, 7][B] * t.big));
+    // a ring of tentacles needs room to be a ring of tentacles rather than a fringe
+    if (t.legs === 'skirt') t.lh = Math.round(t.lh * 1.45);
+    if (t.legs === 'stilt') t.lh = Math.round(t.lh * 1.2);
     t.legLen = 0;                                        // no tentacles any more
     return t;
   }
@@ -1272,31 +1315,102 @@
     }
 
     // ------------------------------------------------------------- the legs
-    // short, apart, and with a foot on the end that points somewhere
+    /* WHAT HE STANDS ON. Eight of these, and they are the single loudest thing
+       about a body: a hoofed one and a bird-legged one read as two different
+       animals before you have looked at either face. */
     const kneeY = hipY + Math.round(t.lh * 0.52);
-    for (const side of [-1, 1]) {
+    const bare = t.wear === 'bare';
+    const LC = bare ? t.skin : t.pants, LL = bare ? t.lite : t.pantsL;
+
+    function foot(fx, fd, w) {
+      // the ordinary foot, in a boot or not, pointing whichever way he leans
+      if (t.boots) {
+        p.round(fx - w, FOOT - 7, w * 2 + 1, 8, 3, t.bootC);
+        p.round(fx - w + fd * 2, FOOT - 4, w * 2 + 1, 5, 2, t.bootC);
+        p.rect(fx - w, FOOT - 7, w * 2 + 1, 2, t.acc);
+        p.rect(fx - w + 1, FOOT - 6, w * 2 - 1, 1, t.bootL);
+        p.rect(fx - w, FOOT - 1, w * 2 + 1, 1, '#12101a');
+      } else {
+        p.round(fx - w + 1, FOOT - 5, w * 2 - 1, 6, 2, t.skin);
+        p.round(fx - w + 1 + fd * 2, FOOT - 3, w * 2 - 1, 4, 2, t.skin);
+        p.rect(fx - w + 1, FOOT - 5, w * 2 - 1, 1, t.lite);
+        p.rect(fx - w + 1, FOOT - 1, w * 2 - 1, 1, t.dark);
+        for (let k = 0; k < 3; k++) p.set(fx + fd * w, FOOT - 4 + k, t.dark);
+      }
+    }
+
+    if (t.legs === 'skirt') {
+      /* drawn after the clothing instead, further down this function: a coat
+         that hangs past the hip was covering the whole ring of them. */
+    } else if (t.legs === 'wheel') {
+      /* A MACHINE. One column down the middle and a wheel on the bottom of it
+         that turns, so the walk frames read as rolling rather than walking. */
+      p.round(cx - 4, hipY - 2, 9, t.lh - 6, 3, '#6a6478');
+      p.rect(cx - 4, hipY - 2, 3, t.lh - 6, '#9a94ac');
+      for (let k = 0; k < 3; k++) p.rect(cx - 5, hipY + 2 + k * 5, 11, 2, '#413c50');
+      const wr = Math.max(6, Math.round(t.lh * 0.34));
+      p.disc(cx, FOOT - wr + 1, wr, '#2a2534');
+      p.disc(cx, FOOT - wr + 1, wr - 2, '#4a4458');
+      p.disc(cx, FOOT - wr + 1, 3, t.acc);
+      for (let k = 0; k < 4; k++) {
+        const a = k * 0.78 + (step || 0) * 0.5;
+        p.line(cx, FOOT - wr + 1, cx + Math.cos(a) * (wr - 3), FOOT - wr + 1 + Math.sin(a) * (wr - 3), '#2a2534');
+      }
+    } else for (const side of [-1, 1]) {
       const sw = side * (step * 3);
       const hx = cx + side * Math.max(4, Math.round(t.hw * 0.66));
       const fx = hx + sw;
-      const bare = t.wear === 'bare';
-      limb(p, hx, hipY - 1, hx + sw * 0.5, kneeY, t.aw + 2, t.aw + 1,
-        bare ? t.skin : t.pants, bare ? t.lite : t.pantsL, INK);
-      limb(p, hx + sw * 0.5, kneeY, fx, FOOT - 4, t.aw + 1, t.aw,
-        bare ? t.skin : t.pants, bare ? t.lite : t.pantsL, INK);
-      p.rect(hx - 1, kneeY - 1, 3, 2, t.pantsD);
       const fd = side * (t.lean > 0 ? 1 : -1) > 0 ? 1 : -1;
-      if (t.boots) {
-        p.round(fx - t.aw, FOOT - 7, t.aw * 2 + 1, 8, 3, t.bootC);
-        p.round(fx - t.aw + (fd > 0 ? 2 : -2), FOOT - 4, t.aw * 2 + 1, 5, 2, t.bootC);
-        p.rect(fx - t.aw, FOOT - 7, t.aw * 2 + 1, 2, t.acc);
-        p.rect(fx - t.aw + 1, FOOT - 6, t.aw * 2 - 1, 1, t.bootL);
-        p.rect(fx - t.aw, FOOT - 1, t.aw * 2 + 1, 1, '#12101a');
+
+      if (t.legs === 'digi') {
+        /* DIGITIGRADE. The knee goes forward, the ankle goes back, and he
+           stands on his toes -- a dog's back leg, which is what stops half
+           the room walking like a man in a suit. */
+        const kx = hx + sw * 0.7 + fd * 4, ax = hx + sw * 0.2 - fd * 3;
+        limb(p, hx, hipY - 1, kx, hipY + Math.round(t.lh * 0.42), t.aw + 3, t.aw + 1, LC, LL, INK);
+        limb(p, kx, hipY + Math.round(t.lh * 0.42), ax, FOOT - Math.round(t.lh * 0.26), t.aw + 1, t.aw - 1, t.skin, t.lite, INK);
+        limb(p, ax, FOOT - Math.round(t.lh * 0.26), fx + fd * 2, FOOT - 3, t.aw - 1, t.aw - 1, t.skin, t.lite, INK);
+        p.round(kx - 2, hipY + Math.round(t.lh * 0.42) - 2, 5, 5, 2, t.dark);
+        p.round(fx + fd - 3, FOOT - 4, 8, 5, 2, t.skin);
+        for (let k = 0; k < t.toes; k++) p.rect(fx + fd * 2 + (fd > 0 ? k * 2 : -k * 2), FOOT - 2, 2, 3, t.dark);
+      } else if (t.legs === 'hoof') {
+        limb(p, hx, hipY - 1, hx + sw * 0.5, kneeY, t.aw + 3, t.aw, LC, LL, INK);
+        limb(p, hx + sw * 0.5, kneeY, fx, FOOT - 6, t.aw, Math.max(2, t.aw - 2), t.skin, t.lite, INK);
+        // the hoof: one hard block, split down the middle
+        p.round(fx - t.aw + 1, FOOT - 6, t.aw * 2 - 1, 7, 2, '#3a3040');
+        p.round(fx - t.aw + 1, FOOT - 6, t.aw * 2 - 1, 3, 2, '#5a4e60');
+        p.rect(fx - 1, FOOT - 4, 1, 5, '#1a1424');
+      } else if (t.legs === 'talon') {
+        // a bird. Thin scaled shins and three toes forward, one back
+        limb(p, hx, hipY - 1, hx + sw * 0.6, kneeY, t.aw + 2, Math.max(2, t.aw - 1), LC, LL, INK);
+        limb(p, hx + sw * 0.6, kneeY, fx, FOOT - 3, Math.max(2, t.aw - 1), 2, t.acc, t.lite, INK);
+        for (let k = kneeY + 2; k < FOOT - 4; k += 3) p.set(fx, k, t.accD);
+        for (let k = 0; k < 3; k++) {
+          const tx0 = fx + fd * (1 + k * 3);
+          p.line(fx, FOOT - 3, tx0, FOOT, t.acc);
+          p.rect(tx0 - 1, FOOT - 1, 3, 2, t.acc);
+          p.set(tx0 + fd, FOOT, t.dark);
+        }
+        p.line(fx, FOOT - 3, fx - fd * 3, FOOT, t.acc);
+      } else if (t.legs === 'stump') {
+        // barely a leg. A fat post and a wide flat foot under it
+        limb(p, hx, hipY - 1, fx, FOOT - 4, t.aw + 4, t.aw + 3, LC, LL, INK);
+        p.round(fx - t.aw - 2, FOOT - 5, (t.aw + 2) * 2 + 1, 6, 2, t.boots ? t.bootC : t.skin);
+        p.rect(fx - t.aw - 2, FOOT - 5, (t.aw + 2) * 2 + 1, 1, t.boots ? t.acc : t.lite);
+        p.rect(fx - t.aw - 2, FOOT - 1, (t.aw + 2) * 2 + 1, 1, '#12101a');
+      } else if (t.legs === 'stilt') {
+        // two pins with a knob for a knee and almost nothing on the end
+        limb(p, hx, hipY - 1, hx + sw * 0.6, kneeY, 3, 3, LC, LL, INK);
+        limb(p, hx + sw * 0.6, kneeY, fx, FOOT - 2, 3, 2, LC, LL, INK);
+        p.round(hx + sw * 0.6 - 3, kneeY - 3, 7, 7, 3, t.skin);
+        p.round(hx + sw * 0.6 - 2, kneeY - 2, 4, 3, 1, t.lite);
+        p.round(fx - 3 + fd, FOOT - 3, 7, 4, 2, t.boots ? t.bootC : t.dark);
       } else {
-        p.round(fx - t.aw + 1, FOOT - 5, t.aw * 2 - 1, 6, 2, t.skin);
-        p.round(fx - t.aw + 1 + (fd > 0 ? 2 : -2), FOOT - 3, t.aw * 2 - 1, 4, 2, t.skin);
-        p.rect(fx - t.aw + 1, FOOT - 5, t.aw * 2 - 1, 1, t.lite);
-        p.rect(fx - t.aw + 1, FOOT - 1, t.aw * 2 - 1, 1, t.dark);
-        for (let k = 0; k < 3; k++) p.set(fx + fd * t.aw, FOOT - 4 + k, t.dark);
+        // the ordinary pair
+        limb(p, hx, hipY - 1, hx + sw * 0.5, kneeY, t.aw + 2, t.aw + 1, LC, LL, INK);
+        limb(p, hx + sw * 0.5, kneeY, fx, FOOT - 4, t.aw + 1, t.aw, LC, LL, INK);
+        p.rect(hx - 1, kneeY - 1, 3, 2, t.pantsD);
+        foot(fx, fd, t.aw);
       }
     }
 
@@ -1406,26 +1520,139 @@
       p.set(cx - 1, colY + 9, '#ffffff');
     }
 
+    // ------------------------------------------- the ring, if that is his legs
+    if (t.legs === 'skirt') {
+      /* NO LEGS AT ALL. A ring of short tentacles under the hips, the outer
+         ones shorter so the whole thing sits like a bell on the floor. */
+      // the bell they hang off, so the ring reads as one thing
+      p.round(cx - t.hw - 2, hipY - 4, (t.hw + 2) * 2, 9, 4, t.skin);
+      p.round(cx - t.hw - 1, hipY - 4, (t.hw + 1) * 2, 4, 3, t.lite);
+      for (let i = -2; i <= 2; i++) {
+        const tx0 = cx + i * Math.max(5, Math.round(t.hw * 0.62));
+        const len = t.lh + 2 - Math.abs(i) * 2;
+        const curl = (i * 2.4) + (step || 0) * 1.4;
+        let px0 = tx0, py0 = hipY;
+        for (let k = 0; k < 5; k++) {
+          const w = Math.max(3, (t.aw + 4) - k * 1.2);
+          const nx = px0 + curl * 0.42, ny = py0 + len / 5;
+          limb(p, px0, py0, nx, ny, w + 1, w, k > 3 ? t.lite : t.skin, t.lite, INK);
+          px0 = nx; py0 = ny;
+        }
+        p.round(px0 - 4, Math.min(FOOT - 3, py0 - 1), 9, 4, 2, t.dark);
+      }
+    }
+
     // ------------------------------------------------------------- the arms
-    for (const side of [-1, 1]) {
-      const swing = side * (-step * 3);
-      const sx = cx + side * (t.sw + 1);
-      const ex = cheer ? sx + side * 3 : sx + side * 4 + swing;
-      const hy = cheer ? shY - t.th - 1 : shY + t.th + 3 + Math.abs(swing);
-      const mid = cheer ? shY - Math.round(t.th * 0.4) : shY + Math.round(t.th * 0.55);
-      limb(p, sx, shY + 4, ex, mid, t.aw + 1, t.aw, t.skin, t.lite, INK);
-      limb(p, ex, mid, ex + side * 2, hy, t.aw, t.aw - 1, t.skin, t.lite, INK);
-      if (t.pads) p.round(sx - 3, shY + 1, 7, 5, 2, t.acc);
-      // a hand with fingers on it, curled or open
-      const hx2 = ex + side * 2;
+    /* WHAT HE REACHES WITH. The old body had one arm and everybody got it.
+       These are eight, and between them and the legs a generated alien stops
+       being a colour swap and starts being a species. */
+    function handAt(hx2, hy, side) {
       const HANDC = t.gloves ? t.gloves : t.lite;
       const HANDC2 = t.gloves ? t.gloves : t.skin;
       p.round(hx2 - 3, hy, 7, 7, 2, HANDC);
       p.round(hx2 - 3, hy, 7, 3, 2, HANDC2);
-      for (let f = 0; f < 3; f++) p.rect(hx2 - 3 + f * 2, hy + 5, 2, 3, HANDC2);
+      for (let f = 0; f < t.fingers; f++) p.rect(hx2 - 3 + f * 2, hy + 5, 2, 3, HANDC2);
       p.set(hx2 - 3, hy + 3, t.gloves ? '#b4b0c8' : t.dark);
       if (t.gloves) p.rect(hx2 - 4, hy - 1, 9, 2, '#e8e4f4');
       if (t.ring && side > 0) { p.disc(hx2 + 2, hy + 3, 2, t.acc); p.set(hx2 + 2, hy + 2, '#ffffff'); }
+    }
+
+    function armPair(scale, drop, kind) {
+      for (const side of [-1, 1]) {
+        const swing = side * (-step * 3);
+        const sx = cx + side * (t.sw + 1);
+        const sy = shY + 4 + drop;
+        const aw = Math.max(2, Math.round(t.aw * scale));
+        /* The arm bows OUT. The first pass hung them straight down against the
+           ribs and a pincer, a mitten and a hand were the same silhouette --
+           you could not tell what anybody had on the end of their arm. */
+        const ex = cheer ? sx + side * 4 : sx + side * (aw + 3) + swing;
+        const hy = cheer ? shY - t.th - 1 : sy + Math.round(t.th * 0.86) + Math.abs(swing);
+        const mid = cheer ? shY - Math.round(t.th * 0.4) : sy + Math.round(t.th * 0.42);
+        const hx2 = ex + side * 3;
+
+        if (kind === 'tentacle') {
+          /* No joints and no hand. It curls, and each length is a shade
+             lighter than the last so the coil reads as going round. */
+          let px0 = sx, py0 = sy, ang = cheer ? -1.5 : 0.1;
+          for (let k = 0; k < 7; k++) {
+            const w = Math.max(2, aw + 3 - k);
+            const len = (t.th + 12) / 6;
+            ang += 0.36 + (cheer ? -0.12 : 0);
+            const nx = px0 + side * Math.cos(ang) * len * 1.15 + side * 1.6;
+            const ny = py0 + Math.sin(ang) * len * 0.9;
+            limb(p, px0, py0, nx, ny, w + 1, w, k > 3 ? t.lite : t.skin, t.lite, INK);
+            if (k % 2) p.set(Math.round(px0 - side), Math.round(py0 + 1), t.acc);   // suckers
+            px0 = nx; py0 = ny;
+          }
+        } else if (kind === 'claw') {
+          limb(p, sx, sy, ex, mid, aw + 1, aw, t.skin, t.lite, INK);
+          limb(p, ex, mid, hx2, hy, aw, aw - 1, t.skin, t.lite, INK);
+          // a pincer: two hooks that leave a gap you can see through
+          const cc = t.gloves || t.acc, cd = t.accD;
+          p.round(hx2 - 4, hy - 1, 9, 5, 2, cd);
+          p.round(hx2 - 3, hy - 1, 7, 3, 1, cc);
+          for (const h of [-1, 1]) {
+            p.round(hx2 + h * 3 - 2, hy + 3, 5, 4, 2, cd);
+            p.spike(hx2 + h * 3, hy + 6, 4, 6, 1, cc);
+          }
+        } else if (kind === 'mitt') {
+          limb(p, sx, sy, ex, mid, aw + 4, aw + 2, t.skin, t.lite, INK);
+          limb(p, ex, mid, hx2, hy, aw + 2, aw + 1, t.skin, t.lite, INK);
+          const MC = t.gloves || t.skin;
+          p.round(hx2 - 5, hy - 1, 11, 10, 4, MC);
+          p.round(hx2 - 4, hy, 9, 4, 3, t.gloves || t.lite);
+          p.round(hx2 + side * 4 - 2, hy + 3, 5, 5, 2, MC);                 // a thumb
+          p.rect(hx2 - 4, hy + 6, 9, 1, t.dark);
+        } else if (kind === 'thin') {
+          const ex2 = sx + side * (aw + 7) + swing, hy2 = hy + 5;
+          limb(p, sx, sy, ex2, mid, 3, 3, t.skin, t.lite, INK);
+          limb(p, ex2, mid, hx2 + side * 3, hy2, 3, 2, t.skin, t.lite, INK);
+          p.round(ex2 - 2, mid - 2, 5, 5, 2, t.dark);                       // a knobbly elbow
+          for (let f = 0; f < 3; f++) {
+            p.line(hx2 + side * 3, hy2, hx2 + side * (5 + f * 3), hy2 + 7 - f * 2, t.skin);
+            p.set(hx2 + side * (5 + f * 3), hy2 + 7 - f * 2, t.dark);
+          }
+        } else if (kind === 'wing') {
+          /* A membrane from the shoulder down to the hip, with the bones of
+             it showing through. It is an arm; it just cannot pick anything up. */
+          const tipX = sx + side * (t.sw + 13), tipY = sy - 4;
+          for (let k = 0; k < 4; k++) {
+            const f = k / 3;
+            const bx3 = sx + (tipX - sx) * (0.4 + f * 0.6);
+            const by3 = sy + (t.th + 2) * f;
+            p.line(sx, sy, bx3, by3, t.accD);
+          }
+          for (let y = 0; y < t.th + 6; y++) {
+            const f = y / (t.th + 6);
+            // scalloped: three fingers of membrane rather than one flat sheet
+            const lobe = 1 - Math.abs(Math.sin(f * 3.1)) * 0.16;
+            const wAt = Math.round((t.sw + 15) * (1 - f * 0.7) * lobe);
+            p.rect(side > 0 ? sx : sx - wAt, sy + y, wAt, 1, f > 0.55 ? t.accD : t.acc);
+            if (y % 6 === 0) p.rect(side > 0 ? sx : sx - wAt, sy + y, wAt, 1, t.dark);
+          }
+          limb(p, sx, sy, tipX, tipY, aw + 1, 2, t.skin, t.lite, INK);
+          p.round(tipX - 2, tipY - 2, 5, 5, 2, t.dark);
+        } else if (kind === 'stub') {
+          // two very short ones, held out in front and no use to anybody
+          limb(p, sx, sy + 2, sx + side * 6, sy + 5, aw + 1, aw, t.skin, t.lite, INK);
+          p.round(sx + side * 6 - 3, sy + 3, 7, 6, 2, t.gloves || t.lite);
+          for (let f = 0; f < 2; f++) p.rect(sx + side * 6 - 2 + f * 3, sy + 8, 2, 3, t.skin);
+        } else {
+          limb(p, sx, sy, ex, mid, aw + 1, aw, t.skin, t.lite, INK);
+          limb(p, ex, mid, hx2, hy, aw, aw - 1, t.skin, t.lite, INK);
+          handAt(hx2, hy, side);
+        }
+        if (t.pads && kind !== 'wing') p.round(sx - 3, sy - 3, 7, 5, 2, t.acc);
+      }
+    }
+
+    if (t.arms === 'four') {
+      // a second, smaller pair below the first, because why stop at two
+      armPair(0.7, Math.round(t.th * 0.42), 'normal');
+      armPair(1, 0, 'normal');
+    } else {
+      armPair(1, 0, t.arms);
     }
 
     /* ------------------------------------------------------ the extra bits
@@ -1467,13 +1694,52 @@
       p.set(cx + sd * (HR + t.snout - 1), snY - 1, '#ffffff');
       for (let i = -3; i <= 3; i++) p.line(cx + i * 3, headY + HR - 4, cx + i * 3 + 1, headY + HR + 1, t.dark);
     } else {
-      p.ellipse(cx, headY, HR, HR - 1, t.skin);
-      p.ellipse(cx, headY - Math.round(HR * 0.42), Math.round(HR * 0.76), Math.round(HR * 0.34), t.lite);
-      p.ellipse(cx, headY + Math.round(HR * 0.58), Math.round(HR * 0.84), Math.round(HR * 0.3), t.dark);
-      p.round(cx - HR + 3, headY + 2, (HR - 3) * 2, HR - 1, 4, t.skin);         // the jaw
+      /* THE SHAPE OF THE HEAD. Eight of them, all built off the same radius so
+         the eyes and the mouth still land where the face code expects them --
+         what changes is the skull around them, which is the whole difference
+         between a person and a species. */
+      const RX = Math.max(5, Math.round(HR * t.hx)), RY = Math.max(5, Math.round(HR * t.hy));
+      const JW = Math.max(4, Math.round((HR - 3) * t.jaw));
+      if (t.headK === 'dome') {
+        // tall at the back, flat along the bottom
+        p.ellipse(cx, headY - 2, RX, RY, t.skin);
+        p.rect(cx - RX + 2, headY - 2, (RX - 2) * 2, RY, t.skin);
+        p.rect(cx - RX + 3, headY + RY - 3, (RX - 3) * 2, 3, t.dark);
+      } else if (t.headK === 'pear') {
+        // narrow at the top and all jaw underneath
+        p.ellipse(cx, headY - Math.round(RY * 0.3), Math.round(RX * 0.74), Math.round(RY * 0.78), t.skin);
+        p.ellipse(cx, headY + Math.round(RY * 0.34), JW, Math.round(RY * 0.72), t.skin);
+      } else if (t.headK === 'anvil') {
+        // a wide slab across the top and a chin you could open a tin with
+        p.round(cx - RX, headY - RY, RX * 2, Math.round(RY * 1.3), 5, t.skin);
+        p.round(cx - JW, headY + Math.round(RY * 0.2), JW * 2, Math.round(RY * 0.9), 4, t.skin);
+        p.rect(cx - RX, headY - RY, RX * 2, 2, t.lite);
+      } else if (t.headK === 'tall') {
+        p.ellipse(cx, headY, RX, RY, t.skin);
+        p.ellipse(cx, headY - Math.round(RY * 0.55), Math.round(RX * 0.8), Math.round(RY * 0.5), t.skin);
+      } else if (t.headK === 'wide') {
+        p.ellipse(cx, headY, RX, RY, t.skin);
+        p.round(cx - JW, headY + 1, JW * 2, RY, 4, t.skin);
+      } else if (t.headK === 'split') {
+        // two lobes with a groove down between them
+        p.ellipse(cx - Math.round(RX * 0.42), headY, Math.round(RX * 0.7), RY, t.skin);
+        p.ellipse(cx + Math.round(RX * 0.42), headY, Math.round(RX * 0.7), RY, t.skin);
+        p.ellipse(cx, headY + Math.round(RY * 0.3), Math.round(RX * 0.8), Math.round(RY * 0.72), t.skin);
+        p.rect(cx, headY - RY + 1, 1, Math.round(RY * 0.7), t.dark);
+      } else if (t.headK === 'egg') {
+        // a big cranium and hardly any face under it
+        p.ellipse(cx, headY - Math.round(RY * 0.22), RX, Math.round(RY * 1.02), t.skin);
+        p.ellipse(cx, headY + Math.round(RY * 0.5), JW, Math.round(RY * 0.44), t.skin);
+        p.ellipse(cx, headY - Math.round(RY * 0.55), Math.round(RX * 0.7), Math.round(RY * 0.34), t.lite);
+      } else {
+        p.ellipse(cx, headY, RX, RY - 1, t.skin);
+        p.round(cx - JW, headY + 2, JW * 2, RY - 1, 4, t.skin);               // the jaw
+      }
+      p.ellipse(cx, headY - Math.round(RY * 0.42), Math.round(RX * 0.72), Math.round(RY * 0.32), t.lite);
+      p.ellipse(cx, headY + Math.round(RY * 0.6), Math.round(JW * 0.9), Math.round(RY * 0.26), t.dark);
       // cheeks, which is most of what makes a face look like it has a person in it
-      p.ellipse(cx - Math.round(HR * 0.62), headY + Math.round(HR * 0.3), 3, 2, t.lite);
-      p.ellipse(cx + Math.round(HR * 0.62), headY + Math.round(HR * 0.3), 3, 2, t.lite);
+      p.ellipse(cx - Math.round(RX * 0.62), headY + Math.round(RY * 0.3), 3, 2, t.lite);
+      p.ellipse(cx + Math.round(RX * 0.62), headY + Math.round(RY * 0.3), 3, 2, t.lite);
     }
     if (t.plan === 'bug') {
       p.round(cx - t.sw + 1, shY - 2, t.sw * 2 - 2, 6, 2, t.accD);
@@ -1520,7 +1786,7 @@
     const faceY = t.plan === 'beast' ? headY - Math.round(HRr * 0.18)
       : (t.plan === 'fungal' ? headY + Math.round(HRr * 0.42) : headY + Math.round(HRr * 0.06));
     const er = Math.max(3, Math.round(HRr * 0.30));               // eye radius
-    const gap = Math.round(HRr * 0.40);                           // half the spacing
+    const gap = Math.round(HRr * (t.eyeSpread || 0.40));          // half the spacing, wider on a wide head
 
     /* ONE EYE. A socket so it sits in the head, a white, an iris that is never
        the colour of his skin, a pupil, a catchlight always up-and-left, and a
@@ -1872,6 +2138,12 @@
       const c = CELEBS[i];
       // an ordinary generated body, then the things that make him him
       const t = alienKin(90210 + i * 131, c.t.plan);
+      /* A celebrity is recognisable or he is nobody. The generator's four new
+         axes get pinned to the ordinary ones first, so the plumber keeps his
+         legs and his hands, and then the preset can ask for something odder if
+         that is what he actually is. */
+      t.legs = 'normal'; t.arms = 'normal'; t.headK = 'round';
+      t.hx = 1; t.hy = 1; t.jaw = 1; t.eyeSpread = 0.4;
       Object.assign(t, c.t);
       t.celeb = c.name;
       t.say = c.say;
@@ -2244,6 +2516,26 @@
     }
   }
 
+  /* A test hook. Builds one body per value of one trait, everything else held
+     still, so a change to the arms can be looked at as eight arms rather than
+     eight aliens. It is only ever called from a harness. */
+  function axisProbe(axis, kinds) {
+    return kinds.map(k => {
+      const t = alienKin(4242, 'biped');
+      t.wear = 'vest'; t.crown = 'none'; t.hair = 'none'; t.tex = 'plain'; t.shades = null;
+      t[axis] = k;
+      if (axis === 'headK') {
+        const HP = { round: [1, 1, 1], dome: [1, 1.04, 1], pear: [0.94, 1.02, 1.16],
+          anvil: [1.14, 0.88, 0.7], tall: [0.84, 1.2, 0.86], wide: [1.24, 0.82, 1.2],
+          split: [1.08, 0.96, 1], egg: [1.02, 1.06, 0.78] }[k];
+        t.hx = HP[0]; t.hy = HP[1]; t.jaw = HP[2];
+      }
+      const cv = buildAlien(t, 0).toCanvas();
+      return { frames: [cv], w: cv.width / HD, h: cv.height / HD, hd: HD,
+        ox: cv.width / 2 / HD, oy: cv.height / HD };
+    });
+  }
+
   function makeKin(n) {
     for (let i = 0; i < n; i++) {
       // the mix is dealt out rather than rolled, so a room of twenty always has
@@ -2519,5 +2811,6 @@
   reg('skull', [celestialHead()]);
   reg('tape', [tapeDeck(0), tapeDeck(1)]);
 
-  PD.arthome = { S, P, KIN, CELEBS, SPECIES, alienKin, buildAlien, hsl, buildMoon, buildPlanet, blit, HD, mitten, reg, regRaw };
+  PD.arthome = {
+    axisProbe, S, P, KIN, CELEBS, SPECIES, alienKin, buildAlien, hsl, buildMoon, buildPlanet, blit, HD, mitten, reg, regRaw };
 })(window.PD);
