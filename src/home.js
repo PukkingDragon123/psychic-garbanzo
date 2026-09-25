@@ -234,15 +234,10 @@
      furniture now and they are drawn BEHIND it. */
   const BANDS = [[262, 318], [350, 412], [444, 552], [596, 656],
     [694, 778], [800, 884], [906, 1036]];
-  /* Who is in tonight. Half the room is generated strangers and half of it is
-     the regulars -- the ones you are fairly sure you have seen somewhere
-     before and cannot place. They are dealt alternately so they are spread
-     down the room rather than all standing in one corner of it. */
-  const CELEB0 = AH.KIN.findIndex(k => k.celeb);
-  const NCELEB = AH.KIN.filter(k => k.celeb).length;
-  function kinAt(i) {
-    return (i % 2 === 1 && CELEB0 >= 0) ? CELEB0 + ((i >> 1) % NCELEB) : i;
-  }
+  /* Who is in tonight. Everybody in the building is somebody now -- the cast
+     is authored, not generated -- so they are dealt round the room with a
+     stride that keeps two of the same kind from standing next to each other. */
+  function kinAt(i) { return (i * 5 + 2) % AH.KIN.length; }
   const CLUBBERS = [];
   for (let i = 0; i < 14; i++) {
     const b = BANDS[i % BANDS.length];
@@ -1079,6 +1074,9 @@
   function use(g, s) {
     if (!s) return;
     if (FX.wipeActive()) return;
+    /* THE LESSON COMES FIRST. While the tutorial is on, the only thing on
+       this screen that does anything is the thing the current step is about. */
+    if (g.tutAllows && !g.tutAllows('home', s.id)) { g.tutNope('home'); return; }
     // where on the screen the iris should close on: the thing he pressed E at
     const at = toScreen(s.x - Math.round(g.intCam), groundY(s.x) - 20);
     const fx2 = U.clamp(at.x, 0, VW), fy2 = U.clamp(at.y, 0, VH);
@@ -1268,8 +1266,6 @@
     { deck: 0, x: 240, kind: 'cantina', name: 'THE WET DECK' },
     { deck: 0, x: 520, kind: 'crate' }, { deck: 0, x: 566, kind: 'crate' },
     { deck: 0, x: 860, kind: 'freighter' },
-    { deck: 1, x: 690, kind: 'stallX' }, { deck: 1, x: 780, kind: 'stallX' },
-    { deck: 1, x: 900, kind: 'stallX' },
     { deck: 2, x: 620, kind: 'bank', name: 'THE FIRST BANK OF NOWHERE' },
     { deck: 2, x: 860, kind: 'scope' }
   ];
@@ -1774,11 +1770,11 @@
   /* They hang off the FRONT of the deck above, which is how these signs work:
      the whole point is that the fish is bigger than the shop. */
   const OSAKA = [
-    { x: 248, kind: 'puffer', y: -84 },
-    { x: 436, kind: 'crab', y: -86 },
-    { x: 628, kind: 'octo', y: -82 },
-    { x: 818, kind: 'dumpling', y: -96 },
-    { x: 1036, kind: 'puffer', y: -84 }
+    { x: 240, kind: 'puffer', y: -84 },
+    { x: 495, kind: 'crab', y: -86 },
+    { x: 632, kind: 'octo', y: -82 },
+    { x: 802, kind: 'dumpling', y: -96 },
+    { x: 1064, kind: 'puffer', y: -84 }
   ];
 
   function hubOsaka(ctx, g, t, cam, d, dim) {
@@ -1786,42 +1782,8 @@
     const y = DECK_Y[d], top = DECK_Y[2] + 24;
     ctx.globalAlpha = dim ? 0.55 : 1;
 
-    /* THE SHOPFRONTS. A run of lit boxes along the back of the deck with
-       awnings over them, so the stalls have something to stand in front of. */
-    for (let x = 60; x < HUB_W - 40; x += 76) {
-      const px = x - cam;
-      if (px < -90 || px > VW + 90) continue;
-      const k = (x / 76) | 0;
-      const C = SIGN_COL[k % SIGN_COL.length];
-      X.plate(ctx, px - 34, y - 38, 68, 38, '#141a26', '#242e40', '#070b12', 4);
-      X.rect(ctx, px - 30, y - 34, 60, 20, '#0b1018');
-      // what is for sale, in a row of lit jars
-      for (let i = 0; i < 4; i++) {
-        X.rect(ctx, px - 26 + i * 14, y - 31, 9, 13, i % 2 ? C[2] : '#16202c');
-        X.rect(ctx, px - 26 + i * 14, y - 31, 9, 2, C[0]);
-        X.blob(ctx, px - 22 + i * 14, y - 25, 3, 3, C[1]);
-      }
-      // the awning, striped, with a scalloped edge
-      for (let i = 0; i < 9; i++) {
-        X.rect(ctx, px - 36 + i * 8, y - 46, 8, 8, i % 2 ? C[2] : '#1a2230');
-      }
-      X.rect(ctx, px - 36, y - 47, 72, 2, C[0]);
-      for (let i = 0; i < 9; i++) X.poly(ctx, [[px - 36 + i * 8, y - 38], [px - 28 + i * 8, y - 38], [px - 32 + i * 8, y - 34]], i % 2 ? C[2] : '#1a2230');
-      // a paper lantern on the corner of it
-      const lit = (Math.floor(t * 2 + k) % 11) !== 0;
-      for (const sd of [-1, 1]) {
-        const lx = px + sd * 32;
-        X.rect(ctx, lx, y - 46, 1, 4, '#2a3444');
-        X.blob(ctx, lx, y - 37, 6, 8, lit ? '#ff6a4a' : '#4a2018');
-        X.blob(ctx, lx, y - 37, 4, 6, lit ? '#ffb07a' : '#5a2a1c');
-        X.rect(ctx, lx - 6, y - 40, 13, 1, lit ? '#c4402a' : '#3a1810');
-        X.rect(ctx, lx - 6, y - 34, 13, 1, lit ? '#c4402a' : '#3a1810');
-        if (lit && !dim) { ctx.globalAlpha = 0.12; X.blob(ctx, lx, y - 35, 12, 12, '#ff8a4a'); ctx.globalAlpha = dim ? 0.55 : 1; }
-      }
-      // the name of the shop, small, at the top
-      F.draw(ctx, OSAKA_WORDS[k % OSAKA_WORDS.length], px, y - 55, C[1], { center: true, shadow: '#060a10' });
-    }
-
+    /* THE SHOPS are PD.mall's now -- see hubProps. What is left here is the
+       signage that hangs off the outside of the building. */
     /* THE TOWERS. There is no room to stack them UPWARDS -- the deck above is
        eighty pixels over your head -- so they hang off the front edge of this
        one and run DOWN into the air over the docks, which is how half of that
@@ -1904,27 +1866,25 @@
         ctx.globalAlpha = dim ? 0.55 : 1;
       }
     }
-    // the four that actually sell you something
-    for (const q of STALLS) {
-      if (q.deck !== d) continue;
-      const x = q.x - cam;
-      if (x < -70 || x > VW + 70) continue;
-      const bought = q.once && g.save.bought && g.save.bought[q.id];
-      X.plate(ctx, x - 26, y - 34, 52, 34, '#2a1a3a', '#6a3a80', '#120a1c', 4);
-      X.rect(ctx, x - 20, y - 28, 40, 18, '#0d0718');
-      PD.glyph.draw(ctx, q.glyph, x - 7, y - 26, bought ? '#4fd0b0' : '#ff8ad8', '#8a3a6a');
-      // the canopy
-      for (let i = 0; i * 9 < 60; i++) {
-        X.rect(ctx, x - 30 + i * 9, y - 44, 9, 10, i % 2 ? '#7a2450' : '#3a0e26');
+    /* THE SHOPS. Real ones, with a name and a logo and somebody behind the
+       till. Four of them sell you something; the rest are just open. */
+    const px = d === S.deck ? P.x : -9999;
+    if (d === 1) {
+      for (const [k, dx] of [['bin', 124], ['palm', 240], ['palm', 365], ['palm', 495],
+        ['bench', 630], ['palm', 1062], ['palm', 1200], ['bin', 1214]]) {
+        const x = dx - cam;
+        if (x > -40 && x < VW + 40) PD.mall.dress(ctx, k, x, y, dim);
       }
-      X.rect(ctx, x - 30, y - 35, 60, 2, '#a8265a');
-      const on = bought || Math.sin(t * 3 + q.x) > -0.4;
-      X.plate(ctx, x - 30, y - 58, 60, 13, '#170a28', on ? '#ffd34d' : '#5a4418', '#080312', 3);
-      F.draw(ctx, q.name.replace('THE ', ''), x, y - 55, on ? '#ffd34d' : '#6a5a1a',
-        { center: true, shadow: '#180510' });
-      // and the one behind the counter
-      const K = AH.KIN[(q.x / 7 | 0) % AH.KIN.length];
-      AH.blit(ctx, AH.S[K.key], Math.floor(t * 1.2 + q.x) % 9 === 0 ? 5 : 0, x + 16, y + Math.sin(t * 1.6) * 1);
+      const ex = 762 - cam;
+      if (ex > -100 && ex < VW + 40) PD.mall.escalator(ctx, ex, y, DECK_Y[2], t, dim);
+    }
+    for (const s of PD.mall.SHOPS) {
+      if (s.deck !== d) continue;
+      const x = s.x - cam;
+      if (x < -s.w || x > VW + s.w) continue;
+      const q = s.id && STALL_OF[s.id];
+      const owned = !!(q && q.once && g.save.bought && g.save.bought[q.id]);
+      PD.mall.draw(ctx, s, x, y, t, cam, px - cam, owned, dim);
     }
     ctx.globalAlpha = 1;
   }
@@ -3200,7 +3160,7 @@
 
   /* The girl with the tray, going up and down whichever floor you are on and
      never getting to the end of it. */
-  const TRAY = { x: 400, dir: 1, k: 3, t: 0 };
+  const TRAY = { x: 400, dir: 1, k: 10, t: 0 };     // BAO, with the drinks
   function updateTray(dt) {
     TRAY.t += dt;
     TRAY.x += TRAY.dir * 17 * dt;
@@ -3501,7 +3461,8 @@
       ctx.globalAlpha = 1;
     }
     X.rect(ctx, bx - 42, FLOOR - 40, 84, 2, CAS.goldDD);
-    const BK = AH.KIN[7 % AH.KIN.length];
+    // behind the bar, a jellyfish, because it has the reach
+    const BK = AH.KIN[Math.max(0, AH.KIN.findIndex(k => k.who === 'WOBBLE'))];
     AH.blit(ctx, AH.S[BK.key], Math.floor(t * 1.3) % 6 === 0 ? 5 : 0,
       bx + 10, FLOOR - 30 + Math.sin(t * 2.2) * 1.5, true);
     // the counter: black stone with a gold foot rail under it
@@ -3730,8 +3691,8 @@
     drawSeated(ctx, sx + 46, t, 18, true, TOP + 2);
     X.line(ctx, sx + 38, TOP - 18, sx + 26, TOP - 24, CAS.goldD, 3);
     X.poly(ctx, [[sx + 26, TOP - 28], [sx + 26, TOP - 20], [sx + 16, TOP - 16], [sx + 16, TOP - 32]], CAS.gold);
-    // and her, at the microphone
-    const K = AH.KIN[2 % AH.KIN.length];
+    // and her, at the microphone: the bunny, who will get up for this and nothing else
+    const K = AH.KIN[Math.max(0, AH.KIN.findIndex(k => k.who === 'MOCHI'))];
     AH.blit(ctx, AH.S[K.key], S.clap > 0 ? 6 : ((Math.floor(t * 2.4) % 4) === 0 ? 3 : 0),
       sx + sway, TOP + 3, false);
     X.rect(ctx, sx + 12, TOP - 18, 2, 21, CAS.goldDD);
@@ -4850,13 +4811,13 @@
      the next one every time you press E at them. They go round. Nobody in
      this building has anything new to tell you, which is the point of them. */
   const NPCS = [
-    { id: 'door', deck: 0, x: 1400, kin: 'THE PLUMBER', name: 'THE FLOOR MAN',
+    { id: 'door', deck: 0, x: 1400, kin: 'BRUNO', name: 'THE FLOOR MAN',
       says: ['THE ROPE IS THE ROPE.', 'I DO NOT MAKE THE ROPE.', 'YOU AGAIN.', 'FOUR FLOORS. ONE DIRECTION.', 'MIND THE STEP.'],
       lines: ['HE SAYS THE ROPE IS THE ROPE AND HE DOES NOT MAKE THE ROPE.',
         'HE ASKS IF YOU ARE HERE ABOUT THE MACHINE. EVERYBODY IS.',
         'HE SAYS FOUR FLOORS AND THE MONEY ONLY EVER GOES ONE WAY.',
         'HE HAS SEEN YOUR FACE BEFORE. HE DOES NOT SAY WHERE.'] },
-    { id: 'pit', deck: 0, x: 1462, kin: 'THE BARBARIAN', name: 'THE PIT BOSS',
+    { id: 'pit', deck: 0, x: 1462, kin: 'KORVO', name: 'THE PIT BOSS',
       says: ['THE EDGE IS PUBLIC.', 'NOBODY EVER ASKS.', 'HOW ARE WE GETTING ON?', 'MOST PEOPLE NEVER PRESS FOUR.', 'I WATCHED BOTH OF THEM.'],
       lines: ['HE SAYS THE HOUSE EDGE IS PUBLIC INFORMATION AND NOBODY EVER ASKS.',
         'HE SAYS THE WHEEL HAS PAID OUT TWICE THIS YEAR AND HE WATCHED BOTH.',
@@ -4874,7 +4835,7 @@
         'IT SAYS THE MACHINES ARE FINE. IT SAYS THIS WHILE REPAIRING ONE.',
         'IT SAYS THE ODDS ARE PRINTED ON THE BACK OF EVERY CABINET.',
         'IT SAYS NOBODY HAS EVER READ THE BACK OF A CABINET.'] },
-    { id: 'gardener', deck: 2, x: 1190, kin: 'POTTED PETE', name: 'THE GARDENER',
+    { id: 'gardener', deck: 2, x: 1190, kin: 'BIRCH', name: 'THE GARDENER',
       says: ['THEY WERE ALL CUSTOMERS.', 'THAT IS A JOKE.', 'IT IS NOT WATER.', 'STOP ASKING.', 'SUNNY NEVER LOSES.'],
       lines: ['HE SAYS THE PLANTS ON THIS FLOOR ARE ALL FORMER CUSTOMERS.',
         'HE SAYS THAT AS A JOKE. HE DOES NOT LAUGH.',
@@ -4886,7 +4847,7 @@
         'IT BUBBLES TWICE. SOMEHOW THIS IS THE ENTIRE HISTORY OF THE BUILDING.',
         'IT SAYS THE TOP FLOOR IS NOT FOR EVERYBODY. THE BUBBLES ARE VERY CLEAR.',
         'IT ASKS, IN BUBBLES, WHETHER YOU HAVE CONSIDERED STOPPING.'] },
-    { id: 'usher', deck: 3, x: 960, kin: 'THE WIZARD', name: 'THE USHER',
+    { id: 'usher', deck: 3, x: 960, kin: 'VESPER', name: 'THE USHER',
       says: ['PEOPLE COME UP JUST TO LOOK.', 'ONE IN EIGHTY.', 'I AM NOT MEANT TO SAY THAT.', 'I TELL EVERYBODY THAT.', 'GO ON THEN.'],
       lines: ['HE SAYS PEOPLE COME UP HERE JUST TO LOOK AT IT.',
         'HE SAYS THE BOARD HAS NEVER BEEN RESET BECAUSE IT HAS NEVER BEEN PAID.',
@@ -4895,25 +4856,25 @@
   ];
   /* --------------------------------------------------------- more of them */
   const NPCS2 = [
-    { id: 'tout', deck: 0, x: 700, kin: 'SPARKS', name: 'THE TOUT', range: 90,
+    { id: 'tout', deck: 0, x: 700, kin: 'PIP', name: 'THE TOUT', range: 90,
       says: ['I HAVE A TIP.', 'THE WHEEL IS DUE.', 'WHAT DO YOU DO?', 'I WORK HERE.', 'NO I DO NOT.'],
       lines: ['HE HAS A TIP. HE HAS A TIP FOR EVERYBODY AND THEY ARE ALL DIFFERENT.',
         'HE SAYS THE WHEEL IS DUE. THE WHEEL IS NEVER DUE.',
         'HE ASKS WHAT YOU DO. HE IS NOT LISTENING TO THE ANSWER.',
         'HE SAYS HE WORKS HERE. HE DOES NOT WORK HERE.'] },
-    { id: 'widow', deck: 2, x: 880, kin: 'THE HERO', name: 'THE WIDOW', range: 60,
+    { id: 'widow', deck: 2, x: 880, kin: 'SAL', name: 'THE WIDOW', range: 60,
       says: ['HE WENT UP IN NINETY ONE.', 'HAVE YOU SEEN A GREY COAT?', 'I COME BACK MOST NIGHTS.', 'THEY SENT FLOWERS.', 'TALL. VERY TALL.'],
       lines: ['SHE SAYS HER HUSBAND WENT UP TO THE FOURTH FLOOR IN NINETY ONE.',
         'SHE SAYS SHE COMES BACK ON THE ANNIVERSARY. SHE COMES BACK MOST NIGHTS.',
         'SHE ASKS IF YOU HAVE SEEN A TALL ONE IN A GREY COAT.',
         'SHE SAYS THE HOUSE SENT FLOWERS. THE HOUSE SENDS FLOWERS.'] },
-    { id: 'kid', deck: 1, x: 1180, kin: 'CHOMPY', name: 'THE KID', range: 120,
+    { id: 'kid', deck: 1, x: 1180, kin: 'BEANIE', name: 'THE KID', range: 120,
       says: ['I AM UP!', 'IS THAT THE PLANET ONE?', 'MY DAD IS UPSTAIRS.', 'HE HAS BEEN A WHILE.', 'CAN I HAVE A GO?'],
       lines: ['HE IS FAR TOO YOUNG TO BE IN HERE AND NOBODY HAS SAID ANYTHING.',
         'HE SAYS HE IS UP. HE IS PLAYING A MACHINE THAT DOES NOT PAY OUT.',
         'HE ASKS IF YOU HAVE SEEN THE ONE WITH THE PLANETS ON IT.',
         'HE SAYS HIS DAD IS UPSTAIRS. HIS DAD HAS BEEN UPSTAIRS A LONG TIME.'] },
-    { id: 'sweep', deck: 3, x: 1250, kin: 'UNIT 12', name: 'THE SWEEPER', range: 200,
+    { id: 'sweep', deck: 3, x: 1250, kin: 'ORBIT', name: 'THE SWEEPER', range: 200,
       says: ['MIND OUT.', 'YOU ARE STANDING IN IT.', 'THIRTY ONE RINGS.', 'THE GALLERY IS THE WORST.', 'BEEP.'],
       lines: ['IT SWEEPS UP WHAT PEOPLE DROP AND IT DOES NOT LOOK AT ANY OF IT.',
         'IT SAYS THE GALLERY IS THE WORST OF THEM. THEY LEAVE EVERYTHING.',
@@ -4951,7 +4912,7 @@
     });
   }
   function npcKin(nm) {
-    const i = AH.KIN.findIndex(k => k.celeb === nm);
+    const i = AH.KIN.findIndex(k => k.who === nm || k.celeb === nm);
     return i < 0 ? 0 : i;
   }
 
@@ -5046,13 +5007,14 @@
       if (x < -50 || x > VW + 50) continue;
       const K = AH.KIN[npcKin(n.kin)];
       const moving = Math.abs(st.vx) > 1;
-      const bob = Math.sin(st.anim * (moving ? 7 : 1.5)) * (moving ? 1.6 : 1);
+      const mv = kinMove(K, st.anim, moving, n.x);
+      const bob = mv[1];
       // the same seven frames as everybody else in the building
       const frame = st.sayT > 0 ? ((Math.floor(t * 5) % 2) ? 3 : 0)
         : (st.blink < 0 ? 5
           : (moving ? (Math.floor(st.anim * 4.4) % 2 ? 1 : 2) : 0));
       kinShadow(ctx, x, FLOOR, K);
-      AH.blit(ctx, AH.S[K.key], frame, x, FLOOR + bob, st.face < 0);
+      AH.blit(ctx, AH.S[K.key], frame, x + mv[0], FLOOR + bob, st.face < 0);
       // a little brass name plate, on the floor where they started
       const px = n.x - cam;
       const race = K.race || K.species || '';
@@ -5226,9 +5188,9 @@
         if (cdeck() === 3 && hx > MEGA_X - MEGA_HW - 70 && hx < MEGA_X + MEGA_HW + 110) continue;
         if (hx > atriumX() - 16 && hx < atriumX() + atriumW() + 16) continue;
         const K = AH.KIN[c.k % AH.KIN.length];
-        const bob = Math.sin(c.t * 2.2 + i) * 1.2;
+        const mv = kinMove(K, c.t, false, i);
         kinShadow(ctx, hx - cam, FLOOR, K);
-        AH.blit(ctx, AH.S[K.key], (Math.floor(c.t + i) % 9) === 0 ? 5 : 0, hx - cam, FLOOR + bob, i % 2 === 0);
+        AH.blit(ctx, AH.S[K.key], (Math.floor(c.t + i) % 9) === 0 ? 5 : 0, hx - cam + mv[0], FLOOR + mv[1], i % 2 === 0);
       }
       drawTray(ctx, t, cam);
       drawWin(ctx, t, cam);
@@ -5811,6 +5773,27 @@
      they wave about and can wrap round each other. */
   /* They have legs now, so the walk is in the sprite rather than drawn under
      it. This is the shadow and nothing else. */
+  /* HOW THEY MOVE. Every character carries a motion, and this is the one
+     place it is turned into an offset, so a doorman, a dancer and a man at
+     the bar all move the way that particular person moves: the bean hops,
+     the bunny waddles, the jellyfish never touches the floor, the brute
+     lumbers, and the slug barely moves at all. Returns [dx, dy]. */
+  function kinMove(K, t, moving, seed) {
+    const s = seed || 0;
+    switch (K.motion) {
+      case 'hop':    return [0, -Math.abs(Math.sin(t * (moving ? 9 : 3) + s)) * (moving ? 5 : 1.6)];
+      case 'waddle': return [Math.round(Math.sin(t * (moving ? 7 : 2) + s) * (moving ? 1.5 : 0.6)),
+        Math.abs(Math.sin(t * (moving ? 7 : 2) + s)) * -1];
+      case 'float':  return [0, -5 + Math.sin(t * 1.8 + s) * 3];
+      case 'lumber': return [0, moving ? Math.abs(Math.sin(t * 4 + s)) * 2 : Math.sin(t * 1.1 + s) * 0.6];
+      case 'ooze':   return [0, Math.sin(t * 1.4 + s) * 0.5];
+      case 'sway':   return [Math.round(Math.sin(t * 1.6 + s) * 1), Math.sin(t * 2.2 + s) * 0.8];
+      case 'roll':   return [0, moving ? Math.sin(t * 20 + s) * 0.5 : 0];
+      case 'still':  return [0, Math.sin(t * 0.9 + s) * 0.4];
+      default:       return [0, Math.sin(t * (moving ? 7 : 3) + s) * (moving ? 1.4 : 1)];
+    }
+  }
+
   function kinShadow(ctx, x, y, K) { X.blob(ctx, x, y + 1, Math.round(K.w * 0.42), 3, '#0a0614'); }
 
   /* Drawn smoke. The smokers used to have no smoke at all, because the only
@@ -5832,8 +5815,9 @@
     const K = AH.KIN[c.k % AH.KIN.length];
     const x = c.x - cam, y = FLOOR;
     const fast = c.dance > 0 ? 11 : (Math.abs(c.vx) > 1 ? 7 : 3);
-    const bob = Math.sin(c.t * fast) * (c.dance > 0 ? 4 : 1.4);
-    const lean = c.kiss > 0 ? c.face * 5 : 0;
+    const mv = kinMove(K, c.t, Math.abs(c.vx) > 1 || c.dance > 0, c.k);
+    const bob = mv[1] + (c.dance > 0 ? -Math.abs(Math.sin(c.t * 11)) * 2 : 0);
+    const lean = (c.kiss > 0 ? c.face * 5 : 0) + mv[0];
     const top = y + bob;
     kinShadow(ctx, x, y, K);
     const moving = Math.abs(c.vx) > 1 || c.dance > 0;

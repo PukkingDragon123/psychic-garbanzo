@@ -254,13 +254,43 @@
      an empty sack is the one mistake that teaches you nothing.
 
      Five steps and it is over for good, remembered in the save. */
+  /* Each step says where it happens and the ONE thing on that screen it lets
+     you touch. Everything else answers NOT YET. That is the whole of what
+     "forced" means here: you can walk about and look, but the only door that
+     opens is the one the step is about. */
   const TUT = [
+    { id: 'launch', where: 'home', allow: ['ufo'], key: ['home', 'planet'], text: 'GET IN THE SHIP',
+      sub: 'WALK TO THE UFO AND PRESS E' },
     { id: 'move', key: ['arrowR'], text: 'WALK', sub: 'A AND D, OR THE ARROWS' },
     { id: 'dig',  key: ['arrowD', 'drill'], text: 'HOLD DOWN TO DIG', sub: 'S OR THE DOWN ARROW' },
     { id: 'sack', key: ['ore', 'cargo'], text: 'FILL THE SACK', sub: 'DIG OUT FIVE MORE' },
     { id: 'ship', key: ['home'], text: 'BACK TO THE SHIP', sub: 'STAND UNDER IT AND PRESS E' },
-    { id: 'sell', key: ['coin'], text: 'SELL WHAT YOU DUG', sub: 'THE COMPUTER IN THE HOUSE' }
+    { id: 'sell', where: 'home', allow: ['door', 'exit', 'pc'], key: ['coin'], text: 'SELL WHAT YOU DUG',
+      sub: 'IN THE HOUSE. THE COMPUTER.' }
   ];
+
+  /* THE LOCK. Asked by everything that can take you somewhere or spend your
+     money: may the player do `id` on the `where` screen right now? */
+  function tutAllows(where, id) {
+    if (TS.done || tutDone(g)) return true;
+    const st = TUT[TS.step];
+    if (!st) return true;
+    if (where === 'home') return !!(st.allow && st.allow.indexOf(id) >= 0);
+    // on the desk during the sell step, the sell button and nothing else
+    if (where === 'desk') return st.id === 'sell' && id === 'sell';
+    // the chart is only open during the launch step, and then only the first world
+    if (where === 'chart') return st.id === 'launch';
+    if (where === 'recall') return false;
+    return true;
+  }
+  function tutNope(where) {
+    const st = TUT[TS.step];
+    A.sfx.deny();
+    tutWarn('NOT YET  -  ' + (st ? st.text : ''));
+  }
+  g.tutAllows = tutAllows;
+  g.tutNope = tutNope;
+  g.tutActive = function () { return !(TS.done || tutDone(g)); };
   const TS = { step: 0, t: 0, flash: 0, done: 0, movedFrom: null, minedAt: 0, shown: 0 };
 
   /* Anybody who was already playing before this existed does not get taught to
@@ -273,7 +303,20 @@
     }
   }
   function tutStep() { return TS.done ? null : TUT[TS.step]; }
-  function tutDone(g2) { return !!(g2.save.seen && g2.save.seen.tut); }
+  /* Done if the save says so -- or if the save plainly belongs to somebody who
+     has been playing, which is checked live rather than once at load, because
+     a save can be handed a fortune after it has been opened. */
+  function tutDone(g2) {
+    const sv = g2.save;
+    if (sv.seen && sv.seen.tut) return true;
+    // story 1 is where every new game starts, so it proves nothing on its own
+    if ((sv.totalEarned || 0) > 0 || (sv.story || 0) > 1 || (sv.credits || 0) > 50000) {
+      if (!sv.seen) sv.seen = {};
+      sv.seen.tut = 1;
+      return true;
+    }
+    return false;
+  }
 
   function tutAdvance() {
     TS.step++;
@@ -300,7 +343,9 @@
     const st = TUT[TS.step];
     if (!st) return;
     const p = g.player;
-    if (st.id === 'move') {
+    if (st.id === 'launch') {
+      if (g.state === 'play') tutAdvance();
+    } else if (st.id === 'move') {
       if (g.state !== 'play' || !p || p.docked) return;
       if (TS.movedFrom === null) TS.movedFrom = p.x;
       if (Math.abs(p.x - TS.movedFrom) > 26) tutAdvance();
@@ -329,8 +374,9 @@
     const st = TUT[TS.step];
     if (!st) return;
     if (g.state !== 'play' && g.state !== 'home' && g.state !== 'desk') return;
-    // the first two steps are about the dig and have no business up on the moon
+    // the dig steps have no business on the moon, and the moon steps none on a dig
     if (g.state !== 'play' && (st.id === 'move' || st.id === 'dig' || st.id === 'sack')) return;
+    if (g.state === 'play' && (st.id === 'launch' || st.id === 'sell')) return;
 
     const pulse = 0.5 + 0.5 * Math.sin(g.time * 3.4);
     const warn = TS.warnT > 0 ? TS.warn : null;
@@ -1558,7 +1604,7 @@
     if (g.state === 'pause') {
       const r = UI.pause(ctx, g);
       if (r.resume) g.state = g.pausedFrom || 'play';
-      if (r.ship) { g.state = 'play'; g.emergencyRecall(); }
+      if (r.ship) { if (tutAllows('recall')) { g.state = 'play'; g.emergencyRecall(); } else { g.state = 'play'; tutNope('recall'); } }
     } else if (g.state === 'victory') {
       const r = UI.victory(ctx, g);
       if (r && r.ok) closeVictory();

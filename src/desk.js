@@ -498,6 +498,7 @@
     // the chart has to open on the far side of the iris, not before it: doing
     // both at once let the deferred close land afterwards and drop you home
     if (id === 'map') {
+      if (g.tutAllows && !g.tutAllows('desk', 'map')) { g.tutNope('desk'); say('SELL FIRST. THEN THE SKY.'); return; }
       say('GOING TO THE SKY.');
       if (PD.fx.wipeActive()) return;
       g.wipeTo(SX + SW / 2, SY + SH / 2, '#1b2430', () => { PD.home.leaveDesk(g); g.openChart(); }, 'sweep');
@@ -1022,7 +1023,9 @@
         if (!co.done) {
           co.done = 1;
           let bought = 0;
-          for (const l of S.cart) for (let i = 0; i < l.n; i++) if (g.abayBuy(l.id)) bought++;
+          if (!g.tutAllows || g.tutAllows('desk', 'buy')) {
+            for (const l of S.cart) for (let i = 0; i < l.n; i++) if (g.abayBuy(l.id)) bought++;
+          } else g.tutNope('desk');
           co.bought = bought;
           S.cart.length = 0;
           S.flash = 1;
@@ -1171,6 +1174,7 @@
   }
 
   function buy(g, it, cost) {
+    if (g.tutAllows && !g.tutAllows('desk', 'buy')) { g.tutNope('desk'); say('SELL FIRST. SHOPPING IS FOR PEOPLE WITH MONEY.'); return; }
     if (!g.abayBuy(it.id)) { say('NOT ENOUGH MONEY. GO AND HIT A PLANET.'); return; }
     say('BOUGHT: ' + it.name + '. IT IS ALREADY HERE. DO NOT ASK.');
     S.flash = 1;

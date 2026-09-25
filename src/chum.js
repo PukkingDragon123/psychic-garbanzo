@@ -462,6 +462,10 @@
   let lastCall = -1e9;
   function call(g, id, force) {
     if (!LESSONS[id]) return;
+    /* One teacher at a time. While the tutorial card is up it is the only
+       voice on the screen; his lessons were the old tutorial and they would
+       be explaining the same thing over the top of it. */
+    if (!force && g.tutActive && g.tutActive()) return;
     if (!force && g.save.seen && g.save.seen['chum_' + id]) return;
     /* Two of him inside a minute is nagging whatever he is saying. The debt
        milestones and the end of the book are the only things allowed to jump
