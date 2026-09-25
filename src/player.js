@@ -84,6 +84,14 @@
       if (id === 'oxygen' && bo.lungs) v += 40;
       else if (id === 'magnet' && bo.grip) v += 22;
     }
+    // and whatever you ate at the market on the way to this dive
+    const sn = g.snackNow;
+    if (sn) {
+      if (id === 'oxygen') v += sn.air || 0;
+      else if (id === 'hull') v += sn.hull || 0;
+      else if (id === 'magnet') v += sn.reach || 0;
+      else if (id === 'drill') v *= 1 + (sn.drill || 0);
+    }
     // and then whatever the brain in the jar has grown on top of it
     const b = g.brain;
     if (!b) return v;

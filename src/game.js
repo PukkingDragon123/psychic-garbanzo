@@ -165,7 +165,7 @@
     A.sfx.tone(900, { type: 'triangle', to: 300, dur: 0.2, vol: 0.05, delay: 0.26 });
   };
 
-  g.valueMult = function () { return 1 + g.save.bonus / 100 + g.save.dominion * 0.004; };
+  g.valueMult = function () { return (1 + g.save.bonus / 100 + g.save.dominion * 0.004) * (1 + ((g.snackNow && g.snackNow.value) || 0)); };
 
   /* ---------------------------------------------------------------- the brain
      Neuron levels, what they are worth, and the THOTS that pay for them. */
@@ -825,6 +825,7 @@
 
   function arriveHome(n) {
     g.state = 'home';
+    g.snackNow = null;                // it wears off on the way home
     if (n > 0) PD.chum.call(g, 'back');
     const pad = PD.home.SPOTS[1].x;
     PD.home.enter(g, pad - 70);
@@ -868,6 +869,9 @@
     else { g.player.reset(g.ship.x, g.ship.y + 34); g.player.clearCargo(); }
     g.state = 'play';
     g.player.docked = false;
+    // whatever you bought to eat at the market, you eat now
+    const ate = PD.market && PD.market.eat(g);
+    if (ate) FX.text(g.player.x, g.player.y - 30, 'FULL OF ' + ate.names.join(' + '), '#ffd34d', 1);
     PD.chum.call(g, 'dig');
     A.sfx.warp();
     FX.flash(0.8, '#a9d8ff');

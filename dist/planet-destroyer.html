@@ -9458,6 +9458,14 @@ window.PD = window.PD || {};
       if (id === 'oxygen' && bo.lungs) v += 40;
       else if (id === 'magnet' && bo.grip) v += 22;
     }
+    // and whatever you ate at the market on the way to this dive
+    const sn = g.snackNow;
+    if (sn) {
+      if (id === 'oxygen') v += sn.air || 0;
+      else if (id === 'hull') v += sn.hull || 0;
+      else if (id === 'magnet') v += sn.reach || 0;
+      else if (id === 'drill') v *= 1 + (sn.drill || 0);
+    }
     // and then whatever the brain in the jar has grown on top of it
     const b = g.brain;
     if (!b) return v;
@@ -17897,13 +17905,13 @@ window.PD = window.PD || {};
     { key: 'noodle', deck: 1, x: 180, w: 96, sign: 'NOODLE HOLE', keeper: 'BAO', door: 1,
       brand: '#ff5a3c', dark: '#5e1a10', wall: '#3a1c14', wall2: '#52261a', glow: '#ffb070',
       posters: ['bowl', 'face'], line: 'SLURP RESPONSIBLY' },
-    { key: 'air', id: 'lungs', deck: 1, x: 300, w: 104, sign: 'BREATH & CO', keeper: 'GLOOP', door: -1,
+    { key: 'air', id: 'lungs', deck: 1, x: 300, w: 104, sign: 'BREATH & CO', keeper: 'ORBIT', door: -1,
       brand: '#38e8ff', dark: '#0c3a4a', wall: '#12303c', wall2: '#1a4452', glow: '#7ef9ff',
       posters: ['lung', 'sale'], line: 'SECOND-HAND LUNGS. LIKE NEW.' },
-    { key: 'grab', id: 'grip', deck: 1, x: 430, w: 104, sign: 'GRAB HOUSE', keeper: 'PIP', door: 1,
+    { key: 'grab', id: 'grip', deck: 1, x: 430, w: 104, sign: 'GRAB HOUSE', keeper: 'BRUNO', door: 1,
       brand: '#ffc44d', dark: '#5a3e0c', wall: '#2e2a1c', wall2: '#3e3824', glow: '#ffd88a',
       posters: ['magnet', 'star'], line: 'IF IT IS METAL IT IS YOURS' },
-    { key: 'fence', id: 'fence', deck: 1, x: 560, w: 104, sign: 'THE FENCE', keeper: 'DUCKY', door: -1,
+    { key: 'fence', id: 'fence', deck: 1, x: 560, w: 104, sign: 'THE FENCE', keeper: 'KORVO', door: -1,
       brand: '#b08aff', dark: '#2e1a52', wall: '#241a30', wall2: '#30243e', glow: '#c9a8ff',
       posters: ['cash', 'nocop'], line: 'WE BUY ANYTHING. WE ASK NOTHING.' },
     { key: 'hat', deck: 1, x: 700, w: 96, sign: 'HAT TRICK', keeper: 'MOCHI', door: 1,
@@ -17918,7 +17926,7 @@ window.PD = window.PD || {};
     { key: 'plant', deck: 1, x: 1130, w: 96, sign: 'LEAF ME BE', keeper: 'BIRCH', door: -1,
       brand: '#7dff9a', dark: '#164a26', wall: '#1a3020', wall2: '#22402a', glow: '#b8ffc4',
       posters: ['leaf', 'sun'], line: 'THEY DO NOT BITE. MOSTLY.' },
-    { key: 'stamp', id: 'papers', deck: 2, x: 430, w: 104, sign: 'STAMP IT', keeper: 'THE JAR', door: 1,
+    { key: 'stamp', id: 'papers', deck: 2, x: 430, w: 104, sign: 'STAMP IT', keeper: 'SAL', door: 1,
       brand: '#e8dcb0', dark: '#3a3424', wall: '#2c2a24', wall2: '#3a3830', glow: '#fff0c0',
       posters: ['stamp', 'queue'], line: 'PLEASE TAKE A NUMBER' }
   ];
@@ -18549,6 +18557,877 @@ window.PD = window.PD || {};
   PD.mall = { SHOPS, SH, draw, dress, escalator, art, kin };
 })(window.PD);
 
+/* ===== src/crowd.js ===== */
+/* THE CROWD, WHO PLAY THE GAME TOO.
+   The people in the market used to walk to a random point, stop, and walk
+   to another random point. That is a screensaver of people. These have
+   somewhere to be: they go to a shop and look in the window and buy
+   something and walk off swinging the bag; they sit on the bench until they
+   fall asleep on it; they meet somebody and stand and talk; they dance when
+   the music is good; they jump up and down for no reason, which is the
+   single most player-like thing a person in a game can do; and when you walk
+   past they notice, and some of them wave, and if you jump they jump back.
+
+   Every one of them has a username over their head and a level next to it,
+   and what they say is what people say in games.
+
+   And they BOUNCE. Every one of them is drawn through `bouncy()`: squashed on
+   landing, stretched in the air, breathing when they stand still, rocking
+   when they waddle -- scaled about the feet, so nobody ever leaves the
+   floor they are standing on unless they meant to. */
+(function (PD) {
+  'use strict';
+
+  const U = PD.util;
+  const X = PD.pxd;
+  const F = PD.font;
+  const A = PD.audio;
+  const AH = PD.arthome;
+
+  // the frame numbers, in words (see THE CAST in arthome.js)
+  const FR = { idle: 0, walkA: 1, walkB: 2, talk: 3, wink: 4, blink: 5, cheer: 6, sad: 7, angry: 8,
+    shock: 9, laugh: 10, sleep: 11 };
+
+  const NAMES = ['mochi_mochi', 'xXbeanXx', 'birch.exe', 'gloopy', 'k0rv0', 'bigbruno', 'sal_notary',
+    'vesperino', 'orbit42', 'pipsqueak', 'baobao', 'wobblywob', 'unit_12', 'jarhead', 'petepot',
+    'sunny_d', 'lampy', 'duckyduck', 'the_set', 'drillqueen', 'ore_n_more', 'moonboi', 'nova_bean',
+    'slotgoblin', 'tenInARow', 'zorb_os', 'cheesethief', 'lil_crater', 'coreBreaker', 'afk_again'];
+  const SOLO = ['anyone selling ore?', 'lol', 'gg', 'brb', 'wts hat 5k', 'wtb lungs', 'how do i get up there',
+    'this place is so cute', 'who wants to duel', 'o/', 'lmao', 'rip my wallet', 'first time here!!',
+    'casino is rigged', 'just lost 50k', 'hi!!', ':3', 'pog', 'where is the fence', 'need 2k pls',
+    'nice', 'omg the noodles', 'afk 5 min', 'free hugs', 'does anyone know a good planet', 'uwu',
+    'selling gems cheap', 'lf group for the core', 'who is chum', 'i love this song'];
+  const PAIRS = [
+    ['hey', 'hi!'], ['wts ore', 'how much'], ['nice hat', 'ty :3'], ['casino is rigged', 'lol true'],
+    ['brb', 'kk'], ['wanna duel', 'no lol'], ['where is the fence', 'down the market'],
+    ['noodles?', 'always'], ['what lvl r u', '40 u?'], ['did u see chum', 'dont say his name'],
+    ['lend me 5k', 'no'], ['gg last run', 'gg'], ['that hat tho', 'i know right'], ['trade?', 'what u got']];
+  const HELLO = ['hi!', 'o/', 'hey new guy', 'nice suit', 'is that the ten-in-a-row guy', 'hii', 'welcome!',
+    'yo', ':D', 'u owe chum too?'];
+  const BOUGHT = ['ty!', 'finally', 'bought it', 'worth it', 'yesss', 'my wallet...', 'so shiny', 'nom'];
+
+  /* ---------------------------------------------------------- drawing */
+
+  /* Draw a sprite squashed and stretched about its own feet. sx and sy are
+     the scales; tilt is a rock, in radians, for waddling. */
+  function bouncy(ctx, K, frame, x, y, flip, sx, sy, tilt) {
+    const s = AH.S[K.key];
+    if (!s) return;
+    const cv = s.frames[frame % s.frames.length];
+    ctx.save();
+    ctx.translate(Math.round(x), Math.round(y));
+    if (tilt) ctx.rotate(tilt);
+    ctx.scale(flip ? -(sx || 1) : (sx || 1), sy || 1);
+    ctx.drawImage(cv, -s.ox, -s.oy, cv.width / (s.hd || 1), cv.height / (s.hd || 1));
+    ctx.restore();
+  }
+
+  /* The little pictures that pop over a head. Drawn at world size, in a few
+     blocks each, with an overshoot on the way in. */
+  function emote(ctx, kind, x, y, k, t) {
+    const e = k >= 1 ? 1 : 1 + 2.7 * Math.pow(k - 1, 3) + 1.7 * Math.pow(k - 1, 2);
+    ctx.save();
+    ctx.translate(Math.round(x), Math.round(y));
+    ctx.scale(e, e);
+    const bob = Math.sin(t * 6) * 0.6;
+    if (kind === 'heart') {
+      X.blob(ctx, -2, -2 + bob, 2.4, 2.4, '#ff5a8a'); X.blob(ctx, 2, -2 + bob, 2.4, 2.4, '#ff5a8a');
+      X.poly(ctx, [[-4.4, -1.5 + bob], [4.4, -1.5 + bob], [0, 3.5 + bob]], '#ff5a8a');
+      X.rect(ctx, -3, -3 + bob, 1, 1, '#ffffff');
+    } else if (kind === '!' || kind === '?') {
+      X.plate(ctx, -5, -8 + bob, 10, 11, '#ffffff', null, null, 3);
+      F.draw(ctx, kind, 0, -6 + bob, kind === '!' ? '#e8402a' : '#3a5aff', { center: true, shadow: false });
+    } else if (kind === 'anger') {
+      for (const [dx, dy] of [[-2, -2], [2, -2], [-2, 2], [2, 2]]) {
+        X.rect(ctx, dx - 1 + (dx > 0 ? 0 : -1), dy - 1, 3, 1, '#ff3a3a');
+        X.rect(ctx, dx - 1, dy - 1 + (dy > 0 ? 0 : -1), 1, 3, '#ff3a3a');
+      }
+    } else if (kind === 'sweat') {
+      X.blob(ctx, 0, 1 + bob, 2, 2.6, '#8ad4ff'); X.poly(ctx, [[-2, 0 + bob], [2, 0 + bob], [0, -4 + bob]], '#8ad4ff');
+      X.rect(ctx, -1, 0 + bob, 1, 1, '#ffffff');
+    } else if (kind === 'zzz') {
+      const f = (t * 0.8) % 1;
+      F.draw(ctx, 'Z', 2 + f * 3, -4 - f * 5, '#c9d8ff', { center: true, shadow: '#1a1030' });
+      F.draw(ctx, 'z', -3 + f * 2, 1 - f * 3, '#9ab0e8', { center: true, shadow: '#1a1030' });
+    } else if (kind === 'note') {
+      const f = Math.sin(t * 5);
+      X.rect(ctx, 1, -6 + f, 1, 7, '#ffd34d'); X.blob(ctx, -0.5, 1 + f, 2, 1.6, '#ffd34d');
+      X.rect(ctx, 1, -6 + f, 3, 1, '#ffd34d'); X.rect(ctx, 3, -5 + f, 1, 2, '#ffd34d');
+    } else if (kind === 'coin') {
+      const w = Math.abs(Math.cos(t * 7)) * 3 + 0.6;
+      X.blob(ctx, 0, bob, w, 3, '#ffd34d'); X.rect(ctx, -0.5, -1 + bob, 1, 2, '#c8901e');
+    } else if (kind === 'wave') {
+      const r = Math.sin(t * 12) * 0.5;
+      ctx.rotate(r);
+      X.blob(ctx, 0, 0, 3, 3.4, '#ffe0b0');
+      for (let i = 0; i < 3; i++) X.rect(ctx, -2 + i * 2, -6, 1, 4, '#ffe0b0');
+      X.rect(ctx, 3, -2, 2, 1, '#ffe0b0');
+    } else if (kind === 'sparkle') {
+      const f = (Math.sin(t * 8) + 1) / 2;
+      X.rect(ctx, -0.5, -4 - f, 1, 8 + f * 2, '#ffffff'); X.rect(ctx, -4 - f, -0.5, 8 + f * 2, 1, '#ffffff');
+      X.rect(ctx, -1, -1, 2, 2, '#ffd34d');
+    } else if (kind === 'cry') {
+      X.blob(ctx, -3, 1 + ((t * 3) % 2), 1.3, 1.8, '#8ad4ff'); X.blob(ctx, 3, 2 + ((t * 3 + 1) % 2), 1.3, 1.8, '#8ad4ff');
+    }
+    ctx.restore();
+  }
+
+  /* ---------------------------------------------------------- the world */
+
+  function make(cfg) {
+    const W = { cfg, agents: [], t: 0, ev: [] };
+    let n = 0;
+    for (let d = 0; d < cfg.decks.length; d++) {
+      for (let i = 0; i < cfg.decks[d]; i++, n++) {
+        const k = (n * 7 + 3) % AH.KIN.length;
+        W.agents.push({
+          id: n, deck: d, k,
+          x: 60 + (cfg.w - 140) * ((i + 0.5) / cfg.decks[d]) + (U.hash2(d * 31 + i, 5) - 0.5) * 40,
+          name: NAMES[n % NAMES.length] + (n >= NAMES.length ? (n % 9 + 1) : ''),
+          lvl: 3 + Math.floor(U.hash2(n, 3) * 60),
+          dir: U.hash2(n, 7) > 0.5 ? 1 : -1, sp: 16 + U.hash2(n, 11) * 16,
+          ph: U.hash2(n, 19) * U.TAU, plan: [], cur: null, st: 0,
+          vy: 0, jy: 0, land: 0, bag: null, bagT: 0, food: 0,
+          frame: 0, exp: null, expT: 0, em: null, emT: 0, emK: 0,
+          say: null, sayT: 0, hiT: U.rand(2, 12), think: U.rand(0.2, 3)
+        });
+      }
+    }
+    return W;
+  }
+
+  function say(a, text, dur) { a.say = text; a.sayT = dur || 3.2; }
+  function pop(a, kind, dur) { a.em = kind; a.emT = dur || 1.6; a.emK = 0; }
+  function busy(a) { return !!a.cur; }
+
+  /* What somebody decides to do next, as a list of little steps. */
+  function plan(W, a) {
+    const cfg = W.cfg, P = cfg.places ? cfg.places(a.deck) : {};
+    const r = Math.random();
+    const clampX = (x) => U.clamp(x, 50, cfg.w - 50);
+    const shops = P.shops || [], seats = P.seats || [], stalls = P.stalls || [];
+    if (r < 0.26 && (shops.length || stalls.length)) {
+      // SHOPPING: to a window, have a look, think about it, buy it or don't
+      const pool = shops.concat(stalls);
+      const s = pool[Math.floor(Math.random() * pool.length)];
+      a.plan = [{ do: 'go', x: clampX(s.x + U.rand(-10, 10)) }, { do: 'look', dur: U.rand(1.4, 2.8) }];
+      if (Math.random() < 0.7) a.plan.push({ do: 'buy', shop: s });
+      else a.plan.push({ do: 'expr', f: FR.sad, dur: 1.1, em: 'sweat', say: Math.random() < 0.5 ? 'too expensive' : null });
+    } else if (r < 0.31 && P.casino) {
+      // THE CASINO: in through the door, gone a while, out again better or worse off
+      a.plan = [{ do: 'go', x: P.casino + U.rand(-4, 4) }, { do: 'vanish', dur: U.rand(8, 20) }];
+    } else if (r < 0.37 && seats.length) {
+      const s = seats[Math.floor(Math.random() * seats.length)];
+      if (!W.agents.some(b => b !== a && b.cur && b.cur.do === 'sit' && Math.abs(b.x - s) < 10)) {
+        a.plan = [{ do: 'go', x: s + U.rand(-6, 6) }, { do: 'sit', dur: U.rand(6, 16) }];
+      } else a.plan = [{ do: 'go', x: clampX(a.x + U.rand(-120, 120)) }];
+    } else if (r < 0.46) {
+      // CHAT: find somebody near and free, walk up, have a conversation
+      const b = W.agents.find(o => o !== a && o.deck === a.deck && !busy(o) && Math.abs(o.x - a.x) < 160);
+      if (b) {
+        const side = a.x < b.x ? -1 : 1;
+        const pr = PAIRS[Math.floor(Math.random() * PAIRS.length)];
+        a.plan = [{ do: 'go', x: clampX(b.x + side * 22) }, { do: 'chat', with: b, lines: pr, dur: 5 }];
+        b.plan = [{ do: 'wait', dur: 14, hold: a }];
+        b.cur = null;
+      } else a.plan = [{ do: 'go', x: clampX(a.x + U.rand(-120, 120)) }];
+    } else if (r < 0.53) {
+      a.plan = [{ do: 'dance', dur: U.rand(3, 6) }];
+    } else if (r < 0.59) {
+      a.plan = [{ do: 'jumpy', dur: U.rand(1.5, 3.2) }];
+    } else if (r < 0.66) {
+      const moods = [[FR.laugh, 'note', 'lmao'], [FR.angry, 'anger', 'ugh'], [FR.sad, 'cry', 'rip'],
+        [FR.cheer, 'sparkle', 'yay'], [FR.shock, '!', 'WHAT'], [FR.wink, 'heart', ':3']];
+      const m = moods[Math.floor(Math.random() * moods.length)];
+      a.plan = [{ do: 'expr', f: m[0], dur: 1.8, em: m[1], say: Math.random() < 0.6 ? m[2] : null }];
+    } else if (r < 0.7) {
+      a.plan = [{ do: 'afk', dur: U.rand(6, 12) }];
+    } else if (r < 0.78) {
+      a.plan = [{ do: 'wait', dur: U.rand(1.5, 4), say: Math.random() < 0.5 ? SOLO[Math.floor(Math.random() * SOLO.length)] : null }];
+    } else {
+      a.plan = [{ do: 'go', x: clampX(a.x + U.rand(-220, 220)) }];
+    }
+  }
+
+  /* One step of whatever they are doing. Returns true when that step is done. */
+  function step(W, a, dt, cx) {
+    const c = a.cur;
+    c.t = (c.t || 0) + dt;
+    // somebody standing still to be talked to is animated by the talker
+    if (!(c.do === 'wait' && c.hold && c.hold.cur && c.hold.cur.do === 'chat')) a.frame = FR.idle;
+    if (c.do === 'go') {
+      const d = c.x - a.x;
+      if (Math.abs(d) < 2) return true;
+      a.dir = Math.sign(d);
+      a.x += a.dir * Math.min(Math.abs(d), a.sp * dt);
+      a.walking = true;
+      return false;
+    }
+    if (c.do === 'look') {
+      if (c.t < 0.2) pop(a, '?', c.dur);
+      return c.t > c.dur;
+    }
+    if (c.do === 'buy') {
+      if (!c.done) {
+        c.done = 1; pop(a, 'coin', 1.2);
+        a.bag = c.shop.col || '#ffd34d'; a.bagT = U.rand(14, 30); a.food = c.shop.food ? 1 : 0;
+        if (Math.random() < 0.6) say(a, BOUGHT[Math.floor(Math.random() * BOUGHT.length)], 2.2);
+        a.vy = -70; a.land = 0;
+        W.ev.push({ kind: 'buy', a });
+      }
+      a.frame = FR.cheer;
+      return c.t > 1;
+    }
+    if (c.do === 'sit') {
+      a.frame = c.t > c.dur * 0.55 ? FR.sleep : (Math.sin(c.t * 0.9 + a.ph) > 0.93 ? FR.blink : FR.idle);
+      if (c.t > c.dur * 0.55 && a.em !== 'zzz') pop(a, 'zzz', c.dur);
+      a.sitting = true;
+      return c.t > c.dur;
+    }
+    if (c.do === 'chat') {
+      const b = c.with;
+      a.dir = b.x > a.x ? 1 : -1; b.dir = -a.dir;
+      const who = Math.floor(c.t / 1.6) % 2;
+      const talker = who === 0 ? a : b;
+      if (!c.said || c.said !== Math.floor(c.t / 1.6) + 1) {
+        c.said = Math.floor(c.t / 1.6) + 1;
+        const line = c.lines[(c.said - 1) % c.lines.length];
+        if (c.said <= c.lines.length) say(talker, line, 1.7);
+        else if (Math.random() < 0.4) pop(talker, Math.random() < 0.5 ? 'heart' : 'note', 1.2);
+      }
+      a.frame = talker === a && Math.sin(c.t * 14) > 0 ? FR.talk : FR.idle;
+      b.frame = talker === b && Math.sin(c.t * 14) > 0 ? FR.talk : (c.t % 1.6 > 1.2 ? FR.laugh : FR.idle);
+      if (c.t > c.dur) { b.plan = []; b.cur = null; if (Math.random() < 0.5) pop(a, 'wave', 1); return true; }
+      return false;
+    }
+    if (c.do === 'dance') {
+      a.frame = [FR.cheer, FR.laugh, FR.wink, FR.cheer][Math.floor(c.t * 4) % 4];
+      if (a.jy === 0 && Math.floor(c.t * 4) !== c.b) { c.b = Math.floor(c.t * 4); a.vy = -55; }
+      a.dir = Math.floor(c.t * 2) % 2 ? 1 : -1;
+      if (c.t < 0.1) pop(a, 'note', c.dur);
+      return c.t > c.dur;
+    }
+    if (c.do === 'jumpy') {
+      if (a.jy === 0 && a.land < 0.05) a.vy = -110 - Math.random() * 40;
+      a.frame = a.jy < -2 ? FR.cheer : FR.idle;
+      return c.t > c.dur;
+    }
+    if (c.do === 'expr') {
+      if (c.t < dt * 1.5) { if (c.em) pop(a, c.em, c.dur); if (c.say) say(a, c.say, 1.8); if (c.f === FR.shock || c.f === FR.cheer) a.vy = -60; }
+      a.frame = c.f;
+      return c.t > c.dur;
+    }
+    if (c.do === 'vanish') {
+      a.hidden = c.t > 0.3 && c.t < c.dur;
+      if (c.t >= c.dur) {
+        a.hidden = false;
+        const won = Math.random() < 0.35;
+        a.cur = null;
+        a.plan = [{ do: 'expr', f: won ? FR.cheer : (Math.random() < 0.5 ? FR.sad : FR.angry), dur: 2,
+          em: won ? 'coin' : (Math.random() < 0.5 ? 'cry' : 'anger'),
+          say: won ? ['WON 2K!!', 'jackpot baby', 'up 500 lol'][Math.floor(Math.random() * 3)]
+            : ['lost it all', 'never again', 'rigged', 'one more go...'][Math.floor(Math.random() * 4)] },
+          { do: 'go', x: U.clamp(a.x + U.rand(-160, 160), 50, W.cfg.w - 50) }];
+        return false;
+      }
+      return false;
+    }
+    if (c.do === 'afk') {
+      a.frame = c.t > 2 ? FR.sleep : FR.blink;
+      if (c.t > 2 && a.em !== 'zzz') { pop(a, 'zzz', c.dur); if (Math.random() < 0.5) say(a, 'afk', 2); }
+      return c.t > c.dur;
+    }
+    if (c.do === 'wait') {
+      if (c.t < dt * 1.5 && c.say) say(a, c.say, 2.8);
+      if (c.hold) { if (!c.hold.cur || c.hold.cur.do !== 'chat') { /* still walking over */ } a.dir = c.hold.x > a.x ? 1 : -1; }
+      a.frame = Math.sin(c.t * 1.3 + a.ph) > 0.95 ? FR.blink : FR.idle;
+      return c.t > c.dur;
+    }
+    return true;
+  }
+
+  /* ctx: { px, pdeck, jumped, bought } -- what the player did this frame. */
+  function update(W, dt, pc) {
+    W.t += dt;
+    W.ev.length = 0;
+    for (const a of W.agents) {
+      a.walking = false; a.sitting = false;
+      a.sayT = Math.max(0, a.sayT - dt); if (a.sayT <= 0) a.say = null;
+      a.emT = Math.max(0, a.emT - dt); a.emK = Math.min(1, a.emK + dt * 5); if (a.emT <= 0) a.em = null;
+      a.bagT = Math.max(0, a.bagT - dt); if (a.bagT <= 0) { a.bag = null; a.food = 0; }
+      a.hiT -= dt;
+      // the player, walking past: a look, a wave, a hello
+      if (pc && pc.pdeck === a.deck) {
+        const d = pc.px - a.x;
+        if (Math.abs(d) < 34 && a.hiT <= 0 && !a.hidden && (!a.cur || a.cur.do === 'wait' || a.cur.do === 'go')) {
+          a.hiT = U.rand(18, 40);
+          a.cur = { do: 'expr', f: Math.random() < 0.5 ? FR.cheer : FR.talk, dur: 1.4, em: Math.random() < 0.6 ? 'wave' : 'heart',
+            say: Math.random() < 0.55 ? HELLO[Math.floor(Math.random() * HELLO.length)] : null };
+          a.plan = [];
+          a.dir = Math.sign(d) || 1;
+        }
+        // jump, and the ones close by jump back
+        if (pc.jumped && !a.hidden && Math.abs(d) < 70 && Math.random() < 0.45 && a.jy === 0) {
+          a.vy = -120; a.dir = Math.sign(d) || 1;
+          if (Math.random() < 0.3) say(a, Math.random() < 0.5 ? 'lol' : 'hop hop', 1.4);
+        }
+        if (pc.bought && Math.abs(d) < 90 && Math.random() < 0.35) { pop(a, Math.random() < 0.5 ? 'sparkle' : '!', 1.3); if (Math.random() < 0.5) say(a, 'nice', 1.4); }
+      }
+      // the plan
+      if (!a.cur) {
+        if (a.plan.length) a.cur = a.plan.shift();
+        else { a.think -= dt; if (a.think <= 0) { a.think = U.rand(0.4, 2.5); plan(W, a); } }
+      }
+      if (a.cur && step(W, a, dt)) a.cur = null;
+      // the bounce: a little jump physics of their own
+      if (a.vy !== 0 || a.jy < 0) {
+        a.vy += 420 * dt; a.jy += a.vy * dt;
+        if (a.jy >= 0) { a.land = Math.min(1, 0.4 + Math.abs(a.vy) / 300); a.jy = 0; a.vy = 0; }
+      }
+      a.land = Math.max(0, a.land - dt * 4);
+      if (a.walking) {
+        const K = AH.KIN[a.k];
+        a.stepT = (a.stepT || 0) + dt * (K.motion === 'lumber' ? 3 : 5.5);
+      }
+    }
+  }
+
+  /* How somebody's body is moving this frame: offsets and scales. */
+  function body(a, K, t) {
+    const m = K.motion || 'walk';
+    let dx = 0, dy = a.jy, sx = 1, sy = 1, tilt = 0;
+    const st = a.stepT || 0;
+    if (a.walking) {
+      if (m === 'hop') { const h = Math.abs(Math.sin(st * 1.6)); dy -= h * 5; sy = 1 + (h - 0.5) * 0.14; sx = 2 - sy; }
+      else if (m === 'waddle') { tilt = Math.sin(st * 1.8) * 0.12; dy -= Math.abs(Math.sin(st * 1.8)) * 1.5; }
+      else if (m === 'float') { dy -= 3 + Math.sin(t * 2 + a.ph) * 2.5; tilt = a.dir * 0.08; }
+      else if (m === 'lumber') { const h = Math.abs(Math.sin(st * 1.4)); dy -= h * 1.5; sy = 1 - (1 - h) * 0.07; sx = 1 + (1 - h) * 0.06; }
+      else if (m === 'ooze') { const h = Math.sin(st * 2); sx = 1 + h * 0.1; sy = 1 - h * 0.1; }
+      else if (m === 'sway') { tilt = Math.sin(st * 1.4) * 0.09; dy -= Math.abs(Math.sin(st * 1.4)) * 2; }
+      else if (m === 'roll') { dy -= Math.abs(Math.sin(st * 3)) * 1; }
+      else { const h = Math.abs(Math.sin(st * 1.6)); dy -= h * 2.5; sy = 1 + (h - 0.5) * 0.08; sx = 2 - sy; }
+    } else {
+      // breathing
+      const b = Math.sin(t * 2.2 + a.ph) * 0.028;
+      sy = 1 + b; sx = 1 - b;
+      if (m === 'float') dy -= 3 + Math.sin(t * 1.6 + a.ph) * 2;
+      if (m === 'sway') tilt = Math.sin(t * 0.9 + a.ph) * 0.05;
+    }
+    // in the air: stretched; landing: squashed flat and wide
+    if (a.jy < -1) { sy *= 1.12; sx *= 0.9; }
+    if (a.land > 0) { const k = a.land; sy *= 1 - k * 0.28; sx *= 1 + k * 0.24; }
+    if (a.sitting) { dy += 2; sy *= 0.92; sx *= 1.05; }
+    return { dx, dy, sx, sy, tilt };
+  }
+
+  function draw(ctx, W, t, cam, deck, ground, dim, vw) {
+    ctx.globalAlpha = dim ? 0.5 : 1;
+    for (const a of W.agents) {
+      if (a.deck !== deck || a.hidden) continue;
+      const x = a.x - cam;
+      if (x < -40 || x > (vw || 480) + 40) continue;
+      const K = AH.KIN[a.k];
+      const b = body(a, K, t);
+      let fr = a.frame;
+      if (a.walking) fr = Math.floor((a.stepT || 0) * 1.6) % 2 ? FR.walkA : FR.walkB;
+      else if (fr === FR.idle && Math.sin(t * 1.3 + a.ph * 3) > 0.96) fr = FR.blink;
+      // the shadow, smaller the higher they are
+      const sh = Math.max(0.35, 1 + (b.dy) / 30);
+      ctx.globalAlpha = (dim ? 0.5 : 1) * 0.4;
+      X.blob(ctx, x, ground + 1, K.w * 0.4 * sh, 2.5 * sh, '#0a0614');
+      ctx.globalAlpha = dim ? 0.5 : 1;
+      bouncy(ctx, K, fr, x + b.dx, ground + b.dy, a.dir < 0, b.sx, b.sy, b.tilt);
+      // whatever they just bought, swinging off a hand
+      if (a.bag) {
+        const hx = x + a.dir * K.w * 0.36, hy = ground + b.dy - K.h * 0.3 + Math.sin(t * 6 + a.ph) * (a.walking ? 1.5 : 0.3);
+        if (a.food) { X.blob(ctx, hx, hy, 3, 2.4, '#fff6e8'); X.rect(ctx, hx - 3, hy - 1, 6, 1, a.bag); X.rect(ctx, hx + 1, hy - 5, 1, 4, '#8a5a2a'); }
+        else { X.rect(ctx, hx - 3, hy - 1, 7, 7, a.bag); X.rect(ctx, hx - 3, hy - 1, 7, 1, '#ffffff'); X.rect(ctx, hx - 1, hy - 4, 3, 1, '#2a2a3a'); X.rect(ctx, hx - 2, hy - 4, 1, 3, '#2a2a3a'); X.rect(ctx, hx + 2, hy - 4, 1, 3, '#2a2a3a'); }
+      }
+      if (a.em) emote(ctx, a.em, x + b.dx + a.dir * 4, ground + b.dy - K.h * b.sy - 6, a.emK, t + a.ph);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  /* Screen-sized: usernames with levels over the ones near you, and what
+     anybody is saying, in a small chat bubble. `toScreen` maps scene pixels
+     to screen pixels. */
+  function overlay(ctx, W, t, cam, deck, ground, px, toScreen) {
+    // name tags on the three nearest only, and never two on top of each other
+    const tagged = W.agents.filter(a => a.deck === deck && !a.hidden && Math.abs(a.x - px) < 70)
+      .sort((p, q) => Math.abs(p.x - px) - Math.abs(q.x - px)).slice(0, 3);
+    const placed = [];
+    for (const a of W.agents) {
+      if (a.deck !== deck || a.hidden) continue;
+      const K = AH.KIN[a.k];
+      let near = tagged.indexOf(a) >= 0;
+      if (near) {
+        const s0 = toScreen(a.x - cam, 0);
+        const w0 = F.width(a.name, 1) + 30;
+        if (placed.some(r => Math.abs(r - s0.x) < w0)) near = false;
+        else placed.push(s0.x);
+      }
+      if (!near && !a.say) continue;
+      const s = toScreen(a.x - cam, ground + a.jy - K.h - 3);
+      if (s.x < -60 || s.x > 540) continue;
+      if (near) {
+        const tag = a.name, lv = 'LV' + a.lvl;
+        const w = F.width(tag, 1) + F.width(lv, 1) + 10;
+        ctx.globalAlpha = 0.72;
+        X.plate(ctx, s.x - w / 2, s.y - 11, w, 10, '#0a0612', null, null, 3);
+        ctx.globalAlpha = 1;
+        F.draw(ctx, lv, s.x - w / 2 + 3, s.y - 10, '#7dff9a', { shadow: false });
+        F.draw(ctx, tag, s.x - w / 2 + 7 + F.width(lv, 1), s.y - 10, '#ffffff', { shadow: false });
+      }
+      if (a.say) {
+        const k = Math.min(1, (3.2 - a.sayT) * 8);
+        const e = k >= 1 ? 1 : 1 + 2.7 * Math.pow(k - 1, 3) + 1.7 * Math.pow(k - 1, 2);
+        const w = F.width(a.say, 1) + 10;
+        const by = s.y - (near ? 26 : 15);
+        ctx.save();
+        ctx.translate(Math.round(s.x), Math.round(by + 6));
+        ctx.scale(e, e);
+        ctx.globalAlpha = Math.min(1, a.sayT * 3);
+        X.plate(ctx, -w / 2 - 1, -7, w + 2, 13, '#1a1020', null, null, 4);
+        X.plate(ctx, -w / 2, -6, w, 11, '#fbf6ee', '#ffffff', '#c8bca8', 4);
+        X.poly(ctx, [[-3, 4], [3, 4], [0, 8]], '#fbf6ee');
+        if (k >= 1) F.draw(ctx, a.say, 0, -4, '#1a1020', { center: true, shadow: false });
+        ctx.restore();
+      }
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  PD.crowd = { make, update, draw, overlay, bouncy, emote, body, FR, say, pop };
+})(window.PD);
+
+/* ===== src/market.js ===== */
+/* THE MARKET, WHICH SELLS THINGS.
+   The Port used to have four counters that did anything and a lot of lit
+   windows that did not. Now everything with a door on it sells you
+   something, and most of what it sells DOES something:
+
+     SNACKS   eaten on the way to the next dive -- more air, a tougher hull,
+              a faster drill, longer arms, better prices -- up to three at
+              once, because after three you are too full to fit in the pod
+     PERKS    the old one-offs: bigger lungs, illegal magnets, the permit
+     HATS     worn; you buy one once and put it on or take it off after
+     PLANTS   for your house, where they sit on the floor and are nice
+     A GEODE  paid for, cracked open at the counter, usually rock
+
+   Down on the docks there is an open-air market -- fruit, fish, a grill, a
+   juice cart and a flower stall -- with a vendor at every one of them
+   shouting prices. And on the market deck, between the shops, there is the
+   way into the casino: a door with lights round it and a bear on it. The
+   market is not a casino. It has one in it, which is how markets work. */
+(function (PD) {
+  'use strict';
+
+  const U = PD.util;
+  const X = PD.pxd;
+  const F = PD.font;
+  const A = PD.audio;
+  const AH = PD.arthome;
+  const VW = 480, VH = 270;
+
+  /* ------------------------------------------------------------ catalogue */
+  const ITEMS = {
+    noodle: [
+      { id: 'ramen', name: 'RAMEN', cost: 900, kind: 'snack', fx: { air: 30 }, line: '+30 AIR ON YOUR NEXT DIVE', icon: 'bowl' },
+      { id: 'dumpl', name: 'DUMPLINGS', cost: 1400, kind: 'snack', fx: { hull: 20 }, line: '+20 HULL ON YOUR NEXT DIVE', icon: 'dumpling' }],
+    cafe: [
+      { id: 'coffee', name: 'COFFEE', cost: 700, kind: 'snack', fx: { drill: 0.15 }, line: 'DRILL 15% FASTER NEXT DIVE', icon: 'cup' },
+      { id: 'cake', name: 'CAKE', cost: 1100, kind: 'snack', fx: { reach: 10 }, line: '+10 PICKUP REACH NEXT DIVE', icon: 'cake' }],
+    air: [
+      { id: 'lungs', name: 'BIGGER LUNGS', cost: 62000, kind: 'perm', line: 'PERMANENT +40 AIR. NOT YOURS. NOBODY ASKS.', icon: 'lung' },
+      { id: 'aircan', name: 'CAN OF AIR', cost: 500, kind: 'snack', fx: { air: 15 }, line: '+15 AIR NEXT DIVE', icon: 'can' }],
+    grab: [
+      { id: 'grip', name: 'ILLEGAL MAGNETS', cost: 88000, kind: 'perm', line: 'PERMANENT +22 PICKUP REACH', icon: 'magnet' },
+      { id: 'gloves', name: 'STICKY GLOVES', cost: 600, kind: 'snack', fx: { reach: 8 }, line: '+8 PICKUP REACH NEXT DIVE', icon: 'glove' }],
+    fence: [
+      { id: 'fence', name: 'SELL THE VAULT', cost: 0, kind: 'fence', line: 'NO LISTING. NO WAITING. PAYS 10% OVER.', icon: 'sack' }],
+    hat: [
+      { id: 'hat0', name: 'TOP HAT', cost: 5000, kind: 'hat', hat: 0, line: 'FOR WHEN YOU OWE A MILLION IN STYLE', icon: 'hat0' },
+      { id: 'hat1', name: 'BOWLER', cost: 3000, kind: 'hat', hat: 1, line: 'A HAT FOR A MAN WITH A PLAN', icon: 'hat1' },
+      { id: 'hat2', name: 'CAP', cost: 1500, kind: 'hat', hat: 2, line: 'KEEPS THE CORE OUT OF YOUR EYES', icon: 'hat2' },
+      { id: 'hat3', name: 'WITCH HAT', cost: 9000, kind: 'hat', hat: 3, line: 'DOES NOTHING. LOOKS INCREDIBLE.', icon: 'hat3' },
+      { id: 'hat4', name: 'BERET', cost: 2500, kind: 'hat', hat: 4, line: 'FOR THE ARTIST OF DESTRUCTION', icon: 'hat4' }],
+    ore: [
+      { id: 'lucky', name: 'LUCKY GEM', cost: 4000, kind: 'snack', fx: { value: 0.08 }, line: 'ORE SELLS 8% HIGHER NEXT DIVE', icon: 'gem' },
+      { id: 'geode', name: 'CRACK A GEODE', cost: 2000, kind: 'geode', line: 'COULD BE ANYTHING. IS USUALLY ROCK.', icon: 'geode' }],
+    plant: [
+      { id: 'fern', name: 'A FERN', cost: 1500, kind: 'plant', plant: 0, line: 'FOR YOUR HOUSE. IT JUST SITS THERE. NICELY.', icon: 'plant0' },
+      { id: 'cactus', name: 'A CACTUS', cost: 2500, kind: 'plant', plant: 1, line: 'NEEDS NOTHING. GIVES NOTHING. RESPECT.', icon: 'plant1' },
+      { id: 'bonsai', name: 'A BONSAI', cost: 6000, kind: 'plant', plant: 2, line: 'SMALLER THAN A TREE. BETTER THAN A TREE.', icon: 'plant2' }],
+    stamp: [
+      { id: 'papers', name: 'BUILDING PERMIT', cost: 120000, kind: 'perm', line: 'EVERYTHING ON YOUR MOON COSTS A FIFTH LESS', icon: 'stamp' }],
+    // the stalls on the docks
+    fruit: [
+      { id: 'melon', name: 'MOON MELON', cost: 300, kind: 'snack', fx: { air: 10 }, line: '+10 AIR NEXT DIVE', icon: 'melon' },
+      { id: 'berry', name: 'CRATER BERRIES', cost: 260, kind: 'snack', fx: { hull: 6 }, line: '+6 HULL NEXT DIVE', icon: 'berry' }],
+    fish: [
+      { id: 'fish', name: 'GRILLED FISH', cost: 450, kind: 'snack', fx: { hull: 10 }, line: '+10 HULL NEXT DIVE', icon: 'fish' },
+      { id: 'squid', name: 'SQUID ON A STICK', cost: 520, kind: 'snack', fx: { drill: 0.06 }, line: 'DRILL 6% FASTER NEXT DIVE', icon: 'squid' }],
+    grill: [
+      { id: 'kebab', name: 'SPACE KEBAB', cost: 500, kind: 'snack', fx: { drill: 0.08 }, line: 'DRILL 8% FASTER NEXT DIVE', icon: 'kebab' }],
+    juice: [
+      { id: 'juice', name: 'STAR JUICE', cost: 350, kind: 'snack', fx: { air: 8, reach: 3 }, line: '+8 AIR AND +3 REACH NEXT DIVE', icon: 'juice' }],
+    flower: [
+      { id: 'posy', name: 'A POSY', cost: 800, kind: 'plant', plant: 3, line: 'FOR YOUR HOUSE. SMELLS OF SOMEWHERE ELSE.', icon: 'plant3' }]
+  };
+  const FULL = 3;                     // snacks you can carry into one dive
+
+  const GREET = ['WELCOME IN!', 'HELLO HELLO', 'TAKE A LOOK', 'EVERYTHING IS FRESH', 'NO REFUNDS. HI!', 'OH, A CUSTOMER'];
+  const THANKS = ['THANK YOU!', 'ENJOY!', 'GOOD CHOICE', 'COME BACK SOON', 'PLEASURE DOING BUSINESS', 'YAY'];
+  const BROKE = ['YOU CANNOT AFFORD THAT', 'NICE TRY', 'COME BACK RICHER', 'MR CHUM HAS YOUR MONEY'];
+
+  /* ------------------------------------------------------------ the stalls */
+  const STALLS = [
+    { key: 'fruit', deck: 0, x: 330, name: 'FRUIT', keeper: 'BEANIE', col: '#ff6a4a', col2: '#ffd34d', shout: ['FRESH MELONS!', 'BERRIES! RIPE!', 'TWO FOR ONE-ISH'] },
+    { key: 'fish', deck: 0, x: 422, name: 'FISH', keeper: 'GLOOP', col: '#38a8e8', col2: '#e8f8ff', shout: ['FISH! FISH!', 'CAUGHT THIS MORNING', 'SQUID ON A STICK!'] },
+    { key: 'grill', deck: 0, x: 514, name: 'GRILL', keeper: 'PIP', col: '#e8402a', col2: '#ffb040', shout: ['HOT KEBABS!', 'I AM THE GRILL', 'SMELL THAT'] },
+    { key: 'juice', deck: 0, x: 606, name: 'JUICE', keeper: 'WOBBLE', col: '#a86aff', col2: '#7dff9a', shout: ['STAR JUICE!', 'SQUEEZED BY HAND', 'COLD COLD COLD'] },
+    { key: 'flower', deck: 0, x: 698, name: 'FLOWERS', keeper: 'VESPER', col: '#ff7ac4', col2: '#fff0f8', shout: ['FLOWERS FOR THE HOUSE', 'SMELL THESE', 'PRETTY THINGS'] }
+  ];
+  const CASINO = { deck: 1, x: 800 };
+
+  function kin(nm) {
+    for (const k of AH.KIN) if (k.who === nm || k.celeb === nm) return k;
+    return AH.KIN[0];
+  }
+
+  /* ------------------------------------------------------------ icons
+     Small pictures of the goods, drawn live, used on the stall counters and
+     in the shop list. About ten pixels square. */
+  function icon(ctx, kind, x, y, t) {
+    const R = (a, b, w, h, c) => X.rect(ctx, x + a, y + b, w, h, c);
+    const B = (a, b, rx, ry, c) => X.blob(ctx, x + a, y + b, rx, ry, c);
+    switch (kind) {
+      case 'bowl': B(0, 2, 5, 3.5, '#c83a2a'); R(-5, -1, 10, 3, '#f0dcb0'); R(-2, -5, 1, 4, '#fff'); R(1, -6, 1, 4, '#fff'); break;
+      case 'dumpling': for (const d of [-3, 3]) { B(d, 1, 3, 2.6, '#fbf6ec'); R(d - 1, -1, 2, 1, '#d6c8b2'); } break;
+      case 'cup': X.plate(ctx, x - 4, y - 3, 8, 8, '#ffffff', null, null, 2); R(-3, -2, 6, 2, '#6a3a1a'); R(4, -1, 2, 3, '#ffffff'); R(-1, -7, 1, 3, '#c8c8d8'); break;
+      case 'cake': R(-4, -1, 9, 5, '#f8d8a8'); R(-4, -3, 9, 2, '#ff8ab8'); R(0, -6, 1, 3, '#fff'); R(0, -7, 1, 1, '#ffd34d'); break;
+      case 'lung': B(-2, 0, 2.4, 3.6, '#ff8aa8'); B(2, 0, 2.4, 3.6, '#ff8aa8'); R(0, -5, 1, 4, '#e8c0c8'); break;
+      case 'can': X.plate(ctx, x - 3, y - 5, 7, 10, '#38e8ff', null, null, 2); R(-3, -1, 7, 2, '#ffffff'); R(-1, -7, 3, 2, '#8a96a8'); break;
+      case 'magnet': B(0, -1, 4, 4, '#d8343a'); B(0, -1, 2, 2, '#1a1024'); R(-4, -1, 3, 5, '#d8343a'); R(1, -1, 3, 5, '#d8343a'); R(-4, 3, 3, 2, '#dce4ec'); R(1, 3, 3, 2, '#dce4ec'); break;
+      case 'glove': X.plate(ctx, x - 3, y - 1, 7, 6, '#ffc44d', null, null, 2); for (let i = 0; i < 3; i++) R(-2 + i * 2, -4, 1, 4, '#ffc44d'); break;
+      case 'sack': B(0, 1, 5, 4, '#b08aff'); R(-2, -4, 4, 2, '#b08aff'); R(-1, -1, 2, 4, '#2e1a52'); break;
+      case 'gem': X.poly(ctx, [[x - 4, y - 1], [x + 4, y - 1], [x, y + 5]], '#7dffda'); X.poly(ctx, [[x - 4, y - 1], [x - 2, y - 4], [x + 2, y - 4], [x + 4, y - 1]], '#c8fff0'); break;
+      case 'geode': B(0, 0, 5, 4, '#6a5a4a'); B(1, 0, 2.5, 2, '#b87aff'); R(0, -1, 1, 1, '#ffffff'); break;
+      case 'stamp': X.plate(ctx, x - 2, y - 6, 5, 5, '#c84a3a', null, null, 2); R(-4, -1, 9, 3, '#e8dcb0'); R(-4, 2, 9, 1, '#c84a3a'); break;
+      case 'melon': B(0, 1, 5, 4, '#3aa84a'); B(0, 1, 4, 3, '#ff6a6a'); R(-2, 0, 1, 1, '#1a1024'); R(1, 1, 1, 1, '#1a1024'); R(-5, 1, 10, 1, '#8aff8a'); break;
+      case 'berry': for (const [a, b] of [[-2, 1], [2, 1], [0, -1]]) { B(a, b, 2, 2, '#6a3aff'); R(a - 1, b - 1, 1, 1, '#c8b0ff'); } break;
+      case 'fish': B(0, 0, 5, 2.6, '#8ac8e8'); X.poly(ctx, [[x + 4, y], [x + 7, y - 3], [x + 7, y + 3]], '#5a98c8'); R(-3, -1, 1, 1, '#1a1024'); break;
+      case 'squid': R(0, -2, 1, 9, '#8a5a2a'); B(0, -2, 3, 3, '#ff9ab0'); for (let i = -2; i <= 2; i += 2) R(i, 1, 1, 3, '#ff9ab0'); break;
+      case 'kebab': R(-5, 0, 11, 1, '#8a5a2a'); for (let i = 0; i < 4; i++) B(-3 + i * 2.2, 0, 1.4, 2, ['#c8602a', '#7ac848', '#c8602a', '#ffd34d'][i]); break;
+      case 'juice': R(-3, -3, 6, 8, 'rgba(200,240,255,0.6)'); R(-2, -1, 4, 5, '#a86aff'); R(1, -7, 1, 5, '#ff5a8a'); break;
+      default:
+        if (kind && kind.indexOf('hat') === 0) hatAt(ctx, +kind.slice(3), x, y + 2, ['#2a2a3a', '#6a3a2a', '#ff5a8a', '#3a1a5a', '#c83a3a'][+kind.slice(3)]);
+        else if (kind && kind.indexOf('plant') === 0) plantAt(ctx, +kind.slice(5), x, y + 5, t || 0);
+    }
+  }
+
+  /* A hat, in the world, with its brim at (x, y). Used on the shelf, in the
+     list, and on your own head. */
+  function hatAt(ctx, k, x, y, c) {
+    const R = (a, b, w, h, col) => X.rect(ctx, x + a, y + b, w, h, col);
+    if (k === 0) { R(-5, -1, 11, 2, c); R(-3, -9, 7, 8, c); R(-3, -4, 7, 2, '#ff5a8a'); R(-2, -8, 1, 4, '#5a5a6a'); }
+    else if (k === 1) { R(-6, -1, 13, 2, c); X.blob(ctx, x, y - 3, 4.5, 4, c); R(-4, -3, 9, 1, '#d8b060'); }
+    else if (k === 2) { X.blob(ctx, x, y - 2, 5, 3.5, c); R(-5, -2, 10, 2, c); R(2, -1, 7, 2, '#8a2a3a'); R(-1, -5, 2, 1, '#ffffff'); }
+    else if (k === 3) { R(-7, -1, 15, 2, c); X.poly(ctx, [[x - 4, y - 1], [x + 4, y - 1], [x + 3, y - 12]], c); R(-4, -3, 8, 2, '#ffd34d'); }
+    else { X.blob(ctx, x, y - 2, 6, 2.6, c); R(0, -6, 1, 3, c); }
+  }
+  const HAT_COL = ['#2a2a3a', '#6a3a2a', '#ff5a8a', '#3a1a5a', '#c83a3a'];
+
+  function plantAt(ctx, k, x, y, t) {
+    const sw = Math.sin(t * 1.2 + x) * 0.6;
+    if (k === 0) { for (let i = 0; i < 7; i++) { const a = -Math.PI / 2 + (i - 3) * 0.42; X.blob(ctx, x + Math.cos(a) * 5 + sw, y - 6 + Math.sin(a) * 6, 2, 3, i % 2 ? '#3aa84a' : '#6ad85a'); } X.plate(ctx, x - 4, y - 4, 8, 5, '#c86a3a', null, null, 1); }
+    else if (k === 1) { X.plate(ctx, x - 2, y - 13, 5, 11, '#4aa85a', null, null, 2); X.plate(ctx, x - 6, y - 10, 4, 5, '#4aa85a', null, null, 2); X.rect(ctx, x + 1, y - 14, 1, 1, '#ff7ac4'); X.plate(ctx, x - 4, y - 3, 9, 4, '#e8dcc0', null, null, 1); }
+    else if (k === 2) { X.rect(ctx, x, y - 9, 2, 7, '#6a4428'); X.blob(ctx, x - 3 + sw, y - 10, 4, 2.5, '#3a8a4a'); X.blob(ctx, x + 4 + sw, y - 12, 3.5, 2.2, '#5aa85a'); X.plate(ctx, x - 5, y - 3, 11, 3, '#4a8aa8', null, null, 1); }
+    else { for (let i = 0; i < 5; i++) { X.rect(ctx, x - 2 + i, y - 8 + (i % 2), 1, 5, '#3aa84a'); X.blob(ctx, x - 3 + i * 1.6 + sw, y - 9 - (i % 2) * 2, 1.8, 1.8, ['#ff5a8a', '#ffd34d', '#ffffff', '#a86aff', '#ff8a4a'][i]); } X.plate(ctx, x - 3, y - 3, 7, 3, '#8a6ac8', null, null, 1); }
+  }
+
+  /* ------------------------------------------------------------ drawing */
+
+  /* A stall on the docks: a striped canopy on poles, a counter piled with
+     what it sells, a price board, and somebody behind it shouting. */
+  function drawStall(ctx, s, x, y, t, px, dim) {
+    const K = kin(s.keeper);
+    const near = Math.abs(px - x) < 40;
+    ctx.globalAlpha = dim ? 0.55 : 1;
+    // warm light off the bulbs, across the deck
+    if (!dim) { ctx.globalAlpha = 0.14; X.blob(ctx, x, y, 40, 5, '#ffd88a'); ctx.globalAlpha = 1; }
+    // the vendor, behind the counter, calling out
+    const fr = near ? (Math.sin(t * 9) > 0 ? 3 : 6) : ((Math.floor(t * 0.6 + s.x) % 5 === 0) ? (Math.sin(t * 10) > 0 ? 3 : 0) : (Math.sin(t * 1.4 + s.x) > 0.95 ? 5 : 0));
+    const b = Math.sin(t * 2.3 + s.x) * 0.03;
+    PD.crowd.bouncy(ctx, K, fr, x - 6, y - 13, px > x, 1 - b, 1 + b, 0);
+    // the poles and the canopy
+    X.rect(ctx, x - 30, y - 50, 2, 50, '#4a3a2a'); X.rect(ctx, x + 28, y - 50, 2, 50, '#4a3a2a');
+    for (let i = 0; i < 8; i++) X.rect(ctx, x - 34 + i * 8.5, y - 56, 9, 8, i % 2 ? s.col : s.col2);
+    for (let i = 0; i < 8; i++) X.poly(ctx, [[x - 34 + i * 8.5, y - 48], [x - 25.5 + i * 8.5, y - 48], [x - 29.8 + i * 8.5, y - 44]], i % 2 ? s.col : s.col2);
+    X.rect(ctx, x - 34, y - 57, 68, 2, '#ffffff');
+    // a string of bulbs under it
+    for (let i = 0; i < 7; i++) {
+      const on = (Math.floor(t * 3) + i) % 7 !== 0;
+      X.blob(ctx, x - 27 + i * 9, y - 42 + Math.sin(i) * 1, 1.5, 1.8, on ? '#fff0a0' : '#6a5a30');
+    }
+    // the sign on top
+    const w = F.width(s.name, 1) + 10;
+    X.plate(ctx, x - w / 2, y - 68, w, 11, '#1a1020', s.col, '#0a0612', 3);
+    F.draw(ctx, s.name, x, y - 66, '#ffffff', { center: true, shadow: '#000000' });
+    // the counter, and the goods piled on it
+    X.plate(ctx, x - 30, y - 18, 60, 18, '#8a5a3a', '#b87a4a', '#4a2a1a', 3);
+    for (let i = 0; i < 5; i++) X.rect(ctx, x - 28 + i * 12, y - 12, 1, 10, '#6a4028');
+    const goods = ITEMS[s.key];
+    for (let i = 0; i < 5; i++) icon(ctx, goods[i % goods.length].icon, x - 22 + i * 11, y - 22 + (i % 2), t);
+    // the price board, chalk on slate
+    const pr = '$' + goods[0].cost;
+    const pw = F.width(pr, 1) + 6;
+    X.plate(ctx, x + 30 - pw, y - 38, pw, 12, '#2a3a2a', '#6a4a2a', '#101810', 2);
+    F.draw(ctx, pr, x + 30 - pw / 2, y - 35, '#e8e8d8', { center: true, shadow: false });
+    if (s.key === 'grill') {
+      // smoke off the grill, drawn light, since this is not the house
+      for (let i = 0; i < 4; i++) {
+        const q = (t * 0.6 + i * 0.25) % 1;
+        ctx.globalAlpha = (dim ? 0.3 : 0.4) * (1 - q);
+        X.blob(ctx, x - 10 + i * 6 + Math.sin(t + i) * 3, y - 24 - q * 30, 3 + q * 5, 2 + q * 4, '#c8c0d0');
+      }
+      ctx.globalAlpha = dim ? 0.55 : 1;
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  /* The way into the casino. Arched, lit, a bear on the door. */
+  function drawCasino(ctx, x, y, t, px, dim) {
+    ctx.globalAlpha = dim ? 0.55 : 1;
+    const W2 = 46;
+    if (!dim) { ctx.globalAlpha = 0.18; X.blob(ctx, x, y + 1, 60, 6, '#ff5a8a'); ctx.globalAlpha = 1; }
+    // the front: black glass and gold
+    X.plate(ctx, x - W2, y - 64, W2 * 2, 64, '#150a1e', '#3a1a4a', '#07030c', 4);
+    // the arch, chasing bulbs round it
+    for (let i = 0; i <= 18; i++) {
+      const a = Math.PI + (i / 18) * Math.PI;
+      const bx = x + Math.cos(a) * 30, by = y - 30 + Math.sin(a) * 20;
+      const on = (Math.floor(t * 8) + i) % 3 === 0;
+      X.blob(ctx, bx, by, 1.6, 1.6, on ? '#fff6c0' : '#8a6a20');
+      if (on && !dim) { ctx.globalAlpha = 0.25; X.blob(ctx, bx, by, 4, 4, '#ffd34d'); ctx.globalAlpha = 1; }
+    }
+    X.rect(ctx, x - 30, y - 30, 2, 30, '#c99a1e'); X.rect(ctx, x + 28, y - 30, 2, 30, '#c99a1e');
+    // the doors, revolving, with the room showing through them
+    X.rect(ctx, x - 26, y - 42, 52, 42, '#2a0a18');
+    const rot = (t * 0.8) % 1;
+    for (let i = 0; i < 3; i++) {
+      const f = (rot + i / 3) % 1, dx = Math.cos(f * Math.PI * 2) * 20;
+      X.rect(ctx, x + dx - 1, y - 42, 2, 42, '#c99a1e');
+      ctx.globalAlpha = (dim ? 0.55 : 1) * 0.3;
+      X.rect(ctx, x + Math.min(dx, 0), y - 42, Math.abs(dx), 42, '#ff9ad8');
+      ctx.globalAlpha = dim ? 0.55 : 1;
+    }
+    // what is inside, glimpsed: a slot row and a chandelier
+    for (let i = 0; i < 4; i++) { X.rect(ctx, x - 20 + i * 11, y - 18, 7, 12, '#4a1030'); X.rect(ctx, x - 19 + i * 11, y - 16, 5, 4, (Math.floor(t * 4) + i) % 2 ? '#ffd34d' : '#7ef9ff'); }
+    X.blob(ctx, x, y - 38, 8, 3, '#ffd34d');
+    // the red carpet out onto the deck, and the rope
+    X.rect(ctx, x - 16, y - 2, 32, 3, '#c81a3a');
+    for (const s of [-1, 1]) { X.rect(ctx, x + s * 36 - 1, y - 12, 3, 12, '#c99a1e'); X.blob(ctx, x + s * 36, y - 13, 2, 2, '#ffd34d'); }
+    X.curve(ctx, x - 36, y - 10, x - 30, y - 4, x - 24, y - 10, '#c81a3a', 1, 8);
+    // the sign: a word in lights, and a moon made of bulbs
+    const flick = (Math.floor(t * 6) % 29) !== 0;
+    X.plate(ctx, x - 40, y - 78, 80, 15, '#1a0612', flick ? '#ff5a8a' : '#5a1a3a', '#07030c', 4);
+    F.draw(ctx, 'LUCKY MOON', x, y - 74, flick ? '#ffe0f0' : '#6a3a5a', { center: true, shadow: '#3a0a1a' });
+    if (!dim && flick) { ctx.globalAlpha = 0.2; X.blob(ctx, x, y - 70, 48, 10, '#ff5a8a'); ctx.globalAlpha = 1; }
+    F.draw(ctx, 'CASINO', x, y - 61, (Math.floor(t * 2) % 2) ? '#ffd34d' : '#ffb040', { center: true, shadow: '#000000' });
+    // the bear on the door
+    const K = kin('BRUNO');
+    const near = Math.abs(px - x) < 40;
+    PD.crowd.bouncy(ctx, K, near ? (Math.sin(t * 7) > 0 ? 3 : 0) : (Math.sin(t * 1.1) > 0.96 ? 5 : 0), x + 50, y, px > x + 50, 1, 1 + Math.sin(t * 2) * 0.02, 0);
+    ctx.globalAlpha = 1;
+  }
+
+  /* ---------------------------------------------------------- the shop panel
+     Opened from any shop or stall. The keeper on the left, big, reacting;
+     the goods on the right; what you can afford and what you are carrying at
+     the bottom. */
+  const PAN = { on: 0, key: null, name: '', keeper: null, sel: 0, react: 'talk', reactT: 0, say: '', sayT: 0, t: 0, geode: null, col: '#ffd34d', col2: '#2a1a3a' };
+
+  function open(g, key, name, keeper, col, col2) {
+    PAN.on = 1; PAN.key = key; PAN.name = name; PAN.keeper = keeper; PAN.sel = 0; PAN.t = 0;
+    PAN.react = 'talk'; PAN.reactT = 1.2; PAN.say = GREET[Math.floor(Math.random() * GREET.length)]; PAN.sayT = 2.4;
+    PAN.col = col || '#ffd34d'; PAN.col2 = col2 || '#2a1a3a'; PAN.geode = null;
+    A.sfx.tone(880, { type: 'triangle', to: 1320, dur: 0.12, vol: 0.06 });
+  }
+  function close() { PAN.on = 0; }
+
+  function snackCount(g) { return (g.save.snack && g.save.snack.n) || 0; }
+  function status(g, it) {
+    const sv = g.save;
+    if (it.kind === 'perm') return sv.bought && sv.bought[it.id] ? 'OWNED' : null;
+    if (it.kind === 'hat') return sv.hats && sv.hats[it.id] ? (sv.hat === it.hat ? 'WEARING' : 'OWNED') : null;
+    if (it.kind === 'snack' && snackCount(g) >= FULL) return 'FULL';
+    if (it.kind === 'plant' && (sv.plants || []).length >= 6) return 'NO ROOM';
+    return null;
+  }
+  function priceOf(g, it) {
+    if (it.kind === 'fence') return Math.round(g.vaultValue() * 1.1 * (1 + g.baseBonus('refinery')));
+    return it.cost;
+  }
+  function react(kind, line) {
+    PAN.react = kind; PAN.reactT = 1.4;
+    if (line) { PAN.say = line; PAN.sayT = 2.2; }
+  }
+
+  /* Buy the selected thing. Returns true if money changed hands. */
+  function buy(g, it) {
+    const sv = g.save;
+    const st = status(g, it);
+    if (it.kind === 'hat' && st) {
+      // owned already: this is putting it on, or taking it off
+      sv.hat = sv.hat === it.hat ? -1 : it.hat;
+      react('cheer', sv.hat === it.hat ? 'LOOKS GREAT ON YOU' : 'BARE HEADED. BOLD.');
+      A.sfx.click(); g.saveGame(); return false;
+    }
+    if (st) { react('sad', st === 'FULL' ? 'YOU LOOK FULL. COME BACK AFTER A DIVE' : (st === 'NO ROOM' ? 'YOUR HOUSE IS FULL OF PLANTS' : 'YOU ALREADY HAVE THAT')); A.sfx.deny(); return false; }
+    if (it.kind === 'fence') {
+      const total = priceOf(g, it);
+      if (!total) { react('sad', 'NOTHING IN THE VAULT. COME BACK HEAVY.'); A.sfx.deny(); return false; }
+      sv.vault = {};
+      const cut = PD.chum.takeCut(g, total);
+      sv.credits += total - cut; sv.totalEarned += total - cut;
+      react('laugh', 'PLEASURE. +$' + U.fmt(total - cut));
+      A.sfx.sell(); g.saveGame(); return true;
+    }
+    if (sv.credits < it.cost) { react('sad', BROKE[Math.floor(Math.random() * BROKE.length)]); A.sfx.deny(); return false; }
+    sv.credits -= it.cost;
+    if (it.kind === 'perm') { if (!sv.bought) sv.bought = {}; sv.bought[it.id] = 1; }
+    else if (it.kind === 'hat') { if (!sv.hats) sv.hats = {}; sv.hats[it.id] = 1; sv.hat = it.hat; }
+    else if (it.kind === 'plant') { if (!sv.plants) sv.plants = []; sv.plants.push(it.plant); }
+    else if (it.kind === 'snack') {
+      const sn = sv.snack || (sv.snack = { n: 0, names: [] });
+      sn.n++; sn.names.push(it.name);
+      for (const k in it.fx) sn[k] = (sn[k] || 0) + it.fx[k];
+    } else if (it.kind === 'geode') {
+      const r = Math.random();
+      const mult = r < 0.55 ? 0 : (r < 0.85 ? 1.5 : (r < 0.97 ? 4 : 15));
+      const win = Math.round(it.cost * mult);
+      sv.credits += win;
+      PAN.geode = { t: 0, mult, win };
+      react(mult >= 4 ? 'shock' : (mult > 0 ? 'cheer' : 'sad'), mult === 0 ? 'ROCK. IT IS ALWAYS ROCK.' : (mult >= 15 ? 'NO WAY. NO WAY!' : 'OOH! +$' + U.fmt(win)));
+      if (mult > 0) A.sfx.sell(); else A.sfx.deny();
+      g.saveGame(); return true;
+    }
+    react('cheer', THANKS[Math.floor(Math.random() * THANKS.length)]);
+    A.sfx.sell();
+    A.sfx.tone(1200, { type: 'square', to: 1800, dur: 0.08, vol: 0.05 });
+    g.saveGame();
+    return true;
+  }
+
+  /* Returns 'close' when the panel wants shutting, 'bought' on a purchase. */
+  function update(dt, g) {
+    const IN = PD.input, m = IN.mouse;
+    PAN.t += dt;
+    PAN.reactT = Math.max(0, PAN.reactT - dt); PAN.sayT = Math.max(0, PAN.sayT - dt);
+    if (PAN.geode) PAN.geode.t += dt;
+    const list = ITEMS[PAN.key] || [];
+    if (IN.hit('esc')) return 'close';
+    if (IN.hit('up')) { PAN.sel = (PAN.sel + list.length - 1) % list.length; A.sfx.click(); }
+    if (IN.hit('down')) { PAN.sel = (PAN.sel + 1) % list.length; A.sfx.click(); }
+    for (let i = 0; i < list.length; i++) {
+      const y = 70 + i * 26;
+      if (m.inside && m.x > 200 && m.x < 444 && m.y > y && m.y < y + 23) {
+        if (PAN.sel !== i) { PAN.sel = i; }
+        if (m.leftPressed) return buy(g, list[i]) ? 'bought' : null;
+      }
+    }
+    if (m.inside && m.leftPressed && m.x > 380 && m.x < 444 && m.y > 222 && m.y < 240) return 'close';
+    if (IN.hit('KeyE') || IN.hit('enter') || IN.hit('space')) return buy(g, list[PAN.sel]) ? 'bought' : null;
+    return null;
+  }
+
+  function draw(ctx, g, t) {
+    const list = ITEMS[PAN.key] || [];
+    ctx.fillStyle = 'rgba(6,4,14,0.8)'; ctx.fillRect(0, 0, VW, VH);
+    const e = Math.min(1, PAN.t * 5);
+    const k = e >= 1 ? 1 : 1 + 2.7 * Math.pow(e - 1, 3) + 1.7 * Math.pow(e - 1, 2);
+    ctx.save();
+    ctx.translate(240, 150); ctx.scale(k, k); ctx.translate(-240, -150);
+    X.plate(ctx, 30, 36, 420, 212, '#17122a', '#3a3060', '#07040e', 8);
+    X.rect(ctx, 30, 36, 420, 3, PAN.col);
+    // the name board
+    X.plate(ctx, 44, 26, F.width(PAN.name, 2) + 24, 22, PAN.col2, PAN.col, '#07040e', 5);
+    F.draw(ctx, PAN.name, 56, 31, '#ffffff', { scale: 2, shadow: '#000000' });
+
+    // the keeper, big, with a face that goes with what just happened
+    const K = kin(PAN.keeper);
+    X.plate(ctx, 44, 60, 146, 150, '#0f0c1e', '#2a2448', '#05030a', 6);
+    ctx.save(); ctx.beginPath(); ctx.rect(46, 62, 142, 146); ctx.clip();
+    const glow = ctx.createRadialGradient(117, 150, 10, 117, 150, 90);
+    glow.addColorStop(0, PAN.col + '55'); glow.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = glow; ctx.fillRect(46, 62, 142, 146);
+    const FRM = { talk: 3, cheer: 6, sad: 7, shock: 9, laugh: 10, angry: 8 };
+    let fr = PAN.reactT > 0 ? FRM[PAN.react] : (PAN.sayT > 0 ? (Math.sin(t * 12) > 0 ? 3 : 0) : (Math.sin(t * 1.3) > 0.95 ? 5 : 0));
+    if (PAN.reactT > 0 && PAN.react === 'talk') fr = Math.sin(t * 12) > 0 ? 3 : 0;
+    const hop = PAN.reactT > 0 && (PAN.react === 'cheer' || PAN.react === 'shock' || PAN.react === 'laugh') ? Math.abs(Math.sin(PAN.reactT * 9)) * 10 * PAN.reactT : 0;
+    const br = Math.sin(t * 2.4) * 0.03;
+    const sc = Math.min(3, 110 / Math.max(K.h, 30));
+    PD.crowd.bouncy(ctx, K, fr, 117, 200 - hop, false, sc * (1 - br), sc * (1 + br), 0);
+    ctx.restore();
+    // what they are saying
+    if (PAN.sayT > 0) {
+      const rows = PD.chum.wrap(PAN.say, 130, 1);
+      const bw = 140, bh = 10 + rows.length * 10;
+      X.plate(ctx, 48, 66, bw, bh, '#fbf6ee', '#ffffff', '#c8bca8', 4);
+      rows.forEach((r, i) => F.draw(ctx, r, 118, 71 + i * 10, '#1a1020', { center: true, shadow: false }));
+    }
+
+    // the goods
+    list.forEach((it, i) => {
+      const y = 70 + i * 26, on = i === PAN.sel;
+      const st = status(g, it);
+      const price = priceOf(g, it);
+      const can = !st && (it.kind === 'fence' ? price > 0 : g.save.credits >= it.cost);
+      X.plate(ctx, 200, y, 244, 23, on ? '#2a2450' : '#15112a', on ? PAN.col : '#2a2448', '#05030a', 4);
+      X.plate(ctx, 204, y + 2, 19, 19, '#0a0816', '#2a2448', '#05030a', 3);
+      icon(ctx, it.icon, 213, y + 11, t);
+      F.draw(ctx, it.name, 228, y + 4, on ? '#ffffff' : '#c9bce8', { shadow: false });
+      F.draw(ctx, it.line, 228, y + 13, on ? '#ffd34d' : '#6a6490', { shadow: false });
+      const lab = st || (it.kind === 'fence' ? (price ? '+$' + U.fmt(price) : 'EMPTY') : '$' + U.fmt(it.cost));
+      F.draw(ctx, lab, 440, y + 4, st ? '#8affd0' : (can ? '#8affa0' : '#ff8a9a'), { right: true, shadow: false });
+    });
+    // the geode, cracking
+    if (PAN.geode && PAN.geode.t < 2.2) {
+      const q = PAN.geode.t;
+      const gx = 322, gy = 170;
+      const split = Math.max(0, q - 0.6) * 18;
+      X.blob(ctx, gx - split, gy, 16, 13, '#6a5a4a'); X.blob(ctx, gx + split, gy, 16, 13, '#5a4a3a');
+      if (q > 0.6) {
+        X.blob(ctx, gx, gy, 9, 8, PAN.geode.mult ? (PAN.geode.mult >= 4 ? '#ffd34d' : '#b87aff') : '#4a4038');
+        if (PAN.geode.mult) for (let i = 0; i < 8; i++) { const a = i / 8 * U.TAU + q; X.rect(ctx, gx + Math.cos(a) * (12 + q * 10), gy + Math.sin(a) * (10 + q * 8), 2, 2, '#ffffff'); }
+      } else if (Math.floor(q * 20) % 2) X.rect(ctx, gx - 1, gy - 12, 2, 24, '#1a1010');
+    }
+    // the bottom line: money, and what you are carrying into the next dive
+    const sn = g.save.snack;
+    F.draw(ctx, 'YOU HAVE $' + U.fmt(g.save.credits), 200, 206, '#ffd34d', { shadow: false });
+    const snk = sn && sn.n ? 'BAG: ' + sn.names.join(', ') : 'BAG: NOTHING TO EAT';
+    F.draw(ctx, snk.length > 38 ? snk.slice(0, 37) + '.' : snk, 200, 216, '#8a86a8', { shadow: false });
+    F.draw(ctx, 'UP/DOWN  E BUY', 200, 228, '#4a4470', { shadow: false });
+    const m = PD.input.mouse;
+    const hot = m.inside && m.x > 380 && m.x < 444 && m.y > 222 && m.y < 240;
+    X.plate(ctx, 380, 222, 64, 18, hot ? '#3a3060' : '#241f3e', '#6b5a9c', '#0a0614', 4);
+    F.draw(ctx, 'LEAVE', 412, 227, '#c9bce8', { center: true, shadow: false });
+    ctx.restore();
+  }
+
+  /* On the way down: whatever you ate is now in you, and not in the bag. */
+  function eat(g) {
+    const sn = g.save.snack;
+    g.snackNow = sn && sn.n ? sn : null;
+    g.save.snack = null;
+    return g.snackNow;
+  }
+
+  PD.market = { ITEMS, STALLS, CASINO, FULL, open, close, update, draw, drawStall, drawCasino, icon, hatAt, plantAt,
+    HAT_COL, eat, PAN, kin };
+})(window.PD);
+
 /* ===== src/home.js ===== */
 /* HOME.
 
@@ -18880,6 +19759,13 @@ window.PD = window.PD || {};
     A.sfx.tone(90, { type: 'square', to: 60, dur: 0.3, vol: 0.1 });
   }
   function leaveClub(g) {
+    if (S.clubFrom === 'hub') {
+      S.clubFrom = null;
+      S.scene = 'hub'; S.deck = PD.market.CASINO.deck;
+      place(g, PD.market.CASINO.x + 24);
+      A.sfx.tone(220, { type: 'square', to: 420, dur: 0.2, vol: 0.08 });
+      return;
+    }
     S.scene = 'out';
     place(g, CLUB_X - 24);
     A.sfx.tone(220, { type: 'square', to: 420, dur: 0.2, vol: 0.08 });
@@ -19680,7 +20566,9 @@ window.PD = window.PD || {};
     if (s.id === 'universal') { P.lock = 1; PD.chum.enterGamble(g); return; }
     if (s.bid) { openBuild(g, s.bid); return; }
     if (s.id === 'tele') { openTele(g); return; }
-    if (s.sid) { openStall(g, s.sid); return; }
+    if (s.shop) { openShop(g, s.shop.key, s.shop.sign, s.shop.keeper, s.shop.brand, s.shop.dark); return; }
+    if (s.stall) { openShop(g, s.stall.key, s.stall.name, s.stall.keeper, s.stall.col, '#2a1a24'); return; }
+    if (s.id === 'casino') { P.lock = 1; S.clubFrom = 'hub'; g.wipeTo(240, 135, '#4a0a18', () => goClub(g), 'bars', 0.62); return; }
     if (s.zip) { startZip(g, s.zip); return; }
     if (s.id === 'hubout') { P.lock = 1; g.wipeTo(240, 135, '#0a1a2a', () => leaveHub(g), 'sweep', 0.66); return; }
     if (s.id === 'port') { P.lock = 1; g.wipeTo(240, 135, '#0a1a2a', () => goHub(g), 'sweep', 0.66); return; }
@@ -19820,35 +20708,31 @@ window.PD = window.PD || {};
   /* The rest of it is people doing business you are not part of. */
   const HUB_PROPS = [
     { deck: 0, x: 240, kind: 'cantina', name: 'THE WET DECK' },
-    { deck: 0, x: 520, kind: 'crate' }, { deck: 0, x: 566, kind: 'crate' },
+    { deck: 0, x: 790, kind: 'crate' },
     { deck: 0, x: 860, kind: 'freighter' },
     { deck: 2, x: 620, kind: 'bank', name: 'THE FIRST BANK OF NOWHERE' },
     { deck: 2, x: 860, kind: 'scope' }
   ];
 
-  const HUBC = [];                                  // everybody else
-  (function buildHubCrowd() {
-    for (let d = 0; d < 3; d++) {
-      const n = [13, 17, 9][d];
-      for (let i = 0; i < n; i++) {
-        HUBC.push({
-          deck: d, x: 60 + (HUB_W - 140) * ((i + 0.5) / n) + (U.hash2(d * 31 + i, 5) - 0.5) * 50,
-          k: (d * 7 + i * 3) % 20, ph: U.hash2(i * 5 + d, 19) * U.TAU,
-          dir: U.hash2(i, 7) > 0.5 ? 1 : -1, sp: 7 + U.hash2(i, 11) * 13,
-          wait: U.hash2(i, 13) * 5, t: 0
-        });
-      }
-    }
-  })();
+  /* Everybody else, run by crowd.js: they shop, sit, chat, dance, go into
+     the casino and come out again, and notice you. */
+  let HW = null;
+  function hubPlaces(d) {
+    const shops = PD.mall.SHOPS.filter(q => q.deck === d).map(q => ({ x: q.x, col: q.brand, food: q.key === 'noodle' || q.key === 'cafe' }));
+    const stalls = PD.market.STALLS.filter(q => q.deck === d).map(q => ({ x: q.x, col: q.col, food: q.key !== 'flower' }));
+    const seats = d === 1 ? [622, 638] : (d === 2 ? [760, 776] : [290, 770]);
+    const casino = d === PD.market.CASINO.deck ? PD.market.CASINO.x : null;
+    return { shops, stalls, seats, casino };
+  }
+  function hubWorld() {
+    if (!HW) HW = PD.crowd.make({ decks: [16, 18, 10], w: HUB_W, places: hubPlaces });
+    return HW;
+  }
+  const HUBPC = { px: 0, pdeck: 0, jumped: 0, bought: 0 };
   function updateHubCrowd(dt) {
-    for (const c of HUBC) {
-      c.t += dt;
-      if (c.wait > 0) { c.wait -= dt; continue; }
-      c.x += c.dir * c.sp * dt;
-      if (c.x < 50) { c.x = 50; c.dir = 1; c.wait = U.rand(0.6, 3); }
-      if (c.x > HUB_W - 50) { c.x = HUB_W - 50; c.dir = -1; c.wait = U.rand(0.6, 3); }
-      if (U.chance(dt * 0.14)) { c.wait = U.rand(0.8, 3.4); c.dir = -c.dir; }
-    }
+    HUBPC.px = P.x; HUBPC.pdeck = S.deck;
+    PD.crowd.update(hubWorld(), dt, HUBPC);
+    HUBPC.jumped = 0; HUBPC.bought = 0;
   }
 
   const HUB = { ride: null, t: 0, arrive: 0, panel: null, sel: 0 };
@@ -19875,12 +20759,16 @@ window.PD = window.PD || {};
       name: 'THE LIFT', sub: DECK_NAME[S.deck] + '  -  GO UP OR DOWN' });
     if (S.deck === 0) out.push({ id: 'hubout', x: 172, r: 24, deck: 0,
       name: 'YOUR SHUTTLE', sub: 'BACK TO THE MOON' });
-    for (const q of STALLS) {
+    for (const q of PD.mall.SHOPS) {
       if (q.deck !== S.deck) continue;
-      const bought = q.once && g.save.bought && g.save.bought[q.id];
-      out.push({ id: 'stall_' + q.id, sid: q.id, x: q.x, r: 24, deck: q.deck,
-        name: q.name, sub: bought ? 'ALREADY YOURS' : (q.cost ? '$' + U.fmt(q.cost) : 'SELL THE LOT') });
+      out.push({ id: 'shop_' + q.key, shop: q, x: q.x, r: 26, deck: q.deck, name: q.sign, sub: q.line });
     }
+    for (const q of PD.market.STALLS) {
+      if (q.deck !== S.deck) continue;
+      out.push({ id: 'shop_' + q.key, stall: q, x: q.x, r: 22, deck: q.deck, name: q.name + ' STALL', sub: 'FOOD FOR THE NEXT DIVE' });
+    }
+    if (S.deck === PD.market.CASINO.deck) out.push({ id: 'casino', x: PD.market.CASINO.x, r: 26, deck: S.deck,
+      name: 'THE LUCKY MOON', sub: 'THE CASINO. GO IN.' });
     for (const z of ZIPS) {
       if (z.from !== S.deck) continue;
       out.push({ id: 'zip_' + z.from, zip: z, x: z.x0, r: 22, deck: z.from,
@@ -19894,6 +20782,11 @@ window.PD = window.PD || {};
      under you, and you are somewhere else. */
   function openTele(g) { HUB.panel = { kind: 'tele', sel: S.deck }; UI.mode = 'hub'; A.sfx.click(); }
   function openStall(g, sid) { HUB.panel = { kind: 'stall', sid: sid }; UI.mode = 'hub'; A.sfx.click(); }
+  function openShop(g, key, name, keeper, col, col2) {
+    HUB.panel = { kind: 'shop', key };
+    UI.mode = 'hub';
+    PD.market.open(g, key, name, keeper, col, col2);
+  }
   function closeHubPanel() { HUB.panel = null; UI.mode = null; P.lock = 0.2; A.sfx.click(); }
 
   function teleportTo(g, d) {
@@ -19939,6 +20832,13 @@ window.PD = window.PD || {};
 
   function updateHubPanel(dt, g) {
     const IN = PD.input, m = IN.mouse;
+    if (HUB.panel.kind === 'shop') {
+      const r = PD.market.update(dt, g);
+      if (r === 'close') { PD.market.close(); closeHubPanel(); }
+      else if (r === 'bought') HUBPC.bought = 1;
+      updateHubCrowd(dt);
+      return;
+    }
     if (IN.hit('esc') || IN.hit('KeyE')) { closeHubPanel(); return; }
     const pn = HUB.panel;
     if (pn.kind === 'tele') {
@@ -19963,6 +20863,7 @@ window.PD = window.PD || {};
 
   function drawHubPanel(ctx, g, t) {
     const pn = HUB.panel;
+    if (pn.kind === 'shop') { PD.market.draw(ctx, g, t); return; }
     ctx.fillStyle = 'rgba(6,4,14,0.82)'; ctx.fillRect(0, 0, VW, VH);
     if (pn.kind === 'tele') {
       X.plate(ctx, 130, 56, 220, 152, '#132436', '#2e5a74', '#06121c', 6);
@@ -20431,8 +21332,12 @@ window.PD = window.PD || {};
         const x = dx - cam;
         if (x > -40 && x < VW + 40) PD.mall.dress(ctx, k, x, y, dim);
       }
-      const ex = 762 - cam;
-      if (ex > -100 && ex < VW + 40) PD.mall.escalator(ctx, ex, y, DECK_Y[2], t, dim);
+    }
+    // the open-air market on the docks
+    for (const st of PD.market.STALLS) {
+      if (st.deck !== d) continue;
+      const x = st.x - cam;
+      if (x > -60 && x < VW + 60) PD.market.drawStall(ctx, st, x, y, t, px - cam, dim);
     }
     for (const s of PD.mall.SHOPS) {
       if (s.deck !== d) continue;
@@ -20442,26 +21347,16 @@ window.PD = window.PD || {};
       const owned = !!(q && q.once && g.save.bought && g.save.bought[q.id]);
       PD.mall.draw(ctx, s, x, y, t, cam, px - cam, owned, dim);
     }
+    // and in among the shops, the way into the casino
+    if (d === PD.market.CASINO.deck) {
+      const cx2 = PD.market.CASINO.x - cam;
+      if (cx2 > -120 && cx2 < VW + 120) PD.market.drawCasino(ctx, cx2, y, t, px - cam, dim);
+    }
     ctx.globalAlpha = 1;
   }
 
   function hubCrowd(ctx, g, t, cam, d, dim) {
-    const y = DECK_Y[d];
-    ctx.globalAlpha = dim ? 0.5 : 1;
-    for (const c of HUBC) {
-      if (c.deck !== d) continue;
-      const x = c.x - cam;
-      if (x < -30 || x > VW + 30) continue;
-      const K = AH.KIN[c.k % AH.KIN.length];
-      const moving = c.wait <= 0;
-      const bob = Math.sin(t * 2.4 + c.ph) * 0.8;
-      ctx.globalAlpha = (dim ? 0.5 : 1) * 0.4;
-      X.blob(ctx, x, y + 1, K.w * 0.42, 3, '#0a0614');
-      ctx.globalAlpha = dim ? 0.5 : 1;
-      AH.blit(ctx, AH.S[K.key], moving ? (Math.floor(t * 6 + c.ph) % 2 ? 1 : 2)
-        : (Math.floor(t * 1.3 + c.ph) % 11 === 0 ? 5 : 0), x, y + bob, c.dir < 0);
-    }
-    ctx.globalAlpha = 1;
+    PD.crowd.draw(ctx, hubWorld(), t, cam, d, DECK_Y[d], dim, VW);
   }
 
   function drawHub(ctx, g, t, cam) {
@@ -20769,6 +21664,7 @@ window.PD = window.PD || {};
 
     if (IN.hit('up') && grounded && P.roll <= 0) {
       P.vy = -212;
+      HUBPC.jumped = 1;
       A.sfx.tone(520, { type: 'triangle', to: 980, dur: 0.14, vol: 0.07 });
       FX.dust(P.x, P.y, 4, '#c9bce8', 12);
     }
@@ -24645,6 +25541,12 @@ window.PD = window.PD || {};
     X.blob(ctx, jx, FLOOR + 2, 30, 4, '#1a2a20');
     AH.blit(ctx, AH.S.brainjar, jf, jx, FLOOR + 2);
 
+    // the plants you bought at the market, in a row along the floor
+    const PL = g.save.plants || [];
+    for (let i = 0; i < PL.length; i++) {
+      const px2 = [66, 96, 120, 176, 190, 16][i] - cam;
+      PD.market.plantAt(ctx, PL[i], px2, FLOOR + 2, t);
+    }
     // the cheese, until he takes it
     if (!g.save.pet) {
       const cx3 = RAT_SPOT.x + 16 - cam;
@@ -24801,6 +25703,25 @@ window.PD = window.PD || {};
     if (UI.mode === 'build') { drawBuildPanel(ctx, g, t); return; }
     if (UI.mode === 'lift') { drawLiftPanel(ctx, g, t); return; }
     if (UI.mode === 'hub') { drawHubPanel(ctx, g, t); return; }
+    if (S.scene === 'hub') {
+      const cam = Math.round(g.intCam);
+      PD.crowd.overlay(ctx, hubWorld(), t, cam, S.deck, DECK_Y[S.deck], P.x, toScreen);
+      // the stallholders, shouting their prices at nobody in particular
+      for (const st of PD.market.STALLS) {
+        if (st.deck !== S.deck) continue;
+        const ph = (t * 0.25 + st.x * 0.013) % 1;
+        if (ph > 0.3) continue;
+        const line = st.shout[Math.floor(t * 0.25 + st.x * 0.013) % st.shout.length];
+        const sc = toScreen(st.x - cam, DECK_Y[S.deck] - 74);
+        if (sc.x < -40 || sc.x > VW + 40) continue;
+        const w = F.width(line, 1) + 10, k = Math.min(1, ph * 30);
+        ctx.globalAlpha = Math.min(1, (0.3 - ph) * 12);
+        X.plate(ctx, sc.x - w / 2 - 1, sc.y - 13, w + 2, 13, '#1a1020', null, null, 4);
+        X.plate(ctx, sc.x - (w / 2) * k, sc.y - 12, w * k, 11, '#fff6d8', '#ffffff', '#c8b890', 4);
+        if (k >= 1) F.draw(ctx, line, sc.x, sc.y - 10, '#3a1a10', { center: true, shadow: false });
+        ctx.globalAlpha = 1;
+      }
+    }
     if (S.sleep <= 0) prompt(ctx, g, t, Math.round(g.intCam));
 
     if (S.sleep > 0) {
@@ -24884,6 +25805,11 @@ window.PD = window.PD || {};
       drilling: false, twoHand: false, grip: null, aim: P.face < 0 ? Math.PI : 0,
       ground: !air, vx: P.vx, vy: P.vy, squash: sq
     }, skin.P, PD.art.BIZ);
+    // the hat, if you bought one and are wearing it
+    if (g.save.hat >= 0 && g.save.hat !== undefined && g.save.hat !== null) {
+      const hy = y - 31 * sq + (P.land > 0 ? P.land * 6 : 0);
+      PD.market.hatAt(ctx, g.save.hat, x + P.face * 1, hy, PD.market.HAT_COL[g.save.hat]);
+    }
     if (walking && !air && U.chance(0.2)) FX.dust(P.x - P.face * 5, P.y, 1, '#8e86a8', 10);
     // shifting a heap: a cloud of it, and him disappearing into the cloud
     if (P.sweep > 0) {
@@ -26161,7 +27087,7 @@ window.PD = window.PD || {};
     A.sfx.tone(900, { type: 'triangle', to: 300, dur: 0.2, vol: 0.05, delay: 0.26 });
   };
 
-  g.valueMult = function () { return 1 + g.save.bonus / 100 + g.save.dominion * 0.004; };
+  g.valueMult = function () { return (1 + g.save.bonus / 100 + g.save.dominion * 0.004) * (1 + ((g.snackNow && g.snackNow.value) || 0)); };
 
   /* ---------------------------------------------------------------- the brain
      Neuron levels, what they are worth, and the THOTS that pay for them. */
@@ -26821,6 +27747,7 @@ window.PD = window.PD || {};
 
   function arriveHome(n) {
     g.state = 'home';
+    g.snackNow = null;                // it wears off on the way home
     if (n > 0) PD.chum.call(g, 'back');
     const pad = PD.home.SPOTS[1].x;
     PD.home.enter(g, pad - 70);
@@ -26864,6 +27791,9 @@ window.PD = window.PD || {};
     else { g.player.reset(g.ship.x, g.ship.y + 34); g.player.clearCargo(); }
     g.state = 'play';
     g.player.docked = false;
+    // whatever you bought to eat at the market, you eat now
+    const ate = PD.market && PD.market.eat(g);
+    if (ate) FX.text(g.player.x, g.player.y - 30, 'FULL OF ' + ate.names.join(' + '), '#ffd34d', 1);
     PD.chum.call(g, 'dig');
     A.sfx.warp();
     FX.flash(0.8, '#a9d8ff');

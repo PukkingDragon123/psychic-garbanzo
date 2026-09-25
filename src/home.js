@@ -328,6 +328,13 @@
     A.sfx.tone(90, { type: 'square', to: 60, dur: 0.3, vol: 0.1 });
   }
   function leaveClub(g) {
+    if (S.clubFrom === 'hub') {
+      S.clubFrom = null;
+      S.scene = 'hub'; S.deck = PD.market.CASINO.deck;
+      place(g, PD.market.CASINO.x + 24);
+      A.sfx.tone(220, { type: 'square', to: 420, dur: 0.2, vol: 0.08 });
+      return;
+    }
     S.scene = 'out';
     place(g, CLUB_X - 24);
     A.sfx.tone(220, { type: 'square', to: 420, dur: 0.2, vol: 0.08 });
@@ -1128,7 +1135,9 @@
     if (s.id === 'universal') { P.lock = 1; PD.chum.enterGamble(g); return; }
     if (s.bid) { openBuild(g, s.bid); return; }
     if (s.id === 'tele') { openTele(g); return; }
-    if (s.sid) { openStall(g, s.sid); return; }
+    if (s.shop) { openShop(g, s.shop.key, s.shop.sign, s.shop.keeper, s.shop.brand, s.shop.dark); return; }
+    if (s.stall) { openShop(g, s.stall.key, s.stall.name, s.stall.keeper, s.stall.col, '#2a1a24'); return; }
+    if (s.id === 'casino') { P.lock = 1; S.clubFrom = 'hub'; g.wipeTo(240, 135, '#4a0a18', () => goClub(g), 'bars', 0.62); return; }
     if (s.zip) { startZip(g, s.zip); return; }
     if (s.id === 'hubout') { P.lock = 1; g.wipeTo(240, 135, '#0a1a2a', () => leaveHub(g), 'sweep', 0.66); return; }
     if (s.id === 'port') { P.lock = 1; g.wipeTo(240, 135, '#0a1a2a', () => goHub(g), 'sweep', 0.66); return; }
@@ -1268,35 +1277,31 @@
   /* The rest of it is people doing business you are not part of. */
   const HUB_PROPS = [
     { deck: 0, x: 240, kind: 'cantina', name: 'THE WET DECK' },
-    { deck: 0, x: 520, kind: 'crate' }, { deck: 0, x: 566, kind: 'crate' },
+    { deck: 0, x: 790, kind: 'crate' },
     { deck: 0, x: 860, kind: 'freighter' },
     { deck: 2, x: 620, kind: 'bank', name: 'THE FIRST BANK OF NOWHERE' },
     { deck: 2, x: 860, kind: 'scope' }
   ];
 
-  const HUBC = [];                                  // everybody else
-  (function buildHubCrowd() {
-    for (let d = 0; d < 3; d++) {
-      const n = [13, 17, 9][d];
-      for (let i = 0; i < n; i++) {
-        HUBC.push({
-          deck: d, x: 60 + (HUB_W - 140) * ((i + 0.5) / n) + (U.hash2(d * 31 + i, 5) - 0.5) * 50,
-          k: (d * 7 + i * 3) % 20, ph: U.hash2(i * 5 + d, 19) * U.TAU,
-          dir: U.hash2(i, 7) > 0.5 ? 1 : -1, sp: 7 + U.hash2(i, 11) * 13,
-          wait: U.hash2(i, 13) * 5, t: 0
-        });
-      }
-    }
-  })();
+  /* Everybody else, run by crowd.js: they shop, sit, chat, dance, go into
+     the casino and come out again, and notice you. */
+  let HW = null;
+  function hubPlaces(d) {
+    const shops = PD.mall.SHOPS.filter(q => q.deck === d).map(q => ({ x: q.x, col: q.brand, food: q.key === 'noodle' || q.key === 'cafe' }));
+    const stalls = PD.market.STALLS.filter(q => q.deck === d).map(q => ({ x: q.x, col: q.col, food: q.key !== 'flower' }));
+    const seats = d === 1 ? [622, 638] : (d === 2 ? [760, 776] : [290, 770]);
+    const casino = d === PD.market.CASINO.deck ? PD.market.CASINO.x : null;
+    return { shops, stalls, seats, casino };
+  }
+  function hubWorld() {
+    if (!HW) HW = PD.crowd.make({ decks: [16, 18, 10], w: HUB_W, places: hubPlaces });
+    return HW;
+  }
+  const HUBPC = { px: 0, pdeck: 0, jumped: 0, bought: 0 };
   function updateHubCrowd(dt) {
-    for (const c of HUBC) {
-      c.t += dt;
-      if (c.wait > 0) { c.wait -= dt; continue; }
-      c.x += c.dir * c.sp * dt;
-      if (c.x < 50) { c.x = 50; c.dir = 1; c.wait = U.rand(0.6, 3); }
-      if (c.x > HUB_W - 50) { c.x = HUB_W - 50; c.dir = -1; c.wait = U.rand(0.6, 3); }
-      if (U.chance(dt * 0.14)) { c.wait = U.rand(0.8, 3.4); c.dir = -c.dir; }
-    }
+    HUBPC.px = P.x; HUBPC.pdeck = S.deck;
+    PD.crowd.update(hubWorld(), dt, HUBPC);
+    HUBPC.jumped = 0; HUBPC.bought = 0;
   }
 
   const HUB = { ride: null, t: 0, arrive: 0, panel: null, sel: 0 };
@@ -1323,12 +1328,16 @@
       name: 'THE LIFT', sub: DECK_NAME[S.deck] + '  -  GO UP OR DOWN' });
     if (S.deck === 0) out.push({ id: 'hubout', x: 172, r: 24, deck: 0,
       name: 'YOUR SHUTTLE', sub: 'BACK TO THE MOON' });
-    for (const q of STALLS) {
+    for (const q of PD.mall.SHOPS) {
       if (q.deck !== S.deck) continue;
-      const bought = q.once && g.save.bought && g.save.bought[q.id];
-      out.push({ id: 'stall_' + q.id, sid: q.id, x: q.x, r: 24, deck: q.deck,
-        name: q.name, sub: bought ? 'ALREADY YOURS' : (q.cost ? '$' + U.fmt(q.cost) : 'SELL THE LOT') });
+      out.push({ id: 'shop_' + q.key, shop: q, x: q.x, r: 26, deck: q.deck, name: q.sign, sub: q.line });
     }
+    for (const q of PD.market.STALLS) {
+      if (q.deck !== S.deck) continue;
+      out.push({ id: 'shop_' + q.key, stall: q, x: q.x, r: 22, deck: q.deck, name: q.name + ' STALL', sub: 'FOOD FOR THE NEXT DIVE' });
+    }
+    if (S.deck === PD.market.CASINO.deck) out.push({ id: 'casino', x: PD.market.CASINO.x, r: 26, deck: S.deck,
+      name: 'THE LUCKY MOON', sub: 'THE CASINO. GO IN.' });
     for (const z of ZIPS) {
       if (z.from !== S.deck) continue;
       out.push({ id: 'zip_' + z.from, zip: z, x: z.x0, r: 22, deck: z.from,
@@ -1342,6 +1351,11 @@
      under you, and you are somewhere else. */
   function openTele(g) { HUB.panel = { kind: 'tele', sel: S.deck }; UI.mode = 'hub'; A.sfx.click(); }
   function openStall(g, sid) { HUB.panel = { kind: 'stall', sid: sid }; UI.mode = 'hub'; A.sfx.click(); }
+  function openShop(g, key, name, keeper, col, col2) {
+    HUB.panel = { kind: 'shop', key };
+    UI.mode = 'hub';
+    PD.market.open(g, key, name, keeper, col, col2);
+  }
   function closeHubPanel() { HUB.panel = null; UI.mode = null; P.lock = 0.2; A.sfx.click(); }
 
   function teleportTo(g, d) {
@@ -1387,6 +1401,13 @@
 
   function updateHubPanel(dt, g) {
     const IN = PD.input, m = IN.mouse;
+    if (HUB.panel.kind === 'shop') {
+      const r = PD.market.update(dt, g);
+      if (r === 'close') { PD.market.close(); closeHubPanel(); }
+      else if (r === 'bought') HUBPC.bought = 1;
+      updateHubCrowd(dt);
+      return;
+    }
     if (IN.hit('esc') || IN.hit('KeyE')) { closeHubPanel(); return; }
     const pn = HUB.panel;
     if (pn.kind === 'tele') {
@@ -1411,6 +1432,7 @@
 
   function drawHubPanel(ctx, g, t) {
     const pn = HUB.panel;
+    if (pn.kind === 'shop') { PD.market.draw(ctx, g, t); return; }
     ctx.fillStyle = 'rgba(6,4,14,0.82)'; ctx.fillRect(0, 0, VW, VH);
     if (pn.kind === 'tele') {
       X.plate(ctx, 130, 56, 220, 152, '#132436', '#2e5a74', '#06121c', 6);
@@ -1879,8 +1901,12 @@
         const x = dx - cam;
         if (x > -40 && x < VW + 40) PD.mall.dress(ctx, k, x, y, dim);
       }
-      const ex = 762 - cam;
-      if (ex > -100 && ex < VW + 40) PD.mall.escalator(ctx, ex, y, DECK_Y[2], t, dim);
+    }
+    // the open-air market on the docks
+    for (const st of PD.market.STALLS) {
+      if (st.deck !== d) continue;
+      const x = st.x - cam;
+      if (x > -60 && x < VW + 60) PD.market.drawStall(ctx, st, x, y, t, px - cam, dim);
     }
     for (const s of PD.mall.SHOPS) {
       if (s.deck !== d) continue;
@@ -1890,26 +1916,16 @@
       const owned = !!(q && q.once && g.save.bought && g.save.bought[q.id]);
       PD.mall.draw(ctx, s, x, y, t, cam, px - cam, owned, dim);
     }
+    // and in among the shops, the way into the casino
+    if (d === PD.market.CASINO.deck) {
+      const cx2 = PD.market.CASINO.x - cam;
+      if (cx2 > -120 && cx2 < VW + 120) PD.market.drawCasino(ctx, cx2, y, t, px - cam, dim);
+    }
     ctx.globalAlpha = 1;
   }
 
   function hubCrowd(ctx, g, t, cam, d, dim) {
-    const y = DECK_Y[d];
-    ctx.globalAlpha = dim ? 0.5 : 1;
-    for (const c of HUBC) {
-      if (c.deck !== d) continue;
-      const x = c.x - cam;
-      if (x < -30 || x > VW + 30) continue;
-      const K = AH.KIN[c.k % AH.KIN.length];
-      const moving = c.wait <= 0;
-      const bob = Math.sin(t * 2.4 + c.ph) * 0.8;
-      ctx.globalAlpha = (dim ? 0.5 : 1) * 0.4;
-      X.blob(ctx, x, y + 1, K.w * 0.42, 3, '#0a0614');
-      ctx.globalAlpha = dim ? 0.5 : 1;
-      AH.blit(ctx, AH.S[K.key], moving ? (Math.floor(t * 6 + c.ph) % 2 ? 1 : 2)
-        : (Math.floor(t * 1.3 + c.ph) % 11 === 0 ? 5 : 0), x, y + bob, c.dir < 0);
-    }
-    ctx.globalAlpha = 1;
+    PD.crowd.draw(ctx, hubWorld(), t, cam, d, DECK_Y[d], dim, VW);
   }
 
   function drawHub(ctx, g, t, cam) {
@@ -2217,6 +2233,7 @@
 
     if (IN.hit('up') && grounded && P.roll <= 0) {
       P.vy = -212;
+      HUBPC.jumped = 1;
       A.sfx.tone(520, { type: 'triangle', to: 980, dur: 0.14, vol: 0.07 });
       FX.dust(P.x, P.y, 4, '#c9bce8', 12);
     }
@@ -6093,6 +6110,12 @@
     X.blob(ctx, jx, FLOOR + 2, 30, 4, '#1a2a20');
     AH.blit(ctx, AH.S.brainjar, jf, jx, FLOOR + 2);
 
+    // the plants you bought at the market, in a row along the floor
+    const PL = g.save.plants || [];
+    for (let i = 0; i < PL.length; i++) {
+      const px2 = [66, 96, 120, 176, 190, 16][i] - cam;
+      PD.market.plantAt(ctx, PL[i], px2, FLOOR + 2, t);
+    }
     // the cheese, until he takes it
     if (!g.save.pet) {
       const cx3 = RAT_SPOT.x + 16 - cam;
@@ -6249,6 +6272,25 @@
     if (UI.mode === 'build') { drawBuildPanel(ctx, g, t); return; }
     if (UI.mode === 'lift') { drawLiftPanel(ctx, g, t); return; }
     if (UI.mode === 'hub') { drawHubPanel(ctx, g, t); return; }
+    if (S.scene === 'hub') {
+      const cam = Math.round(g.intCam);
+      PD.crowd.overlay(ctx, hubWorld(), t, cam, S.deck, DECK_Y[S.deck], P.x, toScreen);
+      // the stallholders, shouting their prices at nobody in particular
+      for (const st of PD.market.STALLS) {
+        if (st.deck !== S.deck) continue;
+        const ph = (t * 0.25 + st.x * 0.013) % 1;
+        if (ph > 0.3) continue;
+        const line = st.shout[Math.floor(t * 0.25 + st.x * 0.013) % st.shout.length];
+        const sc = toScreen(st.x - cam, DECK_Y[S.deck] - 74);
+        if (sc.x < -40 || sc.x > VW + 40) continue;
+        const w = F.width(line, 1) + 10, k = Math.min(1, ph * 30);
+        ctx.globalAlpha = Math.min(1, (0.3 - ph) * 12);
+        X.plate(ctx, sc.x - w / 2 - 1, sc.y - 13, w + 2, 13, '#1a1020', null, null, 4);
+        X.plate(ctx, sc.x - (w / 2) * k, sc.y - 12, w * k, 11, '#fff6d8', '#ffffff', '#c8b890', 4);
+        if (k >= 1) F.draw(ctx, line, sc.x, sc.y - 10, '#3a1a10', { center: true, shadow: false });
+        ctx.globalAlpha = 1;
+      }
+    }
     if (S.sleep <= 0) prompt(ctx, g, t, Math.round(g.intCam));
 
     if (S.sleep > 0) {
@@ -6332,6 +6374,11 @@
       drilling: false, twoHand: false, grip: null, aim: P.face < 0 ? Math.PI : 0,
       ground: !air, vx: P.vx, vy: P.vy, squash: sq
     }, skin.P, PD.art.BIZ);
+    // the hat, if you bought one and are wearing it
+    if (g.save.hat >= 0 && g.save.hat !== undefined && g.save.hat !== null) {
+      const hy = y - 31 * sq + (P.land > 0 ? P.land * 6 : 0);
+      PD.market.hatAt(ctx, g.save.hat, x + P.face * 1, hy, PD.market.HAT_COL[g.save.hat]);
+    }
     if (walking && !air && U.chance(0.2)) FX.dust(P.x - P.face * 5, P.y, 1, '#8e86a8', 10);
     // shifting a heap: a cloud of it, and him disappearing into the cloud
     if (P.sweep > 0) {
