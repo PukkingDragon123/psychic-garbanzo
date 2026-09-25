@@ -119,6 +119,19 @@
       base.thots = Math.max(0, +s.thots || 0);
       base.thotFrac = Math.max(0, +s.thotFrac || 0);
       if (s.neur) for (const k in s.neur) if (D.NEUR[k]) base.neur[k] = U.clamp(+s.neur[k] || 0, 0, D.NEUR[k].max);
+      /* These were written every save and never read back, so a reload lost
+         your buildings, your port perks and your standing at the casino. */
+      if (s.base && typeof s.base === 'object') for (const k in s.base) base.base[k] = Math.max(0, +s.base[k] || 0);
+      if (s.bought && typeof s.bought === 'object') for (const k in s.bought) if (s.bought[k]) base.bought[k] = 1;
+      base.wagered = Math.max(0, +s.wagered || 0);
+      base.comped = Math.max(0, +s.comped || 0);
+      if (s.orbs !== undefined) base.orbs = Math.max(0, +s.orbs || 0);
+      // and what you have from the market
+      if (s.hats && typeof s.hats === 'object') { base.hats = {}; for (const k in s.hats) if (s.hats[k]) base.hats[k] = 1; }
+      base.hat = s.hat === undefined || s.hat === null ? -1 : U.clamp(+s.hat, -1, 4);
+      if (Array.isArray(s.plants)) base.plants = s.plants.slice(0, 6).map(v => U.clamp(+v || 0, 0, 3));
+      if (s.snack && typeof s.snack === 'object' && +s.snack.n > 0) base.snack = s.snack;
+      base.seenPort = s.seenPort ? 1 : 0;
     }
     g.save = base;
     recompute();

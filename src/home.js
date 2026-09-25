@@ -71,7 +71,8 @@
   function camWant() {
     const w = roomW();
     if (w <= VW) return (w - VW) / 2;
-    return U.clamp((CUT() ? PD.cut.focusX() : P.x) - VW / 2, 0, w - VW);
+    const fx = CUT() ? PD.cut.focusX() : (S.scene === 'hub' && PD.cut.touring() ? PD.cut.tourShot().x : P.x);
+    return U.clamp(fx - VW / 2, 0, w - VW);
   }
   function bounds() {
     if (CUT()) return PD.cut.bounds();
@@ -1311,8 +1312,10 @@
     HUB.ride = null; HUB.panel = null; HUB.arrive = 0;
     UI.mode = null;
     place(g, 150);
+    // the first time: the camera shows you round before you get the controls
+    if (!g.save.seenPort && g.save.seenIntro) PD.cut.tour(g);
     g.intCam = camWant();
-    PD.chum.call(g, 'hub');
+    if (!PD.cut.touring()) PD.chum.call(g, 'hub');
     A.sfx.tone(240, { type: 'triangle', to: 520, dur: 0.4, vol: 0.08 });
   }
   function leaveHub(g) {
@@ -2156,6 +2159,16 @@
       g0 = g; S.t += dt;
       if (PD.cut.active()) PD.cut.update(dt, g);
       if (CUT()) { g.intCam = U.damp(g.intCam, camWant(), 0.12, dt); view(dt); }
+      return;
+    }
+    if (S.scene === 'hub' && PD.cut.touring()) {
+      g0 = g; S.t += dt;
+      HUB.arrive = Math.max(0, HUB.arrive - dt * 2.2);
+      PD.cut.updateTour(dt, g);
+      updateHubCrowd(dt);
+      if (!PD.cut.touring()) setZoom(zoomFor('hub'));
+      g.intCam = U.damp(g.intCam, camWant(), 0.12, dt);
+      view(dt);
       return;
     }
     if (S.scene === 'hub') {
@@ -3053,7 +3066,7 @@
     // and whoever is sleeping it off on the end
     if (k % 3 === 0) {
       const K = AH.KIN[(x | 0) % AH.KIN.length];
-      AH.blit(ctx, AH.S[K.key], 5, x + 12, FLOOR - 12, true);
+      kinBreath(ctx, K, 5, x + 12, FLOOR - 12, true);
     }
   }
   function propTipBox(ctx, x, t) {
@@ -3211,7 +3224,7 @@
     const K = AH.KIN[TRAY.k % AH.KIN.length];
     const bob = Math.sin(TRAY.t * 7) * 1.2;
     kinShadow(ctx, x, FLOOR, K);
-    AH.blit(ctx, AH.S[K.key], (Math.floor(TRAY.t * 4.4) % 2) ? 1 : 2, x, FLOOR + bob, TRAY.dir < 0);
+    kinBreath(ctx, K, (Math.floor(TRAY.t * 4.4) % 2) ? 1 : 2, x, FLOOR + bob, TRAY.dir < 0);
     // the tray, held out in front, with four of whatever it is on it
     const tx = x + TRAY.dir * 11, ty = FLOOR - K.h * 0.62 + bob;
     X.plate(ctx, tx - 9, ty, 19, 3, '#4a3a10', CAS.goldD, '#1a1008', 1);
@@ -3263,7 +3276,7 @@
   /* A punter sat at a table with their back half to you. */
   function drawSeated(ctx, x, t, k, flip, fy) {
     const K = AH.KIN[k % AH.KIN.length];
-    AH.blit(ctx, AH.S[K.key], (Math.floor(t * 1.6 + x) % 9) === 0 ? 5 : 0,
+    kinBreath(ctx, K, (Math.floor(t * 1.6 + x) % 9) === 0 ? 5 : 0,
       x, (fy === undefined ? FLOOR - 2 : fy) + Math.sin(t * 1.9 + x) * 0.8, flip);
   }
 
@@ -3458,7 +3471,7 @@
     for (const st of SEATS) {
       const bob = Math.sin(t * 2.2 + st.x) * 1;
       const K = AH.KIN[st.k % AH.KIN.length];
-      AH.blit(ctx, AH.S[K.key], (Math.floor(t * 1.7 + st.x) % 7) === 0 ? 5 : 0,
+      kinBreath(ctx, K, (Math.floor(t * 1.7 + st.x) % 7) === 0 ? 5 : 0,
         st.x - cam, FLOOR - 8 + bob, st.x > 620);
     }
   }
@@ -3730,7 +3743,7 @@
     X.poly(ctx, [[sx + 26, TOP - 28], [sx + 26, TOP - 20], [sx + 16, TOP - 16], [sx + 16, TOP - 32]], CAS.gold);
     // and her, at the microphone: the bunny, who will get up for this and nothing else
     const K = AH.KIN[Math.max(0, AH.KIN.findIndex(k => k.who === 'MOCHI'))];
-    AH.blit(ctx, AH.S[K.key], S.clap > 0 ? 6 : ((Math.floor(t * 2.4) % 4) === 0 ? 3 : 0),
+    kinBreath(ctx, K, S.clap > 0 ? 6 : ((Math.floor(t * 2.4) % 4) === 0 ? 3 : 0),
       sx + sway, TOP + 3, false);
     X.rect(ctx, sx + 12, TOP - 18, 2, 21, CAS.goldDD);
     X.blob(ctx, sx + 13, TOP - 20, 3, 4, '#3a3348');
@@ -3967,7 +3980,7 @@
           if (hx > ax + W - 16) break;
           const K = AH.KIN[(tier * 7 + i * 5) % AH.KIN.length];
           ctx.globalAlpha = 0.46;
-          AH.blit(ctx, AH.S[K.key], (Math.floor(t * 0.8 + i) % 11) === 0 ? 5 : 0, hx, y + 1, i % 2 === 0);
+          kinBreath(ctx, K, (Math.floor(t * 0.8 + i) % 11) === 0 ? 5 : 0, hx, y + 1, i % 2 === 0);
           ctx.globalAlpha = 1;
         }
         X.rect(ctx, ax + 12, y, W - 24, 5, '#0a1018');
@@ -4001,7 +4014,7 @@
         const hx = ax + inset + 24 + i * 44 + Math.sin(t * 0.4 + i + u) * 3;
         const K = AH.KIN[(u * 5 + i * 3) % AH.KIN.length];
         ctx.globalAlpha = 0.55 - u * 0.1;
-        AH.blit(ctx, AH.S[K.key], (Math.floor(t + i) % 9) === 0 ? 5 : 0, hx, y - 5, i % 2 === 0);
+        kinBreath(ctx, K, (Math.floor(t + i) % 9) === 0 ? 5 : 0, hx, y - 5, i % 2 === 0);
         ctx.globalAlpha = 1;
       }
     }
@@ -4040,7 +4053,7 @@
     if (W > 90) {
       const lx = ax + W - 34, K = AH.KIN[(11 + d * 3) % AH.KIN.length];
       kinShadow(ctx, lx, FLOOR, K);
-      AH.blit(ctx, AH.S[K.key], (Math.floor(t * 0.6) % 8) === 0 ? 5 : 0,
+      kinBreath(ctx, K, (Math.floor(t * 0.6) % 8) === 0 ? 5 : 0,
         lx, FLOOR + Math.sin(t * 1.1) * 0.8, true);
     }
     // the rail you are standing at, in front of the lot
@@ -4327,7 +4340,7 @@
       if (!K) continue;
       const bob = Math.sin(t * 0.9 + i) * 1.2;
       kinShadow(ctx, x, FLOOR, K);
-      AH.blit(ctx, AH.S[K.key], (Math.floor(t * 1.2 + i) % 11) === 0 ? 5 : 0, x, FLOOR + bob, i % 2 === 0);
+      kinBreath(ctx, K, (Math.floor(t * 1.2 + i) % 11) === 0 ? 5 : 0, x, FLOOR + bob, i % 2 === 0);
     }
     // the fountain, which is running with something that is not water
     const fx = 1330 - cam;
@@ -4396,7 +4409,7 @@
       if (x < -30 || x > VW + 30) continue;
       const K = AH.KIN[(wx | 0) % AH.KIN.length];
       kinShadow(ctx, x, FLOOR, K);
-      AH.blit(ctx, AH.S[K.key], (Math.floor(t * 0.7 + wx) % 11) === 0 ? 5 : 0, x, FLOOR, fl);
+      kinBreath(ctx, K, (Math.floor(t * 0.7 + wx) % 11) === 0 ? 5 : 0, x, FLOOR, fl);
       // a house sash, so they read as staff and not as punters
       X.rect(ctx, x - 5, FLOOR - 26, 10, 3, CAS.gold);
     }
@@ -5047,11 +5060,11 @@
       const mv = kinMove(K, st.anim, moving, n.x);
       const bob = mv[1];
       // the same seven frames as everybody else in the building
-      const frame = st.sayT > 0 ? ((Math.floor(t * 5) % 2) ? 3 : 0)
+      const frame = st.sayT > 0 ? ((Math.floor(t * 5) % 2) ? 3 : (Math.floor(t * 1.3) % 3 === 0 ? 10 : 0))
         : (st.blink < 0 ? 5
           : (moving ? (Math.floor(st.anim * 4.4) % 2 ? 1 : 2) : 0));
       kinShadow(ctx, x, FLOOR, K);
-      AH.blit(ctx, AH.S[K.key], frame, x + mv[0], FLOOR + bob, st.face < 0);
+      kinBounce(ctx, K, frame, x, FLOOR, st.face < 0, moving, st.anim, n.x, false);
       // a little brass name plate, on the floor where they started
       const px = n.x - cam;
       const race = K.race || K.species || '';
@@ -5227,7 +5240,7 @@
         const K = AH.KIN[c.k % AH.KIN.length];
         const mv = kinMove(K, c.t, false, i);
         kinShadow(ctx, hx - cam, FLOOR, K);
-        AH.blit(ctx, AH.S[K.key], (Math.floor(c.t + i) % 9) === 0 ? 5 : 0, hx - cam + mv[0], FLOOR + mv[1], i % 2 === 0);
+        kinBreath(ctx, K, (Math.floor(c.t + i) % 9) === 0 ? 5 : 0, hx - cam + mv[0], FLOOR + mv[1], i % 2 === 0);
       }
       drawTray(ctx, t, cam);
       drawWin(ctx, t, cam);
@@ -5511,7 +5524,7 @@
       const K = AH.KIN[q.k % AH.KIN.length];
       const bob = Math.sin(t * 1.4 + q.x) * 1;
       kinShadow(ctx, q.x - cam, FLOOR, K);
-      AH.blit(ctx, AH.S[K.key], (Math.floor(t * 1.1 + q.x) % 8) === 0 ? 5 : 0, q.x - cam, FLOOR + bob, true);
+      kinBreath(ctx, K, (Math.floor(t * 1.1 + q.x) % 8) === 0 ? 5 : 0, q.x - cam, FLOOR + bob, true);
     }
   }
 
@@ -5848,6 +5861,25 @@
     }
   }
 
+  /* Everybody in the building goes through the same bounce as the market
+     crowd: breathing when they stand, squash and stretch when they move,
+     a hop and a landing when they dance. */
+  const BODY = { walking: false, stepT: 0, ph: 0, dir: 1, jy: 0, land: 0, sitting: false };
+  function kinBounce(ctx, K, frame, x, y, flip, moving, t, seed, dance) {
+    BODY.walking = moving && !dance; BODY.stepT = t * 5.5 + seed; BODY.ph = seed; BODY.dir = flip ? -1 : 1;
+    const h = dance ? Math.abs(Math.sin(t * 5.5)) : 0;
+    BODY.jy = dance ? -h * 4 : 0;
+    BODY.land = dance && h < 0.25 ? (0.25 - h) * 2.4 : 0;
+    const b = PD.crowd.body(BODY, K, t);
+    PD.crowd.bouncy(ctx, K, frame, x + b.dx, y + b.dy, flip, b.sx, b.sy, b.tilt);
+  }
+
+  // the ones who stand still -- dealers, the band, the seated -- still breathe
+  function kinBreath(ctx, K, frame, x, y, flip) {
+    const b = Math.sin(S.t * 2.2 + x * 0.37) * 0.03;
+    PD.crowd.bouncy(ctx, K, frame, x, y, flip, 1 - b, 1 + b, 0);
+  }
+
   function drawClubber(ctx, c, t, cam) {
     const K = AH.KIN[c.k % AH.KIN.length];
     const x = c.x - cam, y = FLOOR;
@@ -5858,9 +5890,13 @@
     const top = y + bob;
     kinShadow(ctx, x, y, K);
     const moving = Math.abs(c.vx) > 1 || c.dance > 0;
-    const face = c.cheer > 0 ? 6
-      : (c.kiss > 0 ? 4 : (c.blink < 0 ? 5 : (c.say ? 3 : (moving ? (Math.floor(c.t * fast * 0.6) % 2 ? 1 : 2) : 0))));
-    AH.blit(ctx, AH.S[K.key], face, x + lean, top, c.face < 0);
+    let face = c.cheer > 0 ? 6
+      : (c.kiss > 0 ? 4 : (c.blink < 0 ? 5 : (c.say ? (Math.floor(c.t * 5) % 4 === 0 ? 10 : 3) : (moving ? (Math.floor(c.t * fast * 0.6) % 2 ? 1 : 2) : 0))));
+    // and every so often, standing about, a mood crosses their face
+    const mood = (c.t * 0.07 + c.k * 0.37) % 1;
+    if (!moving && !c.say && c.cheer <= 0 && c.kiss <= 0 && mood < 0.07) face = [10, 7, 8, 9, 10, 4, 11][c.k % 7];
+    if (c.dance > 0) face = [6, 10, 4, 6][Math.floor(c.t * 3) % 4];
+    kinBounce(ctx, K, face, x + (c.kiss > 0 ? c.face * 5 : 0), y, c.face < 0, moving, c.t, c.k, c.dance > 0);
     // whatever they came in with, still in a tentacle
     if (c.drink >= 0 && c.kiss <= 0) {
       const dcol = ['#8affa0', '#ff8ad8', '#ffb03d', '#7ec8ff'][c.drink];
@@ -6215,7 +6251,8 @@
 
   function view(dt) {
     const cam = g0 ? g0.intCam : 0;
-    const px = (CUT() ? PD.cut.focusX() : P.x) - cam, gy = groundY(P.x);
+    const TOUR = S.scene === 'hub' && PD.cut.touring();
+    const px = (CUT() ? PD.cut.focusX() : (TOUR ? PD.cut.tourShot().x : P.x)) - cam, gy = groundY(P.x);
     let tx, ty;
     if (S.scene === 'in') {
       // the room is narrower than the window: park it, centred, and hold still
@@ -6227,7 +6264,18 @@
       // window rises with him when he leaves the floor
       const head = P.air > 0.1 ? P.y - 34 : P.y;
       ty = U.clamp(Math.min(gy, head) - 112, 0, VH - ZH);
-      if (CUT()) ty = PD.cut.viewY();
+      if (TOUR) {
+        const sh = PD.cut.tourShot();
+        if (dt !== undefined) setZoom(U.damp(ZK, sh.z, 0.05, dt));
+        tx = U.clamp(px - ZW / 2, 0, VW - ZW);
+        ty = U.clamp(sh.y - ZH * 0.58, 0, VH - ZH);
+      }
+      if (CUT()) {
+        // the cutscene's camera: its own zoom, eased, and its own subject
+        if (dt !== undefined) setZoom(U.damp(ZK, PD.cut.zoom(), PD.cut.snap(), dt));
+        tx = U.clamp(px - ZW / 2, 0, VW - ZW);
+        ty = U.clamp(PD.cut.focusY() - ZH * 0.58, 0, VH - ZH);
+      }
     }
     if (dt === undefined) return VIEW;
     VIEW.x = U.damp(VIEW.x, tx, 0.22, dt);
@@ -6261,7 +6309,7 @@
     ctx.globalAlpha = 1;
 
     if (S.scene !== 'club') drawRat(ctx, g, cam, t);
-    drawPlayer(ctx, g, cam, t);
+    if (!(S.scene === 'hub' && PD.cut.touring())) drawPlayer(ctx, g, cam, t);
 
   }
 
@@ -6269,6 +6317,11 @@
      the zoom does not turn the lettering into billboards. */
   function drawOverlay(ctx, g, t) {
     if (CUT()) { PD.cut.drawOverlay(ctx, g, t); return; }
+    if (S.scene === 'hub' && PD.cut.touring()) {
+      PD.crowd.overlay(ctx, hubWorld(), t, Math.round(g.intCam), S.deck, DECK_Y[S.deck], -9999, toScreen);
+      PD.cut.drawTourOverlay(ctx, g, t);
+      return;
+    }
     if (UI.mode === 'build') { drawBuildPanel(ctx, g, t); return; }
     if (UI.mode === 'lift') { drawLiftPanel(ctx, g, t); return; }
     if (UI.mode === 'hub') { drawHubPanel(ctx, g, t); return; }

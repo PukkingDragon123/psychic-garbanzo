@@ -49,9 +49,35 @@
   function viewY() { return C.id === 'street' ? 80 : 64; }
   /* What the camera looks at. On the street, a little ahead of the three of
      you; in the office, halfway between you and him, so both are in it. */
-  function focusX() {
-    const P = PD.home.P;
-    return C.id === 'street' ? P.x - 30 : (P.x + 408) / 2;
+  function focusX() { return shot().x; }
+  function focusY() { return shot().y; }
+  function zoom() { return shot().z; }
+  function snap() { return shot().snap ? 0.32 : 0.07; }
+
+  /* THE CAMERA. Every line gets a shot: how close, and on whom. Wide for the
+     walk, in on whoever is talking, and a hard punch-in on the moment before
+     the fist. The home engine eases between them. */
+  function shot() {
+    const P = PD.home.P, L = C.line;
+    const cur = parse(C.lines[L]);
+    if (C.tour) return tourShot();
+    if (C.id === 'street') {
+      const gx = C.gx;
+      if (C.fist > 0) return { x: gx - 20, y: ROAD - 34, z: 2.6, snap: 1 };
+      if (L < DRAG_LINES) {
+        if (cur.who === 'drax') return { x: gx - 72, y: ROAD - 36, z: 1.95 };
+        return { x: gx - 34, y: ROAD - 24, z: L === 0 ? 1.7 : 1.5 };
+      }
+      if (cur.who === 'drax') return { x: C.drax.x, y: ROAD - 44, z: 2.7, snap: 1 };
+      return { x: gx - 14, y: ROAD - 28, z: 2.2 };
+    }
+    // the office
+    const mid = (P.x + 408) / 2;
+    if (C.pose === 'down') return { x: P.x + 20, y: FLOOR - 16, z: 2.5 };
+    if (cur.who === 'you') return { x: P.x + 16, y: FLOOR - 30, z: 2.1 };
+    if (L === 6) return { x: (P.x + C.drax.x) / 2, y: FLOOR - 30, z: 1.9 };
+    if (L === 3 || L === C.lines.length - 1) return { x: 400, y: FLOOR - 62, z: 2.3 };
+    return { x: mid, y: FLOOR - 42, z: 1.55 };
   }
 
   /* The pavement: who is on it, where, and with what over their head. */
@@ -87,7 +113,10 @@
   function play(g, id, lines, onEnd, onSkip) {
     C.on = 1; C.id = id; C.t = 0; C.line = 0; C.chars = 0; C.pop = 0; C.lineT = 0;
     C.lines = lines.slice(); C.onEnd = onEnd; C.onSkip = onSkip; C.ending = 0;
-    C.fist = 0; C.walkTo = null; C.watch = 0; C.flash = 1; C.lid = 1;
+    C.fist = 0; C.walkTo = null; C.watch = 0; C.flash = 1; C.lid = 1; C.impact = 0;
+    C.bars = C.bars || 0;
+    C.title = id === 'street' ? { a: 'PART TWO', b: 'THE DRAG', t: 0 } : { a: 'PART THREE', b: 'THE SHARK', t: 0 };
+    C.port = { who: null, k: 0 };
     BUBS.length = 0;
     if (id === 'street') {
       buildWalkers(); buildShops();
@@ -127,15 +156,24 @@
     C.t += dt;
     C.pop = Math.min(1, C.pop + dt * 4.5);
     C.flash = Math.max(0, C.flash - dt * 1.4);
+    C.bars = Math.min(1, C.bars + dt * 2.2);
+    C.impact = Math.max(0, C.impact - dt);
+    if (C.title) C.title.t += dt;
     if (IN.hit('esc')) { finish(g, true); return; }
 
     const cur = C.lines[C.line];
-    const full = parse(cur).text;
-    if (C.chars < full.length) C.chars = Math.min(full.length, C.chars + dt * 46);
+    const pc = parse(cur);
+    const full = pc.text;
+    // the portrait slides in whenever somebody new starts talking
+    if (pc.who !== C.port.who) { C.port.who = pc.who; C.port.k = 0; }
+    C.port.k = Math.min(1, C.port.k + dt * 4);
+    const titling = C.title && C.title.t < 1.9;
+    if (titling) { /* nothing is said over the title */ }
+    else if (C.chars < full.length) C.chars = Math.min(full.length, C.chars + dt * 46);
     else C.lineT += dt;
     const m = IN.mouse;
     const poke = IN.hit('KeyE') || IN.hit('space') || IN.hit('enter') || (m.inside && m.leftPressed);
-    if (!C.ending && cur !== undefined) {
+    if (!C.ending && cur !== undefined && !titling) {
       const read = Math.max(2.4, full.length * 0.075);
       if (poke && C.chars < full.length) C.chars = full.length;
       else if (poke || C.lineT > read) nextLine(g);
@@ -169,16 +207,17 @@
         C.drax.x = C.gx - 34; C.bull.x = C.gx + 46;
       }
       if (C.line >= C.lines.length - 1 && C.chars >= 6) {
-        C.fist = Math.min(1, C.fist + dt * 1.8);
+        // it winds up slow and arrives all at once
+        C.fist = Math.min(1, C.fist + dt * (0.5 + C.fist * 3.4));
         if (C.fist >= 1 && !C.ending) {
-          C.ending = 1; C.endT = 0;
+          C.ending = 1; C.endT = 0; C.impact = 0.45;
           A.sfx.punch(); A.sfx.thud();
         }
       }
       if (C.line >= C.lines.length && !C.ending) { C.ending = 1; C.endT = 0; C.fist = 1; A.sfx.punch(); }
       if (C.ending) {
         C.endT += dt;
-        if (C.endT > 0.7) { finish(g, false); return; }
+        if (C.endT > 1.1) { finish(g, false); return; }
       }
     }
     P.x = C.gx; P.vx = 0;
@@ -596,8 +635,44 @@
     return null;
   }
 
+  /* A close-up of whoever is talking, in a box in the corner, the way a film
+     cuts to a face. Drawn from the same sprites, scaled up and cropped. */
+  function portrait(ctx, g, who, k, t, talking) {
+    const e = k >= 1 ? 1 : 1 + 2.7 * Math.pow(k - 1, 3) + 1.7 * Math.pow(k - 1, 2);
+    const bx = Math.round(-80 + e * 92), by = VH - 106, bw = 74, bh = 74;
+    X.plate(ctx, bx - 3, by - 3, bw + 6, bh + 6, '#000000', null, null, 6);
+    const col = who === 'chum' ? '#c83a3a' : (who === 'you' ? '#2a8a5a' : '#5a6a7a');
+    X.plate(ctx, bx, by, bw, bh, '#140c20', col, '#05030a', 5);
+    ctx.save(); ctx.beginPath(); ctx.rect(bx + 3, by + 3, bw - 6, bh - 6); ctx.clip();
+    const grd = ctx.createRadialGradient(bx + bw / 2, by + bh / 2, 4, bx + bw / 2, by + bh / 2, 50);
+    grd.addColorStop(0, col); grd.addColorStop(1, '#140c20');
+    ctx.fillStyle = grd; ctx.fillRect(bx, by, bw, bh);
+    const bob = talking ? Math.abs(Math.sin(t * 12)) * 1.5 : Math.sin(t * 2) * 0.6;
+    if (who === 'you') {
+      const spr = PD.art.skinFor(g.save.cos).alienCore, cv = spr.frames[talking && Math.sin(t * 12) > 0 ? 1 : 0], kk = spr.hd || 1;
+      ctx.save(); ctx.translate(bx + bw / 2, by + bh + 40 - bob); ctx.scale(3.2, 3.2);
+      ctx.drawImage(cv, -spr.ox, -spr.oy, cv.width / kk, cv.height / kk); ctx.restore();
+    } else if (who === 'drax') {
+      ctx.save(); ctx.translate(bx + bw / 2, by + bh + 88 - bob); ctx.scale(1.9, 1.9);
+      PD.chum.drawDrax(ctx, 0, 0, t); ctx.restore();
+    } else if (who === 'chum') {
+      PD.chum.drawChumAt(ctx, bx + bw / 2, by + bh + 44 - bob, 1.35, talking, t);
+    }
+    ctx.restore();
+    return { bx, by, bw, bh };
+  }
+
   function drawOverlay(ctx, g, t) {
     const H = PD.home;
+    // speed lines while you are being dragged: the street going the other way
+    if (C.id === 'street' && C.pose === 'dragged') {
+      for (let i = 0; i < 14; i++) {
+        const y = 40 + ((i * 53) % 190), q = ((t * (1.6 + (i % 3) * 0.4) + i * 0.37) % 1);
+        ctx.globalAlpha = 0.08 + (i % 3) * 0.04;
+        X.rect(ctx, -60 + q * (VW + 120), y, 26 + (i % 4) * 14, 1, '#dfe9ff');
+      }
+      ctx.globalAlpha = 1;
+    }
     // the pavement's remarks, small and quick
     for (const b of BUBS) {
       const s = H.toScreen(b.x - H.cam(), b.y);
@@ -611,12 +686,13 @@
     }
 
     const cur = C.lines[C.line];
-    if (cur !== undefined && !C.ending) {
+    if (cur !== undefined && !C.ending && !(C.title && C.title.t < 1.9)) {
       const p = parse(cur);
       const shown = p.text.slice(0, Math.floor(C.chars));
       const done = Math.floor(C.chars) >= p.text.length;
       const blink = Math.abs(Math.sin(t * 4)) > 0.4;
       const head = p.who ? headOf(p.who) : null;
+      if (p.who && !(C.title && C.title.t < 1.9)) portrait(ctx, g, p.who, C.port.k, t, C.chars < p.text.length);
       if (head) {
         const s = H.toScreen(head.x, head.y);
         let sc = 2, rows = PD.chum.wrap(shown, 300, 2);
@@ -644,14 +720,44 @@
       }
     }
 
-    // THE FIST. It arrives very fast and it fills the screen.
-    if (C.fist > 0) {
+    // THE FIST. It winds up, then it arrives very fast and it fills the screen.
+    if (C.fist > 0 && C.impact <= 0) {
       const k = C.fist;
       const r = 20 + k * k * 280;
       X.blob(ctx, 240, 130, r, r * 0.85, '#8d99a6');
       X.blob(ctx, 240 - r * 0.3, 130 - r * 0.3, r * 0.5, r * 0.4, '#a7b2be');
       for (let i = 0; i < 4; i++) X.rect(ctx, 240 - r * 0.8 + i * r * 0.42, 130 - r * 0.3, r * 0.3, r * 0.5, '#6d7885');
       if (k >= 1) { ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, VW, VH); }
+    }
+    /* The impact frame: one held picture, white paper and black ink, speed
+       lines out of the middle and a star where it landed -- the frame a
+       cartoon holds for a beat before everything goes white. */
+    if (C.impact > 0) {
+      ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, VW, VH);
+      for (let i = 0; i < 40; i++) {
+        const a = i / 40 * Math.PI * 2 + (i % 2) * 0.03;
+        const r0 = 30 + (i * 37) % 40;
+        X.line(ctx, 240 + Math.cos(a) * r0, 130 + Math.sin(a) * r0 * 0.7, 240 + Math.cos(a) * 400, 130 + Math.sin(a) * 280, '#000000', 1 + (i % 3));
+      }
+      const pts = [];
+      for (let i = 0; i < 16; i++) { const a = i / 16 * Math.PI * 2, r = i % 2 ? 22 : 52; pts.push([240 + Math.cos(a) * r, 130 + Math.sin(a) * r * 0.8]); }
+      X.poly(ctx, pts, '#000000');
+      F.draw(ctx, 'WHAM', 240, 124, '#ffffff', { center: true, scale: 2, shadow: false });
+    }
+    // THE TITLE: a black band across the middle, two lines, in and out
+    if (C.title && C.title.t < 2.4) {
+      const q = C.title.t;
+      const inK = Math.min(1, q / 0.35), outK = Math.max(0, (q - 1.9) / 0.5);
+      const w = VW * inK;
+      ctx.globalAlpha = 1 - outK;
+      X.rect(ctx, (VW - w) / 2, 104, w, 56, '#000000');
+      X.rect(ctx, (VW - w) / 2, 104, w, 1, '#ffd34d'); X.rect(ctx, (VW - w) / 2, 159, w, 1, '#ffd34d');
+      if (inK >= 1) {
+        const n = Math.floor((q - 0.35) * 30);
+        F.draw(ctx, C.title.a.slice(0, n), 240, 112, '#8a86a8', { center: true, shadow: false });
+        F.draw(ctx, C.title.b.slice(0, Math.max(0, n - 6)), 240, 128, '#ffffff', { center: true, scale: 2, shadow: '#3a0a1a' });
+      }
+      ctx.globalAlpha = 1;
     }
     // coming round: white, then the lids
     if (C.id === 'office') {
@@ -663,9 +769,98 @@
       }
       if (C.ending) { ctx.globalAlpha = Math.min(1, C.endT / 1); ctx.fillStyle = '#0a0614'; ctx.fillRect(0, 0, VW, VH); ctx.globalAlpha = 1; }
     }
-    // cinema bars, so it reads as not-your-turn
-    X.rect(ctx, 0, 0, VW, 10, '#000000');
-    X.rect(ctx, 0, VH - 6, VW, 6, '#000000');
+    // cinema bars, sliding in, so it reads as not-your-turn
+    const bh = Math.round(22 * (1 - Math.pow(1 - C.bars, 3)));
+    X.rect(ctx, 0, 0, VW, bh, '#000000');
+    X.rect(ctx, 0, VH - bh, VW, bh, '#000000');
+    X.plate(ctx, VW - 62, VH - 20, 56, 13, 'rgba(6,3,14,0.7)', null, null, 3);
+    F.draw(ctx, 'ESC  SKIP', VW - 10, VH - 17, 'rgba(178,162,216,0.9)', { right: true, shadow: '#000000' });
+  }
+
+  /* ------------------------------------------------------------ THE TOUR
+     The first time you step off the shuttle at the Port, the camera takes
+     the controls for twenty seconds and shows you round: the docks, the
+     stalls, the market, the casino in the middle of it, the terrace. Same
+     room, same crowd, still going about their business underneath it. */
+  const TOUR = [
+    { deck: 0, x0: 170, x1: 420, dur: 5, z0: 2.0, z1: 1.65, text: 'THE PORT. EVERYTHING HERE IS FOR SALE.' },
+    { deck: 0, x0: 420, x1: 700, dur: 5.5, z0: 1.65, z1: 1.8, text: 'THE DOCKS: FRUIT, FISH, A GRILL. WHAT YOU EAT HERE GOES DOWN THE HOLE WITH YOU.' },
+    { deck: 1, x0: 180, x1: 600, dur: 6, z0: 1.5, z1: 1.5, text: 'THE MARKET. NINE REAL SHOPS, AND EVERY ONE OF THEM SELLS YOU SOMETHING.' },
+    { deck: 1, x0: 700, x1: 806, dur: 4.5, z0: 1.6, z1: 2.2, text: 'AND IN THE MIDDLE OF IT, OF COURSE, A CASINO.' },
+    { deck: 2, x0: 420, x1: 640, dur: 4.5, z0: 1.7, z1: 1.5, text: 'UP TOP: PERMITS, AND A BANK THAT HAS NEVER HEARD OF YOU.' }
+  ];
+  function tour(g) {
+    const H = PD.home;
+    C.tour = { i: 0, t: 0, chars: 0, back: { deck: H.S.deck, x: H.P.x } };
+    C.title = { a: 'WELCOME TO', b: 'THE PORT', t: 0 };
+    C.bars = 0;
+    H.S.deck = TOUR[0].deck;
+  }
+  function touring() { return !!C.tour; }
+  function tourShot() {
+    const st = TOUR[C.tour.i] || TOUR[TOUR.length - 1];
+    const f = U.smoothstep(0, 1, Math.min(1, C.tour.t / st.dur));
+    return { x: U.lerp(st.x0, st.x1, f), y: PD.home.DECK_Y[st.deck] - 34, z: U.lerp(st.z0, st.z1, f) };
+  }
+  function endTour(g) {
+    const H = PD.home, b = C.tour.back;
+    C.tour = null; C.title = null;
+    H.S.deck = b.deck;
+    H.P.x = b.x; H.P.y = H.groundY(b.x);
+    g.save.seenPort = 1; g.saveGame();
+    PD.chum.call(g, 'hub');
+  }
+  function updateTour(dt, g) {
+    const IN = PD.input, m = IN.mouse;
+    C.bars = Math.min(1, C.bars + dt * 2.2);
+    if (C.title) C.title.t += dt;
+    if (IN.hit('esc')) { endTour(g); return; }
+    const titling = C.title && C.title.t < 1.9;
+    if (titling) return;
+    const T = C.tour, st = TOUR[T.i];
+    T.t += dt;
+    T.chars = Math.min(st.text.length, T.chars + dt * 46);
+    const poke = IN.hit('KeyE') || IN.hit('space') || IN.hit('enter') || (m.inside && m.leftPressed);
+    if (poke && T.chars < st.text.length) T.chars = st.text.length;
+    else if (poke || T.t > st.dur + 0.6) {
+      T.i++; T.t = 0; T.chars = 0; C.pop = 0; A.sfx.click();
+      if (T.i >= TOUR.length) { endTour(g); return; }
+      PD.home.S.deck = TOUR[T.i].deck;
+    }
+    C.pop = Math.min(1, C.pop + dt * 4.5);
+  }
+  function drawTourOverlay(ctx, g, t) {
+    const T = C.tour;
+    if (!T) return;
+    const st = TOUR[T.i];
+    if (st && !(C.title && C.title.t < 1.9)) {
+      const shown = st.text.slice(0, Math.floor(T.chars));
+      let sc = 2, rows = PD.chum.wrap(shown, VW - 76, 2);
+      if (rows.length > 2) { sc = 1; rows = PD.chum.wrap(shown, VW - 76, 1); }
+      const lh = sc === 2 ? 17 : 10, dh = 16 + (rows.length - 1) * lh + 7 * sc;
+      ctx.save(); ctx.translate(0, -(VH - 12 - dh) + 14);
+      PD.chum.captionCard(ctx, rows, sc, C.pop, t, Math.floor(T.chars) >= st.text.length && Math.sin(t * 4) > 0 ? 'E / TAP' : null);
+      ctx.restore();
+      // where you are in the tour: five dots
+      for (let i = 0; i < TOUR.length; i++) X.rect(ctx, 240 - TOUR.length * 5 + i * 10, VH - 16, 6, 3, i === T.i ? '#ffd34d' : '#4a4470');
+    }
+    if (C.title && C.title.t < 2.4) {
+      const q = C.title.t;
+      const inK = Math.min(1, q / 0.35), outK = Math.max(0, (q - 1.9) / 0.5);
+      const w = VW * inK;
+      ctx.globalAlpha = 1 - outK;
+      X.rect(ctx, (VW - w) / 2, 104, w, 56, '#000000');
+      X.rect(ctx, (VW - w) / 2, 104, w, 1, '#7ef9ff'); X.rect(ctx, (VW - w) / 2, 159, w, 1, '#7ef9ff');
+      if (inK >= 1) {
+        const n = Math.floor((q - 0.35) * 30);
+        F.draw(ctx, C.title.a.slice(0, n), 240, 112, '#8a86a8', { center: true, shadow: false });
+        F.draw(ctx, C.title.b.slice(0, Math.max(0, n - 6)), 240, 128, '#ffffff', { center: true, scale: 2, shadow: '#0a2a3a' });
+      }
+      ctx.globalAlpha = 1;
+    }
+    const bh = Math.round(22 * (1 - Math.pow(1 - C.bars, 3)));
+    X.rect(ctx, 0, 0, VW, bh, '#000000');
+    X.rect(ctx, 0, VH - bh, VW, bh, '#000000');
     X.plate(ctx, VW - 62, VH - 20, 56, 13, 'rgba(6,3,14,0.7)', null, null, 3);
     F.draw(ctx, 'ESC  SKIP', VW - 10, VH - 17, 'rgba(178,162,216,0.9)', { right: true, shadow: '#000000' });
   }
@@ -674,5 +869,5 @@
   function rainy() { return C.on && C.id === 'street'; }
 
   PD.cut = { owns, active, play, finish, roomW, bounds, floor, viewY, update, drawBack, drawFront,
-    drawOverlay, hidePlayer, track, rainy, focusX, C, WALKERS, STREET_W };
+    drawOverlay, hidePlayer, track, rainy, focusX, focusY, zoom, snap, tour, touring, tourShot, updateTour, drawTourOverlay, C, WALKERS, STREET_W };
 })(window.PD);

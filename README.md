@@ -26,6 +26,68 @@ python3 -m http.server 8000   # then visit http://localhost:8000
 node tools/build.js           # -> dist/planet-destroyer.html
 ```
 
+## One hand, twelve faces, and a crowd that plays
+
+**The cast is drawn in one style now.** The first hand-made cast had twelve
+good ideas in twelve different styles. They share a hand now, the way a
+cartoon's cast does: round bodies shaded from the top left, big glossy eyes
+with two highlights, pink cheeks, stubby limbs that do the acting, and one dark
+outline. MOCHI is a round cream bunny with one ear flopped; BEANIE a bean-dog
+with a sprout; BIRCH a little birch trunk under a crown of leaves; GLOOP a drip
+of mint slime; KORVO a fat crow in a tiny top hat and a monocle; BRUNO a very
+large soft bear in sunglasses; SAL a pink axolotl with a clipboard; VESPER a
+ghost in a sheet with a bow tie and a lantern; ORBIT a small ringed planet with
+a moon that will not leave it alone; PIP a flame on coal feet; BAO a dumpling;
+WOBBLE a spotted jellyfish. Each has **twelve frames**: idle, two walk steps,
+talk, wink, blink, cheer, sad, angry, shocked, laughing and asleep.
+
+**Everybody bounces.** Every character in the building is drawn through one
+squash-and-stretch renderer, scaled about the feet: they breathe standing still,
+hop and land flat when they hop, rock when they waddle, sway, ooze and bob, and
+stretch in the air when they jump. Emotes pop over heads with an overshoot:
+hearts, `!` and `?`, anger marks, sweat drops, tears, `ZZZ`, notes, coins,
+sparkles and a waving hand.
+
+**The crowd plays the game.** The people at the Port have usernames and
+levels over their heads and say what people say in games (`wtb lungs`,
+`casino is rigged`, `o/`). They have somewhere to be: they go to a shop, look in
+the window, buy something and walk off swinging the bag or eating it; they sit
+on the bench until they fall asleep on it; they meet somebody and have a
+two-line conversation; they dance; they jump up and down for no reason; they
+go AFK; they go into the casino and come out a while later cheering or crying.
+When you walk past, some of them wave. When you jump, the ones near you jump
+back.
+
+**The market sells things.** Every shop and stall has stock, and most of it
+does something. **Snacks** — ramen, dumplings, coffee, cake, a can of air,
+sticky gloves, a lucky gem, and from the new **open-air market on the docks**
+(fruit, fish, a grill, a juice cart, flowers) melons, berries, grilled fish,
+squid on a stick, kebabs and star juice — are eaten on the way down and last
+one dive: more air, more hull, a faster drill, longer reach, better prices. You
+can carry three. **Hats** from HAT TRICK are worn on your head. **Plants** from
+LEAF ME BE and the flower stall go on the floor of your house. ORE & MORE will
+crack a **geode** at the counter for you, which is usually rock. The shop screen
+shows the keeper big, and they react: delighted when you buy, sorry when you
+cannot afford it, shocked when the geode comes up gold.
+
+**And there is a casino in it.** Between the shops on the market deck is the
+**Lucky Moon**: an arch of chasing bulbs, revolving doors with the slots
+showing through, a red carpet, a rope and a bear on the door. It goes straight
+into the casino, and the casino lets you back out onto the market.
+
+**The cutscenes are shot like film.** Cinema bars slide in; each chapter opens
+on a title card (`PART TWO: THE DRAG`, `PART THREE: THE SHARK`); every line has
+its own camera — wide for the walk, in on whoever is talking, a hard punch-in on
+Drax for `WHAT?` — and whoever is talking gets a close-up in the corner. The
+fist winds up slowly and arrives all at once, then holds for an ink-on-white
+impact frame. The first time you arrive at the Port, the camera takes you on a
+**tour**: the docks, the stalls, the market, the casino, the terrace, with the
+crowd going about its business underneath.
+
+**Saves keep what you have.** Buildings, port perks and casino standing were
+written to the save and never read back; they are now, along with hats,
+plants and whatever snacks are in your bag.
+
 ## A cast, a mall, and cutscenes you stand in
 
 **Nobody is generated any more.** The alien generator is gone — every body plan,
@@ -1820,6 +1882,8 @@ a line of history under its blurb.
 | `src/ui.js` | The cardboard-and-masking-tape HUD (air tank, hull chips, sack tube), the action strip, the plank over the door, pause, victory and title screens |
 | `src/lab.js` | Decanting Bay 7: three tanks with a body in each, three save files, and the settings panel |
 | `src/home.js` | All the parts of home: the lumpy moon surface outside with the house and the saucer standing on the curve of it, the very small room inside with the computer and the jar, Brenda, the tip you have to clear off the regolith, the black-and-red casino under the hatch with its poker table, its wheel, its blackjack, its cashier's cage and its three moustachioed dealers, and THE PORT hub |
+| `src/crowd.js` | The Port's crowd: usernames, plans (shop, buy, eat, sit, chat, dance, jump, AFK, the casino), reacting to you, emotes, and the squash-and-stretch renderer everybody is drawn through |
+| `src/market.js` | What everything sells and what it does, the dock stalls, the Lucky Moon's door, and the shop screen |
 | `src/mall.js` | The market's shops: nine storefronts painted once at double resolution into back, middle and front layers, with the keeper and the sliding glass reflection drawn live between them; planters, benches, bins and the escalator that does not work |
 | `src/cut.js` | Cutscenes as rooms: the rainy street you are dragged down and Mr Chum's office, run in the home engine with the controls taken away |
 | `src/desk.js` | First person at the computer: hands, keyboard, CRT, the loose-spring pointer, ZORB OS and ABAY |

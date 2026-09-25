@@ -51,11 +51,15 @@ dumpling, an ember that hops, and the regulars — a robot, a brain in a jar, a
 potted fern, a sunflower, a lava lamp, an enormous rubber duck and a television
 on legs. Each one moves its own way.
 
-**A market with real shops in it.** Nine of them, with names and logos, glass
-fronts you can see into, stock on the shelves, posters in the windows and
-somebody behind the till who looks up when you walk past. Four of them sell you
-something you keep. One of them buys your whole vault on the spot and asks no
-questions.
+**A market that sells things, with a casino in it.** Nine shops and a row of
+dock stalls, each with somebody behind the counter. Eat before a dive and it
+goes down the hole with you: more air, a tougher hull, a faster drill. Buy a
+hat and wear it. Buy a fern and it sits in your house. Crack a geode. And in
+the middle of it all, the door to the Lucky Moon casino.
+
+**A crowd that plays the game too.** Usernames over their heads, chat in
+bubbles, shopping, dancing, napping on the bench, going into the casino and
+coming out crying. Walk past and they wave. Jump and they jump back.
 
 **An opening night you stand inside.** The drag through the rain and the room
 at the top of the building where you meet Mr Chum are played out in the same
