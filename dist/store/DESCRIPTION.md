@@ -43,12 +43,25 @@ lose:
   never been reset because it has never been paid.
 
 **Everything is drawn by code.** Not one sprite sheet, sound file or font in the
-whole game. Every alien, every ore, every planet and every note of every one of
-the twelve songs is generated at runtime. The characters come out of a trait
-system, so the crowd is different every time — and mixed in with them are the
-regulars, who you are fairly sure you have seen somewhere before: a robot, a
-brain in a jar, a potted fern, an eight-foot sunflower, a lava lamp, an enormous
-rubber duck, and a television on legs.
+whole game. Every ore, every planet and every note of every one of the twelve
+songs is made at runtime — and every character is drawn by hand, in code, one
+at a time: a sleepy hare who sits on things, a bean who is also a dog, a small
+tree pretending not to be one, a planet on stilts with weather inside it, a
+dumpling, an ember that hops, and the regulars — a robot, a brain in a jar, a
+potted fern, a sunflower, a lava lamp, an enormous rubber duck and a television
+on legs. Each one moves its own way.
+
+**A market with real shops in it.** Nine of them, with names and logos, glass
+fronts you can see into, stock on the shelves, posters in the windows and
+somebody behind the till who looks up when you walk past. Four of them sell you
+something you keep. One of them buys your whole vault on the spot and asks no
+questions.
+
+**An opening night you stand inside.** The drag through the rain and the room
+at the top of the building where you meet Mr Chum are played out in the same
+world you walk about in — the street, the crowd with umbrellas watching you go
+past, the office with a tank of his lunch in it — with the controls taken away
+for as long as it lasts.
 
 **A band that knows twelve numbers.** Chord progressions, swing, a walking bass
 in the casino and half-time dread at the bottom of a world. Nobody picks the

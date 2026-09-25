@@ -59,7 +59,9 @@
     chatT: 1.5, drunk: 0, song: null, songI: -1, clap: 0, cdeck: 0 };
   let g0 = null;                     // the running game, for view() between frames
 
+  const CUT = () => PD.cut && PD.cut.owns(S.scene);
   function roomW() {
+    if (CUT()) return PD.cut.roomW();
     if (S.scene === 'out') return OUT_W;
     if (S.scene === 'club') return clubW();
     if (S.scene === 'hub') return HUB_W;
@@ -69,9 +71,10 @@
   function camWant() {
     const w = roomW();
     if (w <= VW) return (w - VW) / 2;
-    return U.clamp(P.x - VW / 2, 0, w - VW);
+    return U.clamp((CUT() ? PD.cut.focusX() : P.x) - VW / 2, 0, w - VW);
   }
   function bounds() {
+    if (CUT()) return PD.cut.bounds();
     if (S.scene === 'out') return [MOON.cx - WALK, MOON.cx + 400];
     if (S.scene === 'club') return [16, clubW() - 16];
     if (S.scene === 'hub') return [30, HUB_W - 30];
@@ -88,6 +91,7 @@
       + Math.sin(x * 0.0713 + 2.9) * 2;
   }
   function groundY(x) {
+    if (CUT()) return PD.cut.floor();
     if (S.scene === 'hub') return DECK_Y[S.deck];
     /* The salon is up three steps, which is not decoration: on the flat you
        stood in front of every table back there and your own head covered the
@@ -2131,6 +2135,13 @@
     if (UI.mode === 'build') { S.t += dt; updateBuild(dt, g); return; }
     if (UI.mode === 'hub') { S.t += dt; updateHubPanel(dt, g); return; }
     if (UI.mode === 'lift') { S.t += dt; updateLiftPanel(dt, g); return; }
+    /* A cutscene: the room is real but the controls are not yours. */
+    if (CUT()) {
+      g0 = g; S.t += dt;
+      if (PD.cut.active()) PD.cut.update(dt, g);
+      if (CUT()) { g.intCam = U.damp(g.intCam, camWant(), 0.12, dt); view(dt); }
+      return;
+    }
     if (S.scene === 'hub') {
       HUB.arrive = Math.max(0, HUB.arrive - dt * 2.2);
       updateHubCrowd(dt);
@@ -2281,7 +2292,16 @@
   }
 
   function closeScene() { UI.mode = null; P.lock = 0.2; A.sfx.click(); }
-  function touchMode() { return 'home'; }
+  function touchMode() { return CUT() ? 'ui' : 'home'; }
+  /* Into one of the cutscene rooms: same placing, same zoom, same camera. */
+  function enterCut(g, scene, atX) {
+    g0 = g;
+    S.scene = scene; S.deck = 0;
+    UI.mode = null;
+    place(g, atX);
+    g.intCam = camWant();
+    view(30);
+  }
 
   /* ------------------------------------------------------------------ draw */
   function drawSpace(ctx, g, t, cam) {
@@ -6172,7 +6192,7 @@
 
   function view(dt) {
     const cam = g0 ? g0.intCam : 0;
-    const px = P.x - cam, gy = groundY(P.x);
+    const px = (CUT() ? PD.cut.focusX() : P.x) - cam, gy = groundY(P.x);
     let tx, ty;
     if (S.scene === 'in') {
       // the room is narrower than the window: park it, centred, and hold still
@@ -6184,6 +6204,7 @@
       // window rises with him when he leaves the floor
       const head = P.air > 0.1 ? P.y - 34 : P.y;
       ty = U.clamp(Math.min(gy, head) - 112, 0, VH - ZH);
+      if (CUT()) ty = PD.cut.viewY();
     }
     if (dt === undefined) return VIEW;
     VIEW.x = U.damp(VIEW.x, tx, 0.22, dt);
@@ -6198,6 +6219,12 @@
      the screen. */
   function drawScene(ctx, g, t) {
     const cam = Math.round(g.intCam);
+    if (CUT()) {
+      PD.cut.drawBack(ctx, g, t, cam);
+      if (!PD.cut.hidePlayer()) drawPlayer(ctx, g, cam, t);
+      PD.cut.drawFront(ctx, g, t, cam);
+      return;
+    }
     if (S.scene === 'out') drawOutside(ctx, g, t, cam);
     else if (S.scene === 'club') drawClub(ctx, g, t, cam);
     else if (S.scene === 'hub') drawHub(ctx, g, t, cam);
@@ -6218,6 +6245,7 @@
   /* Signs, speech and the sleep fade, drawn on the screen at screen size so
      the zoom does not turn the lettering into billboards. */
   function drawOverlay(ctx, g, t) {
+    if (CUT()) { PD.cut.drawOverlay(ctx, g, t); return; }
     if (UI.mode === 'build') { drawBuildPanel(ctx, g, t); return; }
     if (UI.mode === 'lift') { drawLiftPanel(ctx, g, t); return; }
     if (UI.mode === 'hub') { drawHubPanel(ctx, g, t); return; }
@@ -6324,6 +6352,7 @@
      asked the act on the lounge stage for something then they are playing
      that instead until you ask for something else. */
   function track() {
+    if (CUT()) return PD.cut.track();
     if (S.scene === 'club') return S.song || 'casino';
     if (S.scene === 'hub') return 'port';
     return 'moon';
@@ -6336,5 +6365,6 @@
     playCards, playRoulette, CARD, ROU, POKER_X, ROU_X, JACK_X, BAR_X, CAGE_X,
     vipTier, VIP, salonOpen, ROPE_X, CRAPS_X, STAGE_X, BACC_X, SONGS,
     clubW, CDECKS, LIFT_X, rideLift, NPCS, NPC_STATE, talkTo, MEGA, MEGA_X, CLAW_X, LOAN_X, PRIZE_X, CRY,
-    goHub, leaveHub, HUB, HUB_W, DECK_Y, STALLS };
+    goHub, leaveHub, HUB, HUB_W, DECK_Y, STALLS,
+    enterCut, drawPlayer, kinMove, cam: () => Math.round(g0 ? g0.intCam : 0) };
 })(window.PD);

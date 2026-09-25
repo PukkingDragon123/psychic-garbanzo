@@ -26,6 +26,45 @@ python3 -m http.server 8000   # then visit http://localhost:8000
 node tools/build.js           # -> dist/planet-destroyer.html
 ```
 
+## A cast, a mall, and cutscenes you stand in
+
+**Nobody is generated any more.** The alien generator is gone — every body plan,
+arm type and random name with it — and in its place is a **cast**: twelve
+characters drawn one at a time, each with a shape you could pick out in
+silhouette and its own way of moving. **MOCHI**, a round sleepy hare who sits on
+things and has not moved in four days; **BEANIE**, a bean who is also a dog and
+knows a fact for every occasion, most of them wrong; **BIRCH**, a small tree
+pretending not to be one; **GLOOP**, a glimmerworm lookout; **KORVO** the
+collector; **BRUNO** the doorman; **SAL** the notary; **VESPER** the usher;
+**ORBIT**, a planet on stilts with a small weather system inside it; **PIP**, an
+ember who hops; **BAO**, a dumpling; **WOBBLE**, who drifts. They hop, waddle,
+float, sway, ooze and lumber — no two walk alike — and they have idle, walk,
+talk, blink and cheer frames each.
+
+**The market is a mall.** The Market deck used to be a row of identical lit
+boxes with a word over each. It is **nine named shops** now — `NOODLE HOLE`,
+`BREATH & CO`, `GRAB HOUSE`, `THE FENCE`, `HAT TRICK`, `ORE & MORE`,
+`BEAN THERE`, `LEAF ME BE`, and `STAMP IT` up on the Terrace — each with a logo
+on the fascia, a glass front you can see into, a back wall with shelves and
+stock on them (tanks and lungs in jars, a pegboard of gloves and magnets, a
+claw machine, hats on shelves and heads on stands, lit niches of gems, a
+chalkboard menu and a hissing machine, filing cabinets and a queue rope with
+nobody in it), a counter, furniture, **posters stuck to the inside of the
+glass**, a glass door with an `OPEN` sign, and somebody behind the till who
+looks up and talks when you walk past. The glass carries a reflection that
+slides the opposite way to the camera. Between the shops: palms in planters, a
+bench, bins, and an escalator to the Terrace with a cone at the bottom and a
+sign that says `NOPE`.
+
+**The drag and the boss are rooms.** See *The night you lost it* below: both are
+now played out in the same engine you walk about in, with the controls taken
+away for the length of them.
+
+**The tutorial holds you to it.** Until you have dug and sold once, anything off
+the current step is refused with a buzz and a reminder of what you are meant
+to be doing — the door, the hub, the casino, the chart, the recall. It does not
+apply to the night in the casino, which is not the lesson.
+
 ## The menu is a loop, not a picture
 
 It runs a little film, over and over, and never quite the same way twice.
@@ -767,36 +806,35 @@ third window was always going to have a skull in it.
    changed is that you are on the carpet and they are leaving. He goes down in
    two stages, the last of his money is all over the carpet around him, and
    somebody walks across the front of the shot to get to the bar.
-2. **The drag.** Two of them pick you up and carry you out through the city,
-   and the city is **five layers deep**. A sky with a planet in it and cloud lit
-   from underneath; three ranks of tower, each slower than the one in front,
-   with setbacks, roof spires, water tanks on legs, aerial arrays, whole dark
-   floors where the windows are out, and columns of neon sign hanging off their
-   fronts; nine lanes of air traffic crossing each other with trails and
-   blinking lights; cables strung across the street with lanterns on them; one
-   enormous scan-lined hologram selling something. At street level a strip of
-   shopfronts with the light coming *out* of them — stock in silhouette against
-   lit windows, awnings, market stalls, overflowing bins, gratings breathing
-   steam, and somebody standing in a lit doorway. The road is wet and holds a
-   smear of everything above it, there are puddles with the sky the wrong way up
-   in them, rain at two speeds, rings where it lands, and lamp posts going past
-   close enough to be out of focus. The three tower layers and the shopfront
-   strip are each baked once into their own canvas, which is what pays for all
-   of that. The big one has **horns** and does not say anything all night. The
-   other one is grey and covered in red and will not shut up — that is
-   **DRAX**, and he finds all of this extremely funny.
-3. **You ask him why he is grey.** He knocks you out. The fist arrives at the
-   speed the fist arrives at.
-4. **And you meet Mr Chum.** You come round on your back on a very expensive
-   carpet, looking straight up: a gold coffered ceiling going away from you, two
-   lamps on long chains, red columns converging, and a vault door the size of
-   the room with him sitting in front of it on a chair with spikes on the back.
-   Drax and the big one stand a step below him. Two tickers on the side walls
-   both say `OWED $1,000,000`. Your own arm is in the bottom of the frame,
-   because this is your eyes — and when he says *put the watch on him*, the
-   watch goes on that arm and does not come off. He bought your marker off the
-   house. He is fond of a round number. There is a moon with your name on it
-   now, and you are going to go and dig.
+2. **The drag.** Two of them pick you up and haul you out into the city — and
+   the city is a **room now**, not a picture. It is built the way the moon,
+   the casino and the market are built: a long wet street with a floor and a
+   camera that follows you, at the same zoom, with the same characters
+   standing on it on the same feet. The five-layer skyline from before hangs
+   behind it (towers, the mag rail, the traffic, the cables, the hologram);
+   in front of that is a pavement lined with **the same shops as the market
+   upstairs** — Chum owns this block too — lamp posts with the rain lit where
+   it goes through the light, vending machines, bins, and a **crowd on the
+   pavement** holding umbrellas, who turn to watch you go past and say things
+   about it (`POOR GUY`, `THAT WAS MY BIN`, `IS THAT THE TEN-IN-A-ROW MAN`).
+   The controls are not yours for the length of it. The big one has **horns**
+   and does not say anything all night. The other one is grey and covered in
+   red and will not shut up — that is **DRAX**, and what he says comes out of
+   him as a bubble with his name on it.
+3. **You ask him why he is grey.** He stops, hauls you up onto your feet, you
+   ask, and the fist arrives at the speed the fist arrives at.
+4. **And you meet Mr Chum**, in **a new room in the same engine**: his office
+   at the top of the building. White, then your eyelids, then a room you could
+   walk across in six seconds that cost more than the moon you are about to
+   be given — a rain-streaked window over the city with lightning in it,
+   heavy curtains, a tank of small fish labelled `LUNCH` with somebody feeding
+   them, a coffered ceiling, chandeliers, a vault set into the wall, a globe
+   that is really a bar, a runner up the marble to a three-step dais, a desk
+   with a green lamp and a stack of other people's markers, a throne with his
+   own portrait over it, and a ticker that says `$1,000,000`. You get up off
+   the carpet and walk yourself to the foot of the dais; the camera frames the
+   two of you; and when he says *put the watch on him*, Drax comes down off the
+   step, clamps it on, and goes back to where he was standing.
 5. **And that is how you came to own a moon.**
 
 ## It is raining, and he is dragging you
@@ -1766,7 +1804,7 @@ a line of history under its blurb.
 | `src/pix.js` | Tiny pixel-drawing surface, where every round primitive is really an octagon or a chamfer; `outline()` traces the dark cartoon border that gives everything its look |
 | `src/pxd.js` | Runtime pixel primitives: hard-edged scanline polygons (no anti-aliased diagonals anywhere), octagons, hexagons, stepped rings, tapering limb segments, and a cached dither pattern |
 | `src/art.js` | The alien at 2x in idle, walk, fly, drill and roll poses, the drill, the pod, guns, six enemies, ore chunks, UI icons — all procedural |
-| `src/arthome.js` | Home at 2x: **the alien generator** (body plan, build, **leg type, arm type and head shape**, size, hue ramp, eyes, mouth, markings, extras — one seed each), the planet generator (cratered, iced, living, cracked, cut, plated), the small rock house seen from outside, wall and floor, the desk with the human computer, **the brain in the jar**, the moon rat, the cheese, the fridge, junk piles, litter, posters, ruins, and the cratered-moon generator |
+| `src/arthome.js` | Home at 2x: **the cast** — twelve hand-drawn characters plus seven odd species, each with its own silhouette, idle, walk, talk, blink and cheer frames and its own way of moving — the planet generator (cratered, iced, living, cracked, cut, plated), the small rock house seen from outside, wall and floor, the desk with the human computer, **the brain in the jar**, the moon rat, the cheese, the fridge, junk piles, litter, posters, ruins, and the cratered-moon generator |
 | `src/rig.js` | The limb rig: two-bone solves that stretch, a walk cycle driven by ground covered, the drilling brace, the recoil, the snatch, the seven idle flourishes, and hard-pixel limb segments |
 | `src/mind.js` | The brain in the jar: the acid tank, the faceted brain, the neuron lattice and what each neuron grows into you |
 | `src/font.js` | Hand-drawn 5×7 bitmap font, cached per colour |
@@ -1782,12 +1820,14 @@ a line of history under its blurb.
 | `src/ui.js` | The cardboard-and-masking-tape HUD (air tank, hull chips, sack tube), the action strip, the plank over the door, pause, victory and title screens |
 | `src/lab.js` | Decanting Bay 7: three tanks with a body in each, three save files, and the settings panel |
 | `src/home.js` | All the parts of home: the lumpy moon surface outside with the house and the saucer standing on the curve of it, the very small room inside with the computer and the jar, Brenda, the tip you have to clear off the regolith, the black-and-red casino under the hatch with its poker table, its wheel, its blackjack, its cashier's cage and its three moustachioed dealers, and THE PORT hub |
+| `src/mall.js` | The market's shops: nine storefronts painted once at double resolution into back, middle and front layers, with the keeper and the sliding glass reflection drawn live between them; planters, benches, bins and the escalator that does not work |
+| `src/cut.js` | Cutscenes as rooms: the rainy street you are dragged down and Mr Chum's office, run in the home engine with the controls taken away |
 | `src/desk.js` | First person at the computer: hands, keyboard, CRT, the loose-spring pointer, ZORB OS and ABAY |
 | `src/glyph.js` | The icon language that rides alongside the text, and the hex primitives |
 | `src/galaxy.js` | Spiral-arm star band, nebulae, sun, ringed planets, shooting stars |
 | `src/starmap.js` | The galaxy chart and the solar-system view: sectors, drives, world dossiers |
 | `src/travel.js` | The crossing, both ways: launch, cruise, approach and landing, the rock field, ten kinds of traffic, and the ship damage that sheds parts and stays shed |
-| `src/chum.js` | Mr Chum: the whole round shark in two palettes and four walk steps, the speech bubbles, the four-beat opening cutscene, the hologram that paces your screen, the sixteen lessons, and the debt he takes his cut of |
+| `src/chum.js` | Mr Chum: the whole round shark in two palettes and four walk steps, the speech bubbles, the opening night (the playable casino and the beats around it), the hologram that paces your screen, the sixteen lessons, and the debt he takes his cut of |
 | `src/touch.js` | Hex pad, hold-the-right-half-to-drill, tap-to-walk, three worded action keys, haptics |
 | `src/game.js` | Loop, the 2x frame, camera, pod, lighting, the ore market, ABAY purchases, save/load, and the world-destruction sequence |
 | `tools/build.js` | Inlines everything into one distributable HTML file |

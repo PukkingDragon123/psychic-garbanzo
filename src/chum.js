@@ -1397,7 +1397,7 @@
     }
     if (!ready) { if (key || tap) UNI.arrive = Math.max(UNI.arrive, 6.0); return; }
     if (UNI.choice) {
-      if ((hotExit && m.leftPressed) || IN.hit('Escape')) {
+      if ((hotExit && m.leftPressed) || IN.hit('esc')) {
         UNI.choice = 0; IN_S.quit = 1; startSpin(1.7);
         return;
       }
@@ -2613,13 +2613,10 @@
     }
   }
 
-  function drawDrag(ctx, g, t) {
-    const scroll = t * 58;
-    /* Thunder and kerbs both move the camera. Everything in the beat is drawn
-       inside this, so the shake is the picture moving and not a layer of it. */
-    const sh = WET.shake > 0 ? WET.shake * WET.shake * 7 : 0;
-    ctx.save();
-    if (sh) ctx.translate(Math.round(U.rand(-sh, sh)), Math.round(U.rand(-sh, sh)));
+  /* Everything behind the street: sky, planet, towers, the rail, the traffic,
+     the cables and the hologram. Split out so the walkable street in cut.js
+     can hang the same city behind its own pavement. */
+  function dragSky(ctx, scroll, t) {
     // ------------------------------------------------------------- the sky
     const grd = ctx.createLinearGradient(0, 0, 0, VH);
     grd.addColorStop(0, '#0d0424'); grd.addColorStop(0.42, '#2a0c3e');
@@ -2748,6 +2745,16 @@
       F.draw(ctx, 'DRINK IT', hx, 156, 'rgba(159,216,255,0.7)', { center: true, shadow: false });
     }
 
+  }
+
+  function drawDrag(ctx, g, t) {
+    const scroll = t * 58;
+    /* Thunder and kerbs both move the camera. Everything in the beat is drawn
+       inside this, so the shake is the picture moving and not a layer of it. */
+    const sh = WET.shake > 0 ? WET.shake * WET.shake * 7 : 0;
+    ctx.save();
+    if (sh) ctx.translate(Math.round(U.rand(-sh, sh)), Math.round(U.rand(-sh, sh)));
+    dragSky(ctx, scroll, t);
     // ---------------------------------------------------------- the street
     if (!cityCv[3]) cityCv[3] = cityStreet();
     const soff = ((-scroll * 1.15) % CW_TILE + CW_TILE) % CW_TILE;
@@ -2888,7 +2895,13 @@
     X.rect(ctx, gx - 4, gy - 3, 9, 2, '#6a6a72');
   }
 
-  function drawTheDragging(ctx, g, t) {
+  function drawTheDragging(ctx, g, t, ox, oy) {
+    ctx.save();
+    ctx.translate(Math.round(ox || 0), Math.round(oy || 0));
+    dragBody(ctx, g, t);
+    ctx.restore();
+  }
+  function dragBody(ctx, g, t) {
     const bob = Math.sin(t * 5) * 2;
     const jolt = DRAG.hit * DRAG.hit;
     // the wake: a rooster tail of road water off whatever is ploughing it
@@ -3085,6 +3098,18 @@
     }
     // and the ears, out sideways
     for (const s of [-1, 1]) X.blob(ctx, x + 1 + s * 13, y - 62, 5, 3, S1);
+  }
+
+  /* Him, standing, anywhere: for the office in cut.js. */
+  function drawChumAt(ctx, x, footY, k, talking, t) {
+    const a = ensureArt();
+    const mouth = talking && Math.floor(t * 9) % 2 === 0 ? 1 : 0;
+    const step = talking ? (Math.floor(t * 5) % 4) : 0;
+    ctx.save();
+    ctx.translate(Math.round(x - CCX * k), Math.round(footY - CBASE * k));
+    ctx.scale(k, k);
+    ctx.drawImage(a.real[mouth][step], 0, 0);
+    ctx.restore();
   }
 
   /* ---- the fist ---- */
@@ -3284,6 +3309,20 @@
   function nextBeat(g) {
     IN_S.beat++; IN_S.t = 0; IN_S.line = 0; IN_S.chars = 0; IN_S.pop = 0;
     if (IN_S.beat >= BEATS.length) { finishIntro(g); return; }
+    /* The drag and the office are not pictures any more: they are rooms, run
+       by cut.js in the same engine you walk about the moon in. The street
+       takes the drag and the fist; the office takes the meeting; and when he
+       is done with you it comes back here for the drop onto the moon. */
+    if (BEATS[IN_S.beat].id === 'drag' && PD.cut) {
+      A.rain(0);
+      const street = BEATS[B_OF.drag].lines.concat(BEATS[B_OF.fist].lines);
+      PD.cut.play(g, 'street', street, (g2) => {
+        PD.cut.play(g2, 'office', BEATS[B_OF.chum].lines, (g3) => {
+          g3.state = 'intro';
+          IN_S.beat = B_OF.drop; IN_S.t = 0; IN_S.line = 0; IN_S.chars = 0; IN_S.pop = 0;
+        }, finishIntro);
+      }, finishIntro);
+    }
   }
 
   function finishIntro(g) {
@@ -3322,7 +3361,7 @@
       UNI.lever = 0; UNI.pull = 0;
       updateCrowd(dt, IN_S.t); updateServers(dt); updateBits(dt);
     }
-    if (IN.hit('Escape')) { finishIntro(g); return; }
+    if (IN.hit('esc')) { finishIntro(g); return; }
     IN_S.pop = Math.min(1, IN_S.pop + dt * 4.5);
     IN_S.flash = Math.max(0, IN_S.flash - dt * 2.2);
     const b = BEATS[IN_S.beat];
@@ -3429,6 +3468,7 @@
   PD.chum = {
     enterIntro, updateIntro, drawIntro, enterGamble, B_OF,
     call, update, draw, active, bite, biting, sharkHead, takeCut, drawDebt, DEBT0, S, IN_S, HS, LESSONS, track, BEATS, DRAG, WET,
+    dragSky, rainStep, rainFront, dragStep, drawTheDragging, drawDrax, drawBull, drawChumAt, finishIntro, wrap, speech, captionCard,
     leadStep, drawMini, miniFrame, MS, MW, MH, MCX, MBASE,
     artFor: ensureArt, CW, CH, CCX, CBASE, UNI, CAM, CROWD,
     /* the house style, shared with the room you walk through to get here */

@@ -272,6 +272,7 @@
   /* THE LOCK. Asked by everything that can take you somewhere or spend your
      money: may the player do `id` on the `where` screen right now? */
   function tutAllows(where, id) {
+    if (!g.save.seenIntro) return true;           // the night in the casino is not the lesson
     if (TS.done || tutDone(g)) return true;
     const st = TUT[TS.step];
     if (!st) return true;
@@ -290,7 +291,7 @@
   }
   g.tutAllows = tutAllows;
   g.tutNope = tutNope;
-  g.tutActive = function () { return !(TS.done || tutDone(g)); };
+  g.tutActive = function () { return !!g.save.seenIntro && !(TS.done || tutDone(g)); };
   const TS = { step: 0, t: 0, flash: 0, done: 0, movedFrom: null, minedAt: 0, shown: 0 };
 
   /* Anybody who was already playing before this existed does not get taught to
@@ -370,6 +371,7 @@
   function tutWarn(msg) { TS.warn = msg; TS.warnT = 2.4; }
 
   function tutDraw(ctx) {
+    if (!g.save.seenIntro) return;
     if (TS.done || tutDone(g)) return;
     const st = TUT[TS.step];
     if (!st) return;
@@ -1056,7 +1058,7 @@
        either of them has to shut them up, and the only way to be sure of that
        is to shut them up from here, every frame, for everywhere else. */
     if (g.state !== 'home') A.room(0);
-    if (g.state !== 'intro') A.rain(0);
+    if (g.state !== 'intro' && !(PD.cut && PD.cut.rainy())) A.rain(0);
 
     for (let i = g.toasts.length - 1; i >= 0; i--) {
       g.toasts[i].life -= dt;
