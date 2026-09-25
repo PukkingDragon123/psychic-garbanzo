@@ -1461,29 +1461,38 @@
   ];
 
   /* =================================================================== THE CAST
-     Every character in the building, designed one at a time.
+     Every character in the building, designed one at a time -- and, this
+     time, designed to belong together.
 
-     There used to be a generator here: fifteen hundred lines that rolled a
-     body plan, a build, a head, arms, legs, a coat and a colour, and dealt
-     out twenty strangers a night. It made variety and it never once made a
-     CHARACTER, because a character is a decision -- one strong silhouette,
-     one face, one way of moving -- and a generator only knows how to average.
+     The first pass at a hand-made cast had twelve good ideas drawn in twelve
+     different styles: a plague doctor next to a gorilla next to a dumpling.
+     Each one was fine and together they looked like a sticker sheet from
+     four different shops. So they share a HAND now, the way a cartoon's cast
+     does: round shaded bodies with a light from the top left, big glossy
+     eyes with two highlights, pink cheeks, stubby limbs that do all the
+     acting, and one fat dark outline round the lot. What makes each one THEM
+     is the silhouette and the idea -- ears, a crown of leaves, a ring, a
+     flame, a sheet, a hat -- not a different way of drawing.
 
-     So these are authored. Each one is a single idea you could draw from
-     memory after seeing it once: a round bunny who has not moved in days, a
-     bean that is also a dog, a birch trunk with moss for hands, a slug with a
-     rifle scope. Each one produces the same seven frames as everybody else
-     (idle, two steps, talking, a kiss, a blink, a cheer), so the room code
-     that walks them about never has to know who is who. And each one carries
-     a MOTION -- a hop, a waddle, a float -- because how somebody moves is the
-     other half of who they are. */
-  const INKC = '#141018';
-  // what the frame number means, in words
+     And they have faces now, not just a face. Twelve frames each:
+       0 idle   1-2 walk   3 talk   4 wink   5 blink   6 cheer
+       7 sad    8 angry    9 shock  10 laugh 11 asleep
+     so the room code can make anybody cross, or delighted, or dozing on a
+     bench, without knowing who they are. */
+  const INKC = '#1a1024';
+  const EXPR = ['idle', 'idle', 'idle', 'talk', 'kiss', 'blink', 'cheer', 'sad', 'angry', 'shock', 'laugh', 'sleep'];
+  const NFRAMES = EXPR.length;
   function FR(f) {
-    return { step: f === 1 ? 1 : (f === 2 ? -1 : 0), talk: f === 3 || f === 6, blink: f === 5,
-      cheer: f === 6, kiss: f === 4 };
+    const e = EXPR[f] || 'idle';
+    return {
+      e, step: f === 1 ? 1 : (f === 2 ? -1 : 0), talk: e === 'talk', blink: e === 'blink' || e === 'sleep',
+      cheer: e === 'cheer' || e === 'laugh', kiss: e === 'kiss', sad: e === 'sad', angry: e === 'angry',
+      shock: e === 'shock', laugh: e === 'laugh', sleep: e === 'sleep',
+      // how the whole body sits: up for a cheer or a fright, down when low or asleep
+      lift: (e === 'cheer' || e === 'shock') ? -3 : ((e === 'sad' || e === 'sleep') ? 2 : (f === 1 || f === 2 ? -1 : 0))
+    };
   }
-  // a stick of whole pixels, thick, for twigs and spears and skinny arms
+  // a stick of whole pixels, thick, for twigs and handles
   function stick(p, x0, y0, x1, y1, w, c) {
     const n = Math.max(1, Math.ceil(Math.hypot(x1 - x0, y1 - y0)));
     for (let i = 0; i <= n; i++) {
@@ -1491,510 +1500,500 @@
       p.rect(Math.round(x0 + (x1 - x0) * q - w / 2), Math.round(y0 + (y1 - y0) * q - w / 2), w, w, c);
     }
   }
-  // a dot eye with a glint, or a shut line
+  // kept for the house-built species, which still use the plain ones
   function dotEye(p, x, y, r, shut) {
     if (shut) { p.rect(x - r, y, r * 2 + 1, 2, INKC); return; }
     p.ellipse(x, y, r, r + 1, INKC);
     p.rect(x - r + 1, y - r + 1, Math.max(1, r - 1), Math.max(1, r - 1), '#ffffff');
   }
-  // happy closed eyes, an upside-down V, for a cheer
   function joyEye(p, x, y, r) {
     for (let i = 0; i <= r; i++) { p.rect(x - i, y - r + i, 2, 2, INKC); p.rect(x + i, y - r + i, 2, 2, INKC); }
   }
 
+  /* ---- THE HAND: the handful of strokes every one of them is made of ---- */
+
+  // A shaded ball: a dark rim low and right, the colour, a soft light top left.
+  function ball(p, cx, cy, rx, ry, C, gloss) {
+    p.ellipse(cx, cy, rx, ry, C[2]);
+    p.ellipse(cx - rx * 0.1, cy - ry * 0.12, rx * 0.9, ry * 0.88, C[0]);
+    p.ellipse(cx - rx * 0.36, cy - ry * 0.42, rx * 0.32, ry * 0.24, C[1]);
+    if (gloss) p.rect(Math.round(cx - rx * 0.52), Math.round(cy - ry * 0.56), 2, 2, '#ffffff');
+  }
+  // a stubby limb: a hand, a foot, a wing, a paw
+  function nub(p, x, y, rx, ry, C) {
+    p.ellipse(x, y, rx, ry, C[2]);
+    p.ellipse(x - 0.6, y - 0.7, Math.max(1, rx - 0.9), Math.max(1, ry - 0.9), C[0]);
+  }
+  function brow(p, x, y, r, side, dir, ink) {
+    // dir 1: cross (the inner end drops); dir -1: worried (the inner end lifts)
+    const ox = x + side * (r + 1), ix = x - side * (r - 1);
+    const oy = y - r - (dir > 0 ? 5 : 2), iy = y - r - (dir > 0 ? 2 : 5);
+    stick(p, ox, oy, ix, iy, 2, ink);
+  }
+  /* The eye. Big, dark, glossy, with the iris lit from below and two
+     highlights, which is ninety per cent of what reads as cute. */
+  function eye(p, x, y, r, q, side, o) {
+    o = o || {};
+    const ink = o.ink || INKC, iris = o.iris || '#6a4aa8';
+    const e = q.e;
+    const wink = e === 'kiss' && side > 0;
+    if (e === 'blink' || e === 'sleep') {
+      for (let i = -r; i <= r; i++) p.rect(x + i, y + Math.round((r * r - i * i) / (r * 2.4)), 1, 2, ink);
+      return;
+    }
+    if (e === 'cheer' || e === 'laugh' || wink) {
+      for (let i = -r; i <= r; i++) p.rect(x + i, y - Math.round((r * r - i * i) / (r * 2)) + 1, 1, 2, ink);
+      if (e === 'laugh') p.ellipse(x + side * (r + 1), y + 3, 1, 1.6, '#9adfff');
+      return;
+    }
+    if (e === 'shock') {
+      p.ellipse(x, y, r + 1, r + 2, ink);
+      p.ellipse(x, y, r, r + 1, '#ffffff');
+      p.ellipse(x, y + 0.5, 1.4, 1.8, ink);
+      return;
+    }
+    if (o.sclera) p.ellipse(x, y, r + 1, r + 2, '#ffffff');
+    p.ellipse(x, y, r, r + 1, ink);
+    p.ellipse(x, y + r * 0.5, r * 0.62, r * 0.46, iris);
+    p.ellipse(x - r * 0.32, y - r * 0.42, Math.max(1, r * 0.42), Math.max(1, r * 0.46), '#ffffff');
+    p.rect(Math.round(x + r * 0.34), Math.round(y + r * 0.34), 1, 1, '#ffffff');
+    if (o.lid && (e === 'idle' || e === 'talk')) {
+      p.rect(x - r - 1, y - r - 2, r * 2 + 3, r + 1, o.lid);
+      p.rect(x - r, y - 1, r * 2 + 1, 1, ink);
+    }
+    if (e === 'angry') brow(p, x, y, r, side, 1, ink);
+    if (e === 'sad') {
+      brow(p, x, y, r, side, -1, ink);
+      p.ellipse(x + side * r * 0.6, y + r + 3, 1.2, 2.2, '#8ad4ff');
+    }
+  }
+  function eyes(p, cx, y, gap, r, q, o) { eye(p, cx - gap, y, r, q, -1, o); eye(p, cx + gap, y, r, q, 1, o); }
+  // the mouth; `fc` is the face colour, used to cut the top off an open grin
+  function mouth(p, x, y, q, fc, o) {
+    o = o || {};
+    const ink = o.ink || INKC, M = '#4a1430', T = '#ff7a9a';
+    const e = q.e;
+    const pts = (a) => { for (const [dx, dy] of a) p.rect(x + dx, y + dy, 2, 2, ink); };
+    if (e === 'talk') { p.ellipse(x, y + 1, 3, 3, M); p.ellipse(x, y + 3, 2, 1.2, T); }
+    else if (e === 'cheer' || e === 'laugh') {
+      const w = e === 'laugh' ? 5 : 4, h = e === 'laugh' ? 5 : 4;
+      p.ellipse(x, y, w, h, M);
+      p.rect(x - w - 1, y - h - 1, w * 2 + 3, h + 1, fc);
+      p.rect(x - w + 1, y, w * 2 - 1, 1, M);
+      p.ellipse(x, y + h * 0.55, w * 0.55, h * 0.32, T);
+    } else if (e === 'sad') pts([[-3, 2], [-2, 1], [-1, 0], [0, 0], [1, 1], [2, 2]]);
+    else if (e === 'angry') {
+      p.round(x - 4, y - 1, 9, 5, 1, ink);
+      p.rect(x - 3, y, 7, 3, '#ffffff');
+      p.rect(x - 1, y, 1, 3, ink); p.rect(x + 1, y, 1, 3, ink);
+    } else if (e === 'shock') p.ellipse(x, y + 1, 2, 3, M);
+    else if (e === 'kiss') pts([[0, -2], [1, 0], [0, 2]]);
+    else if (e === 'sleep') { p.ellipse(x, y + 1, 1.5, 1.5, M); p.ellipse(x + 6, y - 1, 3, 3, '#bfe8ff'); p.rect(x + 5, y - 3, 1, 1, '#ffffff'); }
+    else if (o.cat) pts([[-4, -1], [-3, 0], [-2, 0], [-1, -1], [0, -1], [1, 0], [2, 0], [3, -1]]);
+    else pts([[-3, -1], [-2, 0], [-1, 1], [0, 1], [1, 0], [2, -1]]);
+  }
+  function blush(p, cx, y, gap, q, c) {
+    const k = (q.cheer || q.kiss) ? 1 : 0;
+    const col = q.angry ? '#ff6a6a' : (c || '#ff9ab8');
+    p.ellipse(cx - gap, y, 3 + k, 1.6 + k * 0.5, col);
+    p.ellipse(cx + gap, y, 3 + k, 1.6 + k * 0.5, col);
+  }
+  /* Where the hands go for each face: the arms do half the acting. Offsets
+     from the shoulder, left then right. */
+  function armPose(q) {
+    const s = q.step;
+    if (q.e === 'cheer') return [[-4, -10], [4, -10]];
+    if (q.e === 'laugh') return [[1, 3], [-1, 3]];
+    if (q.e === 'sad' || q.e === 'sleep') return [[-1, 7], [1, 7]];
+    if (q.e === 'angry') return [[-6, -3], [6, -3]];
+    if (q.e === 'shock') return [[-7, -8], [7, -8]];
+    if (q.e === 'talk') return [[-2, 4], [5, -4]];
+    if (q.e === 'kiss') return [[-2, 4], [-2, -6]];
+    return [[-2 + s * 2, 4], [2 + s * 2, 4]];
+  }
+  function feet(p, cx, y, gap, rx, ry, q, C) {
+    nub(p, cx - gap, y - (q.step > 0 ? 2 : 0), rx, ry, C);
+    nub(p, cx + gap, y - (q.step < 0 ? 2 : 0), rx, ry, C);
+  }
+
   const CAST = [
     /* ------------------------------------------------------------- MOCHI
-       Off a garden statue: an egg of a bunny, fur combed in stripes, ears
-       laid flat, paws folded on the belly, and a look on the face of
-       somebody who has sat in the same place for four days and would do it
-       again. She waddles, when she has to. */
-    { name: 'MOCHI', race: 'PUDDLE HARE', calling: 'SITS ON THINGS', acc: '#e8a0a0', motion: 'waddle',
-      say: 'I HAVE NOT MOVED IN FOUR DAYS. BEST FOUR DAYS OF MY LIFE.', w: 72, h: 80,
+       A round cream bunny off a garden wall: one ear up, one flopped, lids
+       half down, paws on the belly. She has not moved in four days. */
+    { name: 'MOCHI', race: 'PUDDLE HARE', calling: 'SITS ON THINGS', acc: '#f4a8b8', motion: 'waddle',
+      say: 'I HAVE NOT MOVED IN FOUR DAYS. BEST FOUR DAYS OF MY LIFE.',
       build(f) {
-        const W = 72, H = 80, p = pix(W, H), cx = 36, q = FR(f);
-        const B = '#c9b27a', BL = '#ecdca8', BD = '#8f7a48', FUR = '#a8905a', PINK = '#e8a0a0';
-        p.round(cx - 17 + (q.step > 0 ? -2 : 0), H - 10, 14, 9, 4, BD);
-        p.round(cx + 3 + (q.step < 0 ? 2 : 0), H - 10, 14, 9, 4, BD);
-        // the ears, laid back flat along the top of her
-        p.ellipse(cx + 14, 17, 15, 7, B); p.ellipse(cx + 17, 16, 9, 3, PINK);
-        p.ellipse(cx + 5, 13, 13, 6, B); p.ellipse(cx + 8, 12, 7, 2, PINK);
-        p.ellipse(cx, 46, 30, 31, B);
-        p.ellipse(cx - 5, 53, 18, 20, BL);
-        // the combed fur, short strokes following the curve of her
-        for (let i = 0; i < 34; i++) {
-          const a = i * 0.74, rr = 12 + (i % 5) * 3.4;
-          p.rect(Math.round(cx + Math.cos(a) * rr), Math.round(44 + Math.sin(a) * rr * 1.05), 1, 3, FUR);
-        }
-        /* The face sits high on the left of the egg, turned three-quarters.
-           One eye properly, heavy-lidded, which is the whole look; the other
-           only just round the curve. */
-        const ex = cx - 10, ey = 29;
-        if (q.blink) p.rect(ex - 5, ey, 11, 2, INKC);
-        else if (q.cheer) joyEye(p, ex, ey + 1, 4);
-        else {
-          p.ellipse(ex, ey, 5, 4, '#2a1a08');
-          p.ellipse(ex + 1, ey + 1, 3, 3, '#5a3a18');
-          p.rect(ex - 3, ey - 2, 2, 2, '#ffffff');
-          p.rect(ex - 6, ey - 4, 13, 3, BD);          // the lid, half down
-        }
-        if (q.blink || q.cheer) p.rect(cx + 5, 29, 5, 1, INKC);
-        else { p.ellipse(cx + 7, 29, 2, 3, '#2a1a08'); p.rect(cx + 4, 26, 7, 2, BD); }
-        // the muzzle, a soft bump with the nose on the end of it
-        p.ellipse(cx - 17, 38, 7, 5, BL);
-        p.spike(cx - 20, 34, 6, 4, 1, PINK);
-        if (q.kiss) p.ellipse(cx - 17, 42, 2, 2, PINK);
-        else if (q.talk) { p.ellipse(cx - 17, 42, 3, 3, '#3a1226'); p.rect(cx - 18, 43, 3, 1, '#d64f7a'); }
-        else { p.line(cx - 21, 40, cx - 18, 42, INKC); p.line(cx - 18, 42, cx - 15, 40, INKC); }
-        // paws, small and pale, folded low on the belly -- not a second face
-        const py = q.cheer ? 22 : 58;
-        p.round(cx - 12, py, 8, 6, 3, BL); p.round(cx - 1, py + 1, 8, 6, 3, BL);
-        p.rect(cx - 11, py + 4, 6, 1, BD); p.rect(cx, py + 5, 6, 1, BD);
+        const W = 64, H = 72, p = pix(W, H), cx = 32, q = FR(f), L = q.lift;
+        const C = ['#ecd9b0', '#fff6dc', '#bf9f70'], PINK = '#f6aabb', PD2 = '#d8788e';
+        ball(p, cx + 19, 54 + L, 6, 6, ['#fffaf0', '#ffffff', '#d8c8a8']);          // tail
+        const up = q.shock || q.cheer, droop = q.sad || q.sleep ? 5 : 0;
+        p.ellipse(cx - 9, 17 + L + droop, 5, 13, C[2]); p.ellipse(cx - 10, 16 + L + droop, 4, 12, C[0]);
+        p.ellipse(cx - 10, 18 + L + droop, 2, 8, PINK);
+        if (up) { p.ellipse(cx + 9, 17 + L, 5, 13, C[2]); p.ellipse(cx + 8, 16 + L, 4, 12, C[0]); p.ellipse(cx + 8, 18 + L, 2, 8, PINK); }
+        else { p.ellipse(cx + 17, 27 + L + droop, 12, 5, C[2]); p.ellipse(cx + 16, 26 + L + droop, 11, 4, C[0]); p.ellipse(cx + 17, 27 + L + droop, 7, 2, PINK); }
+        feet(p, cx, H - 5, 10, 6, 4, q, C);
+        ball(p, cx, 45 + L, 22, 22, C, true);
+        p.ellipse(cx, 53 + L, 14, 11, C[1]);
+        const fy = 39 + L;
+        blush(p, cx, fy + 5, 12, q);
+        eyes(p, cx, fy, 8, 3, q, { lid: C[0] });
+        p.rect(cx - 1, fy + 3, 3, 2, PD2);
+        mouth(p, cx, fy + 7, q, C[0], { cat: 1 });
+        const A = armPose(q);
+        nub(p, cx - 12 + A[0][0], 46 + L + A[0][1], 4, 3.5, C);
+        nub(p, cx + 12 + A[1][0], 46 + L + A[1][1], 4, 3.5, C);
         p.outline(INKC);
         return p;
       } },
 
     /* ------------------------------------------------------------- BEANIE
-       A bean. Also a dog. One floppy ear, a :3 of a mouth, four legs you
-       can barely see, and a fact for every occasion, most of them wrong. */
-    { name: 'BEANIE', race: 'BEANHOUND', calling: 'KNOWS A FACT', acc: '#6a9a1e', motion: 'hop',
-      say: 'DID YOU KNOW THE HOUSE ALWAYS WINS. IT IS TRUE. I LOOKED IT UP.', w: 70, h: 56,
+       A bean. Also a dog. One floppy ear, a sprout, a :3, four legs you can
+       barely see, and a fact for every occasion, most of them wrong. */
+    { name: 'BEANIE', race: 'BEANHOUND', calling: 'KNOWS A FACT', acc: '#8ac848', motion: 'hop',
+      say: 'DID YOU KNOW THE HOUSE ALWAYS WINS. IT IS TRUE. I LOOKED IT UP.',
       build(f) {
-        const W = 70, H = 56, p = pix(W, H), cx = 35, q = FR(f);
-        const G = '#b8d94a', GL = '#dcf28a', GD = '#7a9a24', EAR = '#6a9a1e';
-        for (const [lx, ph] of [[-17, 1], [-7, -1], [6, 1], [16, -1]]) {
-          p.round(cx + lx - 3, H - 10 + (q.step * ph > 0 ? -2 : 0), 7, 9, 3, GD);
+        const W = 64, H = 54, p = pix(W, H), cx = 32, q = FR(f), L = q.lift;
+        const C = ['#aedc68', '#e4f8b0', '#6e9e34'], EAR = ['#8cc050', '#b8e080', '#5a8a2a'];
+        for (let i = 0; i < 4; i++) {
+          const lx = cx - 13 + i * 8.5;
+          const lift = (i % 2 === 0 ? (q.step > 0 ? 2 : 0) : (q.step < 0 ? 2 : 0)) + (q.cheer && i < 2 ? 4 : 0);
+          nub(p, lx, H - 5 - lift, 3.2, 3.5, C);
         }
-        p.ellipse(cx - 6, 31, 25, 20, G);
-        p.ellipse(cx + 9, 29, 20, 18, G);
-        p.ellipse(cx - 10, 22, 12, 6, GL);
-        p.ellipse(cx + 24, 21, 6, 11, EAR);
-        p.ellipse(cx - 27, 25, 4, 7, EAR);
-        if (q.cheer) { joyEye(p, cx - 10, 30, 3); joyEye(p, cx + 7, 30, 3); }
-        else { dotEye(p, cx - 10, 29, 3, q.blink); dotEye(p, cx + 7, 29, 3, q.blink); }
-        p.spike(cx - 2, 34, 6, 3, 1, INKC);
-        if (q.kiss) p.ellipse(cx - 1, 41, 2, 2, '#d64f7a');
-        else if (q.talk) { p.ellipse(cx - 1, 41, 4, 3, '#3a1226'); p.rect(cx - 3, 42, 5, 1, '#d64f7a'); }
-        else { p.line(cx - 6, 38, cx - 4, 40, INKC); p.line(cx - 4, 40, cx - 1, 38, INKC);
-          p.line(cx - 1, 38, cx + 2, 40, INKC); p.line(cx + 2, 40, cx + 4, 38, INKC); }
-        p.ellipse(cx - 16, 36, 3, 2, '#e8a070'); p.ellipse(cx + 13, 36, 3, 2, '#e8a070');
+        ball(p, cx + 22, 33 + L, 3.5, 3, C);                                           // tail
+        ball(p, cx, 33 + L, 22, 15, C, true);
+        stick(p, cx + 3, 19 + L, cx + 4, 12 + L, 2, '#4a8a2a');
+        p.ellipse(cx + 8, 11 + L, 4.5, 2.5, '#6ac040'); p.ellipse(cx + 7, 10 + L, 2, 1, '#b8f090');
+        const eu = q.shock ? -6 : (q.sad ? 3 : 0);
+        p.ellipse(cx - 14, 25 + L + eu, 5, 8, EAR[2]); p.ellipse(cx - 14, 24 + L + eu, 4, 7, EAR[0]);
+        const fy = 31 + L;
+        blush(p, cx - 2, fy + 5, 10, q);
+        eyes(p, cx - 2, fy, 6, 3, q);
+        mouth(p, cx - 2, fy + 6, q, C[0], { cat: 1 });
         p.outline(INKC);
         return p;
       } },
 
     /* ------------------------------------------------------------- BIRCH
-       Not a tree. Wearing a tree. A pale birch trunk with the bark marked in
-       black, moss for hands on the ends of two twigs, roots for feet, and a
-       bird's nest on his head with somebody else's egg in it. */
-    { name: 'BIRCH', race: 'BARKFOLK', calling: 'GARDENER', acc: '#5a9a3a', motion: 'sway',
-      say: 'I AM NOT A TREE. I AM WEARING A TREE. THERE IS A DIFFERENCE.', w: 80, h: 114,
+       A little birch trunk with a crown of leaves and twigs for arms, doing
+       an extremely good impression of not being a tree. */
+    { name: 'BIRCH', race: 'BARKFOLK', calling: 'GARDENER', acc: '#6cc850', motion: 'sway',
+      say: 'I AM NOT A TREE. I AM A PERSON WHO IS VERY GOOD AT STANDING.',
       build(f) {
-        const W = 80, H = 114, p = pix(W, H), cx = 40, q = FR(f);
-        const BK = '#e8e0cc', BKL = '#fbf7ec', BKD = '#b8ac90', MK = '#3a3430';
-        const MS = '#5a9a3a', MSL = '#8ac85a', RT = '#8a6a4a', RTD = '#5a4028';
-        p.round(cx - 19 + (q.step > 0 ? -3 : 0), H - 10, 17, 9, 4, RT);
-        p.round(cx + 2 + (q.step < 0 ? 3 : 0), H - 10, 17, 9, 4, RT);
-        p.round(cx - 13, H - 34, 11, 26, 4, BK); p.round(cx + 2, H - 34, 11, 26, 4, BK);
-        p.round(cx - 16, 32, 32, 56, 12, BK);
-        p.round(cx - 16, 34, 8, 52, 4, BKL);
-        p.rect(cx + 10, 38, 5, 44, BKD);
-        for (let i = 0; i < 8; i++) p.rect(cx - 13 + (i * 9) % 22, 38 + i * 6, 5 + (i % 3) * 2, 2, MK);
-        p.ellipse(cx + 5, 76, 3, 2, MK);
-        // the twigs, and the moss on the end of them
-        const ay = q.cheer ? 20 : 42, sw = q.step * 3;
-        for (const s of [-1, 1]) {
-          stick(p, cx + s * 14, 50, cx + s * 29, ay + s * sw, 3, RT);
-          stick(p, cx + s * 24, ay + 6 + s * sw, cx + s * 31, ay - 4 + s * sw, 2, RT);
-          p.disc(cx + s * 31, ay - 3 + s * sw, 7, MS); p.disc(cx + s * 25, ay - 9 + s * sw, 6, MS);
-          p.disc(cx + s * 30, ay - 6 + s * sw, 3, MSL); p.disc(cx + s * 24, ay - 11 + s * sw, 2, MSL);
-        }
-        // the nest, the egg, and a sprout that has come up through it
-        stick(p, cx, 30, cx + 1, 8, 2, RT);
-        p.ellipse(cx + 6, 9, 6, 3, MSL);
-        p.ellipse(cx, 31, 13, 4, '#8a6a3a');
-        for (let i = 0; i < 6; i++) p.rect(cx - 11 + i * 4, 29 + (i % 2), 4, 1, RTD);
-        p.ellipse(cx + 4, 27, 3, 3, '#e8f0ff'); p.rect(cx + 3, 26, 1, 1, '#9ab0d0');
-        if (q.cheer) { joyEye(p, cx - 6, 48, 2); joyEye(p, cx + 6, 48, 2); }
-        else { dotEye(p, cx - 6, 47, 2, q.blink); dotEye(p, cx + 6, 47, 2, q.blink); }
-        if (q.kiss) p.ellipse(cx, 57, 2, 2, '#6a3a2a');
-        else {
-          const open = q.talk ? 6 : 4;
-          p.ellipse(cx, 55, 8, open, '#6a3a2a');
-          p.rect(cx - 9, 55 - open, 18, open, BK);
-          if (q.talk) p.rect(cx - 3, 57, 6, 2, '#d6607a');
+        const W = 64, H = 76, p = pix(W, H), cx = 32, q = FR(f), L = q.lift;
+        const BK = ['#f2eee2', '#ffffff', '#bdb4a2'], LF = ['#6cc850', '#b8f090', '#3a8a30'];
+        const RT = ['#9a6a42', '#c8905a', '#6a4428'];
+        feet(p, cx, H - 5, 8, 6, 4, q, RT);
+        p.round(cx - 14, 20 + L, 28, 46, 11, BK[2]);
+        p.round(cx - 14, 20 + L, 26, 44, 10, BK[0]);
+        p.rect(cx - 10, 28 + L, 3, 28, BK[1]);
+        for (const [bx, by, bw] of [[-8, 50, 6], [3, 56, 7], [-3, 60, 5], [5, 46, 4]]) p.rect(cx + bx, by + L, bw, 2, '#4a4038');
+        // the crown, three puffs and a flower
+        ball(p, cx - 10, 17 + L, 10, 9, LF); ball(p, cx + 10, 17 + L, 10, 9, LF); ball(p, cx, 10 + L, 11, 10, LF, true);
+        p.ellipse(cx + 8, 8 + L, 2.5, 2.5, '#ffd8e8'); p.rect(cx + 8, 8 + L, 1, 1, '#ffd34d');
+        const fy = 36 + L;
+        blush(p, cx, fy + 5, 10, q);
+        eyes(p, cx, fy, 6, 3, q);
+        mouth(p, cx, fy + 7, q, BK[0]);
+        const A = armPose(q);
+        for (const [s, a] of [[-1, A[0]], [1, A[1]]]) {
+          const hx = cx + s * 20 + a[0] * 1.4, hy = 44 + L + a[1] * 1.4;
+          stick(p, cx + s * 12, 44 + L, hx, hy, 3, RT[0]);
+          ball(p, hx, hy, 4.5, 4, LF);
         }
         p.outline(INKC);
         return p;
       } },
 
     /* ------------------------------------------------------------- GLOOP
-       The slug off the sheet. Pours down over his own belt onto one broad
-       foot, eyes up on stalks, and carries a rifle scope on his back that
-       nobody has ever seen him look through. */
-    { name: 'GLOOP', race: 'GLIMMERWORM', calling: 'LOOKOUT', acc: '#c8a040', motion: 'ooze',
-      say: 'I LEAVE A TRAIL WHEREVER I GO. THE CLEANER HAS OPINIONS.', w: 76, h: 92,
+       A drip of mint slime with a shine on it and bubbles inside, the lookout
+       -- which mostly means watching, and going wobbly when it sees things. */
+    { name: 'GLOOP', race: 'GLIMMERWORM', calling: 'LOOKOUT', acc: '#7ae8d0', motion: 'ooze',
+      say: 'I SAW EVERYTHING. I UNDERSTOOD ABOUT A THIRD OF IT.',
       build(f) {
-        const W = 76, H = 92, p = pix(W, H), cx = 36, q = FR(f);
-        const S = '#9ac84a', SL = '#c8f07a', SD = '#5a8a22', ST = '#6a4a30', STL = '#8a6a48', PK = '#8a8070';
-        const rip = q.step * 2;
-        p.round(cx - 27 - rip, H - 12, 54 + rip * 2, 12, 5, SD);
-        p.round(cx - 25 - rip, H - 12, 50 + rip * 2, 5, 3, S);
-        for (let y = 30; y < H - 10; y++) {
-          const w = Math.round(13 + (y - 30) / (H - 40) * 13);
-          p.rect(cx - w, y, w * 2, 1, S);
-        }
-        p.ellipse(cx, 32, 16, 14, S);
-        p.ellipse(cx - 6, 26, 7, 4, SL);
-        for (const [sx, sy] of [[-8, 56], [6, 66], [-4, 76], [10, 50]]) p.ellipse(cx + sx, sy, 3, 2, SD);
-        // the scope on his back
-        p.round(cx + 13, 40, 13, 22, 3, PK);
-        p.round(cx + 10, 35, 22, 7, 3, '#6a6a60');
-        p.disc(cx + 31, 38, 3, '#9ad0e8');
-        // harness and belt
-        stick(p, cx - 12, 42, cx + 12, 58, 3, ST);
-        p.rect(cx - 17, 60, 34, 4, ST); p.rect(cx - 17, 60, 34, 1, STL);
-        for (const bx of [-12, -2, 8]) { p.round(cx + bx - 3, 62, 8, 7, 2, ST); p.rect(cx + bx, 65, 2, 1, '#c8a040'); }
-        // eye stalks
-        for (const s of [-1, 1]) {
-          const wob = (f === 1 ? s : f === 2 ? -s : 0);
-          stick(p, cx + s * 6, 24, cx + s * 11 + wob, 8, 3, S);
-          if (q.blink) { p.disc(cx + s * 11 + wob, 7, 4, S); p.rect(cx + s * 11 + wob - 3, 7, 7, 1, INKC); }
-          else { p.disc(cx + s * 11 + wob, 7, 4, '#f6f8ff'); p.disc(cx + s * 11 + wob + s, 8, 2, INKC); }
-        }
-        if (q.talk) p.ellipse(cx, 38, 4, 3, '#2a4a10');
-        else if (q.kiss) p.ellipse(cx, 38, 2, 2, '#2a4a10');
-        else { p.line(cx - 4, 37, cx, 39, INKC); p.line(cx, 39, cx + 4, 37, INKC); }
-        const ay = q.cheer ? 30 : 48;
-        p.round(cx - 20, ay, 8, 6, 3, S); p.round(cx + 12, ay, 8, 6, 3, S);
+        const W = 60, H = 58, p = pix(W, H), cx = 30, q = FR(f), L = q.lift;
+        const C = ['#7ee8d2', '#d4fff4', '#3aae98'];
+        const sq = q.step ? 2 : 0;
+        ball(p, cx, 40 + L, 22 + sq, 16 - sq, C);
+        p.ellipse(cx - 1, 28 + L, 13, 12, C[0]);
+        p.spike(cx + 3, 10 + L + sq, 8, 12, -1, C[0]);
+        for (const [bx, by, br] of [[-9, 44, 2.5], [8, 38, 1.8], [12, 47, 1.4], [-4, 50, 1.5]]) p.ellipse(cx + bx, by + L, br, br, C[1]);
+        p.ellipse(cx - 10, 26 + L, 3, 5, '#ffffff'); p.rect(cx - 6, 20 + L, 2, 2, '#ffffff');
+        const A = armPose(q);
+        nub(p, cx - 19 + A[0][0] * 0.6, 40 + L + A[0][1] * 0.8, 4, 3.5, C);
+        nub(p, cx + 19 + A[1][0] * 0.6, 40 + L + A[1][1] * 0.8, 4, 3.5, C);
+        const fy = 34 + L;
+        blush(p, cx, fy + 5, 12, q);
+        eyes(p, cx, fy, 7, 4, q, { iris: '#2a8a7a' });
+        mouth(p, cx, fy + 7, q, C[0]);
         p.outline(INKC);
         return p;
       } },
 
     /* ------------------------------------------------------------- KORVO
-       The gunslinger. Tall and thin in a hood with a beak coming out of it,
-       a brick-red poncho off one shoulder, a belt of shells and a revolver
-       he holds like a pen. Says very little and means all of it. */
-    { name: 'KORVO', race: 'CORVID', calling: 'COLLECTOR', acc: '#c8a040', motion: 'still',
-      say: 'I AM HERE FOR ONE MAN. HE KNOWS WHO HE IS. HE IS SWEATING.', w: 72, h: 128,
+       A fat round crow in a very small top hat with a monocle on a chain.
+       He collects things. Shiny things. Your things, if you put them down. */
+    { name: 'KORVO', race: 'CORVID', calling: 'COLLECTOR', acc: '#ffd34d', motion: 'hop',
+      say: 'THAT IS A VERY NICE BUTTON. I WILL GIVE YOU A WORSE BUTTON FOR IT.',
       build(f) {
-        const W = 72, H = 128, p = pix(W, H), cx = 32, q = FR(f);
-        const HD2 = '#8a7078', HDD = '#5a4650', BK = '#eadfc8', BKD = '#b0a088';
-        const PN = '#8a3a2a', PND = '#5a221a', PT = '#4a3228', WR = '#9a8a78', SH = '#6a5a58';
+        const W = 64, H = 70, p = pix(W, H), cx = 32, q = FR(f), L = q.lift;
+        const C = ['#40446e', '#7076ac', '#24264a'], BE = ['#ffb040', '#ffe0a0', '#c87818'];
+        for (let i = 0; i < 3; i++) p.ellipse(cx + 18 + i * 2, 50 + L - i * 4, 7, 2.5, C[2]);   // tail
+        const fs = q.step;
         for (const s of [-1, 1]) {
-          const x = cx + s * 5 + q.step * s * 3;
-          p.rect(x - 3, 74, 7, 44, PT);
-          for (let k = 0; k < 4; k++) p.rect(x - 3, 96 + k * 5, 7, 2, WR);
-          p.round(x - 4, H - 10, 12, 9, 3, '#3a2a20');
+          const fx = cx + s * 8, fy2 = H - 4 - ((s < 0 ? fs > 0 : fs < 0) ? 2 : 0);
+          p.rect(fx - 1, fy2 - 5, 2, 5, BE[2]);
+          for (const d of [-3, 0, 3]) p.rect(fx + d - 1, fy2, 3, 2, BE[0]);
         }
-        p.round(cx - 9, 42, 18, 36, 4, SH);
-        p.rect(cx - 10, 68, 20, 5, '#3a2a20');
-        for (let i = 0; i < 5; i++) p.rect(cx - 8 + i * 4, 69, 2, 3, '#c8a040');
-        // the gun arm
-        const gy = q.cheer ? 22 : 64;
-        stick(p, cx + 8, 46, cx + 16, gy, 5, SH);
-        p.round(cx + 13, gy - 1, 7, 6, 2, '#9a8a90');
-        p.rect(cx + 16, gy - (q.cheer ? 12 : 1), q.cheer ? 3 : 14, q.cheer ? 12 : 3, '#3a3a44');
-        p.rect(cx + 16, gy + 1, 3, 5, '#5a3a28');
-        // the poncho, off his left shoulder
-        for (let y = 38; y < 84; y++) {
-          const e = Math.round((y - 38) * 0.28);
-          p.rect(cx - 16 - e, y, 20 + e, 1, (y - 38) % 11 === 5 ? PND : PN);
-        }
-        p.rect(cx - 16, 38, 22, 3, PND);
-        // the hood, and the dark inside it
-        p.round(cx - 11, 14, 22, 30, 8, HD2);
-        p.spike(cx - 1, 2, 14, 16, -1, HD2);
-        p.round(cx - 7, 24, 15, 15, 5, '#241c24');
-        const gl = q.blink ? '#6a5a30' : '#ffd34d';
-        p.rect(cx - 4, 29, 2, 2, gl); p.rect(cx + 3, 29, 2, 2, gl);
-        // the beak, long and falling away
-        for (let i = 0; i < 26; i++) {
-          const half = Math.max(1, Math.round(5 - i * 0.18));
-          const y = 34 + Math.round(i * i * 0.02);
-          p.rect(cx + 6 + i, y - half, 1, half * 2, i > 16 ? BKD : BK);
-          if (q.talk && i > 3) p.rect(cx + 6 + i, y, 1, 1, '#2a1a1a');
-        }
-        p.rect(cx + 12, 31, 2, 1, HDD);
+        ball(p, cx, 42 + L, 21, 22, C, true);
+        p.ellipse(cx - 2, 51 + L, 12, 12, '#9296c8');
+        for (const [tx, th] of [[-4, 7], [0, 9], [4, 6]]) p.spike(cx + tx, 21 + L - th + 2, 5, th, -1, C[0]);
+        // the hat, very small, very serious
+        const hl = q.shock ? -6 : 0;
+        p.rect(cx - 8, 21 + L + hl, 17, 3, '#16161f'); p.rect(cx - 5, 9 + L + hl, 11, 12, '#16161f');
+        p.rect(cx - 5, 17 + L + hl, 11, 2, '#c83a4a'); p.rect(cx - 4, 10 + L + hl, 2, 6, '#3a3a4a');
+        const fy = 34 + L;
+        eyes(p, cx, fy, 8, 3, q, { sclera: 1, iris: '#3a3a6a' });
+        if (!q.blink && !q.cheer) { p.ellipse(cx + 8, fy, 6, 7, '#ffd34d'); p.ellipse(cx + 8, fy, 5, 6, '#ffffff'); eye(p, cx + 8, fy, 3, q, 1, { iris: '#3a3a6a' }); stick(p, cx + 13, fy + 5, cx + 16, fy + 16, 1, '#ffd34d'); }
+        // the beak: shut, or open when there is something to say
+        const open = q.talk || q.cheer || q.shock || q.angry;
+        if (open) { p.spike(cx, fy + 3, 11, 4, 1, BE[0]); p.rect(cx - 3, fy + 7, 7, 2, '#4a1430'); p.spike(cx, fy + 9, 8, 3, 1, BE[2]); }
+        else { p.spike(cx, fy + 3, 11, 7, 1, BE[0]); p.rect(cx - 3, fy + 4, 3, 1, BE[1]); }
+        const A = armPose(q);
+        nub(p, cx - 19 + A[0][0] * 0.7, 44 + L + A[0][1] * 0.8, 4.5, 8, C);
+        nub(p, cx + 19 + A[1][0] * 0.7, 44 + L + A[1][1] * 0.8, 4.5, 8, C);
         p.outline(INKC);
         return p;
       } },
 
     /* ------------------------------------------------------------- BRUNO
-       The door. Shoulders like a wardrobe, a small head sunk between them, a
-       cigar he never lights twice, and hands that go past his knees. He is
-       lovely. Nobody finds that out. */
-    { name: 'BRUNO', race: 'OBB', calling: 'DOORMAN', acc: '#c8402a', motion: 'lumber', smoke: 1,
-      say: 'I LIFT THINGS. MOSTLY PEOPLE. MOSTLY OUT OF HERE.', w: 104, h: 124,
+       A very large, very soft bear in a black tee and sunglasses, with an
+       earpiece. He is the door. The glasses come off when something happens. */
+    { name: 'BRUNO', race: 'OBB', calling: 'DOORMAN', acc: '#ffd34d', motion: 'lumber',
+      say: 'YOU ARE ON THE LIST. EVERYBODY IS ON THE LIST. IT IS A LONG LIST.',
       build(f) {
-        const W = 104, H = 124, p = pix(W, H), cx = 52, q = FR(f);
-        const FU = '#3a3a4a', FUL = '#56566a', FUD = '#22222e', SK = '#9a90b0', SKL = '#bab0d0', SKD = '#7a7090';
-        const PT = '#4a6a4a', PTD = '#2e4a2e', BT = '#5a3a28', SHL = '#c8402a';
-        for (const s of [-1, 1]) {
-          const x = cx + s * 14 + q.step * s * 2;
-          p.round(x - 10, 86, 20, 28, 6, PT);
-          p.rect(x - 10, 98, 20, 2, PTD);
-          p.round(x - 12, H - 10, 24, 10, 4, SK);
-          for (let k = 0; k < 3; k++) p.rect(x - 9 + k * 6, H - 4, 4, 3, SKD);
+        const W = 84, H = 80, p = pix(W, H), cx = 42, q = FR(f), L = q.lift;
+        const C = ['#b07a4e', '#dcae80', '#70482a'], MU = '#f2d4ac', TEE = ['#2c2c3c', '#4c4c64', '#16161f'];
+        feet(p, cx, H - 6, 12, 8, 5, q, C);
+        ball(p, cx, 56 + L, 27, 20, TEE);
+        p.rect(cx - 12, 52 + L, 25, 4, '#ffd34d'); p.rect(cx - 12, 52 + L, 25, 1, '#fff0a0');
+        for (const s of [-1, 1]) { ball(p, cx + s * 15, 15 + L, 6.5, 6, C); p.ellipse(cx + s * 15, 16 + L, 3.5, 3, '#e8a0a0'); }
+        ball(p, cx, 28 + L, 20, 17, C, true);
+        p.ellipse(cx, 36 + L, 9, 6.5, MU);
+        p.ellipse(cx, 33 + L, 3, 2, '#2a1a14'); p.rect(cx - 1, 32 + L, 1, 1, '#8a6a5a');
+        const fy = 26 + L;
+        const shades = !(q.shock || q.sad || q.sleep || q.laugh || q.cheer);
+        if (shades) {
+          p.round(cx - 16, fy - 3, 14, 8, 3, '#101018'); p.round(cx + 2, fy - 3, 14, 8, 3, '#101018');
+          p.rect(cx - 3, fy - 2, 6, 2, '#101018');
+          p.rect(cx - 13, fy - 2, 4, 1, '#6a8aff'); p.rect(cx + 5, fy - 2, 4, 1, '#6a8aff');
+          if (q.angry) { brow(p, cx - 9, fy - 1, 4, -1, 1, INKC); brow(p, cx + 9, fy - 1, 4, 1, 1, INKC); }
+        } else {
+          if (q.shock) { p.round(cx - 16, fy - 16, 14, 7, 3, '#101018'); p.round(cx + 2, fy - 16, 14, 7, 3, '#101018'); }
+          eyes(p, cx, fy, 8, 3, q);
         }
-        p.ellipse(cx, 62, 40, 30, FU);
-        p.ellipse(cx - 14, 48, 16, 9, FUL);
-        p.round(cx - 22, 50, 44, 40, 10, SK);
-        p.round(cx - 20, 52, 18, 16, 6, SKL); p.round(cx + 2, 52, 18, 16, 6, SKL);
-        p.rect(cx - 1, 54, 2, 30, SKD);
-        for (let i = 0; i < 3; i++) { p.rect(cx - 10, 72 + i * 5, 8, 2, SKD); p.rect(cx + 2, 72 + i * 5, 8, 2, SKD); }
-        p.rect(cx - 24, 86, 48, 6, BT);
-        for (let i = 0; i < 6; i++) p.rect(cx + 2 + i * 4, 87, 3, 4, SHL);
-        for (const s of [-1, 1]) {
-          const ax = cx + s * 36;
-          if (q.cheer) { p.round(ax - 9, 14, 18, 44, 7, FU); p.round(ax - 11, 6, 22, 16, 6, SK); }
-          else {
-            p.round(ax - 9, 44, 18, 52, 7, FU);
-            p.round(ax - 12, 94, 24, 17, 6, SK);
-            for (let k = 0; k < 3; k++) p.rect(ax - 9 + k * 6, 107, 4, 3, SKD);
-          }
-        }
-        // the ridge down his back, showing over the shoulders
-        for (let i = 0; i < 4; i++) p.spike(cx - 12 + i * 8, 26 + (i % 2) * 2, 8, 8, -1, FUD);
-        p.ellipse(cx, 32, 15, 15, FU);
-        p.ellipse(cx, 37, 11, 9, SK);
-        p.rect(cx - 12, 27, 24, 4, FUD);
-        if (q.blink) { p.rect(cx - 7, 32, 4, 1, INKC); p.rect(cx + 3, 32, 4, 1, INKC); }
-        else { p.rect(cx - 6, 31, 3, 3, INKC); p.rect(cx + 3, 31, 3, 3, INKC); }
-        p.rect(cx - 3, 37, 2, 2, SKD); p.rect(cx + 1, 37, 2, 2, SKD);
-        if (q.talk) p.ellipse(cx - 1, 43, 5, 3, '#3a2a4a');
-        else p.rect(cx - 6, 42, 11, 2, '#4a3a5a');
-        if (!q.talk) { p.rect(cx + 4, 41, 11, 3, '#8a5a3a'); p.rect(cx + 14, 41, 2, 3, '#ff8a3a'); }
+        mouth(p, cx, 40 + L, q, MU);
+        // the earpiece and its curly wire
+        for (let i = 0; i < 6; i++) p.set(cx + 20 + (i % 2), 22 + L + i * 2, '#c8c8d8');
+        p.rect(cx + 18, 19 + L, 3, 3, '#3a3a4a');
+        const A = armPose(q);
+        nub(p, cx - 27 + A[0][0] * 1.2, 52 + L + A[0][1] * 1.3, 7, 9, C);
+        nub(p, cx + 27 + A[1][0] * 1.2, 52 + L + A[1][1] * 1.3, 7, 9, C);
         p.outline(INKC);
         return p;
       } },
 
     /* ------------------------------------------------------------- SAL
-       A newt in a long orange coat, the hem swept back into a train so the
-       tail can come out of it. High collar, a satchel, four clawed fingers,
-       and a vertical pupil that makes everything sound like an accusation. */
-    { name: 'SAL', race: 'NEWTLING', calling: 'NOTARY', acc: '#c8621e', motion: 'sway',
-      say: 'IT IS NOT A COSTUME. I WAS BORN IN THE COAT. IT WAS A DIFFICULT BIRTH.', w: 96, h: 106,
+       A pink axolotl in round glasses with a clipboard: frilly gills, a
+       permanent wide smile, and a stamp for everything. */
+    { name: 'SAL', race: 'NEWTLING', calling: 'NOTARY', acc: '#f7b0c8', motion: 'sway',
+      say: 'SIGN HERE. AND HERE. AND ON THE BACK. NO, THE OTHER BACK.',
       build(f) {
-        const W = 96, H = 106, p = pix(W, H), cx = 40, q = FR(f);
-        const SK = '#4a8a7a', SKL = '#6aaa98', SKD = '#2a5a4e', CT = '#c8621e', CTL = '#e8823a', CTD = '#8a3a10', BG = '#4a3a2a';
-        const tw = q.step * 3;
-        p.ellipse(cx + 30, H - 9, 16, 5, SK); p.ellipse(cx + 42 + tw, H - 11, 8, 4, SKL);
-        for (const s of [-1, 1]) {
-          const x = cx + s * 9 + q.step * s * 2;
-          p.round(x - 7, H - 11, 14, 10, 3, SK);
-          for (let k = 0; k < 3; k++) p.rect(x - 6 + k * 5 + (s > 0 ? 2 : -2), H - 2, 2, 2, SKD);
+        const W = 68, H = 70, p = pix(W, H), cx = 34, q = FR(f), L = q.lift;
+        const C = ['#f8b4cc', '#ffe2ee', '#d27a9a'], G = ['#e2508c', '#ff98c0', '#a82a60'];
+        p.ellipse(cx + 19, 56 + L, 11, 5, C[2]); p.ellipse(cx + 18, 55 + L, 10, 4, C[0]);     // tail
+        feet(p, cx, H - 5, 8, 5, 3.5, q, C);
+        ball(p, cx, 52 + L, 14, 13, C);
+        p.ellipse(cx, 55 + L, 8, 8, '#fff2f6');
+        // gills, three a side, waving
+        for (let k = 0; k < 3; k++) {
+          const w = Math.sin(f * 1.3 + k) * 1.5;
+          for (const s of [-1, 1]) {
+            const gx = cx + s * (22 + k * 1.5), gy = 20 + k * 7 + L + w * s;
+            p.ellipse(gx, gy, 5.5, 2.6, G[2]); p.ellipse(gx - s * 0.5, gy - 0.5, 4.5, 1.8, G[0]);
+            p.ellipse(gx + s * 2.5, gy - 0.5, 1.8, 1, G[1]);
+          }
         }
-        for (let y = 36; y < H - 12; y++) {
-          const w = Math.round(14 + (y - 36) * 0.2);
-          const train = y > H - 44 ? Math.round((y - (H - 44)) * 0.9) : 0;
-          p.rect(cx - w, y, w * 2 + train, 1, CT);
-        }
-        p.rect(cx - 14, 36, 3, H - 50, CTL);
-        for (let i = 0; i < 4; i++) p.disc(cx + 2, 44 + i * 9, 1.5, CTD);
-        p.rect(cx - 15, 62, 30, 4, CTD); p.round(cx - 3, 61, 7, 6, 1, '#c8a040');
-        stick(p, cx - 12, 40, cx + 16, 58, 2, BG);
-        p.round(cx + 13, 56, 13, 12, 2, BG); p.rect(cx + 13, 56, 13, 3, '#6a5a44');
-        for (const s of [-1, 1]) {
-          const hy = q.cheer ? 18 : 64;
-          if (q.cheer) p.round(cx + s * 17 - 5, 20, 10, 24, 3, CT);
-          else p.round(cx + s * 17 - 5, 40, 10, 26, 3, CT);
-          p.round(cx + s * 17 - 5, hy, 11, 8, 3, SK);
-          for (let k = 0; k < 4; k++) p.rect(cx + s * 17 - 5 + k * 3, hy + 7, 2, 2, SKD);
-        }
-        p.round(cx - 13, 30, 26, 10, 3, CTD);
-        p.ellipse(cx - 2, 22, 12, 11, SK);
-        p.round(cx - 2, 18, 26, 10, 4, SK);
-        p.round(cx, 18, 24, 4, 2, SKL);
-        p.rect(cx + 21, 20, 2, 1, SKD);
-        if (q.talk) { p.round(cx + 2, 25, 20, 5, 2, '#2a1a1a'); p.rect(cx + 4, 25, 16, 1, '#f0f0f0'); }
-        else p.rect(cx + 2, 26, 21, 1, SKD);
-        if (q.blink) p.rect(cx - 2, 15, 8, 2, SKD);
-        else { p.ellipse(cx + 2, 15, 4, 4, '#f0e070'); p.rect(cx + 2, 12, 1, 6, INKC); }
+        ball(p, cx, 31 + L, 22, 15, C, true);
+        const fy = 30 + L;
+        blush(p, cx, fy + 6, 13, q);
+        for (const s of [-1, 1]) { p.ellipse(cx + s * 9, fy, 6, 6, '#6a3a2a'); p.ellipse(cx + s * 9, fy, 5, 5, C[0]); }
+        p.rect(cx - 3, fy - 1, 6, 1, '#6a3a2a');
+        eyes(p, cx, fy, 9, 3, q, { iris: '#a83a6a' });
+        mouth(p, cx, fy + 8, q, C[0]);
+        // the clipboard
+        const A = armPose(q);
+        const bx = cx - 16 + (q.cheer ? -4 : 0), by = 44 + L + (q.cheer ? -14 : 0);
+        p.rect(bx - 6, by - 7, 12, 15, '#8a5a3a'); p.rect(bx - 5, by - 5, 10, 12, '#ffffff');
+        for (let i = 0; i < 4; i++) p.rect(bx - 4, by - 3 + i * 3, 7 - (i % 2) * 2, 1, '#9a9aaa');
+        p.rect(bx - 2, by - 8, 4, 2, '#c8c8d8');
+        nub(p, bx + 4, by + 2, 3.5, 3, C);
+        nub(p, cx + 14 + A[1][0], 48 + L + A[1][1], 3.5, 3, C);
         p.outline(INKC);
         return p;
       } },
 
     /* ------------------------------------------------------------- VESPER
-       The tallest thing in the building that is not the machine. Grey-blue,
-       bare-chested under a shawl, goggles and a filter mask, ears like
-       blades, and a spear with a blue edge that he stands next to rather
-       than holds. */
-    { name: 'VESPER', race: 'PALE VESH', calling: 'USHER', acc: '#6a8aff', motion: 'still',
-      say: 'THE AIR IN HERE IS NINETY PER CENT PERFUME AND TEN PER CENT REGRET.', w: 78, h: 136,
+       A small ghost in a sheet, with a red bow tie and a lantern. The usher:
+       it shows you to your seat and then it floats about near you forever. */
+    { name: 'VESPER', race: 'PALE VESH', calling: 'USHER', acc: '#b0aad0', motion: 'float',
+      say: 'RIGHT THIS WAY. NO, THROUGH THE WALL. OH. YOU CANNOT. SORRY.',
       build(f) {
-        const W = 78, H = 136, p = pix(W, H), cx = 42, q = FR(f);
-        const SK = '#7a8aa0', SKL = '#9aaac0', SKD = '#4a5a70', CL = '#d0d8e0', CLD = '#8a96a4';
-        const RB = '#8a9aac', RBD = '#5a6a7c', GD = '#c8a050', MK = '#6a6a70';
-        const sy = q.cheer ? -8 : 0;
-        p.rect(cx - 24, 16 + sy, 3, H - 22, '#8a6a3a');
-        for (let i = 0; i < 3; i++) p.rect(cx - 25, 40 + sy + i * 30, 5, 3, GD);
-        p.spike(cx - 22, 2 + sy, 8, 16, -1, '#6a8aff');
-        p.rect(cx - 23, 12 + sy, 1, 5, '#c0d0ff');
-        for (const s of [-1, 1]) {
-          const x = cx + s * 6 + q.step * s * 2;
-          p.rect(x - 3, 104, 7, 26, SK);
-          p.rect(x - 3, 112, 7, 3, GD);
-          p.round(x - 4, H - 8, 12, 7, 2, SKD);
+        const W = 60, H = 70, p = pix(W, H), cx = 30, q = FR(f), L = q.lift;
+        const C = ['#eeecfa', '#ffffff', '#b2acd2'];
+        ball(p, cx, 28 + L, 20, 20, C, true);
+        p.rect(cx - 20, 28 + L, 41, 26, C[0]);
+        p.rect(cx + 14, 30 + L, 6, 24, C[2]);
+        p.rect(cx - 16, 32 + L, 3, 18, C[1]);
+        for (let i = 0; i < 5; i++) {
+          const hx = cx - 16 + i * 8, hy = 54 + L + ((i + f) % 2 ? 2 : 0);
+          p.ellipse(hx, hy, 4.5, 4, i === 4 ? C[2] : C[0]);
         }
-        p.round(cx - 14, 60, 28, 50, 3, RB);
-        p.rect(cx - 10, 64, 20, 42, RBD);
-        p.rect(cx - 10, 64, 20, 1, CL); p.rect(cx - 10, 105, 20, 1, CL);
-        p.rect(cx - 10, 64, 1, 42, CL); p.rect(cx + 9, 64, 1, 42, CL);
-        p.round(cx - 15, 42, 30, 22, 6, SK);
-        p.rect(cx - 1, 46, 2, 14, SKD);
-        p.round(cx - 11, 46, 9, 6, 3, SKL); p.round(cx + 2, 46, 9, 6, 3, SKL);
-        stick(p, cx - 14, 46, cx - 22, 70 + sy, 6, SK);
-        p.round(cx - 27, 66 + sy, 10, 9, 3, SK);
-        if (q.cheer) { stick(p, cx + 14, 46, cx + 20, 20, 6, SK); p.round(cx + 15, 14, 10, 9, 3, SK); }
-        else { stick(p, cx + 14, 46, cx + 17, 76, 6, SK); p.round(cx + 13, 74, 10, 9, 3, SK); }
-        p.round(cx - 19, 36, 38, 14, 6, CL);
-        for (let i = 0; i < 9; i++) p.rect(cx - 17 + i * 4, 49, 2, 3 + (i % 2) * 2, CLD);
-        p.ellipse(cx, 24, 11, 13, SK);
-        for (const s of [-1, 1]) {
-          stick(p, cx + s * 10, 22, cx + s * 22, 14, 3, SK);
-          stick(p, cx + s * 18, 16, cx + s * 23, 13, 2, SKL);
-        }
-        p.round(cx - 11, 9, 22, 12, 5, CL);
-        p.rect(cx - 9, 19, 18, 6, '#2a2a30');
-        const lens = q.blink ? '#2a4a60' : '#6ac8ff';
-        p.rect(cx - 8, 20, 6, 4, lens); p.rect(cx + 2, 20, 6, 4, lens);
-        p.rect(cx - 7, 20, 2, 1, '#e0f6ff'); p.rect(cx + 3, 20, 2, 1, '#e0f6ff');
-        p.round(cx - 6, 26, 12, 10, 3, MK);
-        const fl = q.talk ? '#8ac8ff' : '#4a4a50';
-        p.disc(cx - 5, 32, 3, fl); p.disc(cx + 5, 32, 3, fl);
+        const fy = 28 + L;
+        blush(p, cx, fy + 6, 11, q);
+        eyes(p, cx, fy, 7, 3.5, q, { iris: '#4a4a8a' });
+        mouth(p, cx, fy + 8, q, C[0]);
+        p.ellipse(cx - 4, 42 + L, 3.5, 2.5, '#d83a4a'); p.ellipse(cx + 4, 42 + L, 3.5, 2.5, '#d83a4a');
+        p.rect(cx - 1, 41 + L, 3, 3, '#a82030');
+        // the lantern, swinging a little
+        const A = armPose(q);
+        const lx = cx + 22 + A[1][0] * 0.5, ly = 40 + L + A[1][1] * 0.6;
+        stick(p, lx, ly, lx, ly + 5, 1, '#3a3a4a');
+        p.round(lx - 4, ly + 5, 9, 10, 2, '#3a3a4a'); p.rect(lx - 3, ly + 7, 7, 6, '#ffd860'); p.rect(lx - 1, ly + 8, 2, 3, '#ffffff');
+        nub(p, lx - 3, ly + 1, 3.5, 3, C);
+        nub(p, cx - 20 + A[0][0] * 0.7, 40 + L + A[0][1] * 0.7, 3.5, 3, C);
         p.outline(INKC);
         return p;
       } },
 
     /* ------------------------------------------------------------- ORBIT
-       A planet for a head, rings and all, a red diamond hanging over it, and
-       limbs made of sticks that are not actually attached to anything. It
-       hovers. There is weather inside the head and it is usually raining. */
-    { name: 'ORBIT', race: 'SATELLITE', calling: 'SWEEPER', acc: '#c8402a', motion: 'float',
-      say: 'I CONTAIN A SMALL WEATHER SYSTEM. IT IS RAINING IN THERE. SORRY.', w: 80, h: 120,
+       A small orange planet with a ring round its middle and a moon that
+       will not leave it alone. Sweeps up. Floats about doing it. */
+    { name: 'ORBIT', race: 'SATELLITE', calling: 'SWEEPER', acc: '#b8a0ff', motion: 'float',
+      say: 'I CONTAIN A SMALL WEATHER SYSTEM. IT IS RAINING IN THERE. SORRY.',
       build(f) {
-        const W = 80, H = 120, p = pix(W, H), cx = 40, q = FR(f);
-        const OB = '#8a3a8a', OBL = '#c060c0', OBD = '#4a1a4a', RG = '#c8a060', RGD = '#8a6a30';
-        const ST = '#7a5a3a', STL = '#9a7a5a', GM = '#c8402a';
-        for (const s of [-1, 1]) {
-          const x = cx + s * 8 + q.step * s * 2;
-          p.round(x - 3, 76, 7, 18, 3, ST); p.rect(x - 3, 76, 2, 18, STL);
-          p.round(x - 3, 97, 7, 20, 3, ST); p.spike(x, 116, 7, 4, 1, ST);
+        const W = 72, H = 64, p = pix(W, H), cx = 36, cy = 36, q = FR(f), L = q.lift;
+        const C = ['#ffa060', '#ffd4a8', '#c85e3a'], RG = ['#bca4ff', '#e4d8ff', '#7a62c8'];
+        const Y = cy + L;
+        // the ring, behind
+        p.ellipse(cx, Y, 31, 8, RG[2]); p.ellipse(cx, Y, 29, 6.5, RG[0]); p.ellipse(cx, Y, 25, 4.5, null);
+        ball(p, cx, Y, 20, 20, C, true);
+        for (const [dy, w] of [[-9, 1], [6, 2], [12, 1]]) {
+          const hw = Math.sqrt(Math.max(0, 19 * 19 - dy * dy)) - 2;
+          p.rect(Math.round(cx - hw), Y + dy, Math.round(hw * 2), w, '#e8783e');
         }
-        p.spike(cx, 58, 14, 8, -1, GM); p.spike(cx, 66, 14, 8, 1, GM);
-        p.rect(cx - 1, 62, 3, 3, '#ff9a8a');
-        for (const s of [-1, 1]) {
-          if (q.cheer) { p.round(cx + s * 24 - 3, 18, 7, 26, 3, ST); p.round(cx + s * 26 - 3, 4, 7, 12, 3, ST); }
-          else { p.round(cx + s * 24 - 3, 46, 7, 26, 3, ST); p.round(cx + s * 26 - 3, 76, 7, 18, 3, ST); }
+        p.ellipse(cx + 10, Y - 12, 2.5, 2, C[2]); p.ellipse(cx - 13, Y + 8, 2, 1.5, C[2]);
+        // the ring again, the half in front
+        for (let a = 0.08; a < Math.PI - 0.08; a += 0.04) {
+          for (let r = 26; r <= 30; r++) p.set(Math.round(cx + Math.cos(a) * r), Math.round(Y + Math.sin(a) * r * 0.24), r > 28 ? RG[2] : RG[0]);
         }
-        p.ellipse(cx, 36, 28, 4, RGD);
-        p.disc(cx, 32, 17, OB);
-        p.ellipse(cx - 4, 26, 11, 3, OBL);
-        p.ellipse(cx + 5, 36, 10, 2, OBD);
-        p.ellipse(cx - 7, 40, 6, 2, OBL);
-        p.ellipse(cx + 6, 24, 4, 2, OBD);
-        p.rect(cx - 27, 36, 11, 2, RG); p.rect(cx + 16, 36, 12, 2, RG);
-        p.rect(cx - 16, 37, 32, 1, RG);
-        if (q.blink) { p.rect(cx - 7, 30, 4, 1, '#f6f8ff'); p.rect(cx + 3, 30, 4, 1, '#f6f8ff'); }
-        else { p.rect(cx - 7, 29, 3, 3, '#f6f8ff'); p.rect(cx + 4, 29, 3, 3, '#f6f8ff'); }
-        if (q.talk) p.rect(cx - 2, 34, 5, 2, '#f6f8ff');
-        p.spike(cx, 2, 8, 5, -1, GM); p.spike(cx, 7, 8, 5, 1, GM);
-        p.spike(cx + 22, 16, 5, 3, -1, GM); p.spike(cx + 22, 19, 5, 3, 1, GM);
+        const ma = f * 0.9 + 0.6;
+        ball(p, cx + Math.cos(ma) * 27, 12 + Math.sin(ma) * 5 + L, 4.5, 4.5, ['#c8c8d8', '#ffffff', '#8a8a9a']);
+        const fy = Y - 2;
+        blush(p, cx, fy + 5, 11, q);
+        eyes(p, cx, fy, 7, 3, q, { iris: '#a8402a' });
+        mouth(p, cx, fy + 7, q, C[0]);
+        const A = armPose(q);
+        nub(p, cx - 21 + A[0][0] * 0.6, Y + 4 + A[0][1] * 0.8, 3.5, 3.5, C);
+        nub(p, cx + 21 + A[1][0] * 0.6, Y + 4 + A[1][1] * 0.8, 3.5, 3.5, C);
         p.outline(INKC);
         return p;
       } },
 
     /* ------------------------------------------------------------- PIP
-       A small grey imp in a hood with ears twice the size of its head and
-       both hands on fire. Not metaphorically. Do not shake hands with Pip. */
-    { name: 'PIP', race: 'EMBERLING', calling: 'TOUT', acc: '#ff8a1e', motion: 'hop',
-      say: 'DO NOT SHAKE MY HAND. SERIOUSLY. THE LAST ONE IS STILL IN HOSPITAL.', w: 76, h: 64,
+       A little flame on two coal feet, flickering, with a face in the bright
+       bit. The tout: it hops about outside and shouts about prices. */
+    { name: 'PIP', race: 'EMBERLING', calling: 'TOUT', acc: '#ff8a2a', motion: 'hop',
+      say: 'HOT DEALS. HOT. I AM ALSO HOT. DO NOT TOUCH ME.',
       build(f) {
-        const W = 76, H = 64, p = pix(W, H), cx = 38, q = FR(f);
-        const G = '#8a8a9a', GL = '#aaaabc', HD2 = '#9a9aaa', HDD = '#6a6a7a';
-        const EM = '#ff8a1e', EML = '#ffd04a', EMD = '#c44a0a';
-        p.round(cx - 10 + (q.step > 0 ? -2 : 0), H - 8, 8, 7, 3, HDD);
-        p.round(cx + 2 + (q.step < 0 ? 2 : 0), H - 8, 8, 7, 3, HDD);
-        p.round(cx - 12, 32, 24, 26, 6, HD2);
-        p.rect(cx - 12, 32, 3, 24, GL);
-        p.spike(cx, 26, 26, 10, -1, HD2);
-        p.ellipse(cx, 26, 12, 10, G);
-        for (const s of [-1, 1]) {
-          p.ellipse(cx + s * 15, 22, 9, 4, G);
-          stick(p, cx + s * 20, 22, cx + s * 27, 16, 2, G);
-          p.ellipse(cx + s * 15, 22, 5, 2, '#c09aa8');
-        }
-        p.disc(cx, 18, 2, EM);
-        if (q.cheer) { joyEye(p, cx - 5, 26, 2); joyEye(p, cx + 5, 26, 2); }
-        else if (q.blink) { p.rect(cx - 7, 26, 5, 1, INKC); p.rect(cx + 2, 26, 5, 1, INKC); }
-        else { p.rect(cx - 7, 25, 5, 2, INKC); p.rect(cx + 2, 25, 5, 2, INKC); }
-        if (q.talk) p.ellipse(cx, 31, 3, 2, '#3a1226');
-        else p.rect(cx - 2, 31, 4, 1, INKC);
-        for (const s of [-1, 1]) {
-          const hx = cx + s * 24, hy = q.cheer ? 16 : 40;
-          p.ellipse(hx, hy, 8, 9, EM);
-          p.ellipse(hx - 2, hy - 2, 4, 4, EML);
-          for (let k = 0; k < 3; k++) p.round(hx - 6 + k * 4, hy - 13, 3, 6, 1, EM);
-          if (!q.cheer) { p.disc(hx + s * 2, hy + 12, 2, EM); p.disc(hx - s, hy + 17, 1.5, EMD); }
-        }
+        const W = 56, H = 66, p = pix(W, H), cx = 28, q = FR(f), L = q.lift;
+        const O = ['#ff7e2e', '#ffb850', '#c8401a'];
+        const fl = [0, 2, -2, 1, -1, 2, -1, 0, 3, 1, 2, -2][f] || 0;
+        feet(p, cx, H - 5, 7, 5, 3.5, q, ['#3a2a2a', '#5a4a4a', '#1a1010']);
+        p.spike(cx + fl, 6 + L, 22, 30, -1, O[0]);
+        p.spike(cx - 10, 18 + L, 9, 16, -1, O[0]); p.spike(cx + 11, 20 + L, 8, 14, -1, O[0]);
+        ball(p, cx, 43 + L, 17, 16, O);
+        p.spike(cx + fl * 0.6, 16 + L, 13, 22, -1, '#ffd860');
+        p.ellipse(cx, 45 + L, 11, 11, '#ffd860');
+        p.ellipse(cx, 50 + L, 6, 5, '#fff6c8');
+        const fy = 41 + L;
+        blush(p, cx, fy + 5, 10, q, '#ff7a5a');
+        eyes(p, cx, fy, 6, 3, q, { iris: '#a83a1a' });
+        mouth(p, cx, fy + 6, q, '#ffd860');
+        const A = armPose(q);
+        nub(p, cx - 16 + A[0][0] * 0.6, 44 + L + A[0][1] * 0.7, 3.5, 3, O);
+        nub(p, cx + 16 + A[1][0] * 0.6, 44 + L + A[1][1] * 0.7, 3.5, 3, O);
         p.outline(INKC);
         return p;
       } },
 
     /* ------------------------------------------------------------- BAO
-       A steamed bun. Pleated on top, rosy in the cheeks, faintly steaming at
-       all times and refusing to say what is in the middle. */
+       A dumpling with a pleated top, pink cheeks, and steam coming off it.
+       Deals cards. Is also, technically, lunch. Does not like to discuss it. */
     { name: 'BAO', race: 'BAOZI', calling: 'DEALER', acc: '#ffb0b8', motion: 'hop',
-      say: 'I AM FULL OF SOMETHING. I WILL NOT BE TELLING YOU WHAT.', w: 64, h: 60,
+      say: 'I AM NOT A SNACK. I AM A PROFESSIONAL. PLEASE STOP SNIFFING.',
       build(f) {
-        const W = 64, H = 60, p = pix(W, H), cx = 32, q = FR(f);
-        const WH = '#f6f0e4', WL = '#ffffff', WD = '#d8ccb4', PK = '#ffb0b8';
-        p.round(cx - 12 + (q.step > 0 ? -2 : 0), H - 8, 9, 7, 3, WD);
-        p.round(cx + 3 + (q.step < 0 ? 2 : 0), H - 8, 9, 7, 3, WD);
-        p.ellipse(cx, 36, 25, 20, WH);
-        p.ellipse(cx - 7, 29, 12, 7, WL);
-        for (let i = 0; i < 7; i++) stick(p, cx, 20, cx + (i - 3) * 6, 28, 1, WD);
-        p.disc(cx, 19, 4, WD); p.disc(cx - 1, 18, 2, WL);
-        stick(p, cx + 3, 10, cx + 6, 6, 1, '#d0d8e8'); stick(p, cx + 6, 6, cx + 3, 2, 1, '#d0d8e8');
-        if (q.cheer) { joyEye(p, cx - 8, 37, 2); joyEye(p, cx + 8, 37, 2); }
-        else { dotEye(p, cx - 8, 36, 2, q.blink); dotEye(p, cx + 8, 36, 2, q.blink); }
-        p.ellipse(cx - 14, 41, 3, 2, PK); p.ellipse(cx + 14, 41, 3, 2, PK);
-        if (q.talk) p.ellipse(cx, 42, 3, 3, '#6a2a2a');
-        else if (q.kiss) p.ellipse(cx, 42, 2, 2, '#d64f7a');
-        else { p.line(cx - 3, 41, cx, 43, INKC); p.line(cx, 43, cx + 3, 41, INKC); }
-        const ay = q.cheer ? 24 : 42;
-        p.round(cx - 27, ay, 7, 6, 3, WD); p.round(cx + 20, ay, 7, 6, 3, WD);
+        const W = 60, H = 56, p = pix(W, H), cx = 30, q = FR(f), L = q.lift;
+        const C = ['#fbf6ec', '#ffffff', '#d6c8b2'];
+        for (let i = 0; i < 3; i++) {
+          const sx = cx - 6 + i * 6, ph = (f + i) % 3;
+          p.rect(sx + (ph === 1 ? 1 : 0), 3 + ph, 1, 3, '#e8e8f0'); p.rect(sx + (ph === 1 ? 0 : 1), 7 + ph, 1, 3, '#e8e8f0');
+        }
+        feet(p, cx, H - 4, 9, 4, 3, q, C);
+        ball(p, cx, 36 + L, 23, 16, C, true);
+        p.ellipse(cx, 21 + L, 7, 4, C[0]);
+        for (const s of [-1, 1]) for (let k = 0; k < 3; k++) stick(p, cx + s * 2, 21 + L, cx + s * (7 + k * 5), 26 + L + k * 2, 1, '#cbbba2');
+        p.ellipse(cx, 19 + L, 2, 1.5, '#e0d0b8');
+        const fy = 35 + L;
+        blush(p, cx, fy + 5, 12, q);
+        eyes(p, cx, fy, 8, 3, q, { iris: '#8a5a3a' });
+        mouth(p, cx, fy + 6, q, C[0], { cat: 1 });
+        const A = armPose(q);
+        nub(p, cx - 21 + A[0][0] * 0.6, 40 + L + A[0][1] * 0.7, 3.5, 3, C);
+        nub(p, cx + 21 + A[1][0] * 0.6, 40 + L + A[1][1] * 0.7, 3.5, 3, C);
         p.outline(INKC);
         return p;
       } },
 
     /* ------------------------------------------------------------- WOBBLE
-       A jellyfish who came in off the street and never left. A pink bell
-       with a face on it and ribbons underneath that never stop moving. */
-    { name: 'WOBBLE', race: 'DRIFTER', calling: 'REGULAR', acc: '#e87ab0', motion: 'float',
-      say: 'I AM NINETY FIVE PER CENT WATER AND FIVE PER CENT DEBT.', w: 70, h: 96,
+       A pink jellyfish, spotted, trailing ribbons, bobbing along at head
+       height. The regular: it drifts in at opening and drifts out at close. */
+    { name: 'WOBBLE', race: 'DRIFTER', calling: 'REGULAR', acc: '#f7a0c8', motion: 'float',
+      say: 'I JUST FOLLOW THE CURRENT. THE CURRENT GOES TO THE BAR.',
       build(f) {
-        const W = 70, H = 96, p = pix(W, H), cx = 35, q = FR(f);
-        const BL = '#e87ab0', BLL = '#ffb8dc', BLD = '#a84a80', TN = '#d85aa0';
-        for (let i = 0; i < 6; i++) {
-          const x0 = cx - 18 + i * 7;
-          for (let k = 0; k < 7; k++) {
-            const x = Math.round(x0 + Math.sin(k * 0.9 + f * 0.8 + i) * 3);
-            p.rect(x, 42 + k * 7, 3, 8, i % 2 ? TN : BLD);
+        const W = 60, H = 74, p = pix(W, H), cx = 30, q = FR(f), L = q.lift;
+        const C = ['#f8a4ca', '#ffdcee', '#c86c9a'];
+        ball(p, cx, 30 + L, 22, 18, C, true);
+        p.rect(cx - 23, 38 + L, 47, 10, null);
+        for (let i = 0; i < 6; i++) p.ellipse(cx - 17 + i * 7, 37 + L, 4, 2.5, i % 2 ? C[2] : C[0]);
+        const wave = q.cheer || q.shock ? 2 : 1;
+        for (let k = 0; k < 5; k++) {
+          for (let i = 0; i < 14; i++) {
+            const x = cx - 12 + k * 6 + Math.sin(f * 1.1 + i * 0.55 + k) * 2 * wave;
+            const w = i < 5 ? 3 : 2;
+            p.rect(Math.round(x), 38 + L + i * 2, w, 2, k % 2 ? C[2] : C[0]);
           }
         }
-        p.ellipse(cx, 30, 27, 22, BL);
-        p.round(cx - 27, 38, 54, 8, 4, BLD);
-        for (let i = 0; i < 9; i++) p.disc(cx - 24 + i * 6, 45, 3, BLD);
-        p.ellipse(cx - 9, 20, 10, 6, BLL);
-        const shut = q.blink;
-        if (q.cheer) { joyEye(p, cx - 9, 30, 3); joyEye(p, cx + 9, 30, 3); }
-        else { spEye(p, cx - 9, 29, 4, shut, '#ffffff', '#3a1030', INKC); spEye(p, cx + 9, 29, 4, shut, '#ffffff', '#3a1030', INKC); }
-        p.ellipse(cx - 17, 35, 3, 2, '#ff9ac8'); p.ellipse(cx + 17, 35, 3, 2, '#ff9ac8');
-        spMouth(p, cx, 36, 6, f, '#6a1a40');
+        for (const s of [-1, 1]) for (let i = 0; i < 9; i++) p.ellipse(cx + s * 4 + Math.sin(f + i * 0.7) * 1.5, 40 + L + i * 2.5, 2.5, 1.5, C[1]);
+        for (const [sx, sy, sr] of [[-12, 20, 2.5], [10, 16, 2], [14, 26, 1.5], [-4, 14, 1.5]]) p.ellipse(cx + sx, sy + L, sr, sr, C[1]);
+        const fy = 28 + L;
+        blush(p, cx, fy + 5, 12, q);
+        eyes(p, cx, fy, 8, 3.5, q, { iris: '#a83a7a' });
+        mouth(p, cx, fy + 7, q, C[0]);
         p.outline(INKC);
         return p;
       } }
   ];
+
 
   /* What the house-built species are called and what they do, so the tag
      over their heads says the same kind of thing as everybody else's. */
@@ -2008,7 +2007,8 @@
   function makeCast() {
     for (let i = 0; i < CAST.length; i++) {
       const c = CAST[i];
-      const frames = [0, 1, 2, 3, 4, 5, 6].map(fr => c.build(fr));
+      const frames = [];
+      for (let fr = 0; fr < NFRAMES; fr++) frames.push(c.build(fr));
       const W = frames[0].w, H = frames[0].h;
       const t = { key: 'cast' + i, celeb: c.name, who: c.name, race: c.race, calling: c.calling,
         say: c.say, acc: c.acc, motion: c.motion, smoke: c.smoke || 0, cast: 1 };
@@ -2021,7 +2021,8 @@
   function makeSpecies() {
     for (let i = 0; i < SPECIES.length; i++) {
       const sp = SPECIES[i];
-      const frames = [0, 1, 2, 3, 4, 5, 6].map(f => sp.build(f));
+      // the species were drawn with seven faces; the five new ones borrow the nearest
+      const frames = [0, 1, 2, 3, 4, 5, 6, 5, 3, 3, 6, 5].map(f => sp.build(f));
       const W = frames[0].w, H = frames[0].h;
       const id = SPECIES_ID[sp.name] || ['', '', 'still'];
       const t = { key: 'sp' + i, celeb: sp.name, who: sp.name, race: id[0], calling: id[1], motion: id[2],
