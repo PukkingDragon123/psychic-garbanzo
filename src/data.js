@@ -68,7 +68,11 @@
     crab:     { name: 'Slag Crab',    hp: 44,  dmg: 12,  speed: 34, w: 16, h: 11, cr: 66,  kind: 'crawl',  armor: 0.35 },
     bloomer:  { name: 'Bloomer',      hp: 34,  dmg: 9,   speed: 10, w: 13, h: 15, cr: 120, kind: 'crawl',  spores: 1 },
     driller:  { name: 'Claim Jumper', hp: 90,  dmg: 21,  speed: 56, w: 18, h: 12, cr: 340, kind: 'charge', tele: 0.38 },
-    hangman:  { name: 'Ceiling Hanger', hp: 62, dmg: 24, speed: 20, w: 14, h: 18, cr: 210, kind: 'float' }
+    hangman:  { name: 'Ceiling Hanger', hp: 62, dmg: 24, speed: 20, w: 14, h: 18, cr: 210, kind: 'float' },
+    /* --- new neighbours */
+    mimic:    { name: 'Ore Mimic',    hp: 50,  dmg: 14,  speed: 40, w: 14, h: 12, cr: 160, kind: 'charge', tele: 0.5, mimic: 1 },
+    drone:    { name: 'Nova Drone',   hp: 30,  dmg: 8,   speed: 24, w: 14, h: 10, cr: 110, kind: 'float', shoots: 1, tele: 0.5 },
+    blob:     { name: 'Splitter Slime', hp: 36, dmg: 10, speed: 20, w: 15, h: 12, cr: 80,  kind: 'crawl', split: 1 }
   };
 
   /* ---------------------------------------------------------------- strata
@@ -415,7 +419,7 @@
       sky: '#0b0720', tint: '#8a6a4f',
       blurb: 'A crumb of rock. Warm up the drill.',
       ores: [[M.crust, 60], [M.stone, 26], [M.iron, 11], [M.copper, 3]],
-      mobs: [['crawler', 6], ['floater', 3], ['crab', 3]]
+      mobs: [['crawler', 6], ['floater', 3], ['crab', 3], ['blob', 2]]
     },
     {
       name: 'Rustclod', kind: 'Asteroid', type: 'rock', radius: 40, poi: { geode: 1, fossil: 1, ruin: 0 }, gravity: 40, coreHp: 700,
@@ -423,7 +427,7 @@
       sky: '#160a1c', tint: '#9c6a54',
       blurb: 'Iron-fat and full of grubs.',
       ores: [[M.crust, 40], [M.stone, 30], [M.iron, 20], [M.copper, 8], [M.silver, 2]],
-      mobs: [['crawler', 6], ['floater', 4], ['spitter', 2], ['crab', 4]]
+      mobs: [['crawler', 6], ['floater', 4], ['spitter', 2], ['crab', 4], ['blob', 3], ['mimic', 1]]
     },
     {
       name: 'Glacius Minor', kind: 'Ice Shard', type: 'ice', radius: 52, poi: { geode: 2, fossil: 1, ruin: 1 }, gravity: 44, coreHp: 1600,
@@ -431,7 +435,7 @@
       sky: '#061423', tint: '#79c4de',
       blurb: 'Slick, hollow and humming with cold.',
       ores: [[M.ice, 44], [M.stone, 22], [M.iron, 14], [M.silver, 12], [M.sapphire, 6], [M.gold, 2]],
-      mobs: [['floater', 6], ['crawler', 3], ['spitter', 3], ['crab', 3], ['bloomer', 2]]
+      mobs: [['floater', 6], ['crawler', 3], ['spitter', 3], ['crab', 3], ['bloomer', 2], ['blob', 2], ['mimic', 1]]
     },
     {
       name: 'Forge Husk', kind: 'Metal Rock', type: 'metal', radius: 64, poi: { geode: 1, fossil: 1, ruin: 1 }, gravity: 52, coreHp: 3600,
@@ -439,7 +443,7 @@
       sky: '#1c0d0a', tint: '#c67a3d',
       blurb: 'Somebody smelted this thing. Badly.',
       ores: [[M.stone, 28], [M.iron, 28], [M.copper, 18], [M.silver, 12], [M.gold, 10], [M.emerald, 4]],
-      mobs: [['crawler', 4], ['spitter', 5], ['gnasher', 3], ['bloomer', 3], ['hangman', 2]]
+      mobs: [['crawler', 4], ['spitter', 5], ['gnasher', 3], ['bloomer', 3], ['hangman', 2], ['drone', 3], ['mimic', 2]]
     },
     {
       name: 'Gemworld Shard', kind: 'Fragment', type: 'gem', radius: 76, poi: { geode: 4, fossil: 1, ruin: 1 }, gravity: 58, coreHp: 8000,
@@ -447,7 +451,7 @@
       sky: '#101a2e', tint: '#33c470',
       blurb: 'Every wall is a jewellery shop.',
       ores: [[M.stone, 22], [M.iron, 16], [M.gold, 18], [M.emerald, 18], [M.sapphire, 15], [M.ruby, 9], [M.void, 2]],
-      mobs: [['spitter', 5], ['gnasher', 4], ['floater', 4], ['lurker', 1], ['hangman', 3], ['crab', 3]]
+      mobs: [['spitter', 5], ['gnasher', 4], ['floater', 4], ['lurker', 1], ['hangman', 3], ['crab', 3], ['mimic', 4], ['drone', 2]]
     },
     {
       name: 'Mourn, the Dead Moon', kind: 'Moon', type: 'moon', radius: 90, poi: { geode: 2, fossil: 4, ruin: 2 }, gravity: 70, coreHp: 20000,
@@ -455,7 +459,7 @@
       sky: '#0a0e1d', tint: '#b3c4d8',
       blurb: 'Something used to live here. Rude of it.',
       ores: [[M.stone, 24], [M.shell, 14], [M.iron, 12], [M.gold, 14], [M.sapphire, 14], [M.ruby, 13], [M.void, 8], [M.star, 1]],
-      mobs: [['gnasher', 6], ['lurker', 3], ['spitter', 4], ['floater', 3], ['driller', 2], ['hangman', 3]]
+      mobs: [['gnasher', 6], ['lurker', 3], ['spitter', 4], ['floater', 3], ['driller', 2], ['hangman', 3], ['drone', 3], ['blob', 2]]
     },
     {
       name: 'Terra Prime', kind: 'Planet', type: 'terra', radius: 104, poi: { geode: 3, fossil: 2, ruin: 3 }, gravity: 86, coreHp: 60000,
@@ -463,7 +467,7 @@
       sky: '#04121a', tint: '#3fa84f',
       blurb: 'Inhabited! Well. Formerly inhabited.',
       ores: [[M.stone, 20], [M.shell, 16], [M.gold, 12], [M.emerald, 14], [M.ruby, 16], [M.void, 16], [M.star, 6]],
-      mobs: [['gnasher', 6], ['lurker', 6], ['spitter', 3], ['floater', 2], ['driller', 4], ['bloomer', 2]]
+      mobs: [['gnasher', 6], ['lurker', 6], ['spitter', 3], ['floater', 2], ['driller', 4], ['bloomer', 2], ['drone', 4], ['mimic', 2]]
     },
     {
       name: 'Cinder Majoris', kind: 'Volcanic', type: 'volcanic', radius: 118, poi: { geode: 2, fossil: 1, ruin: 2 }, gravity: 104, coreHp: 165000,
@@ -471,7 +475,7 @@
       sky: '#1e0708', tint: '#e8425f',
       blurb: 'Molten, screaming, extremely profitable.',
       ores: [[M.shell, 22], [M.stone, 14], [M.ruby, 20], [M.gold, 10], [M.void, 22], [M.star, 12]],
-      mobs: [['lurker', 8], ['gnasher', 6], ['spitter', 3], ['driller', 5], ['hangman', 4]]
+      mobs: [['lurker', 8], ['gnasher', 6], ['spitter', 3], ['driller', 5], ['hangman', 4], ['drone', 4], ['mimic', 3]]
     },
     {
       name: 'The Crystal Titan', kind: 'Superplanet', type: 'titan', radius: 132, poi: { geode: 6, fossil: 1, ruin: 3 }, gravity: 122, coreHp: 480000,
@@ -479,7 +483,7 @@
       sky: '#150a2b', tint: '#7d4fd6',
       blurb: 'A world-sized gem. Break it. Break it now.',
       ores: [[M.shell, 20], [M.sapphire, 16], [M.ruby, 16], [M.void, 28], [M.star, 20]],
-      mobs: [['lurker', 9], ['gnasher', 5], ['floater', 3], ['driller', 6], ['hangman', 4]]
+      mobs: [['lurker', 9], ['gnasher', 5], ['floater', 3], ['driller', 6], ['hangman', 4], ['drone', 4], ['mimic', 3]]
     },
     {
       name: 'Galactic Heart', kind: 'Core World', type: 'core', radius: 150, poi: { geode: 3, fossil: 2, ruin: 4 }, gravity: 140, coreHp: 1600000,
@@ -487,7 +491,7 @@
       sky: '#2a0a16', tint: '#ffc44d',
       blurb: 'The galaxy keeps its savings here.',
       ores: [[M.shell, 18], [M.void, 30], [M.star, 40], [M.ruby, 12]],
-      mobs: [['lurker', 10], ['gnasher', 4], ['floater', 2], ['driller', 8], ['hangman', 5]]
+      mobs: [['lurker', 10], ['gnasher', 4], ['floater', 2], ['driller', 8], ['hangman', 5], ['drone', 5], ['mimic', 3]]
     }
   ];
 

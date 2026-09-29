@@ -189,7 +189,8 @@
     crawler: 'grub', floater: 'jelly', spitter: 'spit',
     gnasher: 'gnasher', lurker: 'lurker', guardian: 'warden',
     mite: 'mite', shellback: 'shellback', wyrm: 'wyrm',
-    crab: 'crab', bloomer: 'bloomer', driller: 'driller', hangman: 'hangman'
+    crab: 'crab', bloomer: 'bloomer', driller: 'driller', hangman: 'hangman',
+    mimic: 'mimic', drone: 'drone', blob: 'blob'
   };
 
   function Mob(type, x, y, scale) {
@@ -245,6 +246,15 @@
           if (U.dist(m.x, m.y, this.x, this.y) < 30) m.hurtBy(14, g, 0, 'spore');
         }
       }
+      if (this.def.split) {
+        FX.burst(this.x, this.y, 20, ['#3ad8a8', '#9affe0', '#1a7a5a'], 120);
+        A.noise && A.noise({ from: 400, to: 120, dur: 0.25, vol: 0.1 });
+        for (let i = 0; i < 3; i++) {
+          const m = new Mob('mite', this.x + (i - 1) * 6, this.y - 2, 1);
+          m.vx = (i - 1) * 90; m.vy = -60;
+          g.mobs.push(m);
+        }
+      }
       g.onMobKilled(this);
     } else {
       PD.audio.sfx.hitMob();
@@ -282,7 +292,8 @@
     if (kind === 'crawl' || kind === 'charge') {
       this.vy += w.gravityAt(this.y) * 2.4 * dt;
       // wind-up: the tell before a charge, so it can be dodged
-      if (kind === 'charge' && sees && this.state === 'idle' && this.cool <= 0 && !this.submerged) {
+      if (this.def.mimic && this.state === 'idle') { this.vx = 0; this.facing = Math.sign(p.x - this.x) || this.facing; }
+      if (kind === 'charge' && sees && this.state === 'idle' && this.cool <= 0 && !this.submerged && (!this.def.mimic || toP < 64)) {
         this.state = 'wind'; this.stateT = 0; this.wind = this.def.tele || 0.4;
         this.facing = Math.sign(p.x - this.x) || 1;
         this.vx = 0;
@@ -302,6 +313,8 @@
         this.vx = this.facing * this.def.speed * 3.4;
         if (this.def.fire && U.chance(dt * 30)) FX.trail(this.x, this.y + 4, '#ff7a2a', 2);
         if (this.stateT > 0.55) this.state = 'idle';
+      } else if (this.def.mimic) {
+        this.vx = 0;
       } else if (sees) {
         this.facing = Math.sign(p.x - this.x) || this.facing;
         this.vx = this.facing * this.def.speed;
@@ -322,7 +335,15 @@
       const hit = moveBody(this, w, dt);
       if (hit.x) this.vx *= -1;
       if (hit.y) this.vy *= -1;
-      if (U.chance(dt * 5)) FX.trail(this.x, this.y + this.h / 2, '#8f6ad8', 1.6);
+      if (this.def.shoots) {
+        this.facing = Math.sign(p.x - this.x) || this.facing;
+        if (sees && this.cool <= 0 && this.state !== 'wind') { this.state = 'wind'; this.wind = this.def.tele || 0.5; A.tone(900, { type: 'square', to: 1400, dur: 0.12, vol: 0.05 }); }
+        if (this.state === 'wind') {
+          this.wind -= dt;
+          if (this.wind <= 0) { this.state = 'idle'; this.shoot(g, 0); this.cool = U.rand(1.6, 2.6); }
+        }
+        if (U.chance(dt * 4)) FX.trail(this.x, this.y + this.h / 2, Math.sin(this.anim * 3) > 0 ? '#ff3a4a' : '#3a6aff', 1.2);
+      } else if (U.chance(dt * 5)) FX.trail(this.x, this.y + this.h / 2, '#8f6ad8', 1.6);
     } else if (kind === 'swarm') {
       // mites orbit and dart; annoying rather than deadly, and they come in clouds
       const a = this.bob + this.anim * 0.9;
@@ -388,7 +409,7 @@
   };
 
   Mob.prototype.draw = function (ctx, cam) {
-    const frame = Math.floor(this.anim) % this.spr.frames.length;
+    const frame = this.def.mimic ? (this.state === 'idle' ? 0 : 2 + (Math.floor(this.anim) % 2)) : Math.floor(this.anim) % this.spr.frames.length;
     if (this.submerged) {
       // just a pair of eyes in the magma
       ctx.fillStyle = '#ffe27a';
