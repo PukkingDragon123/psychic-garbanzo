@@ -1111,12 +1111,23 @@
     ctx.globalAlpha = 0.35 * Math.max(0.2, 1 - hgt / 60);
     X.blob(ctx, x, gy + hgt + 1, 10 * Math.max(0.4, 1 - hgt / 80), 2.4, '#0a0614');
     ctx.globalAlpha = 1;
+    // the pet, trotting after you, and whatever is strapped to your back
+    if (PD.cosm) {
+      g._petFace = P.face;
+      const pet = PD.cosm.petStep(g, g.dt || 0.016, P.x, P.y, S.scene);
+      if (pet) {
+        const out = S.scene === 'out';
+        const dx = out ? wdist(pet.x, P.x) : pet.x - P.x;
+        PD.cosm.drawPet(ctx, g, t, x + dx, gy + (groundY(pet.x) - P.y) + (out ? dx * dx / (2 * R) : 0), walking);
+      }
+      PD.cosm.drawBehind(ctx, g, x, y - 31 * sq, P.face, t, sq, P);
+    }
     PD.rig.draw(ctx, r, {
       x, y, flip: P.face < 0, spr: skin.alienCore, frame,
       drilling: false, twoHand: false, grip: null, aim: P.face < 0 ? Math.PI : 0,
       ground: !air, vx: P.vx, vy: P.vy, squash: sq
     }, skin.P, PD.art.BIZ);
-    if (PD.cosm) PD.cosm.drawOnPlayer(ctx, g, x + P.face, y - 31 * sq + (P.land > 0 ? P.land * 6 : 0), P.face, t, sq);
+    if (PD.cosm) PD.cosm.drawOnPlayer(ctx, g, x + P.face, y - 31 * sq + (P.land > 0 ? P.land * 6 : 0), P.face, t, sq, P);
     if (walking && !air && U.chance(0.2)) dustAt(P.x - P.face * 5, P.y, 1, 10);
     if (P.sweep > 0) {
       const k = P.sweep / 0.5;

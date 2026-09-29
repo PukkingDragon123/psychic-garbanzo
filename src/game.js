@@ -143,6 +143,14 @@
       }
       if (s.paid !== undefined) base.paid = Math.max(0, +s.paid || 0);
       if (s.won) base.won = s.won;
+      // the saucer's upgrades, and everything you wear
+      if (s.ship && typeof s.ship === 'object') { base.ship = {}; for (const it of D.SHIP) if (+s.ship[it.id] > 0) base.ship[it.id] = U.clamp(+s.ship[it.id] | 0, 0, it.max); }
+      if (s.cosm && typeof s.cosm === 'object') {
+        base.cosm = { own: {}, on: {} };
+        const BYC = PD.cosm ? PD.cosm.BY : {};
+        if (s.cosm.own) for (const k in s.cosm.own) if (s.cosm.own[k] && BYC[k]) base.cosm.own[k] = 1;
+        if (s.cosm.on) for (const k of ['hat', 'face', 'back', 'pet']) if (s.cosm.on[k] && base.cosm.own[s.cosm.on[k]]) base.cosm.on[k] = s.cosm.on[k];
+      }
     }
     g.save = base;
     recompute();
@@ -243,6 +251,24 @@
     if (!it) return 0;
     const lvl = g.save.upg[id] || 0;
     return Math.max(10, Math.round(D.abayCost(it, lvl) * (1 - g.brain('know') * 0.05)));
+  };
+  /* The saucer's own upgrades: what the space lanes ask of you. */
+  g.shipLvl = function (id) { return (g.save.ship && g.save.ship[id]) || 0; };
+  g.shipPrice = function (id) {
+    const it = D.SHIPX[id];
+    return it ? Math.round(it.base * Math.pow(it.growth, g.shipLvl(id)) / 50) * 50 : Infinity;
+  };
+  g.shipBuy = function (id) {
+    const it = D.SHIPX[id];
+    if (!it || g.shipLvl(id) >= it.max) { A.sfx.deny(); return false; }
+    const cost = g.shipPrice(id);
+    if (g.save.credits < cost) { A.sfx.deny(); return false; }
+    g.save.credits -= cost;
+    if (!g.save.ship) g.save.ship = {};
+    g.save.ship[id] = g.shipLvl(id) + 1;
+    A.sfx.buy();
+    saveGame();
+    return true;
   };
   g.abayBuy = function (id) {
     const it = D.ABAYX[id];

@@ -1383,6 +1383,39 @@ window.PD = window.PD || {};
     { id: 'warp', cat: 'SHIP', name: 'WARP THINGY', seller: 'bort_electronics', stars: 4,
       blurb: 'GO TO FURTHER SECTORS. BUY MORE FOR MORE FAR.', base: 4000, growth: 3.4, max: 3 }
   ];
+  /* ------------------------------------------------------------- the saucer
+     What the space lanes ask for. Some walls need a laser, some flares need
+     a heat shield, some comets need a plough, and a few planets will not let
+     you land at all until you have the right one. */
+  const SHIP = [
+    { id: 'laser', name: 'LAZER BEAM', max: 3, base: 2500, growth: 3.4, icon: 'laser',
+      desc: 'SHOOTS BY ITSELF. CUTS THROUGH ROCK WALLS IN THE LANES. IN A SPACE FIGHT, IT IS YOUR GUN.',
+      lv: ['CUTS ROCK WALLS', 'TWIN BEAMS', 'MEGA BEAM, THREE WIDE'] },
+    { id: 'heat', name: 'HEAT SHIELD', max: 3, base: 4000, growth: 3.2, icon: 'heat',
+      desc: 'FLY THROUGH SUN FLARES WITHOUT MELTING. THE HOT PLANETS WILL NOT LET YOU IN WITHOUT ONE.',
+      lv: ['SURVIVE FLARES', 'IGNORE FLARES', 'SUNBATHE'] },
+    { id: 'ice', name: 'ICE PLOUGH', max: 2, base: 6000, growth: 3, icon: 'ice',
+      desc: 'A BIG SCOOP ON THE FRONT. SMASHES ICE COMETS. THE COLD PLANETS NEED ONE.',
+      lv: ['SMASH ICE COMETS', 'SMASH ICE WALLS'] },
+    { id: 'armour', name: 'HULL ARMOUR', max: 5, base: 1200, growth: 2.1, icon: 'armour',
+      desc: 'BOLTED ON. EACH LEVEL IS ONE MORE HIT BEFORE THE SAUCER FALLS TO BITS.',
+      lv: ['+1 HIT', '+2 HITS', '+3 HITS', '+4 HITS', '+5 HITS'] },
+    { id: 'bubble', name: 'BUBBLE SHIELD', max: 3, base: 3500, growth: 2.6, icon: 'bubble',
+      desc: 'A BUBBLE THAT EATS ONE HIT AND THEN GROWS BACK. FASTER EACH LEVEL.',
+      lv: ['REGROWS IN 12S', 'REGROWS IN 8S', 'REGROWS IN 5S'] },
+    { id: 'magnet', name: 'COIN MAGNET', max: 3, base: 1500, growth: 2.4, icon: 'magnet',
+      desc: 'SPACE COINS FLY TO YOU. SO DO SPOONS. SO DOES ONE VERY CONFUSED BIRD.',
+      lv: ['SMALL PULL', 'BIG PULL', 'EVERYTHING'] },
+    { id: 'turbo', name: 'TURBO BOOST', max: 3, base: 2000, growth: 2.5, icon: 'turbo',
+      desc: 'HOLD RIGHT TO GO VERY FAST FOR A BIT. SMASHES SMALL ROCKS. DOUBLES COINS.',
+      lv: ['2 SECONDS', '3 SECONDS', '4 SECONDS'] },
+    { id: 'radar', name: 'DANGER RADAR', max: 2, base: 1600, growth: 3, icon: 'radar',
+      desc: 'BEEPS AND POINTS AT WHAT IS COMING BEFORE IT COMES.',
+      lv: ['WARNS YOU', 'WARNS YOU EARLIER'] }
+  ];
+  const SHIPX = {};
+  for (const it of SHIP) SHIPX[it.id] = it;
+
   /* ------------------------------------------------------------- the brain
      A brain in a jar of acid, wired to a stolen keyboard. It knows everything
      and it will sell you some of it, but it does not want money -- it wants
@@ -1903,7 +1936,7 @@ window.PD = window.PD || {};
 
   PD.data = {
     BUILDINGS, BUILD_OF, MAT, M, ENEMY, BODIES, UPGRADES, UPG, upgradeCost, recipe, COSMETICS, COS, TITLES, titleFor, bountyFor,
-    STRATA, ZONES, zoneOf, FLORA, ABAY, ABAYX, abayCost, NEURONS, NEUR, neuronCost, BRAIN_LINES, BRAIN_IDLE, FACTIONS, LORE, ORB, MIX, MACHINES, METALS, GEMS, JUNK, goodOf, goodFromKey, NODES, appraiseSeconds, appraiseFee };
+    STRATA, ZONES, zoneOf, FLORA, ABAY, ABAYX, abayCost, SHIP, SHIPX, NEURONS, NEUR, neuronCost, BRAIN_LINES, BRAIN_IDLE, FACTIONS, LORE, ORB, MIX, MACHINES, METALS, GEMS, JUNK, goodOf, goodFromKey, NODES, appraiseSeconds, appraiseFee };
 })(window.PD);
 
 /* ===== src/art.js ===== */
@@ -16527,1512 +16560,6 @@ window.PD = window.PD || {};
   PD.starmap = { enter, update, draw, S };
 })(window.PD);
 
-/* ===== src/desk.js ===== */
-/* THE STOLEN COMPUTER.
-
-   You are not clever with machines. You took this one off a human world along
-   with the desk it was bolted to, and you have never really worked out how it
-   goes. So: first person, hands on the keys, a beige box humming in your face,
-   and a mouse pointer that arrives a moment after you meant it to. Everything
-   you will ever own is bought on ABAY, and every rock you dig is listed there.
-   The scene is drawn entirely in screen space -- no cameras, no world. */
-(function (PD) {
-  'use strict';
-  const U = PD.util;
-  const F = PD.font;
-  const A = PD.audio;
-  const D = PD.data;
-  const X = PD.pxd;
-  const pix = PD.pix;
-  const Gy = () => PD.glyph;
-
-  const VW = 480, VH = 270;
-
-  /* ----------------------------------------------------------- geometry */
-  const CX = 20, CY = 2, CW = 440, CH = 202;          // the beige case
-  const SX = 40, SY = 14, SW = 400, SH = 168;         // the glass
-  const BARY = SY + SH - 12;                          // task bar
-  const WX = SX + 4, WY = SY + 10, WW = SW - 8, WH = SH - 22;
-
-  /* ----------------------------------------------------------- palette
-     A 1990s human office, seen by something that has never worked in one. */
-  const C = {
-    caseF: '#cfc4a0', caseL: '#e8dfbe', caseD: '#a19574', caseDD: '#6d6450',
-    wall: '#2a2233', wallD: '#1c1626', wallL: '#3a3145',
-    glass: '#0a1108', phos: '#9dffb0',
-    page: '#e9e5d6', pageD: '#d2ccb6', pageDD: '#b6af98',
-    ink: '#241f16', dim: '#6f6752',
-    chrome: '#bab4a0', chromeL: '#e2dcc8', chromeD: '#87816e',
-    link: '#2f4fb0', red: '#d8382c', ylw: '#f0b028', blu: '#2f6fd0', grn: '#3a9c48',
-    win: '#2f4a9c', winD: '#1d2f66',
-    wood: '#5a3f2c', woodD: '#3e2a1c', woodL: '#75543a'
-  };
-
-  /* ------------------------------------------------------------- assets
-     A fat three-fingered mitt, seen from behind, resting on the keys. Built
-     at double density so it survives the zoom. */
-  const handCache = {};
-  function buildHands(P) {
-    const key = P.skin;
-    if (handCache[key]) return handCache[key];
-    const s = P.skin, d = P.skinD, l = P.skinL;
-    const NAIL = '#efe6bd', NAILD = '#c9bb8a';
-    const frames = [];
-    for (let f = 0; f < 3; f++) {
-      const p = pix(136, 158);
-      /* forearm, running down and out of frame towards you */
-      p.round(34, 100, 78, 58, 22, d);
-      p.round(28, 112, 90, 46, 20, s);
-      p.round(36, 122, 74, 36, 16, d);
-      /* the jacket cuff, three sizes too short for the arm inside it */
-      p.round(22, 122, 100, 24, 8, '#4a5a3a');
-      p.rect(22, 122, 100, 4, '#63744c');
-      p.rect(22, 142, 100, 4, '#36432a');
-      for (let i = 0; i < 5; i++) p.rect(28 + i * 20, 126, 7, 16, '#3f4c32');
-      p.round(30, 118, 12, 10, 4, '#63744c');            // a button, hanging on
-      /* wrist, then the back of the hand -- wide, meaty, faceted */
-      p.round(30, 78, 72, 38, 15, s);
-      p.round(20, 40, 92, 52, 18, s);
-      p.round(26, 34, 80, 26, 11, l);
-      p.shade(s, d, 1, 1);
-      /* three knuckle ridges, each with its own little shadow under it */
-      for (let k = 0; k < 3; k++) {
-        const kx = 26 + k * 28;
-        p.round(kx, 34, 24, 18, 8, l);
-        p.round(kx + 3, 36, 18, 8, 4, '#d8f2df');
-        p.rect(kx + 2, 52, 20, 3, d);
-      }
-      /* tendons across the back of the hand */
-      for (let k = 0; k < 3; k++) p.rect(32 + k * 28, 58, 3, 26, d);
-      /* three fat fingers. The middle one lifts to type; the others drum. */
-      const lift = [[0, 0, 0], [0, -12, 0], [-8, 0, -5]][f];
-      for (let k = 0; k < 3; k++) {
-        const fx = 24 + k * 28, fy = 4 + lift[k];
-        p.round(fx, fy + 6, 24, 42, 11, s);              // the finger
-        p.round(fx + 3, fy + 10, 17, 20, 8, l);          // lit along the top
-        p.rect(fx + 4, fy + 30, 16, 3, d);               // the joint crease
-        p.rect(fx + 6, fy + 38, 12, 3, d);
-        p.round(fx + 4, fy, 16, 12, 5, NAIL);            // a flat, filthy claw
-        p.rect(fx + 5, fy + 2, 14, 6, '#f8f0d0');
-        p.rect(fx + 4, fy + 9, 16, 3, NAILD);
-        p.set(fx + 7, fy + 4, '#ffffff');
-      }
-      /* the warts, the veins and one very old scar */
-      p.round(40, 66, 10, 8, 4, l); p.round(72, 74, 8, 7, 3, l);
-      p.round(58, 90, 7, 6, 3, l);
-      p.rect(36, 94, 24, 3, d); p.rect(68, 100, 20, 3, d);
-      p.line(32, 56, 56, 46, d); p.line(32, 57, 56, 47, d);
-      p.line(33, 58, 57, 48, l);
-      p.outline('#140f1e');
-      frames.push(p.toCanvas());
-    }
-    handCache[key] = { frames, w: 68, h: 79 };
-    return handCache[key];
-  }
-
-  /* ---------------------------------------------------------------- state */
-  const S = {
-    app: 'home',            // home | abay | mail | setup
-    tab: 0,                 // abay: 0 buy, 1 auctions, 2 sell, 3 feedback
-    cat: 0,                 // which shelf of BUY IT NOW you are looking at
-    auc: [], aucT: 0,
-    scroll: 0, scrollTo: 0,
-    cx: VW / 2, cy: VH / 2, vx: 0, vy: 0,
-    want: null, wantT: 0, fire: false, fireX: 0, fireY: 0,
-    press: 0, typeT: 0, hand: 0,
-    boot: 0, hum: 0, lock: 0,
-    status: 'READY. PROBABLY.',
-    coins: [], flash: 0,
-    ad: 0, adT: 0, adOn: true,
-    view: null, cart: [], cartOpen: 0, co: null, bump: 0,
-    icon: -1
-  };
-
-  const APPS = [
-    { id: 'abay', name: 'ABAY', glyph: 'sell' },
-    { id: 'map', name: 'STAR MAP', glyph: 'galaxy' },
-    { id: 'mail', name: 'MESSAGES', glyph: 'quest' },
-    { id: 'setup', name: 'SETUP', glyph: 'machine' }
-  ];
-
-  const GLYPH_OF = {
-    drill: 'drill', reach: 'drill', oxygen: 'o2', lung: 'o2', cargo: 'cargo', belly: 'cargo',
-    hull: 'hull', ironskin: 'hull', tether: 'belt', thruster: 'speed', dash: 'dash',
-    pistol: 'gun', trigger: 'gun', scatter: 'scatter', lance: 'lance', lamp: 'eye',
-    magnet: 'weight', scanner: 'scan', crew: 'crew', refine: 'machine', greed: 'coin', warp: 'galaxy'
-  };
-
-  /* Adverts. They are for other people. They are always for other people. */
-  const ADS = [
-    'ZORB SINGLES: WET WORMS IN YOUR SECTOR >>',
-    'HOOKED ON A FEELING? BUY THE TAPE. 2 CREDITS.',
-    'RAVAGER INSURANCE. WE TAKE 40 PERCENT. OF YOU.',
-    'ONE WEIRD TRICK TO CRACK A PLANET. NOVA HATE IT.',
-    'KNOWHERE TIMESHARE. IT IS A HEAD. LIVE IN A HEAD.',
-    'ARE YOU A TREE? CLICK HERE. WE ARE ALSO A TREE.',
-    'LOSE 40KG OF ROCK FAST. ASK ME ABOUT MY SACK.'
-  ];
-
-  /* Feedback left on you, by people who have met you. */
-  const FEEDBACK = [
-    ['gamora_no_relation', 5, 'FAST DELIVERY. SELLER SMELLED OF BURNING. WOULD BUY AGAIN.'],
-    ['i_am_groot', 5, 'I AM GROOT.'],
-    ['yondu_prime_deals', 1, 'HE STOLE THE ORB OFF ME. I TAUGHT HIM THAT. PROUD. ANGRY.'],
-    ['collector_tivan', 4, 'ITEM WAS A ROCK, AS DESCRIBED. I COLLECT ROCKS. NO NOTES.'],
-    ['drax_literal', 2, 'HE SAID THE PRICE WAS A STEAL. NOTHING WAS STOLEN. LIAR.'],
-    ['rocket_88', 3, 'BOUGHT HIS LEG. SENT ME A DRILL. LEG STILL PENDING.'],
-    ['nova_corps_admin', 1, 'YOU ARE ON A LIST. THE LIST IS NOT A GOOD LIST.'],
-    ['star_lad_69', 4, 'ASKED IF HE HAD A WALKMAN. HE ATE IT. FOUR STARS FOR EFFORT.'],
-    ['ronan_customer_care', 1, 'YOUR PLANET-CRACKING IS DERIVATIVE. I DID IT FIRST.'],
-    ['wet_ted', 5, 'GOOD CUSTOMER. BUYS ORGANS. NEVER ASKS WHOSE.']
-  ];
-
-  /* Messages. Nobody nice has this address. */
-  function mailbox(g) {
-    const box = [
-      ['MUM', 'ARE YOU EATING. ARE YOU DESTROYING ENOUGH WORLDS. ANSWER ONE.'],
-      ['ABAY BILLING', 'YOUR SUBSCRIPTION TO ABAY PRIME RENEWED. YOU NEVER SUBSCRIBED.'],
-      ['NOVA CORPS', 'BOUNTY UPDATED: $' + U.fmt(D.bountyFor ? D.bountyFor(g.save) : 0) + '. CONGRATULATIONS?'],
-      ['krunk_tools_99', 'DRILL BIT IS NOT UNDER WARRANTY IF USED ON A PLANET.'],
-      ['UNKNOWN', D.ORB.lines[0]],
-      ['THE SYNDICATE', 'A PLANET IS MISSING. WE ASSUME IT WAS YOU. WELL DONE.']
-    ];
-    return box;
-  }
-
-  /* ---------------------------------------------------------------- enter */
-  function enter(g) {
-    S.lock = 0.25;
-    S.boot = 0;
-    S.app = 'home';
-    S.scroll = S.scrollTo = 0;
-    S.cx = VW / 2; S.cy = 120; S.vx = S.vy = 0;
-    S.want = null; S.fire = false;
-    S.coins.length = 0;
-    S.status = 'READY. PROBABLY.';
-    S.cat = 0;
-    seedAuctions(g);
-    PD.chum.call(g, 'desk');
-    A.sfx.tone(90, { type: 'square', to: 190, dur: 0.18, vol: 0.07 });
-    A.sfx.tone(1200, { type: 'square', dur: 0.04, vol: 0.03, delay: 0.2 });
-  }
-
-  function close(g) {
-    if (PD.fx.wipeActive()) return;
-    g.wipeTo(SX + SW / 2, SY + SH / 2, '#1b2430', () => { PD.home.leaveDesk(g); }, 'bars');
-  }
-
-  function say(s) { S.status = s; }
-
-  /* --------------------------------------------------------------- update */
-  function update(dt, g) {
-    const IN = PD.input;
-    const m = IN.mouse;
-    S.lock = Math.max(0, S.lock - dt);
-    S.boot = Math.min(2, S.boot + dt);
-    S.hum += dt;
-    S.press = Math.max(0, S.press - dt * 3);
-    S.typeT = Math.max(0, S.typeT - dt);
-    S.flash = Math.max(0, S.flash - dt * 2);
-    S.adT += dt;
-    if (S.adT > 7) { S.adT = 0; S.ad = (S.ad + 1) % ADS.length; S.adOn = true; }
-    // the auction clocks run whether or not you are looking at them
-    if (S.auc.length) stepAuctions(dt, g);
-
-    // the pointer. He has it by the wrong end, so it swings past and settles.
-    const tx = U.clamp(m.x, SX + 2, SX + SW - 2), ty = U.clamp(m.y, SY + 2, SY + SH - 2);
-    if (PD.touch && PD.touch.enabled) { S.cx = tx; S.cy = ty; S.vx = S.vy = 0; }
-    else {
-      const k = 900, drag = 11;
-      S.vx += (tx - S.cx) * k * dt; S.vy += (ty - S.cy) * k * dt;
-      S.vx -= S.vx * drag * dt; S.vy -= S.vy * drag * dt;
-      S.cx += S.vx * dt; S.cy += S.vy * dt;
-      // a permanent tremor: he is holding a mouse with a hand built for rocks
-      S.cx += Math.sin(S.hum * 7.3) * 0.35;
-      S.cy += Math.cos(S.hum * 5.1) * 0.35;
-      S.cx = U.clamp(S.cx, SX, SX + SW); S.cy = U.clamp(S.cy, SY, SY + SH);
-    }
-
-    // a click is a request, not an event: it lands once the pointer catches up
-    S.fire = false;
-    if (S.lock <= 0 && m.leftPressed) {
-      S.want = { x: tx, y: ty }; S.wantT = 0;
-      S.press = 1; S.typeT = 0.12; S.hand = (S.hand + 1) % 2;
-      A.sfx.tone(2200, { type: 'square', dur: 0.02, vol: 0.05 });
-    }
-    if (S.want) {
-      S.wantT += dt;
-      if (U.dist(S.cx, S.cy, S.want.x, S.want.y) < 4 || S.wantT > 0.4) {
-        S.fire = true; S.fireX = S.cx; S.fireY = S.cy; S.want = null;
-        A.sfx.tone(1500, { type: 'square', dur: 0.03, vol: 0.05 });
-      }
-    }
-
-    // scrolling: the wheel, the arrow keys, or nothing at all
-    if (m.wheel) S.scrollTo += m.wheel * 28;
-    if (IN.hit('down')) S.scrollTo += 28;
-    if (IN.hit('up')) S.scrollTo -= 28;
-    S.scrollTo = Math.max(0, S.scrollTo);
-    S.scroll = U.damp(S.scroll, S.scrollTo, 0.4, dt);
-
-    if (S.lock <= 0 && IN.hit('esc')) {
-      if (S.app === 'home') close(g); else { S.app = 'home'; S.scroll = S.scrollTo = 0; A.sfx.click(); }
-    }
-    if (S.lock <= 0 && (IN.hit('KeyQ'))) close(g);
-
-    for (let i = S.coins.length - 1; i >= 0; i--) {
-      const c = S.coins[i];
-      c.t += dt; c.x += c.vx * dt; c.y += c.vy * dt; c.vy += 220 * dt;
-      if (c.t > c.life) S.coins.splice(i, 1);
-    }
-  }
-
-  /* ------------------------------------------------------- click widgets */
-  function hot(x, y, w, h) { return S.cx >= x && S.cx < x + w && S.cy >= y && S.cy < y + h; }
-  function press(x, y, w, h) { return S.fire && S.fireX >= x && S.fireX < x + w && S.fireY >= y && S.fireY < y + h; }
-
-  /* A human button: light on top-left, shadow on bottom-right, sunk when hot. */
-  function btn(ctx, x, y, w, h, label, opts) {
-    opts = opts || {};
-    const on = opts.enabled !== false;
-    const over = on && hot(x, y, w, h);
-    const face = !on ? '#a9a492' : (opts.face || C.chrome);
-    X.rect(ctx, x, y, w, h, face);
-    X.rect(ctx, x, y, w, 1, over ? C.chromeD : (opts.light || C.chromeL));
-    X.rect(ctx, x, y, 1, h, over ? C.chromeD : (opts.light || C.chromeL));
-    X.rect(ctx, x, y + h - 1, w, 1, over ? C.chromeL : C.chromeD);
-    X.rect(ctx, x + w - 1, y, 1, h, over ? C.chromeL : C.chromeD);
-    ctx.fillStyle = '#1b170f';
-    ctx.fillRect(x, y - 1, w, 1); ctx.fillRect(x, y + h, w, 1);
-    ctx.fillRect(x - 1, y, 1, h); ctx.fillRect(x + w, y, 1, h);
-    const o = over ? 1 : 0;
-    F.draw(ctx, label, x + w / 2 + o, y + ((h - 7) / 2 | 0) + o, on ? (opts.ink || C.ink) : '#7d7866', { center: true, shadow: false });
-    return on && press(x, y, w, h);
-  }
-
-  function sunk(ctx, x, y, w, h, fill) {
-    X.rect(ctx, x, y, w, h, fill || '#f6f3e6');
-    X.rect(ctx, x, y, w, 1, C.pageDD);
-    X.rect(ctx, x, y, 1, h, C.pageDD);
-    X.rect(ctx, x, y + h - 1, w, 1, '#ffffff');
-    X.rect(ctx, x + w - 1, y, 1, h, '#ffffff');
-  }
-
-  /* The font is fixed width, so a truncation is just arithmetic. */
-  function clip(str, maxW) {
-    const per = F.GW + F.GAP;
-    const n = Math.floor(maxW / per);
-    str = String(str);
-    return str.length <= n ? str : str.slice(0, Math.max(0, n - 2)) + '..';
-  }
-
-  function stars(ctx, x, y, n) {
-    for (let i = 0; i < 5; i++) {
-      const c = i < n ? C.ylw : '#c3bda8';
-      X.rect(ctx, x + i * 6 + 2, y, 1, 5, c);
-      X.rect(ctx, x + i * 6, y + 2, 5, 1, c);
-      X.rect(ctx, x + i * 6 + 1, y + 1, 3, 3, c);
-    }
-  }
-
-  /* ----------------------------------------------------------------- draw */
-  function draw(ctx, g, t) {
-    drawRoomBack(ctx, t);
-    drawCase(ctx, g, t);
-
-    // the glass, and whatever the machine is currently insisting upon
-    ctx.save();
-    ctx.beginPath(); ctx.rect(SX, SY, SW, SH); ctx.clip();
-    X.rect(ctx, SX, SY, SW, SH, C.glass);
-    if (S.boot < 0.55) drawBoot(ctx, t);
-    else {
-      drawOsStrip(ctx, g, t);
-      if (S.app === 'home') drawDesktop(ctx, g, t);
-      else if (S.app === 'abay') drawAbay(ctx, g, t);
-      else if (S.app === 'mail') drawMail(ctx, g, t);
-      else if (S.app === 'setup') drawSetup(ctx, g, t);
-      drawTaskbar(ctx, g, t);
-      for (const c of S.coins) {
-        X.rect(ctx, c.x - 1, c.y - 1, 3, 3, C.ylw);
-        X.rect(ctx, c.x, c.y - 1, 1, 3, '#fff3c0');
-      }
-      drawCursor(ctx, t);
-    }
-    drawCrt(ctx, t);
-    ctx.restore();
-
-    drawDesk(ctx, g, t);
-    drawHands(ctx, g, t);
-    exitButton(ctx, g, t);
-
-    if (S.fire) S.fire = false;
-  }
-
-  /* A real way out. Escape has always worked, but nothing on screen ever said
-     so and on a phone there is no Escape at all -- so there is a button on the
-     desk, outside the monitor, that gets him up and walks him away. */
-  function exitButton(ctx, g, t) {
-    const w = 88, h = 20, x = VW - w - 10, y = VH - h - 8;
-    const m = PD.input.mouse;
-    const over = m.inside && m.x >= x && m.x <= x + w && m.y >= y && m.y <= y + h;
-    X.plate(ctx, x + 2, y + 3, w, h, 'rgba(4,2,12,0.45)', null, null, 3);
-    X.plate(ctx, x, y, w, h, over ? '#8a3f3f' : '#66302f', over ? '#ffb0a8' : '#a05a55', '#2a1010', 3);
-    Gy().draw(ctx, 'arrowR', x + 7, y + 3, '#ffd9d0', '#a05a55');
-    F.draw(ctx, 'GET UP', x + 52, y + 3, '#ffe9e4', { center: true, shadow: '#2a1010' });
-    F.draw(ctx, 'ESC', x + 52, y + 12, over ? '#ffb0a8' : '#c08a86', { center: true, shadow: false });
-    if (over && m.leftPressed && S.lock <= 0) { A.sfx.click(); close(g); }
-  }
-
-  /* ------------------------------------------------------------- the room */
-  function drawRoomBack(ctx, t) {
-    X.rect(ctx, 0, 0, VW, VH, C.wallD);
-    // rough rock courses behind the desk
-    for (let y = 0; y < 216; y += 12) {
-      for (let x = -8; x < VW; x += 26) {
-        const o = ((y / 12) | 0) % 2 ? 13 : 0;
-        const h = 10 + ((U.hash2(x + o, y) * 3) | 0);
-        X.rect(ctx, x + o, y, 24, h, U.hash2(x + o, y + 3) > 0.5 ? C.wall : C.wallL);
-        X.rect(ctx, x + o, y, 24, 1, '#453b52');
-        X.rect(ctx, x + o, y + h - 1, 24, 1, C.wallD);
-        if (U.hash2(x + o, y + 9) > 0.82) X.rect(ctx, x + o + 4, y + 3, 5, 3, '#4f4460');
-      }
-    }
-    // cable spaghetti, taped on with far too much tape
-    ctx.strokeStyle = '#191320'; ctx.lineWidth = 2;
-    X.curve(ctx, 4, 120, 40, 176, 96, 150, '#191320', 3, 10);
-    X.curve(ctx, 476, 100, 440, 168, 388, 152, '#191320', 3, 10);
-    X.rect(ctx, 30, 158, 12, 5, '#d9c85a'); X.rect(ctx, 434, 150, 12, 5, '#d9c85a');
-    // a poster of a planet he has already eaten
-    X.rect(ctx, 6, 26, 2, 60, '#191320');
-    X.rect(ctx, 470, 40, 2, 50, '#191320');
-  }
-
-  /* --------------------------------------------------------- the beige box */
-  function drawCase(ctx, g, t) {
-    const jolt = S.press > 0.6 ? 1 : 0;
-    ctx.save();
-    ctx.translate(0, jolt);
-    // shadow, then the body
-    X.rect(ctx, CX + 4, CY + 6, CW, CH, '#120e1a');
-    X.plate(ctx, CX, CY, CW, CH, C.caseF, C.caseL, C.caseD, 6);
-    // the deep bezel around the tube
-    X.rect(ctx, SX - 6, SY - 6, SW + 12, SH + 12, C.caseD);
-    X.rect(ctx, SX - 4, SY - 4, SW + 8, SH + 8, C.caseDD);
-    X.rect(ctx, SX - 2, SY - 2, SW + 4, SH + 4, '#141a12');
-    // yellowed age stains: this thing has sat in a human window for decades
-    for (let i = 0; i < 26; i++) {
-      const x = CX + 6 + U.hash2(i, 5) * (CW - 12), y = CY + 4 + U.hash2(i, 9) * (CH - 8);
-      if (x > SX - 10 && x < SX + SW + 10 && y > SY - 10 && y < SY + SH + 10) continue;
-      X.rect(ctx, x, y, 2 + ((U.hash2(i, 13) * 3) | 0), 2, '#c1b389');
-    }
-    // brand, badly transliterated
-    F.draw(ctx, 'DELLL', CX + 30, CY + CH - 18, C.caseDD, { shadow: false });
-    F.draw(ctx, 'PROPERTY OF EARTH', CX + 80, CY + CH - 16, '#a89b78', { shadow: false });
-    // a scratched-out serial, replaced by his own mark
-    X.rect(ctx, CX + 190, CY + CH - 17, 42, 7, '#b6a97f');
-    for (let i = 0; i < 5; i++) X.rect(ctx, CX + 192 + i * 8, CY + CH - 16, 6, 5, '#a89b78');
-    F.draw(ctx, 'MINE', CX + 238, CY + CH - 16, '#8a2f2f', { shadow: false });
-    // power lamp, knobs and a vent
-    const lit = 0.5 + 0.5 * Math.sin(t * 3);
-    X.rect(ctx, CX + CW - 26, CY + CH - 20, 8, 8, '#241f18');
-    X.rect(ctx, CX + CW - 25, CY + CH - 19, 6, 6, S.boot > 0.2 ? (lit > 0.5 ? '#6cff8a' : '#3fbf58') : '#2d5a35');
-    for (let i = 0; i < 3; i++) {
-      X.rect(ctx, CX + CW - 66 + i * 12, CY + CH - 20, 9, 9, C.caseD);
-      X.rect(ctx, CX + CW - 66 + i * 12, CY + CH - 20, 9, 1, C.caseL);
-      X.rect(ctx, CX + CW - 62 + i * 12, CY + CH - 19, 2, 5, C.caseDD);
-    }
-    for (let i = 0; i < 12; i++) X.rect(ctx, CX + 292 + i * 5, CY + CH - 16, 3, 7, C.caseD);
-    // sticky notes on the bezel, in his handwriting
-    X.rect(ctx, SX + SW - 52, SY - 15, 54, 15, '#e8e05a');
-    X.rect(ctx, SX + SW - 52, SY - 15, 54, 1, '#f6f09a');
-    F.draw(ctx, 'DO NOT EAT', SX + SW - 50, SY - 12, '#4a4420', { shadow: false });
-    X.rect(ctx, SX - 4, SY - 16, 46, 16, '#e895c8');
-    F.draw(ctx, 'THE PC', SX - 2, SY - 13, '#4a2040', { shadow: false });
-    ctx.restore();
-  }
-
-  /* ------------------------------------------------------------- the boot */
-  function drawBoot(ctx, t) {
-    const k = S.boot / 0.55;
-    X.rect(ctx, SX, SY, SW, SH * k, '#111a10');
-    const lines = ['ZORB OS 3.1  (STOLEN)', 'MEMORY OK: 4 ROCKS', 'MOUSE FOUND. HELD WRONG.', 'LOADING ABAY...'];
-    for (let i = 0; i < lines.length; i++) {
-      if (k < 0.3 + i * 0.16) break;
-      F.draw(ctx, lines[i], SX + 10, SY + 12 + i * 11, C.phos, { shadow: false });
-    }
-    X.rect(ctx, SX, SY + SH * k, SW, 2, '#dfffe4');
-  }
-
-  /* --------------------------------------------------------- the OS strip */
-  function drawOsStrip(ctx, g, t) {
-    X.rect(ctx, SX, SY, SW, SH, '#1c2b4a');
-    // wallpaper: a planet, drawn by a machine that only has eight colours
-    const wx = SX + SW / 2, wy = SY + 76;
-    const BANDS = ['#12203a', '#1d3560', '#2b4a7a', '#3d67a0', '#5b8cc8'];
-    for (let i = 0; i < BANDS.length; i++) {
-      const r = 46 - i * 4;
-      pxDisc(ctx, wx - i * 3.5, wy - i * 3, r, BANDS[i]);
-    }
-    pxDisc(ctx, wx + 12, wy + 14, 9, '#24406e');
-    pxDisc(ctx, wx - 20, wy + 4, 6, '#24406e');
-    X.orbit(ctx, wx, wy + 6, 62, 15, '#4a6f9e', 2, 0.9);   // a faceted ring, on its side
-    X.orbit(ctx, wx, wy + 4, 58, 13, '#7fa8dc', 3, 0.9);
-    ctx.globalAlpha = 0.5;
-    for (let i = 0; i < 40; i++) {
-      const sx = SX + U.hash2(i, 3) * SW, sy = SY + U.hash2(i, 7) * SH;
-      X.rect(ctx, sx, sy, 1, 1, '#cfe2ff');
-    }
-    ctx.globalAlpha = 1;
-    F.draw(ctx, 'ZORB OS 3.1', SX + SW / 2, SY + 128, '#7f97c4', { center: true, shadow: false });
-    F.draw(ctx, 'THIS COMPUTER IS MINE NOW', SX + SW / 2, SY + 138, '#5d729a', { center: true, shadow: false });
-  }
-
-  /* An OCTAGON made of integer scanlines. Nothing on this machine is round. */
-  function pxDisc(ctx, cx, cy, r, col) {
-    ctx.fillStyle = col;
-    for (let y = Math.ceil(cy - r); y <= Math.floor(cy + r); y++) {
-      const dy = Math.abs(y - cy + 0.5) / r;
-      if (dy > 1) continue;
-      const w = r * Math.sqrt(Math.max(0, 1 - dy * dy));
-      const x0 = Math.round(cx - w), x1 = Math.round(cx + w);
-      if (x1 > x0) ctx.fillRect(x0, y, x1 - x0, 1);
-    }
-  }
-
-  /* ---------------------------------------------------------- the desktop */
-  function drawDesktop(ctx, g, t) {
-    for (let i = 0; i < APPS.length; i++) {
-      const a = APPS[i];
-      const x = SX + 12, y = SY + 12 + i * 30;
-      const over = hot(x - 2, y - 2, 92, 26);
-      if (over) { X.rect(ctx, x - 2, y - 2, 92, 26, 'rgba(255,255,255,0.16)'); }
-      X.rect(ctx, x, y, 22, 22, C.chrome);
-      X.rect(ctx, x, y, 22, 1, C.chromeL); X.rect(ctx, x, y, 1, 22, C.chromeL);
-      X.rect(ctx, x, y + 21, 22, 1, C.chromeD); X.rect(ctx, x + 21, y, 1, 22, C.chromeD);
-      Gy().draw(ctx, a.glyph, x + 4, y + 4, C.ink, C.dim);
-      F.draw(ctx, a.name, x + 28, y + 8, '#eef3ff', { shadow: '#0d1428' });
-      if (press(x - 2, y - 2, 92, 26)) openApp(a.id, g);
-    }
-    // his own attempt at a folder, mis-spelled and empty
-    const fx = SX + SW - 84, fy = SY + 14;
-    X.rect(ctx, fx, fy, 22, 18, '#d8b44a');
-    X.rect(ctx, fx, fy - 3, 10, 4, '#e8c86a');
-    X.rect(ctx, fx, fy, 22, 1, '#f0d888');
-    F.draw(ctx, 'MY ROKS', fx - 4, fy + 22, '#eef3ff', { shadow: '#0d1428' });
-    if (press(fx - 6, fy - 4, 44, 34)) { S.app = 'abay'; S.tab = 1; S.scrollTo = S.scroll = 0; A.sfx.click(); say('YOUR ROCKS ARE IN THE SELLING PLACE.'); }
-  }
-
-  function openApp(id, g) {
-    A.sfx.click();
-    S.scroll = S.scrollTo = 0;
-    // the chart has to open on the far side of the iris, not before it: doing
-    // both at once let the deferred close land afterwards and drop you home
-    if (id === 'map') {
-      if (g.tutAllows && !g.tutAllows('desk', 'map')) { g.tutNope('desk'); say('SELL FIRST. THEN THE SKY.'); return; }
-      say('GOING TO THE SKY.');
-      if (PD.fx.wipeActive()) return;
-      g.wipeTo(SX + SW / 2, SY + SH / 2, '#1b2430', () => { PD.home.leaveDesk(g); g.openChart(); }, 'sweep');
-      return;
-    }
-    S.app = id;
-    if (id === 'abay') { S.tab = 0; say('ABAY: BUY IT NOW OR DO NOT, I AM NOT YOUR DAD.'); }
-    if (id === 'mail') say('6 MESSAGES. 6 ARE BAD.');
-    if (id === 'setup') say('DO NOT TOUCH ANYTHING IN HERE.');
-  }
-
-  /* ---------------------------------------------------------- the taskbar */
-  function drawTaskbar(ctx, g, t) {
-    X.rect(ctx, SX, BARY, SW, 12, C.chrome);
-    X.rect(ctx, SX, BARY, SW, 1, C.chromeL);
-    if (btn(ctx, SX + 2, BARY + 1, 34, 10, 'START')) { say(U.pick(['NOTHING STARTED.', 'IT IS ALREADY STARTED.', 'I PRESSED IT. NOTHING.'])); A.sfx.deny(); }
-    if (S.app !== 'home') {
-      const nm = S.app === 'abay' ? 'ABAY' : (S.app === 'mail' ? 'MESSAGES' : 'SETUP');
-      if (btn(ctx, SX + 40, BARY + 1, 62, 10, nm, { face: C.chromeD, ink: '#ffffff' })) { S.app = 'home'; A.sfx.click(); }
-    }
-    sunk(ctx, SX + SW - 44, BARY + 1, 42, 10, C.chrome);
-    F.draw(ctx, '88:88 PM', SX + SW - 42, BARY + 3, C.ink, { shadow: false });
-  }
-
-  /* ------------------------------------------------------------ the window */
-  function windowFrame(ctx, title, g) {
-    X.rect(ctx, WX + 3, WY + 3, WW, WH, 'rgba(0,0,0,0.4)');
-    X.rect(ctx, WX, WY, WW, WH, C.chrome);
-    X.rect(ctx, WX, WY, WW, 1, C.chromeL); X.rect(ctx, WX, WY, 1, WH, C.chromeL);
-    X.rect(ctx, WX, WY + WH - 1, WW, 1, '#5f5a4c'); X.rect(ctx, WX + WW - 1, WY, 1, WH, '#5f5a4c');
-    X.rect(ctx, WX + 2, WY + 2, WW - 4, 11, C.win);
-    X.rect(ctx, WX + 2, WY + 2, WW - 4, 1, '#4d6fd0');
-    F.draw(ctx, title, WX + 6, WY + 4, '#ffffff', { shadow: false });
-    if (btn(ctx, WX + WW - 14, WY + 3, 10, 9, 'X', { face: C.chrome })) { S.app = 'home'; A.sfx.click(); }
-    X.rect(ctx, WX + 2, WY + 14, WW - 4, WH - 16, C.page);
-  }
-
-  /* ------------------------------------------------------------- AUCTIONS
-     ABAY is not only a shop. Half of it is people selling one thing each with
-     a clock on it, and a rival who wants it too. Bid and you are winning;
-     wait and grunk_92 takes it off you. Win and you pay well under the
-     buy-it-now, which is the whole reason to bother.
-
-     The rival has a hidden ceiling of about five-sixths of the shop price, so
-     an auction is always worth a go and never a sure thing. */
-  const RIVALS = ['grunk_92', 'notarobot4', 'MOTHER', 'bidbot_prime', 'zorb_jr',
-    'THE_CURATOR', 'a_very_normal_guy', 'kevin'];
-
-  function makeAuction(g) {
-    const pool = D.ABAY.filter(it => (g.save.upg[it.id] || 0) < g.abayMax(it.id));
-    if (!pool.length) return null;
-    const it = U.pick(pool);
-    const shop = g.abayPrice(it.id);
-    return {
-      it, shop,
-      bid: Math.max(10, Math.round(shop * U.rand(0.28, 0.46) / 10) * 10),
-      inc: Math.max(10, Math.round(shop * 0.06 / 10) * 10),
-      ceil: Math.round(shop * U.rand(0.72, 0.92)),
-      ends: U.rand(26, 70), mine: false,
-      rival: U.pick(RIVALS), think: U.rand(1.6, 4), done: 0
-    };
-  }
-
-  function seedAuctions(g) {
-    S.auc.length = 0;
-    for (let i = 0; i < 4; i++) { const a = makeAuction(g); if (a) S.auc.push(a); }
-  }
-
-  function stepAuctions(dt, g) {
-    for (let i = S.auc.length - 1; i >= 0; i--) {
-      const a = S.auc[i];
-      a.ends -= dt;
-      if (a.ends <= 0) {
-        // the hammer. If you are still the high bidder it is yours.
-        if (a.mine) {
-          if (g.save.credits >= a.bid) {
-            g.save.credits -= a.bid;
-            g.save.upg[a.it.id] = (g.save.upg[a.it.id] || 0) + 1;
-            g.recompute(); g.saveGame();
-            say('WON: ' + a.it.name + ' FOR $' + U.fmt(a.bid) + '. THAT IS A STEAL.');
-            A.sfx.fanfare ? A.sfx.fanfare() : A.sfx.coin();
-            S.flash = 1;
-            for (let k = 0; k < 18; k++) {
-              S.coins.push({ x: SX + SW / 2 + U.rand(-20, 20), y: SY + 60, vx: U.rand(-90, 90), vy: U.rand(-110, -30), t: 0, life: 1.2 });
-            }
-          } else { say('YOU WON AND CANNOT PAY. ABAY IS TELLING EVERYONE.'); A.sfx.deny(); }
-        } else if (a.seen) {
-          say(a.rival.toUpperCase() + ' GOT THE ' + a.it.name + '. OF COURSE THEY DID.');
-        }
-        S.auc.splice(i, 1);
-        const nu = makeAuction(g); if (nu) S.auc.push(nu);
-        continue;
-      }
-      // the rival only wakes up when you are ahead, and only up to its ceiling
-      if (!a.mine) continue;
-      a.think -= dt;
-      if (a.think > 0) continue;
-      a.think = U.rand(1.8, 5);
-      if (a.bid + a.inc > a.ceil) return;         // it has had enough
-      a.bid += a.inc; a.mine = false;
-      a.ends = Math.max(a.ends, 6);               // a late bid extends the clock
-      say(a.rival.toUpperCase() + ' BID $' + U.fmt(a.bid) + '. ON YOUR OWN ITEM.');
-      A.sfx.tone(300, { type: 'square', to: 180, dur: 0.12, vol: 0.08 });
-    }
-  }
-
-  function placeBid(g, a) {
-    const next = a.mine ? a.bid : a.bid + a.inc;
-    if (a.mine) { say('YOU ARE ALREADY WINNING. CALM DOWN.'); A.sfx.deny(); return; }
-    if (g.save.credits < next) { say('NOT ENOUGH MONEY. GO AND HIT A PLANET.'); A.sfx.deny(); return; }
-    a.bid = next; a.mine = true; a.seen = 1;
-    a.ends = Math.max(a.ends, 8);
-    a.think = U.rand(1.4, 4);
-    say('BID $' + U.fmt(a.bid) + '. YOU ARE WINNING. FOR NOW.');
-    A.sfx.click();
-  }
-
-  /* ------------------------------------------------------------------ ABAY */
-  const TABS = ['BUY NOW', 'AUCTIONS', 'MY ROCKS', 'FEEDBACK'];
-  const CATS = ['ALL', 'DIG', 'BODY', 'SHIP', 'BANG', 'BIZ', 'JUNK'];
-  function drawAbay(ctx, g, t) {
-    windowFrame(ctx, 'ABAY - THE PLACE WHERE THINGS ARE', g);
-    const x0 = WX + 2, y0 = WY + 14, w = WW - 4;
-
-    /* banner: the logo, a search box he cannot type in, and his money */
-    X.rect(ctx, x0, y0, w, 18, '#ffffff');
-    X.rect(ctx, x0, y0 + 17, w, 1, C.pageDD);
-    abayLogo(ctx, x0 + 6, y0 + 4, t);
-    sunk(ctx, x0 + 96, y0 + 4, 128, 11);
-    F.draw(ctx, 'ROCK BUYER NEAR ME', x0 + 99, y0 + 6, '#8e8874', { shadow: false });
-    if (btn(ctx, x0 + 226, y0 + 4, 30, 11, 'FIND')) { A.sfx.deny(); say('NO. YOU FIND.'); }
-    // the basket, which is the only thing on this page that has ever worked
-    const cn = cartCount();
-    S.bump = Math.max(0, S.bump - g.dt * 2);
-    const bkx = x0 + w - 178, bky = y0 + 2 - Math.round(S.bump * 3);
-    X.plate(ctx, bkx, bky, 60, 14, S.cartOpen ? '#f2c23a' : C.chrome, C.chromeL, C.chromeD, 3);
-    Gy().draw(ctx, 'cargo', bkx + 2, bky, C.ink, C.dim);
-    F.draw(ctx, 'BASKET', bkx + 18, bky + 4, C.ink, { shadow: false });
-    if (cn > 0) {
-      X.rect(ctx, bkx + 50, bky - 2, 12, 10, C.red);
-      F.draw(ctx, String(cn), bkx + 56, bky - 1, '#ffffff', { center: true, shadow: false });
-    }
-    if (press(bkx, bky, 60, 14)) { S.cartOpen = S.cartOpen ? 0 : 1; S.view = null; A.sfx.click(); }
-    Gy().draw(ctx, 'coin', x0 + w - 96, y0 + 3, C.ylw, '#a8781a');
-    F.draw(ctx, '$' + U.fmt(g.save.credits), x0 + w - 6, y0 + 2, '#1e6b2e', { right: true, shadow: false });
-    if (g.save.debt > 0) {
-      F.draw(ctx, 'OWED $' + U.fmt(g.save.debt), x0 + w - 6, y0 + 11, C.red, { right: true, shadow: false });
-    }
-
-    const ty = y0 + 18;
-    /* The listing page, the basket and the checkout each take over the whole
-       window: the tab strip's content area is seventy pixels tall and a real
-       photograph of a thing does not fit in seventy pixels. */
-    if (S.co || S.view || S.cartOpen) {
-      const ay = ty + 2, ah = WY + WH - 16 - ay;
-      if (S.co) drawCheckout(ctx, g, t, x0 + 2, w - 4, ay, ah);
-      else if (S.view) drawDetail(ctx, g, t, x0 + 2, w - 4, ay, ah);
-      else drawCart(ctx, g, t, x0 + 2, w - 4, ay, ah);
-      const fy2 = WY + WH - 14;
-      X.rect(ctx, x0 + 2, fy2, w - 4, 11, C.pageD);
-      F.draw(ctx, S.status, x0 + 6, fy2 + 2, C.dim, { shadow: false });
-      return;
-    }
-
-    /* tabs */
-    for (let i = 0; i < TABS.length; i++) {
-      const tw = 63, tx = x0 + 4 + i * (tw + 3);
-      const on = S.tab === i;
-      X.rect(ctx, tx, ty + (on ? 0 : 2), tw, on ? 12 : 10, on ? C.page : C.pageD);
-      X.rect(ctx, tx, ty + (on ? 0 : 2), tw, 1, on ? '#ffffff' : C.pageDD);
-      F.draw(ctx, TABS[i], tx + tw / 2, ty + (on ? 3 : 4), on ? C.ink : C.dim, { center: true, shadow: false });
-      if (press(tx, ty, tw, 12)) {
-        S.tab = i; S.scroll = S.scrollTo = 0; A.sfx.click();
-        if (i === 0) PD.chum.call(g, 'abay');
-        if (i === 1) PD.chum.call(g, 'auction');
-      }
-      if (i === 1 && S.auc.some(a => a.mine)) {   // you are winning something
-        X.rect(ctx, tx + tw - 5, ty - 2, 5, 5, Math.sin(t * 7) > 0 ? C.grn : '#1e6b2e');
-      }
-    }
-    X.rect(ctx, x0, ty + 12, w, 1, C.pageDD);
-
-    /* the shelf of categories, only where it means anything */
-    let shelf = 0;
-    if (S.tab === 0) {
-      shelf = 13;
-      X.rect(ctx, x0, ty + 13, w, 12, C.pageD);
-      for (let i = 0; i < CATS.length; i++) {
-        const cw = 38, cx2 = x0 + 5 + i * (cw + 2);
-        const on = S.cat === i;
-        X.rect(ctx, cx2, ty + 14, cw, 10, on ? C.blu : C.page);
-        X.rect(ctx, cx2, ty + 14, cw, 1, on ? '#8ab0ff' : '#ffffff');
-        F.draw(ctx, CATS[i], cx2 + cw / 2, ty + 16, on ? '#ffffff' : C.dim, { center: true, shadow: false });
-        if (press(cx2, ty + 14, cw, 10)) { S.cat = i; S.scroll = S.scrollTo = 0; A.sfx.click(); }
-      }
-      X.rect(ctx, x0, ty + 25, w, 1, C.pageDD);
-    }
-
-    const bx = x0 + 4, by = ty + 15 + shelf, bw = w - 8, bh = WY + WH - 4 - by - 12;
-    ctx.save();
-    ctx.beginPath(); ctx.rect(bx, by, bw, bh); ctx.clip();
-    if (S.tab === 0) abayBuy(ctx, g, t, bx, by, bw, bh);
-    else if (S.tab === 1) abayAuctions(ctx, g, t, bx, by, bw, bh);
-    else if (S.tab === 2) abaySell(ctx, g, t, bx, by, bw, bh);
-    else abayFeedback(ctx, g, t, bx, by, bw, bh);
-    ctx.restore();
-
-    /* the advert strip, and the status line */
-    const fy = WY + WH - 14;
-    if (S.adOn) {
-      X.rect(ctx, x0 + 2, fy, w - 4, 11, '#3a1c4e');
-      for (let i = 0; i < w - 4; i += 6) X.rect(ctx, x0 + 2 + i, fy, 3, 1, ((i / 6 + (t * 6 | 0)) % 2) ? '#ff8ad8' : '#58e8ff');
-      F.draw(ctx, ADS[S.ad], x0 + 8, fy + 2, Math.sin(t * 6) > 0 ? '#ffe86a' : '#ff9ad8', { shadow: false });
-      if (btn(ctx, x0 + w - 14, fy + 1, 10, 9, 'X', { face: C.chrome })) { S.adOn = false; A.sfx.click(); say('THE ADVERT IS BACK IN 7 SECONDS. THAT IS THE DEAL.'); }
-    } else {
-      X.rect(ctx, x0 + 2, fy, w - 4, 11, C.pageD);
-      F.draw(ctx, S.status, x0 + 6, fy + 2, C.dim, { shadow: false });
-    }
-  }
-
-  function abayLogo(ctx, x, y, t) {
-    const L = [['A', C.red], ['B', C.blu], ['A', C.ylw], ['Y', C.grn]];
-    for (let i = 0; i < 4; i++) {
-      const bob = Math.round(Math.sin(t * 3 + i) * 1);
-      F.draw(ctx, L[i][0], x + i * 14, y + bob, L[i][1], { scale: 2, shadow: false });
-    }
-    F.draw(ctx, 'TM', x + 56, y, C.dim, { shadow: false });
-  }
-
-  function scrollbar(ctx, x, y, h, total, view) {
-    if (total <= view) { S.scrollTo = 0; return; }
-    S.scrollTo = Math.min(S.scrollTo, total - view);
-    X.rect(ctx, x, y, 7, h, C.pageD);
-    const kh = Math.max(10, Math.round(h * view / total));
-    const ky = y + Math.round((h - kh) * S.scroll / (total - view));
-    X.rect(ctx, x, ky, 7, kh, C.chrome);
-    X.rect(ctx, x, ky, 7, 1, C.chromeL);
-    X.rect(ctx, x, ky + kh - 1, 7, 1, C.chromeD);
-    if (press(x, y, 7, h)) { S.scrollTo = U.clamp((S.fireY - y - kh / 2) / (h - kh) * (total - view), 0, total - view); A.sfx.click(); }
-  }
-
-  /* ---------------------------------------------------------- the photograph
-     Every listing on ABAY has a real photo of the actual item, taken by the
-     seller, on the floor, at night, with the flash on. There is a thumb over
-     the corner of about half of them and they all have the date burned into
-     them in orange. Built once per item and kept. */
-  const PHOTO = {};
-  const SURFACES = [
-    ['#7a6a52', '#6b5c46', '#8a7a62'],      // a carpet
-    ['#3a4a6a', '#32405c', '#46577a'],      // a duvet
-    ['#8a5a5a', '#7a4e4e', '#9a6a6a'],      // a sofa
-    ['#5a6a4a', '#4e5c40', '#6a7a58'],      // a lawn, somehow
-    ['#9a9488', '#8a8478', '#aaa498']       // a worktop
-  ];
-  const PW = 58, PH = 44;
-
-  function photoOf(it) {
-    if (PHOTO[it.id]) return PHOTO[it.id];
-    let seed = 7;
-    for (let i = 0; i < it.id.length; i++) seed = (Math.imul(seed, 31) + it.id.charCodeAt(i)) | 0;
-    seed >>>= 0;
-    const R = U.mulberry32(seed);
-    const cv = document.createElement('canvas');
-    cv.width = PW; cv.height = PH;
-    const c = cv.getContext('2d');
-    const su = SURFACES[(R() * SURFACES.length) | 0];
-
-    // the surface it has been dumped on
-    c.fillStyle = su[0]; c.fillRect(0, 0, PW, PH);
-    for (let y = 0; y < PH; y++) {
-      for (let x = 0; x < PW; x++) {
-        const n = U.hash2(x + seed, y * 3);
-        if (n > 0.88) { c.fillStyle = su[2]; c.fillRect(x, y, 1, 1); }
-        else if (n < 0.14) { c.fillStyle = su[1]; c.fillRect(x, y, 1, 1); }
-      }
-    }
-    // the item: off-centre, because nobody lines a photo up
-    const ox = Math.round((R() - 0.5) * 10), oy = Math.round((R() - 0.5) * 6);
-    const gx = PW / 2 + ox - 21, gy = PH / 2 + oy - 21;
-    X.blob(c, PW / 2 + ox + 2, PH / 2 + oy + 15, 17, 4, 'rgba(0,0,0,0.4)');
-    c.globalAlpha = 0.3;                                  // the shake
-    Gy().draw(c, GLYPH_OF[it.id] || 'quest', gx + 1, gy + 1, '#c9c4b4', '#7a7460', 3);
-    c.globalAlpha = 1;
-    Gy().draw(c, GLYPH_OF[it.id] || 'quest', gx, gy, '#fbf7ea', '#b0a892', 3);
-
-    // the flash, straight back off it
-    const fx = PW / 2 + ox - 5, fy = PH / 2 + oy - 8;
-    for (let i = 4; i >= 1; i--) {
-      c.globalAlpha = 0.13 * (5 - i) / 4;
-      X.blob(c, fx, fy, 4 + i * 4, 3 + i * 3, '#ffffff');
-    }
-    c.globalAlpha = 0.55; X.blob(c, fx, fy, 4, 3, '#ffffff'); c.globalAlpha = 1;
-
-    // a thumb, about half the time
-    if (R() < 0.45) {
-      const left = R() < 0.5;
-      const tx = left ? -4 : PW - 12;
-      c.globalAlpha = 0.95;
-      X.blob(c, tx + 8, PH - 2, 13, 12, '#c98a6a');
-      X.blob(c, tx + 8, PH - 6, 8, 6, '#e0a78a');
-      c.globalAlpha = 1;
-    }
-    // it is too dark at the edges, as these things are
-    for (let i = 0; i < 5; i++) {
-      c.fillStyle = 'rgba(0,0,0,' + (0.05 * (5 - i)).toFixed(2) + ')';
-      c.fillRect(i, 0, 1, PH); c.fillRect(PW - 1 - i, 0, 1, PH);
-      c.fillRect(0, i, PW, 1); c.fillRect(0, PH - 1 - i, PW, 1);
-    }
-    // and the date, burned in, in the wrong year
-    F.draw(c, '12 05 ' + (70 + ((seed >> 3) % 30)), PW - 2, PH - 8, '#ff8a3d', { right: true, shadow: false });
-    PHOTO[it.id] = cv;
-    return cv;
-  }
-
-  function drawPhoto(ctx, it, x, y, k) {
-    const cv = photoOf(it);
-    X.rect(ctx, x - 1, y - 1, PW * k + 2, PH * k + 2, '#ffffff');
-    X.rect(ctx, x - 1, y - 1, PW * k + 2, 1, C.pageDD);
-    ctx.drawImage(cv, 0, 0, PW, PH, x | 0, y | 0, PW * k, PH * k);
-  }
-
-  /* ------------------------------------------------------------- the basket */
-  function cartCount() { let n = 0; for (const l of S.cart) n += l.n; return n; }
-  function cartTotal(g) {
-    let n = 0;
-    for (const l of S.cart) {
-      const lvl = (g.save.upg[l.id] || 0);
-      for (let i = 0; i < l.n; i++) n += Math.round(D.abayCost(D.ABAYX[l.id], lvl + i) * (1 - g.brain('know') * 0.05));
-    }
-    return n;
-  }
-  function addToCart(g, it) {
-    const cap = g.abayMax(it.id), lvl = g.save.upg[it.id] || 0;
-    const line = S.cart.find(l => l.id === it.id);
-    if (lvl + (line ? line.n : 0) >= cap) { A.sfx.deny(); say('YOU ALREADY HAVE ALL OF THOSE.'); return; }
-    if (line) line.n++; else S.cart.push({ id: it.id, n: 1 });
-    A.sfx.click();
-    say('ADDED TO BASKET. THE BASKET IS AT THE TOP.');
-    S.bump = 1;
-  }
-
-  /* ================================================================ CHECKOUT
-     Buying a thing off a human website involves signing in, proving you are
-     not a robot, reading numbers off a piece of plastic, and then waiting for
-     a code to arrive from orbit. He does all four, badly, and Mr Chum talks
-     him through it. */
-  const CARD = { no: '4029 8817 3355 9142', last: '9142', name: 'MR ALIEN', exp: '99/99', cvv: '007' };
-  const CAPTCHA = [
-    ['rock', '#8a7a62', '#5e5040'], ['coin', '#e0b02a', '#8a6a12'], ['rock', '#8a7a62', '#5e5040'],
-    ['star', '#58a8e0', '#2a5f8a'], ['skull', '#d8d4c4', '#7a7460'], ['rock', '#8a7a62', '#5e5040'],
-    ['hand', '#6aba72', '#2f7a42'], ['rock', '#8a7a62', '#5e5040'], ['o2', '#c06aa8', '#7a2f62']
-  ];
-
-  function startCheckout(g) {
-    if (!S.cart.length) { A.sfx.deny(); say('THE BASKET IS EMPTY. THAT IS WHY IT IS LIGHT.'); return; }
-    if (g.save.credits < cartTotal(g)) { A.sfx.deny(); say('NOT ENOUGH MONEY FOR THE WHOLE BASKET.'); return; }
-    let code = '';
-    for (let i = 0; i < 8; i++) code += U.randInt(0, 9);
-    S.co = { step: 0, typed: '', code: code, got: 0, t: 0, ticked: [], err: 0, ok: 0 };
-    S.view = null;
-    A.sfx.click();
-    PD.chum.call(g, 'checkout');
-  }
-
-  function keypad(ctx, g, x, y, max) {
-    const KW = 22, KH = 13;
-    for (let i = 0; i < 12; i++) {
-      const kx = x + (i % 3) * (KW + 3), ky = y + ((i / 3) | 0) * (KH + 3);
-      const lab = i < 9 ? String(i + 1) : (i === 9 ? 'DEL' : (i === 10 ? '0' : 'OK'));
-      const face = i === 10 || i < 9 ? '#e8e4d0' : (i === 9 ? '#d8b0a0' : '#9fdc9f');
-      if (btn(ctx, kx, ky, KW, KH, lab, { face: face })) {
-        if (i === 9) { S.co.typed = S.co.typed.slice(0, -1); A.sfx.click(); }
-        else if (i === 11) { S.co.ok = 1; A.sfx.click(); }
-        else if (S.co.typed.length < max) { S.co.typed += (i === 10 ? '0' : String(i + 1)); A.sfx.tone(700 + i * 30, { type: 'square', dur: 0.04, vol: 0.04 }); }
-      }
-    }
-    // the real keyboard works too, for anyone who has one
-    const IN = PD.input;
-    for (let d = 0; d <= 9; d++) {
-      if ((IN.hit('Digit' + d) || IN.hit('Numpad' + d)) && S.co.typed.length < max) {
-        S.co.typed += String(d); A.sfx.tone(700 + d * 30, { type: 'square', dur: 0.04, vol: 0.04 });
-      }
-    }
-    if (IN.hit('Backspace')) S.co.typed = S.co.typed.slice(0, -1);
-    if (IN.hit('enter')) S.co.ok = 1;
-  }
-
-  function typedBox(ctx, x, y, w, n, t) {
-    const CWD = Math.floor(w / n);
-    for (let i = 0; i < n; i++) {
-      const bx = x + i * CWD;
-      sunk(ctx, bx, y, CWD - 2, 15, '#ffffff');
-      const ch = S.co.typed[i];
-      if (ch) F.draw(ctx, ch, bx + (CWD - 2) / 2, y + 4, C.ink, { center: true, shadow: false, scale: 2 });
-      else if (i === S.co.typed.length && Math.sin(t * 8) > 0) X.rect(ctx, bx + (CWD - 2) / 2, y + 3, 1, 9, C.ink);
-    }
-  }
-
-  function drawCheckout(ctx, g, t, x0, w, ay, ah) {
-    const co = S.co;
-    co.t += g.dt;
-    X.rect(ctx, x0, ay, w, ah, C.page);
-    // the progress strip
-    const STEPS = ['SIGN IN', 'CARD', 'CODE', 'DONE'];
-    for (let i = 0; i < 4; i++) {
-      const sw = 62, sx = x0 + 8 + i * (sw + 6);
-      const on = co.step === i, done = co.step > i;
-      X.rect(ctx, sx, ay + 4, sw, 11, done ? '#9fdc9f' : (on ? C.blu : C.pageD));
-      F.draw(ctx, STEPS[i], sx + sw / 2, ay + 6, on ? '#ffffff' : (done ? '#1e6b2e' : C.dim), { center: true, shadow: false });
-      if (i < 3) X.rect(ctx, sx + sw, ay + 9, 6, 1, C.pageDD);
-    }
-    const py = ay + 20, ph2 = ah - 22;
-
-    if (co.step === 0) {
-      F.draw(ctx, 'SIGN IN TO ABAY', x0 + 8, py, C.ink, { shadow: false, scale: 2 });
-      F.draw(ctx, 'EMAIL', x0 + 8, py + 20, C.dim, { shadow: false });
-      sunk(ctx, x0 + 44, py + 18, 150, 11, '#ffffff');
-      F.draw(ctx, 'BIG_ALIEN_1997@ZORB.MOON', x0 + 47, py + 20, C.ink, { shadow: false });
-      F.draw(ctx, 'PASS', x0 + 8, py + 34, C.dim, { shadow: false });
-      sunk(ctx, x0 + 44, py + 32, 150, 11, '#ffffff');
-      F.draw(ctx, '**************', x0 + 47, py + 34, C.ink, { shadow: false });
-      // the captcha, which is the only bit of this he has to do
-      F.draw(ctx, 'TICK THE ROCKS', x0 + 238, py + 2, C.ink, { shadow: false });
-      for (let i = 0; i < 9; i++) {
-        const cx2 = x0 + 238 + (i % 3) * 22, cy2 = py + 12 + ((i / 3) | 0) * 22;
-        const tick = co.ticked.indexOf(i) >= 0;
-        sunk(ctx, cx2, cy2, 20, 20, tick ? '#cfe6ff' : '#ffffff');
-        Gy().draw(ctx, CAPTCHA[i][0], cx2 + 3, cy2 + 3, CAPTCHA[i][1], CAPTCHA[i][2]);
-        if (tick) { X.rect(ctx, cx2 + 14, cy2 + 1, 6, 6, C.grn); F.draw(ctx, 'V', cx2 + 15, cy2 + 2, '#ffffff', { shadow: false }); }
-        if (press(cx2, cy2, 20, 20)) {
-          const k = co.ticked.indexOf(i);
-          if (k >= 0) co.ticked.splice(k, 1); else co.ticked.push(i);
-          A.sfx.click();
-        }
-      }
-      if (btn(ctx, x0 + 8, py + 50, 90, 14, 'SIGN IN', { face: '#f2c23a', light: '#ffe08a' })) {
-        const want = [];
-        for (let i = 0; i < 9; i++) if (CAPTCHA[i][0] === 'rock') want.push(i);
-        const got = co.ticked.slice().sort().join(',') === want.join(',');
-        if (got) { co.step = 1; co.typed = ''; A.sfx.buy(); say('SIGNED IN. THAT TOOK LONGER THAN THE MINING.'); }
-        else { co.err = 1.4; co.ticked.length = 0; A.sfx.deny(); say('THAT IS NOT A ROCK. TRY AGAIN.'); }
-      }
-      if (co.err > 0) {
-        co.err -= g.dt;
-        F.draw(ctx, 'WRONG. IT THINKS YOU ARE A ROBOT.', x0 + 8, py + 68, C.red, { shadow: false });
-      }
-    } else if (co.step === 1) {
-      F.draw(ctx, 'THE LAST FOUR', x0 + 8, py, C.ink, { shadow: false, scale: 2 });
-      F.draw(ctx, 'READ IT OFF THE CARD.', x0 + 172, py + 1, C.dim, { shadow: false });
-      F.draw(ctx, 'IT IS IN THE BOX.', x0 + 172, py + 10, C.dim, { shadow: false });
-      // the card itself, on the desk
-      const cx2 = x0 + 8, cy2 = py + 16;
-      X.plate(ctx, cx2, cy2, 134, 54, '#3f6ba8', '#5a8cc9', '#22436b', 4);
-      X.rect(ctx, cx2, cy2 + 8, 134, 9, '#2a3f60');
-      X.rect(ctx, cx2 + 8, cy2 + 20, 18, 12, '#e0c060');
-      for (let i = 0; i < 3; i++) X.rect(ctx, cx2 + 10, cy2 + 22 + i * 4, 14, 1, '#a8842a');
-      F.draw(ctx, 'ZORB EXPRESS', cx2 + 128, cy2 + 2, '#cfe0ff', { right: true, shadow: false });
-      F.draw(ctx, CARD.no, cx2 + 6, cy2 + 35, '#ffffff', { shadow: false });
-      F.draw(ctx, CARD.name, cx2 + 6, cy2 + 45, '#cfe0ff', { shadow: false });
-      F.draw(ctx, 'EXP ' + CARD.exp, cx2 + 128, cy2 + 45, '#cfe0ff', { right: true, shadow: false });
-      /* The last four are ringed. Without the ring he types the first four,
-         every single time, and then blames the card. */
-      const lx = cx2 + 6 + F.width('4029 8817 3355 ', 1) - 2;
-      X.rect(ctx, lx, cy2 + 32, 27, 1, '#ffd34d');
-      X.rect(ctx, lx, cy2 + 42, 27, 1, '#ffd34d');
-      X.rect(ctx, lx, cy2 + 32, 1, 11, '#ffd34d');
-      X.rect(ctx, lx + 26, cy2 + 32, 1, 11, '#ffd34d');
-      typedBox(ctx, x0 + 150, py + 26, 84, 4, t);
-      keypad(ctx, g, x0 + w - 82, py + 14, 4);
-      if (co.ok) {
-        co.ok = 0;
-        if (co.typed === CARD.last) { co.step = 2; co.typed = ''; co.got = 0; co.t = 0; A.sfx.buy(); PD.chum.call(g, 'twofa'); }
-        else { co.err = 1.4; co.typed = ''; A.sfx.deny(); say('THAT IS NOT THE NUMBER. IT IS ON THE CARD.'); }
-      }
-      if (co.err > 0) { co.err -= g.dt; F.draw(ctx, 'NO.', x0 + 150, py + 46, C.red, { shadow: false, scale: 2 }); }
-    } else if (co.step === 2) {
-      F.draw(ctx, 'THE 8 DIGITS', x0 + 8, py, C.ink, { shadow: false, scale: 2 });
-      F.draw(ctx, 'COMING IN FROM ORBIT.', x0 + 166, py + 4, C.dim, { shadow: false });
-      // the code is coming in from orbit, one digit at a time
-      const want = Math.min(8, Math.floor(co.t / 0.55));
-      if (want > co.got) { co.got = want; A.sfx.tone(1200, { type: 'sine', to: 1700, dur: 0.07, vol: 0.04 }); }
-      const sx2 = x0 + 8, sy2 = py + 16, sw2 = 132, sh2 = 46;
-      X.rect(ctx, sx2, sy2, sw2, sh2, '#0b0720');
-      for (let i = 0; i < 40; i++) {
-        const px2 = sx2 + ((U.hash2(i, 5) * sw2) | 0), py2 = sy2 + ((U.hash2(i, 9) * sh2) | 0);
-        X.rect(ctx, px2, py2, 1, 1, U.hash2(i, 11) > 0.6 ? '#ffffff' : '#8a7ab0');
-      }
-      // a satellite, turning
-      const stx = sx2 + 22, sty = sy2 + 26;
-      X.rect(ctx, stx - 8, sty - 2, 16, 5, '#8e86a8');
-      X.rect(ctx, stx - 14, sty - 6, 5, 13, '#3f6ba8');
-      X.rect(ctx, stx + 9, sty - 6, 5, 13, '#3f6ba8');
-      X.blob(ctx, stx + 2, sty - 8, 5, 4, '#c9c4b4');
-      ctx.globalAlpha = 0.3 + Math.abs(Math.sin(t * 4)) * 0.3;
-      X.poly(ctx, [[stx + 4, sty - 9], [stx + 8, sty - 9], [sx2 + sw2, sy2 + 6], [sx2 + sw2, sy2 + 22]], '#7ef9ff');
-      ctx.globalAlpha = 1;
-      // the digits fly in one at a time and line up along the bottom
-      for (let i = 0; i < co.got; i++) {
-        const a = Math.min(1, (co.t - i * 0.55) * 3);
-        const dx = sx2 + 22 + i * 12 + (1 - a) * 60, dy = sy2 + sh2 - 13 - (1 - a) * 14;
-        ctx.globalAlpha = a;
-        F.draw(ctx, co.code[i], dx, dy, a >= 1 ? '#4cff9a' : '#7ef9ff', { shadow: false, scale: 2 });
-        ctx.globalAlpha = 1;
-      }
-      F.draw(ctx, co.got >= 8 ? 'ALL EIGHT' : 'RECEIVING...', sx2 + 4, sy2 + 3, '#8a7ab0', { shadow: false });
-      typedBox(ctx, x0 + 150, py + 26, 92, 8, t);
-      keypad(ctx, g, x0 + w - 82, py + 14, 8);
-      if (co.ok) {
-        co.ok = 0;
-        if (co.typed === co.code) { co.step = 3; co.t = 0; A.sfx.buy(); }
-        else { co.err = 1.4; co.typed = ''; A.sfx.deny(); say('WRONG CODE. IT IS THE ONE FROM SPACE.'); }
-      }
-      if (co.err > 0) { co.err -= g.dt; F.draw(ctx, 'NO.', x0 + 150, py + 46, C.red, { shadow: false, scale: 2 }); }
-    } else {
-      if (co.t < 1.4) {
-        F.draw(ctx, 'PLACING ORDER', x0 + w / 2, py + 20, C.ink, { center: true, shadow: false, scale: 2 });
-        const n = Math.floor(co.t * 6) % 4;
-        F.draw(ctx, '.'.repeat(n + 1), x0 + w / 2, py + 38, C.dim, { center: true, shadow: false, scale: 2 });
-        X.rect(ctx, x0 + w / 2 - 60, py + 54, 120, 8, C.pageD);
-        X.rect(ctx, x0 + w / 2 - 60, py + 54, Math.round(120 * co.t / 1.4), 8, C.grn);
-      } else {
-        if (!co.done) {
-          co.done = 1;
-          let bought = 0;
-          if (!g.tutAllows || g.tutAllows('desk', 'buy')) {
-            for (const l of S.cart) for (let i = 0; i < l.n; i++) if (g.abayBuy(l.id)) bought++;
-          } else g.tutNope('desk');
-          co.bought = bought;
-          S.cart.length = 0;
-          S.flash = 1;
-          for (let i = 0; i < 20; i++) S.coins.push({ x: SX + SW / 2 + U.rand(-30, 30), y: SY + 50, vx: U.rand(-80, 80), vy: U.rand(-110, -20), t: 0, life: 1 });
-          say('ORDER PLACED. IT IS ALREADY ON THE MOON. DO NOT ASK.');
-          PD.chum.call(g, 'ordered');
-        }
-        F.draw(ctx, 'ORDER PLACED', x0 + w / 2, py + 14, '#1e6b2e', { center: true, shadow: false, scale: 3 });
-        F.draw(ctx, co.bought + ' ITEM' + (co.bought === 1 ? '' : 'S') + ' DELIVERED TO THE MOON', x0 + w / 2, py + 38, C.ink, { center: true, shadow: false });
-        F.draw(ctx, 'ESTIMATED ARRIVAL: IT IS ALREADY THERE', x0 + w / 2, py + 48, C.dim, { center: true, shadow: false });
-        if (btn(ctx, x0 + w / 2 - 45, py + 60, 90, 14, 'LOVELY', { face: '#9fdc9f' })) { S.co = null; A.sfx.click(); }
-      }
-    }
-    if (co.step < 3 && btn(ctx, x0 + w - 66, ay + 3, 62, 12, 'GIVE UP', { face: C.chrome })) {
-      S.co = null; A.sfx.click(); say('THE BASKET IS STILL THERE. IT IS ALWAYS STILL THERE.');
-    }
-  }
-
-  /* ------------------------------------------------------------ the listing */
-  function drawDetail(ctx, g, t, x0, w, ay, ah) {
-    const it = D.ABAYX[S.view];
-    if (!it) { S.view = null; return; }
-    X.rect(ctx, x0, ay, w, ah, C.page);
-    const lvl = g.save.upg[it.id] || 0, cap = g.abayMax(it.id);
-    const cost = g.abayPrice(it.id), maxed = lvl >= cap;
-    const afford = g.save.credits >= cost;
-
-    drawPhoto(ctx, it, x0 + 6, ay + 6, 2);
-    F.draw(ctx, 'SELLER PHOTO. NOT A STOCK PHOTO.', x0 + 6, ay + 6 + PH * 2 + 3, C.dim, { shadow: false });
-
-    const tx = x0 + PW * 2 + 16;
-    const tw = w - (PW * 2 + 22);
-    F.draw(ctx, clip(it.name, tw), tx, ay + 6, C.ink, { shadow: false, scale: 2 });
-    stars(ctx, tx, ay + 24, it.stars);
-    F.draw(ctx, it.seller + '  (' + (100 + it.id.length * 37) + ')  99.' + (1 + it.id.length % 8) + '%', tx + 34, ay + 23, '#7a7460', { shadow: false });
-    // the blurb, wrapped
-    let row = '', ry = ay + 34;
-    for (const wd of it.blurb.split(' ')) {
-      const test = row ? row + ' ' + wd : wd;
-      if (F.width(test, 1) > tw && row) { F.draw(ctx, row, tx, ry, C.dim, { shadow: false }); row = wd; ry += 10; }
-      else row = test;
-    }
-    if (row) F.draw(ctx, row, tx, ry, C.dim, { shadow: false });
-
-    F.draw(ctx, maxed ? 'YOU OWN THE WHOLE LOT' : '$' + U.fmt(cost), tx, ay + 56,
-      maxed ? C.dim : (afford ? '#1e6b2e' : C.red), { shadow: false, scale: 3 });
-    F.draw(ctx, 'LVL ' + lvl + ' / ' + cap, tx, ay + 76, C.dim, { shadow: false });
-    F.draw(ctx, 'POSTAGE: FREE (HE THROWS IT)', tx, ay + 86, C.dim, { shadow: false });
-
-    if (!maxed) {
-      if (btn(ctx, tx + 110, ay + 56, 78, 14, 'ADD TO BASKET', { face: '#cfe0ff', light: '#ffffff' })) addToCart(g, it);
-      if (btn(ctx, tx + 110, ay + 74, 78, 14, 'BUY IT NOW',
-        { face: afford ? '#f2c23a' : '#c9c3ae', enabled: afford, light: '#ffe08a' })) buy(g, it, cost);
-    }
-    if (btn(ctx, x0 + 4, ay + ah - 14, 96, 12, '< BACK TO THE LIST', { face: C.chrome })) { S.view = null; A.sfx.click(); }
-  }
-
-  function drawCart(ctx, g, t, x0, w, ay, ah) {
-    X.rect(ctx, x0, ay, w, ah, C.page);
-    F.draw(ctx, 'YOUR BASKET', x0 + 8, ay + 5, C.ink, { shadow: false, scale: 2 });
-    if (!S.cart.length) {
-      F.draw(ctx, 'IT IS EMPTY. THAT IS WHY IT IS LIGHT.', x0 + w / 2, ay + 36, C.dim, { center: true, shadow: false, scale: 2 });
-    }
-    for (let i = 0; i < S.cart.length; i++) {
-      const l = S.cart[i], it = D.ABAYX[l.id];
-      const y = ay + 22 + i * 18;
-      if (y > ay + ah - 30) break;
-      X.rect(ctx, x0 + 6, y, w - 12, 16, i % 2 ? '#e2ded0' : '#ffffff');
-      drawPhoto(ctx, it, x0 + 8, y + 1, 0.25);
-      F.draw(ctx, clip(it.name, 150), x0 + 28, y + 2, C.link, { shadow: false });
-      F.draw(ctx, 'X' + l.n, x0 + 186, y + 2, C.dim, { shadow: false });
-      const lvl = g.save.upg[l.id] || 0;
-      let sum = 0;
-      for (let k = 0; k < l.n; k++) sum += Math.round(D.abayCost(D.ABAYX[l.id], lvl + k) * (1 - g.brain('know') * 0.05));
-      F.draw(ctx, '$' + U.fmt(sum), x0 + 264, y + 2, '#1e6b2e', { right: true, shadow: false });
-      if (btn(ctx, x0 + w - 34, y + 2, 24, 12, 'X', { face: '#d8b0a0' })) {
-        if (--l.n <= 0) S.cart.splice(i, 1);
-        A.sfx.click();
-      }
-    }
-    const tot = cartTotal(g);
-    X.rect(ctx, x0 + 6, ay + ah - 26, w - 12, 1, C.pageDD);
-    F.draw(ctx, 'TOTAL', x0 + 8, ay + ah - 22, C.ink, { shadow: false, scale: 2 });
-    F.draw(ctx, '$' + U.fmt(tot), x0 + 140, ay + ah - 22, g.save.credits >= tot ? '#1e6b2e' : C.red, { shadow: false, scale: 2 });
-    if (btn(ctx, x0 + 190, ay + ah - 22, 80, 14, 'KEEP LOOKING', { face: C.chrome })) { S.cartOpen = 0; A.sfx.click(); }
-    if (btn(ctx, x0 + 276, ay + ah - 22, 92, 14, 'CHECKOUT >', { face: '#f2c23a', light: '#ffe08a' })) startCheckout(g);
-  }
-
-  /* -------------------------------------------------------------- BUY tab */
-  function abayBuy(ctx, g, t, bx, by, bw, bh) {
-    const ROW = 30;
-    const want = CATS[S.cat];
-    const list = S.cat === 0 ? D.ABAY : D.ABAY.filter(it => (it.cat || 'JUNK') === want);
-    if (!list.length) {
-      F.draw(ctx, 'NOTHING ON THIS SHELF.', bx + bw / 2, by + 24, C.ink, { center: true, shadow: false, scale: 2 });
-      return;
-    }
-    const total = list.length * ROW;
-    const lw = bw - 9;
-    const RCOL = 92;                       // price + button live here, nothing else
-    const TW = lw - 28 - RCOL;             // room the words are allowed
-    for (let i = 0; i < list.length; i++) {
-      const it = list[i];
-      const y = by + i * ROW - Math.round(S.scroll);
-      if (y > by + bh || y + ROW < by) continue;
-      const lvl = g.save.upg[it.id] || 0;
-      const cap = g.abayMax(it.id);
-      const maxed = lvl >= cap;
-      const cost = g.abayPrice(it.id);
-      const afford = g.save.credits >= cost;
-      const over = hot(bx, y, lw, ROW - 2);
-
-      X.rect(ctx, bx, y, lw, ROW - 2, over ? '#fdfaef' : (i % 2 ? '#e2ded0' : C.page));
-      X.rect(ctx, bx, y + ROW - 2, lw, 1, C.pageDD);
-      if (over) { X.rect(ctx, bx, y, 2, ROW - 2, C.ylw); }
-      // the seller's own photograph, badly taken, as a thumbnail
-      drawPhoto(ctx, it, bx + 3, y + 4, 0.4);
-      if (lvl > 0) {
-        X.rect(ctx, bx + 3, y + 20, 22, 7, '#3a9c48');
-        F.draw(ctx, 'X' + lvl, bx + 14, y + 21, '#ffffff', { center: true, shadow: false });
-      }
-      // title as a blue underlined link, because that is what a link is
-      const nm = clip(it.name, TW);
-      F.draw(ctx, nm, bx + 29, y + 3, maxed ? C.dim : C.link, { shadow: false });
-      if (!maxed) X.rect(ctx, bx + 29, y + 11, F.width(nm, 1), 1, C.link);
-      F.draw(ctx, clip(it.blurb, TW), bx + 29, y + 13, C.dim, { shadow: false });
-      stars(ctx, bx + 29, y + 22, it.stars);
-      F.draw(ctx, clip(it.seller + ' (' + (100 + i * 37) + ')', TW - 34), bx + 63, y + 21, '#7a7460', { shadow: false });
-
-      // the right column
-      const px = bx + lw - RCOL;
-      X.rect(ctx, px - 3, y + 2, 1, ROW - 6, C.pageDD);
-      if (maxed) {
-        F.draw(ctx, 'YOU OWN THE', px + RCOL / 2, y + 6, C.dim, { center: true, shadow: false });
-        F.draw(ctx, 'WHOLE LOT', px + RCOL / 2, y + 15, C.dim, { center: true, shadow: false });
-      } else {
-        F.draw(ctx, '$' + U.fmt(cost), px + RCOL - 4, y + 3, afford ? '#1e6b2e' : C.red, { right: true, shadow: false });
-        F.draw(ctx, 'LVL ' + lvl + ' / ' + cap, px + 2, y + 3, C.dim, { shadow: false });
-        if (btn(ctx, px + 2, y + 14, RCOL - 6, 11, 'BUY IT NOW',
-          { face: afford ? '#f2c23a' : '#c9c3ae', enabled: afford, light: '#ffe08a' })) buy(g, it, cost);
-      }
-      // anywhere that is not the buy button opens the listing itself
-      if (press(bx, y, lw - RCOL, ROW - 2)) { S.view = it.id; S.cartOpen = 0; A.sfx.click(); }
-    }
-    scrollbar(ctx, bx + bw - 7, by, bh, total, bh);
-  }
-
-  function buy(g, it, cost) {
-    if (g.tutAllows && !g.tutAllows('desk', 'buy')) { g.tutNope('desk'); say('SELL FIRST. SHOPPING IS FOR PEOPLE WITH MONEY.'); return; }
-    if (!g.abayBuy(it.id)) { say('NOT ENOUGH MONEY. GO AND HIT A PLANET.'); return; }
-    say('BOUGHT: ' + it.name + '. IT IS ALREADY HERE. DO NOT ASK.');
-    S.flash = 1;
-    for (let i = 0; i < 14; i++) {
-      S.coins.push({ x: SX + SW - 60 + U.rand(-10, 10), y: SY + 40, vx: U.rand(-70, 70), vy: U.rand(-90, -20), t: 0, life: 1 });
-    }
-  }
-
-  /* --------------------------------------------------------- AUCTIONS tab */
-  function abayAuctions(ctx, g, t, bx, by, bw, bh) {
-    const ROW = 44, lw = bw - 9;
-    if (!S.auc.length) {
-      F.draw(ctx, 'NO AUCTIONS. EVERYONE IS ASLEEP.', bx + lw / 2, by + 24, C.ink, { center: true, shadow: false, scale: 2 });
-      return;
-    }
-    for (let i = 0; i < S.auc.length; i++) {
-      const a = S.auc[i];
-      const y = by + i * ROW - Math.round(S.scroll);
-      if (y > by + bh || y + ROW < by) continue;
-      const over = hot(bx, y, lw, ROW - 2);
-      const soon = a.ends < 10;
-      X.rect(ctx, bx, y, lw, ROW - 2, over ? '#fdfaef' : (i % 2 ? '#e2ded0' : C.page));
-      X.rect(ctx, bx, y + ROW - 2, lw, 1, C.pageDD);
-      X.rect(ctx, bx, y, 2, ROW - 2, a.mine ? C.grn : (soon ? C.red : C.pageDD));
-
-      sunk(ctx, bx + 4, y + 7, 26, 26, '#ffffff');
-      Gy().draw(ctx, GLYPH_OF[a.it.id] || 'quest', bx + 10, y + 13, C.ink, C.dim);
-
-      /* the left half is the listing, the right half is the money -- they do
-         not share a column, because a big green number under a big yellow
-         button is how you end up unable to read either */
-      const TW = lw - 34 - 88;
-      F.draw(ctx, clip(a.it.name, TW), bx + 34, y + 4, C.link, { shadow: false });
-      X.rect(ctx, bx + 34, y + 12, Math.min(TW, F.width(a.it.name, 1)), 1, C.link);
-      F.draw(ctx, clip('SELLER ' + a.it.seller, TW), bx + 34, y + 15, '#7a7460', { shadow: false });
-      F.draw(ctx, a.mine ? 'YOU ARE THE HIGH BIDDER' : clip('HIGH BIDDER: ' + a.rival, TW),
-        bx + 34, y + 25, a.mine ? '#1e6b2e' : C.dim, { shadow: false });
-      F.draw(ctx, 'BUY IT NOW WAS $' + U.fmt(a.shop), bx + 34, y + 34, '#7a7460', { shadow: false });
-
-      const rx = bx + lw - 6;
-      const mm = Math.floor(a.ends / 60), ss = Math.floor(a.ends % 60);
-      const clockCol = soon ? (Math.sin(t * 9) > 0 ? C.red : '#8a2f2f') : C.dim;
-      F.draw(ctx, mm + ':' + (ss < 10 ? '0' : '') + ss, rx, y + 4, clockCol, { right: true, shadow: false });
-      F.draw(ctx, '$' + U.fmt(a.bid), rx, y + 13, '#1e6b2e', { right: true, shadow: false, scale: 2 });
-      if (btn(ctx, rx - 82, y + 29, 82, 12, a.mine ? 'WINNING' : 'BID $' + U.fmt(a.bid + a.inc),
-        { face: a.mine ? '#9fd9a8' : '#f2c23a', enabled: !a.mine, light: '#ffe08a' })) placeBid(g, a);
-    }
-    scrollbar(ctx, bx + bw - 7, by, bh, S.auc.length * ROW, bh);
-  }
-
-  /* ------------------------------------------------------------- SELL tab */
-  function abaySell(ctx, g, t, bx, by, bw, bh) {
-    const keys = Object.keys(g.save.vault).sort((a, b) => D.MAT[b].cr - D.MAT[a].cr);
-    const ROW = 17;
-    const listH = bh - 16;
-    const lw = bw - 9;
-
-    if (!keys.length) {
-      F.draw(ctx, 'YOU HAVE NO ROCKS.', bx + lw / 2, by + 22, C.ink, { center: true, shadow: false, scale: 2 });
-      F.draw(ctx, 'GO TO A PLANET. HIT IT. COME BACK.', bx + lw / 2, by + 40, C.dim, { center: true, shadow: false });
-      F.draw(ctx, 'THE UFO IS THE ROUND THING BY THE DOOR.', bx + lw / 2, by + 50, C.dim, { center: true, shadow: false });
-      return;
-    }
-
-    F.draw(ctx, 'LOT', bx + 20, by, C.dim, { shadow: false });
-    F.draw(ctx, 'QTY', bx + lw - 176, by, C.dim, { right: true, shadow: false });
-    F.draw(ctx, 'ASKING', bx + lw - 108, by, C.dim, { right: true, shadow: false });
-    F.draw(ctx, 'TOTAL', bx + lw - 4, by, C.dim, { right: true, shadow: false });
-    X.rect(ctx, bx, by + 9, lw, 1, C.pageDD);
-
-    ctx.save();
-    ctx.beginPath(); ctx.rect(bx, by + 10, bw, listH - 10); ctx.clip();
-    for (let i = 0; i < keys.length; i++) {
-      const mat = +keys[i], n = g.save.vault[mat];
-      const y = by + 11 + i * ROW - Math.round(S.scroll);
-      if (y > by + listH || y + ROW < by) continue;
-      const price = g.priceOf(mat), tot = price * n;
-      X.rect(ctx, bx, y, lw, ROW - 1, i % 2 ? '#e4e0d0' : C.page);
-      PD.art.oreChip(ctx, mat, bx + 2, y + 1, 14);
-      F.draw(ctx, clip(D.MAT[mat].name, 156), bx + 20, y + 4, C.ink, { shadow: false });
-      F.draw(ctx, 'X' + n, bx + lw - 176, y + 4, C.ink, { right: true, shadow: false });
-      const d = g.demandFor(mat);
-      F.draw(ctx, '$' + U.fmt(price), bx + lw - 108, y + 4, C.ink, { right: true, shadow: false });
-      if (d > 1.06 || d < 0.94) {
-        const up = d > 1.06;
-        X.rect(ctx, bx + lw - 100, y + 3, 26, 9, up ? '#3a9c48' : '#c4453a');
-        F.draw(ctx, up ? 'HOT' : 'COLD', bx + lw - 87, y + 5, '#ffffff', { center: true, shadow: false });
-      }
-      F.draw(ctx, '$' + U.fmt(tot), bx + lw - 4, y + 4, C.ink, { right: true, shadow: false });
-    }
-    ctx.restore();
-    scrollbar(ctx, bx + bw - 7, by + 10, listH - 10, keys.length * ROW, listH - 10);
-
-    const val = g.vaultValue(), cnt = g.vaultTotal();
-    const byy = by + bh - 14;
-    X.rect(ctx, bx, byy - 3, lw, 1, C.pageDD);
-    F.draw(ctx, cnt + ' ROCKS IN THE SACK', bx, byy + 3, C.dim, { shadow: false });
-    if (btn(ctx, bx + lw - 168, byy, 168, 13, 'LIST THE LOT  ->  $' + U.fmt(val),
-      { face: '#4cbf62', light: '#8fe89e', ink: '#0f2c15' })) sellAll(g);
-  }
-
-  function sellAll(g) {
-    const val = g.vaultValue();
-    if (!val) { A.sfx.deny(); say('THERE IS NOTHING TO SELL. THAT IS THE PROBLEM.'); return; }
-    g.sellAll();
-    say('SOLD. INSTANTLY. NOBODY EVEN LOOKED AT IT.');
-    S.flash = 1;
-    for (let i = 0; i < 40; i++) {
-      S.coins.push({ x: SX + SW / 2 + U.rand(-60, 60), y: SY + SH / 2, vx: U.rand(-120, 120), vy: U.rand(-140, -40), t: 0, life: 1.4 });
-    }
-  }
-
-  /* --------------------------------------------------------- FEEDBACK tab */
-  function abayFeedback(ctx, g, t, bx, by, bw, bh) {
-    const ROW = 21, lw = bw - 9;
-    F.draw(ctx, 'FEEDBACK ABOUT YOU: 62% POSITIVE', bx, by, C.ink, { shadow: false });
-    X.rect(ctx, bx, by + 9, lw, 1, C.pageDD);
-    ctx.save();
-    ctx.beginPath(); ctx.rect(bx, by + 10, bw, bh - 10); ctx.clip();
-    for (let i = 0; i < FEEDBACK.length; i++) {
-      const f = FEEDBACK[i];
-      const y = by + 12 + i * ROW - Math.round(S.scroll);
-      if (y > by + bh || y + ROW < by) continue;
-      X.rect(ctx, bx, y, lw, ROW - 2, i % 2 ? '#e4e0d0' : C.page);
-      stars(ctx, bx + 2, y + 2, f[1]);
-      F.draw(ctx, f[0], bx + 36, y + 1, C.link, { shadow: false });
-      F.draw(ctx, f[2], bx + 2, y + 11, C.ink, { shadow: false });
-    }
-    ctx.restore();
-    scrollbar(ctx, bx + bw - 7, by + 10, bh - 10, FEEDBACK.length * ROW, bh - 10);
-  }
-
-  /* -------------------------------------------------------------- MESSAGES */
-  function drawMail(ctx, g, t) {
-    windowFrame(ctx, 'MESSAGES - 6 UNREAD, 6 BAD', g);
-    const box = mailbox(g);
-    const bx = WX + 6, by = WY + 18, lw = WW - 20, ROW = 19;
-    ctx.save();
-    ctx.beginPath(); ctx.rect(WX + 2, by, WW - 4, WH - 22); ctx.clip();
-    for (let i = 0; i < box.length; i++) {
-      const y = by + i * ROW - Math.round(S.scroll);
-      X.rect(ctx, bx, y, lw, ROW - 2, i % 2 ? '#e4e0d0' : C.page);
-      X.rect(ctx, bx + 2, y + 4, 9, 7, '#ffffff');
-      X.rect(ctx, bx + 2, y + 4, 9, 1, C.pageDD);
-      X.rect(ctx, bx + 4, y + 6, 5, 1, C.dim);
-      F.draw(ctx, box[i][0], bx + 15, y + 1, C.link, { shadow: false });
-      F.draw(ctx, box[i][1], bx + 15, y + 10, C.ink, { shadow: false });
-    }
-    ctx.restore();
-    scrollbar(ctx, WX + WW - 12, by, WH - 24, box.length * ROW, WH - 24);
-  }
-
-  /* ---------------------------------------------------------------- SETUP */
-  function drawSetup(ctx, g, t) {
-    windowFrame(ctx, 'SETUP - HE SHOULD NOT BE IN HERE', g);
-    const bx = WX + 10, by = WY + 20;
-    F.draw(ctx, 'MACHINE: DELLL (STOLEN, EARTH)', bx, by, C.ink, { shadow: false });
-    F.draw(ctx, 'OWNER: ME NOW', bx, by + 11, C.ink, { shadow: false });
-    F.draw(ctx, 'WORLDS EATEN: ' + g.save.destroyed.filter(Boolean).length + ' OF ' + D.BODIES.length, bx, by + 22, C.ink, { shadow: false });
-    F.draw(ctx, 'TOTAL EARNED: $' + U.fmt(g.save.totalEarned), bx, by + 33, C.ink, { shadow: false });
-    F.draw(ctx, 'TITLE: ' + D.titleFor(g.save.dominion), bx, by + 44, C.ink, { shadow: false });
-
-    if (btn(ctx, bx, by + 60, 96, 13, A.state.sfx ? 'SOUND: ON' : 'SOUND: OFF')) { A.toggleSfx(!A.state.sfx); A.toggleMusic(A.state.sfx); A.sfx.click(); }
-    if (btn(ctx, bx + 104, by + 60, 110, 13, 'FULL SCREEN')) { toggleFull(); }
-    if (btn(ctx, bx, by + 78, 214, 13, 'THROW EVERYTHING AWAY (WIPE SAVE)', { face: '#d8746a', light: '#ecaba2', ink: '#2c0f0c' })) {
-      if (S.confirm) { S.confirm = false; g.wipeSave(); say('IT IS ALL GONE. WELL DONE.'); }
-      else { S.confirm = true; say('PRESS IT AGAIN IF YOU REALLY MEAN IT.'); }
-    }
-    F.draw(ctx, S.status, bx, by + 96, C.dim, { shadow: false });
-  }
-
-  function toggleFull() {
-    try {
-      if (document.fullscreenElement) document.exitFullscreen();
-      else document.documentElement.requestFullscreen();
-    } catch (e) { /* the human machine says no */ }
-  }
-
-  /* --------------------------------------------------------------- cursor */
-  function drawCursor(ctx, t) {
-    const x = Math.round(S.cx), y = Math.round(S.cy);
-    // the pointer, and a faint ghost of where you actually aimed
-    if (S.want) {
-      X.rect(ctx, Math.round(S.want.x) - 2, Math.round(S.want.y), 5, 1, 'rgba(255,255,255,0.3)');
-      X.rect(ctx, Math.round(S.want.x), Math.round(S.want.y) - 2, 1, 5, 'rgba(255,255,255,0.3)');
-    }
-    const ARROW = [
-      '#.........', '##........', '#@#.......', '#@@#......', '#@@@#.....',
-      '#@@@@#....', '#@@@@@#...', '#@@@@@@#..', '#@@@#####.', '#@#@#.....',
-      '##.#@#....', '#..#@#....', '....##....'
-    ];
-    for (let j = 0; j < ARROW.length; j++) {
-      for (let i = 0; i < ARROW[j].length; i++) {
-        const c = ARROW[j][i];
-        if (c === '.') continue;
-        ctx.fillStyle = c === '#' ? '#120d08' : '#ffffff';
-        ctx.fillRect(x + i, y + j, 1, 1);
-      }
-    }
-  }
-
-  /* ------------------------------------------------------------ CRT glass */
-  function drawCrt(ctx, t) {
-    if (S.flash > 0) { ctx.globalAlpha = S.flash * 0.25; X.rect(ctx, SX, SY, SW, SH, '#ffffff'); ctx.globalAlpha = 1; }
-    ctx.globalAlpha = 0.14;
-    for (let y = SY; y < SY + SH; y += 2) X.rect(ctx, SX, y, SW, 1, '#000000');
-    ctx.globalAlpha = 1;
-    // phosphor bloom in the corners and a rolling bright band
-    ctx.globalAlpha = 0.09;
-    const rb = SY + ((t * 40) % (SH + 40)) - 20;
-    X.rect(ctx, SX, rb, SW, 14, '#bfffd0');
-    ctx.globalAlpha = 0.16;
-    for (let i = 0; i < 5; i++) {
-      X.rect(ctx, SX, SY + i, SW, 1, '#000000');
-      X.rect(ctx, SX, SY + SH - 1 - i, SW, 1, '#000000');
-      X.rect(ctx, SX + i, SY, 1, SH, '#000000');
-      X.rect(ctx, SX + SW - 1 - i, SY, 1, SH, '#000000');
-    }
-    ctx.globalAlpha = 1;
-    // his own reflection, because the glass is filthy
-    ctx.globalAlpha = 0.06;
-    X.rect(ctx, SX + 20, SY + 6, 120, 3, '#ffffff');
-    X.rect(ctx, SX + 34, SY + 12, 88, 2, '#ffffff');
-    ctx.globalAlpha = 1;
-  }
-
-  /* ----------------------------------------------------------- desk + keys */
-  function drawDesk(ctx, g, t) {
-    const DY = 204;
-    X.rect(ctx, 0, DY, VW, VH - DY, C.wood);
-    X.rect(ctx, 0, DY, VW, 3, C.woodL);
-    for (let x = 0; x < VW; x += 3) {
-      const n = U.hash2(x, 2);
-      if (n > 0.72) X.rect(ctx, x, DY + 4 + ((n * 40) | 0), 3, 1, C.woodD);
-      if (n < 0.12) X.rect(ctx, x, DY + 10 + ((n * 200) | 0) % 40, 2, 1, C.woodL);
-    }
-    // ring stains from a mug he does not use for drinking
-    for (const rx of [70, 402]) {
-      for (let a = 0; a < 40; a++) {
-        const ang = a / 40 * Math.PI * 2;
-        X.rect(ctx, rx + Math.cos(ang) * 13, DY + 16 + Math.sin(ang) * 5, 1, 1, C.woodD);
-      }
-    }
-    // the mug, with a bone in it
-    X.rect(ctx, 30, DY + 2, 22, 22, '#3f7fb0');
-    X.rect(ctx, 30, DY + 2, 22, 3, '#5fa0d0');
-    X.rect(ctx, 52, DY + 8, 5, 10, '#3f7fb0');
-    X.rect(ctx, 54, DY + 10, 2, 6, C.wood);
-    X.rect(ctx, 38, DY - 8, 4, 14, '#e8e2cc');
-    X.rect(ctx, 36, DY - 10, 8, 4, '#e8e2cc');
-    // keyboard: a slab of human keys, most of which he has never pressed
-    const KX = 92, KY = DY + 10, KW = 296, KH = 46;
-    X.rect(ctx, KX - 3, KY - 3, KW + 6, KH + 8, '#1b1620');
-    X.plate(ctx, KX, KY, KW, KH, '#c4bda4', '#e2dbc2', '#847d6a', 3);
-    X.rect(ctx, KX + 4, KY + 3, KW - 8, KH - 8, '#a9a28c');       // the sunk key well
-    X.rect(ctx, KX + 4, KY + 3, KW - 8, 1, '#8d8672');
-    const bang = S.press > 0.5 ? 1 : 0;
-    for (let r = 0; r < 4; r++) {
-      const cols = [16, 15, 14, 5][r];
-      const off = [0, 5, 9, 22][r];
-      if (KY + 6 + r * 9 > VH - 6) break;
-      for (let c = 0; c < cols; c++) {
-        const kw = r === 3 && c === 2 ? 92 : 16;
-        let kx = KX + 6 + off + c * 18;
-        if (r === 3 && c > 2) kx += 76;
-        const ky = KY + 6 + r * 9;
-        const hitk = bang && ((c * 5 + r * 3) % 11 === (S.hand ? 2 : 7));
-        const face = hitk ? '#9d9682' : '#ded7bf';
-        X.rect(ctx, kx, ky + (hitk ? 1 : 0), kw, hitk ? 7 : 8, face);
-        X.rect(ctx, kx, ky + (hitk ? 1 : 0), kw, 1, hitk ? '#8d8672' : '#f4efdc');
-        X.rect(ctx, kx, ky + 7, kw, 1, '#8d8672');
-        X.rect(ctx, kx + kw - 1, ky, 1, 8, '#8d8672');
-        // the letters have worn off, except the ones he uses
-        if (!hitk && (c + r) % 4 === 0) X.rect(ctx, kx + 6, ky + 3, 3, 2, '#9a9380');
-      }
-    }
-    F.draw(ctx, 'HUMAN KEYS', KX + KW - 6, KY + KH - 8, '#9a9380', { right: true, shadow: false });
-    // a chewed pencil laid across the top of it
-    X.rect(ctx, KX + 40, KY - 6, 70, 3, '#e0b13a');
-    X.rect(ctx, KX + 40, KY - 6, 70, 1, '#f2ca62');
-    X.rect(ctx, KX + 110, KY - 6, 6, 3, '#d8d2c0');
-    X.rect(ctx, KX + 34, KY - 6, 6, 3, '#3a3026');
-    // the mat, and a mouse he is holding like a small animal
-    const mx = KX + KW + 16, my = KY + 14;
-    X.rect(ctx, mx - 8, my - 6, 52, 36, '#2b3f6a');
-    X.rect(ctx, mx - 8, my - 6, 52, 1, '#3d5590');
-    X.rect(ctx, mx - 6, my - 4, 48, 32, '#213155');
-    F.draw(ctx, 'ZORB', mx + 18, my + 20, '#3d5590', { center: true, shadow: false });
-    const jig = Math.round(Math.sin(t * 2) * 2);
-    X.rect(ctx, mx + 6 + jig, my, 24, 26, '#ddd6be');
-    X.rect(ctx, mx + 6 + jig, my, 24, 2, '#f2ecd8');
-    X.rect(ctx, mx + 6 + jig, my + 24, 24, 2, '#a49d88');
-    X.rect(ctx, mx + 6 + jig, my + 2, 11, 9, '#c9c2ab');
-    X.rect(ctx, mx + 19 + jig, my + 2, 11, 9, '#c9c2ab');
-    X.rect(ctx, mx + 17 + jig, my + 2, 2, 9, '#a49d88');
-    X.rect(ctx, mx + 17 + jig, my - 8, 2, 8, '#a49d88');         // the cord, going away
-  }
-
-  function drawHands(ctx, g, t) {
-    const P = PD.art.skinFor(g.save.cos).P;
-    const H = buildHands(P);
-    const drum = Math.sin(t * 3) > 0.6 ? 1 : (Math.sin(t * 2.1) > 0.8 ? 2 : 0);
-    const f = S.typeT > 0 ? (S.hand ? 1 : 2) : drum;
-    const bang = S.press > 0.4 ? 3 : 0;
-    // left hand, splayed over the keys
-    ctx.save();
-    ctx.translate(140, 214 + bang);
-    ctx.rotate(0.1);
-    ctx.scale(-1, 1);
-    ctx.drawImage(H.frames[f], -H.w / 2, 0, H.w, H.h);
-    ctx.restore();
-    // right hand, riding the mouse it is far too big for
-    ctx.save();
-    ctx.translate(378 + Math.round(Math.sin(t * 2) * 2), 210 + bang);
-    ctx.rotate(-0.08);
-    ctx.drawImage(H.frames[S.typeT > 0 ? 1 : 0], -H.w / 2, 0, H.w, H.h);
-    ctx.restore();
-    // shadow of him leaning in
-    ctx.globalAlpha = 0.22;
-    X.rect(ctx, 0, VH - 8, VW, 8, '#000000');
-    ctx.globalAlpha = 1;
-  }
-
-  function touchMode() { return 'ui'; }
-
-  PD.desk = { enter, update, draw, close, touchMode, startCheckout, photoOf, S, SX, SY, SW, SH };
-})(window.PD);
-
 /* ===== src/mind.js ===== */
 /* THE BRAIN IN THE JAR.
 
@@ -20600,12 +19127,23 @@ window.PD = window.PD || {};
     ctx.globalAlpha = 0.35 * Math.max(0.2, 1 - hgt / 60);
     X.blob(ctx, x, gy + hgt + 1, 10 * Math.max(0.4, 1 - hgt / 80), 2.4, '#0a0614');
     ctx.globalAlpha = 1;
+    // the pet, trotting after you, and whatever is strapped to your back
+    if (PD.cosm) {
+      g._petFace = P.face;
+      const pet = PD.cosm.petStep(g, g.dt || 0.016, P.x, P.y, S.scene);
+      if (pet) {
+        const out = S.scene === 'out';
+        const dx = out ? wdist(pet.x, P.x) : pet.x - P.x;
+        PD.cosm.drawPet(ctx, g, t, x + dx, gy + (groundY(pet.x) - P.y) + (out ? dx * dx / (2 * R) : 0), walking);
+      }
+      PD.cosm.drawBehind(ctx, g, x, y - 31 * sq, P.face, t, sq, P);
+    }
     PD.rig.draw(ctx, r, {
       x, y, flip: P.face < 0, spr: skin.alienCore, frame,
       drilling: false, twoHand: false, grip: null, aim: P.face < 0 ? Math.PI : 0,
       ground: !air, vx: P.vx, vy: P.vy, squash: sq
     }, skin.P, PD.art.BIZ);
-    if (PD.cosm) PD.cosm.drawOnPlayer(ctx, g, x + P.face, y - 31 * sq + (P.land > 0 ? P.land * 6 : 0), P.face, t, sq);
+    if (PD.cosm) PD.cosm.drawOnPlayer(ctx, g, x + P.face, y - 31 * sq + (P.land > 0 ? P.land * 6 : 0), P.face, t, sq, P);
     if (walking && !air && U.chance(0.2)) dustAt(P.x - P.face * 5, P.y, 1, 10);
     if (P.sweep > 0) {
       const k = P.sweep / 0.5;
@@ -21206,6 +19744,485 @@ window.PD = window.PD || {};
   }
 
   PD.buildart = { LIST: L, BY, CATS, art };
+})(window.PD);
+
+/* ===== src/cosm.js ===== */
+/* COSM: things to wear, bought off ABAY.
+
+   Four slots, one thing in each: a HAT on top of your head, something on
+   your FACE, something on your BACK, and a PET that follows you about. Each
+   is painted once at double detail with the paint kit and drawn over (or
+   behind) the alien wherever the alien is drawn. A few of them move: the
+   propeller spins, the cape flaps, the fish in the fishbowl swims about.
+
+   The colour options from the old wardrobe (skin, suit, visor) are sold on
+   ABAY as well and still go through PD.art.skinFor; they live here too so
+   the shop has one list to read.
+
+   Save: g.save.cosm = { own: {id: 1}, on: {hat, face, back, pet} } */
+(function (PD) {
+  'use strict';
+  const U = PD.util;
+  const X = PD.pxd;
+  const PT = PD.paint;
+  const D = PD.data;
+  const HD = 2;
+  const INK = 0x160f24;
+  const R = PT.ramp;
+  const GOLD = [0xffc83a, 0xfff0a0, 0xb8801a];
+  const W = 80, H = 72;                 // the buffer every item is painted in
+  // where each slot's anchor sits in that buffer
+  const ANCHOR = { hat: [40, 60], face: [40, 36], back: [40, 36], pet: [40, 68] };
+
+  const L = [];
+  function add(o) { L.push(o); }
+
+  /* ---------------------------------------------------------------- HATS
+     painted with the brim on y = by, centred on cx, growing upward */
+  add({ id: 'partyhat', slot: 'hat', name: 'PARTY HAT', price: 500, desc: 'IT IS NOBODY\'S BIRTHDAY. WEAR IT ANYWAY.',
+    paint(B, cx, by) {
+      B.poly([[cx - 12, by], [cx + 12, by], [cx + 1, by - 34]], 0xff5a8a);
+      for (let i = 0; i < 4; i++) B.poly([[cx - 10 + i * 2.6, by - 4 - i * 8], [cx + 10 - i * 2.6, by - 4 - i * 8], [cx + 9 - i * 2.6, by - 8 - i * 8], [cx - 9 + i * 2.6, by - 8 - i * 8]], [0xffd34d, 0x7ef9ff, 0x8affa0, 0xffffff][i]);
+      B.ball(cx + 1, by - 36, 5, 5, R(0xffd34d), true);
+      B.rect(cx - 12, by - 2, 24, 3, 0xc83a6a);
+    } });
+  add({ id: 'tophat', slot: 'hat', name: 'TOP HAT', price: 4000, desc: 'FOR SIGNING CONTRACTS YOU HAVE NOT READ.',
+    paint(B, cx, by) {
+      B.ellipse(cx, by - 2, 22, 5, 0x1a1624); B.ellipse(cx, by - 3, 20, 3.5, 0x2e2838);
+      B.block(cx - 14, by - 40, 28, 38, [0x2a2434, 0x4a4258, 0x14101c], 5, 5);
+      B.rect(cx - 14, by - 12, 28, 6, 0xc83a4a); B.rect(cx - 14, by - 12, 28, 1, 0xff7a8a);
+      B.rect(cx - 10, by - 36, 3, 22, 0x5a5268);
+    } });
+  add({ id: 'crown', slot: 'hat', name: 'GOLD CROWN', price: 250000, desc: 'KING OF A MOON. A SMALL ONE. STILL COUNTS.',
+    paint(B, cx, by) {
+      B.poly([[cx - 18, by], [cx + 18, by], [cx + 20, by - 22], [cx + 11, by - 12], [cx + 5, by - 28], [cx, by - 14], [cx - 5, by - 28], [cx - 11, by - 12], [cx - 20, by - 22]], GOLD[0]);
+      B.rect(cx - 18, by - 7, 36, 7, GOLD[2]); B.rect(cx - 18, by - 7, 36, 2, GOLD[1]);
+      for (const [x, c] of [[-10, 0xd83a4a], [0, 0x3a8ad8], [10, 0x3ad86a]]) B.ball(cx + x, by - 4, 3, 2.5, R(c), true);
+      for (const x of [-20, -5, 5, 20]) B.disc(cx + x, by - (Math.abs(x) > 10 ? 23 : 29), 2.4, 0xfff0a0);
+    },
+    live(ctx, t) { if (Math.sin(t * 2.3) > 0.6) { const k = Math.sin(t * 2.3) - 0.6; X.rect(ctx, 2, -14 - k * 4, 1, 3, '#ffffff'); X.rect(ctx, 1, -13 - k * 4, 3, 1, '#ffffff'); } } });
+  add({ id: 'cowboy', slot: 'hat', name: 'COWBOY HAT', price: 3000, desc: 'THIS MOON AIN\'T BIG ENOUGH FOR THE BOTH OF US. IT IS QUITE BIG.',
+    paint(B, cx, by) {
+      B.ellipse(cx, by - 3, 30, 6, 0x7a4a24); B.ellipse(cx, by - 5, 28, 4, 0xa8703a);
+      B.poly([[cx - 30, by - 5], [cx - 34, by - 12], [cx - 24, by - 6]], 0xa8703a); B.poly([[cx + 30, by - 5], [cx + 34, by - 12], [cx + 24, by - 6]], 0xa8703a);
+      B.round(cx - 15, by - 26, 30, 22, 8, 0x9a6230); B.rect(cx - 2, by - 26, 4, 8, 0x6a3a18);
+      B.rect(cx - 15, by - 10, 30, 4, 0x3a2410); B.disc(cx + 8, by - 8, 2, 0xffd34d);
+      B.rect(cx - 12, by - 24, 4, 12, 0xc08850);
+    } });
+  add({ id: 'propeller', slot: 'hat', name: 'PROPELLER CAP', price: 1500, desc: 'DOES NOT MAKE YOU FLY. HAS BEEN TESTED. TWICE.',
+    paint(B, cx, by) {
+      B.round(cx - 16, by - 16, 32, 18, 10, 0x3a6ad8);
+      for (let i = 0; i < 4; i++) B.poly([[cx, by - 16], [cx - 16 + i * 8, by], [cx - 8 + i * 8, by]], [0xd83a4a, 0xffd34d, 0x3ad86a, 0x3a6ad8][i], 0.9);
+      B.ellipse(cx + 16, by - 2, 10, 3, 0xd83a4a);
+      B.rect(cx - 1, by - 24, 2, 8, 0x8a8a9a);
+    },
+    live(ctx, t) {
+      const s = Math.cos(t * 30), w = Math.abs(s) * 11 + 1;
+      X.rect(ctx, -Math.round(w), -12, Math.round(w * 2), 2, s > 0 ? '#ffd34d' : '#d83a4a');
+      X.rect(ctx, -1, -13, 2, 2, '#ffffff');
+    } });
+  add({ id: 'chef', slot: 'hat', name: 'CHEF HAT', price: 2000, desc: 'YOU CANNOT COOK. YOU CAN LOOK LIKE YOU CAN.',
+    paint(B, cx, by) {
+      B.rect(cx - 14, by - 12, 28, 12, 0xe8e8f4); B.rect(cx - 14, by - 12, 28, 2, 0xffffff);
+      for (const [x, y, r] of [[-10, -22, 10], [10, -22, 10], [0, -30, 12], [-4, -20, 9]]) B.ball(cx + x, by + y, r, r * 0.9, [0xf0f0fa, 0xffffff, 0xc8c8d8]);
+    } });
+  add({ id: 'viking', slot: 'hat', name: 'VIKING HELMET', price: 12000, desc: 'THE HORNS ARE REAL. THE VIKING WAS NOT.',
+    paint(B, cx, by) {
+      for (const s of [-1, 1]) { B.poly([[cx + s * 12, by - 12], [cx + s * 22, by - 18], [cx + s * 26, by - 36], [cx + s * 18, by - 22], [cx + s * 10, by - 18]], 0xf0e8d0); B.line(cx + s * 20, by - 22, cx + s * 25, by - 34, 0xffffff, 1); }
+      B.ball(cx, by - 12, 16, 14, R(0x9aa0b8), true);
+      B.rect(cx - 16, by - 5, 32, 5, 0x6a7088); for (let i = 0; i < 6; i++) B.disc(cx - 13 + i * 5.2, by - 3, 1, 0xd8dce8);
+      B.rect(cx - 1, by - 26, 2, 22, 0x6a7088);
+    } });
+  add({ id: 'halo', slot: 'hat', name: 'HALO', price: 50000, desc: 'YOU HAVE DESTROYED NINE PLANETS. THE HALO DOES NOT CARE.',
+    paint(B, cx, by) { B.ellipse(cx, by - 14, 18, 5, 0xffe070); B.ellipse(cx, by - 14, 13, 2.5, null); B.ellipse(cx, by - 15, 16, 1, 0xfffbe0); },
+    live(ctx, t) { PT.glow(ctx, 0, -7 + Math.sin(t * 2) * 1, 14, '#ffe070', 0.35); },
+    bob: 1.2 });
+  add({ id: 'cone', slot: 'hat', name: 'TRAFFIC CONE', price: 300, desc: 'FOUND IT. IT IS YOURS NOW. THAT IS HOW FINDING WORKS.',
+    paint(B, cx, by) {
+      B.rect(cx - 16, by - 4, 32, 4, 0xd8581a);
+      B.poly([[cx - 12, by - 4], [cx + 12, by - 4], [cx + 3, by - 38], [cx - 3, by - 38]], 0xff7a2a);
+      B.poly([[cx - 9, by - 14], [cx + 9, by - 14], [cx + 7, by - 21], [cx - 7, by - 21]], 0xffffff);
+      B.poly([[cx - 6, by - 26], [cx + 6, by - 26], [cx + 5, by - 31], [cx - 5, by - 31]], 0xffffff);
+      B.line(cx - 8, by - 6, cx - 2, by - 36, 0xffb070, 2);
+    } });
+  add({ id: 'sharkhat', slot: 'hat', name: 'SHARK FIN HAT', price: 20000, desc: 'MR CHUM SAW IT AND SMILED. NOBODY LIKED THAT.',
+    paint(B, cx, by) {
+      B.round(cx - 16, by - 12, 32, 13, 6, 0x5a7ab0); B.rect(cx - 16, by - 4, 32, 4, 0x3a5a88);
+      B.poly([[cx - 8, by - 10], [cx + 10, by - 10], [cx + 6, by - 20], [cx - 4, by - 40]], 0x6a8ac8);
+      B.line(cx - 4, by - 36, cx - 5, by - 12, 0x9ab8e8, 2);
+      for (let i = 0; i < 5; i++) B.poly([[cx - 12 + i * 5, by - 4], [cx - 8 + i * 5, by - 4], [cx - 10 + i * 5, by]], 0xffffff);
+    } });
+  add({ id: 'catears', slot: 'hat', name: 'CAT EARS', price: 2500, desc: 'MEOW IS NOT A LANGUAGE. YOU HAVE STARTED SPEAKING IT.',
+    paint(B, cx, by) {
+      B.rect(cx - 16, by - 4, 32, 3, 0x2a2434);
+      for (const s of [-1, 1]) { B.poly([[cx + s * 16, by - 2], [cx + s * 4, by - 4], [cx + s * 13, by - 22]], 0x3a3444); B.poly([[cx + s * 13, by - 5], [cx + s * 7, by - 6], [cx + s * 12, by - 16]], 0xff8ab0); }
+    } });
+  add({ id: 'beanie', slot: 'hat', name: 'COSY BEANIE', price: 800, desc: 'SPACE IS COLD. THIS IS WARM. THAT IS THE WHOLE PITCH.',
+    paint(B, cx, by) {
+      B.round(cx - 17, by - 22, 34, 22, 12, 0x3ab88a);
+      for (let i = 0; i < 7; i++) B.rect(cx - 15 + i * 5, by - 20, 1, 14, 0x2a8a6a);
+      B.rect(cx - 17, by - 7, 34, 7, 0xf0e8d0); for (let i = 0; i < 8; i++) B.rect(cx - 16 + i * 4.4, by - 7, 2, 7, 0xd8d0b8);
+      B.ball(cx, by - 26, 7, 6, [0xffd34d, 0xfff0a0, 0xc89a1e]);
+    } });
+  add({ id: 'pirate', slot: 'hat', name: 'PIRATE HAT', price: 8000, desc: 'ARR. THAT IS ALL IT SAYS. EVERYONE UNDERSTANDS.',
+    paint(B, cx, by) {
+      B.poly([[cx - 28, by - 4], [cx + 28, by - 4], [cx + 20, by - 14], [cx + 8, by - 22], [cx, by - 30], [cx - 8, by - 22], [cx - 20, by - 14]], 0x1e1a28);
+      B.poly([[cx - 26, by - 5], [cx + 26, by - 5], [cx + 22, by - 9], [cx - 22, by - 9]], 0xd8a83a);
+      B.disc(cx, by - 17, 5, 0xf0f0f4); B.rect(cx - 3, by - 15, 2, 2, INK); B.rect(cx + 1, by - 15, 2, 2, INK);
+      B.line(cx - 7, by - 10, cx + 7, by - 12, 0xf0f0f4, 1); B.line(cx - 7, by - 12, cx + 7, by - 10, 0xf0f0f4, 1);
+    } });
+  add({ id: 'wizard', slot: 'hat', name: 'WIZARD HAT', price: 30000, desc: 'CASTS ONE SPELL. THE SPELL IS LOOKING COOL.',
+    paint(B, cx, by) {
+      B.ellipse(cx, by - 3, 26, 5, 0x3a2a8a);
+      B.poly([[cx - 16, by - 4], [cx + 16, by - 4], [cx + 10, by - 26], [cx + 22, by - 44], [cx + 2, by - 32]], 0x5a3ac8);
+      B.line(cx - 10, by - 6, cx + 4, by - 30, 0x7a5ae8, 2);
+      for (const [x, y] of [[-6, -12], [6, -18], [0, -26]]) { B.rect(cx + x - 1, by + y - 3, 2, 6, 0xffd34d); B.rect(cx + x - 3, by + y - 1, 6, 2, 0xffd34d); }
+    },
+    live(ctx, t) { for (let k = 0; k < 3; k++) { const q = (t * 0.5 + k / 3) % 1; ctx.globalAlpha = 1 - q; X.rect(ctx, 11 + Math.sin(q * 6 + k) * 3, -22 + q * 10, 1, 1, '#ffd34d'); } ctx.globalAlpha = 1; } });
+  add({ id: 'fishbowl', slot: 'hat', name: 'FISHBOWL HELMET', price: 15000, desc: 'THERE IS A FISH IN IT. HIS NAME IS GARY. GARY IS FINE.', over: 1,
+    paint(B, cx, by) {
+      B.ellipse(cx, by - 12, 24, 26, 0x9ae0ff, 0.28);
+      B.ellipse(cx, by + 2, 20, 8, 0x3a8ad8, 0.4);
+      B.ellipse(cx - 10, by - 26, 5, 8, 0xffffff, 0.7);
+      B.rect(cx - 16, by + 10, 32, 4, 0x8a92a8);
+    },
+    live(ctx, t) {
+      const fx = Math.sin(t * 1.3) * 7, dir = Math.cos(t * 1.3) > 0 ? 1 : -1;
+      X.blob(ctx, fx, -4, 3, 2, '#ff8a2a'); X.poly(ctx, [[fx - dir * 3, -4], [fx - dir * 6, -6], [fx - dir * 6, -2]], '#ff8a2a');
+      X.rect(ctx, fx + dir * 1, -5, 1, 1, '#1a1024');
+      if (Math.sin(t * 3) > 0.9) X.rect(ctx, fx + dir * 4, -8 - ((t * 10) % 6), 1, 1, '#ffffff');
+    } });
+  add({ id: 'frog', slot: 'hat', name: 'FROG HAT', price: 5000, desc: 'THE FROG IS KNITTED. THE FROG IS WATCHING.',
+    paint(B, cx, by) {
+      B.round(cx - 18, by - 18, 36, 20, 10, 0x5ab84a);
+      for (const s of [-1, 1]) { B.ball(cx + s * 9, by - 22, 7, 7, R(0x6ac85a)); B.disc(cx + s * 9, by - 22, 4, 0xffffff); B.disc(cx + s * 9 + 1, by - 22, 2, INK); }
+      B.line(cx - 8, by - 9, cx + 8, by - 9, 0x2a6a24, 2);
+      B.disc(cx - 12, by - 8, 2, 0xff8ab0, 0.7); B.disc(cx + 12, by - 8, 2, 0xff8ab0, 0.7);
+    } });
+  add({ id: 'antlers', slot: 'hat', name: 'MOON ANTLERS', price: 9000, desc: 'GROWN ON THE DARK SIDE. BY WHOM. DO NOT ASK.',
+    paint(B, cx, by) {
+      for (const s of [-1, 1]) {
+        B.line(cx + s * 6, by, cx + s * 16, by - 26, 0x8a6a4a, 3);
+        B.line(cx + s * 11, by - 13, cx + s * 22, by - 16, 0x8a6a4a, 3);
+        B.line(cx + s * 14, by - 22, cx + s * 8, by - 34, 0x8a6a4a, 3);
+        B.line(cx + s * 16, by - 26, cx + s * 24, by - 34, 0x8a6a4a, 3);
+      }
+      B.rect(cx - 12, by - 2, 24, 3, 0x3a2a1a);
+    } });
+  add({ id: 'chumfin', slot: 'hat', name: 'GOLDEN FIN', price: 1000000, desc: 'MR CHUM HAS ONE. NOW YOU HAVE ONE. HE IS FURIOUS.',
+    paint(B, cx, by) {
+      B.round(cx - 14, by - 6, 28, 7, 3, GOLD[2]);
+      B.poly([[cx - 10, by - 5], [cx + 12, by - 5], [cx + 8, by - 18], [cx - 6, by - 44]], GOLD[0]);
+      B.line(cx - 5, by - 40, cx - 6, by - 8, GOLD[1], 2);
+    },
+    live(ctx, t) { PT.glow(ctx, 0, -12, 16, '#ffd34d', 0.25 + Math.sin(t * 3) * 0.08); } });
+
+  /* ---------------------------------------------------------------- FACE
+     centred on the eyes at (cx, cy) */
+  function lens(B, x, y, rx, ry, c, a) { B.ellipse(x, y, rx, ry, c, a); B.ellipse(x - rx * 0.35, y - ry * 0.35, rx * 0.3, ry * 0.25, 0xffffff, 0.8); }
+  add({ id: 'shades', slot: 'face', name: 'SUNGLASSES', price: 1200, desc: 'COOLER BY ONE PERCENT. THE SUN IS FAR AWAY.',
+    paint(B, cx, cy) { B.rect(cx - 16, cy - 3, 32, 2, 0x1a1624); for (const s of [-1, 1]) { B.round(cx + s * 8 - 7, cy - 4, 14, 9, 3, 0x1a1624); lens(B, cx + s * 8, cy, 5.5, 3.5, 0x2a2a4a); } } });
+  add({ id: 'monocle', slot: 'face', name: 'MONOCLE', price: 6000, desc: 'FOR LOOKING AT THINGS AND DISAPPROVING OF THEM.',
+    paint(B, cx, cy) { B.disc(cx + 7, cy, 7, 0xffc83a); B.disc(cx + 7, cy, 5.5, 0xc8f0ff, 0.5); B.ellipse(cx + 5, cy - 2, 2, 1.5, 0xffffff); B.line(cx + 12, cy + 5, cx + 14, cy + 18, 0xffc83a, 1); } });
+  add({ id: 'glasses3d', slot: 'face', name: '3D GLASSES', price: 900, desc: 'EVERYTHING IS THREE D NOW. IT WAS BEFORE. IT IS MORE NOW.',
+    paint(B, cx, cy) { B.rect(cx - 17, cy - 5, 34, 10, 0xf0f0f4); B.rect(cx - 14, cy - 3, 11, 6, 0xff3a4a, 0.85); B.rect(cx + 3, cy - 3, 11, 6, 0x3ad8ff, 0.85); } });
+  add({ id: 'hearts', slot: 'face', name: 'HEART GLASSES', price: 2000, desc: 'EVERYTHING LOOKS LOVELY. EVEN MR CHUM. CAREFUL.',
+    paint(B, cx, cy) {
+      B.rect(cx - 4, cy - 2, 8, 2, 0xff5a8a);
+      for (const s of [-1, 1]) { const x = cx + s * 9; B.disc(x - 3, cy - 2, 4, 0xff5a8a); B.disc(x + 3, cy - 2, 4, 0xff5a8a); B.poly([[x - 7, cy - 1], [x + 7, cy - 1], [x, cy + 7]], 0xff5a8a); B.disc(x - 3, cy - 3, 1.5, 0xffc0d8); }
+    } });
+  add({ id: 'visor', slot: 'face', name: 'CYBER VISOR', price: 40000, desc: 'SHOWS YOUR NET WORTH TO ANYONE WHO LOOKS AT YOU.',
+    paint(B, cx, cy) { B.round(cx - 18, cy - 5, 36, 10, 4, 0x1a2a3a); B.round(cx - 16, cy - 4, 32, 7, 3, 0x2a8ab8, 0.9); B.rect(cx - 15, cy - 3, 30, 1, 0x9ae0ff); },
+    live(ctx, t) { const x = Math.round(Math.sin(t * 3) * 7); X.rect(ctx, x - 1, -1, 3, 2, '#aef8ff'); PT.glow(ctx, x, 0, 6, '#38e8ff', 0.5); } });
+  add({ id: 'clown', slot: 'face', name: 'CLOWN NOSE', price: 400, desc: 'HONK. IT DOES NOT HONK. YOU HAVE TO SAY HONK.',
+    paint(B, cx, cy) { B.ball(cx + 2, cy + 8, 5, 5, R(0xff3a4a), true); } });
+  add({ id: 'eyepatch', slot: 'face', name: 'EYEPATCH', price: 1500, desc: 'BOTH EYES ARE FINE. THIS IS A LIFESTYLE.',
+    paint(B, cx, cy) { B.line(cx - 16, cy - 6, cx + 16, cy + 2, 0x1a1624, 1); B.round(cx + 2, cy - 4, 11, 9, 4, 0x1a1624); } });
+  add({ id: 'bubblegum', slot: 'face', name: 'BUBBLEGUM', price: 700, desc: 'CHEWED BY SOMEONE ELSE FIRST. STILL GOT FLAVOUR.',
+    paint(B, cx, cy) { B.disc(cx + 3, cy + 10, 2, 0xff8ab0); },
+    live(ctx, t) { const q = (t * 0.4) % 1, r = q < 0.8 ? q * 7 : 0; if (r > 0.5) { X.blob(ctx, 3, 6 + r * 0.3, r, r, '#ff9ac8'); X.rect(ctx, 1, 4, 1, 1, '#ffffff'); } } });
+
+  /* ---------------------------------------------------------------- BACK
+     painted for an alien facing right, so they hang off to the left */
+  add({ id: 'cape', slot: 'back', name: 'HERO CAPE', price: 5000, desc: 'NO HERO HAS EVER OWED THIS MUCH MONEY. FIRST TIME.',
+    paint() {},
+    live(ctx, t, o) {
+      const fl = Math.sin(t * 6) * 3 + (o.vx ? Math.min(8, Math.abs(o.vx) / 12) : 0);
+      X.poly(ctx, [[-4, -4], [4, -4], [2 - fl * 0.4, 22], [-12 - fl, 20], [-8 - fl * 0.6, 8]], '#c83a4a');
+      X.poly(ctx, [[-4, -4], [0, -4], [-4 - fl * 0.4, 20], [-10 - fl, 19]], '#e85a6a');
+      X.rect(ctx, -4, -5, 8, 2, '#ffd34d');
+    } });
+  function wing(B, cx, cy, feather, C) {
+    // five long feathers fanning up and back, then the coverts over the root
+    for (let i = 0; i < 6; i++) {
+      const a = -0.2 - i * 0.26, len = 40 - i * 3;
+      for (let k = 0; k < len; k++) {
+        const q = k / len, x = cx - Math.cos(a) * k, y = cy + Math.sin(a) * k * 0.9 + q * q * 4;
+        B.disc(x, y, 6 - q * 3, i % 2 ? C[0] : C[1]);
+      }
+    }
+    B.ball(cx - 4, cy + 1, 9, 7, C);
+    for (let i = 0; i < 5; i++) B.line(cx - 6, cy - 2, cx - 26 + i * 2, cy - 12 - i * 3, C[2], 1, 0.5);
+  }
+  add({ id: 'wings', slot: 'back', name: 'ANGEL WINGS', price: 60000, desc: 'HEAVEN SAID NO. ABAY SAID FIVE STARS.', flap: 1,
+    paint(B, cx, cy) { wing(B, cx - 2, cy - 2, true, [0xf0f0fa, 0xffffff, 0xc8c8d8]); } });
+  add({ id: 'batwings', slot: 'back', name: 'BAT WINGS', price: 25000, desc: 'VERY SPOOKY. VERY LEATHERY. VERY HARD TO SIT DOWN.', flap: 1,
+    paint(B, cx, cy) {
+      B.poly([[cx - 2, cy - 4], [cx - 30, cy - 14], [cx - 26, cy - 4], [cx - 32, cy + 2], [cx - 22, cy + 2], [cx - 24, cy + 10], [cx - 12, cy + 6], [cx - 2, cy + 8]], 0x3a2a4a);
+      for (let i = 0; i < 3; i++) B.line(cx - 2, cy - 2, cx - 30 + i * 4, cy - 12 + i * 8, 0x5a4a6a, 1);
+    } });
+  add({ id: 'boosters', slot: 'back', name: 'ROCKET BOOSTERS', price: 35000, desc: 'TWIN ROCKETS. THEY DO NOT WORK. THE FLAMES DO.',
+    paint(B, cx, cy) {
+      for (const dx of [-14, -4]) { B.round(cx + dx - 5, cy - 10, 10, 26, 5, 0xc8ccd8); B.rect(cx + dx - 3, cy - 8, 2, 20, 0xffffff); B.poly([[cx + dx - 5, cy - 8], [cx + dx + 5, cy - 8], [cx + dx, cy - 18]], 0xd83a4a); B.rect(cx + dx - 4, cy + 14, 8, 4, 0x5a5a6a); }
+    },
+    live(ctx, t) {
+      for (const dx of [-7, -2]) { const f = 4 + Math.random() * 4; X.poly(ctx, [[dx - 2, 9], [dx + 2, 9], [dx, 9 + f]], '#ffd34d'); X.poly(ctx, [[dx - 1, 9], [dx + 1, 9], [dx, 9 + f * 0.6]], '#ffffff'); }
+    } });
+  add({ id: 'backpack', slot: 'back', name: 'SCHOOL BACKPACK', price: 700, desc: 'FULL OF HOMEWORK FROM A PLANET YOU BLEW UP.',
+    paint(B, cx, cy) { B.round(cx - 16, cy - 10, 14, 22, 5, 0xe85a3a); B.round(cx - 18, cy + 2, 16, 9, 3, 0xc83a2a); B.rect(cx - 12, cy - 8, 2, 16, 0xff9a7a); B.rect(cx - 4, cy - 10, 3, 20, 0x3a2a2a); } });
+  add({ id: 'balloon', slot: 'back', name: 'BALLOON', price: 300, desc: 'IT IS A BALLOON. IT IS RED. IT IS YOUR BEST FRIEND.',
+    paint() {},
+    live(ctx, t) {
+      const bx = -10 + Math.sin(t * 1.4) * 3, byy = -34 + Math.sin(t * 2.1) * 2;
+      X.line(ctx, -2, 0, bx, byy + 7, '#e8e8f0');
+      X.blob(ctx, bx, byy, 7, 8, '#b82a3a'); X.blob(ctx, bx - 0.5, byy - 0.5, 6, 7, '#e83a4a'); X.blob(ctx, bx - 2, byy - 3, 2, 3, '#ff9aa8');
+      X.poly(ctx, [[bx - 1, byy + 8], [bx + 1, byy + 8], [bx, byy + 6]], '#b82a3a');
+    } });
+  add({ id: 'guitar', slot: 'back', name: 'SPACE GUITAR', price: 10000, desc: 'YOU KNOW ONE CHORD. IT IS THE LOUD ONE.',
+    paint(B, cx, cy) {
+      B.line(cx - 4, cy - 16, cx - 26, cy + 18, 0x6a4a2a, 3);
+      B.ball(cx - 24, cy + 16, 10, 8, R(0xd83aa8)); B.ball(cx - 16, cy + 8, 7, 6, R(0xd83aa8)); B.disc(cx - 20, cy + 12, 2.5, INK);
+      B.round(cx - 6, cy - 20, 6, 6, 2, 0x3a2a1a);
+    } });
+
+  /* ---------------------------------------------------------------- PETS
+     standing on (cx, by); they follow you about on their own */
+  function eyes(B, x, y, gap, r) { for (const s of [-1, 1]) { B.disc(x + s * gap, y, r, 0xffffff); B.disc(x + s * gap + r * 0.3, y, r * 0.55, INK); B.disc(x + s * gap - r * 0.2, y - r * 0.4, r * 0.25, 0xffffff); } }
+  add({ id: 'petrock', slot: 'pet', name: 'PET ROCK', price: 50, desc: 'LOYAL. QUIET. HOPS. THE BEST FRIEND MONEY CAN BUY.', hop: 1,
+    paint(B, cx, by) { B.ball(cx, by - 8, 12, 9, [0x8a82a0, 0xb8b0cc, 0x5a5270]); B.texture(cx - 12, by - 17, 24, 18, [0x7a7290, 0x8a82a0], 3, 5, (x, y) => B.alpha(x, y) > 0 && (x + y) % 5 === 0); eyes(B, cx + 2, by - 10, 4, 3); } });
+  add({ id: 'petduck', slot: 'pet', name: 'DUCK DRONE', price: 8000, desc: 'A RUBBER DUCK WITH A PROPELLER. IT QUACKS IN BINARY.', fly: 1,
+    paint(B, cx, by) {
+      B.ball(cx - 2, by - 12, 12, 9, [0xffd34d, 0xfff0a0, 0xc89a1e]); B.ball(cx + 7, by - 24, 7, 7, [0xffd34d, 0xfff0a0, 0xc89a1e]);
+      B.poly([[cx + 12, by - 24], [cx + 20, by - 22], [cx + 12, by - 20]], 0xff8a2a); B.disc(cx + 9, by - 26, 1.6, INK);
+      B.rect(cx + 6, by - 34, 2, 4, 0x8a8a9a);
+    },
+    live(ctx, t) { const w = Math.abs(Math.cos(t * 28)) * 7 + 1; X.rect(ctx, 3.5 - w, -17, Math.round(w * 2), 1, '#c8ccd8'); } });
+  add({ id: 'petshark', slot: 'pet', name: 'BABY SHARK', price: 30000, desc: 'DO DO DO DO DO DO. HE BITES. GENTLY.', fly: 1,
+    paint(B, cx, by) {
+      B.ellipse(cx, by - 14, 16, 8, 0x5a7ab0); B.ellipse(cx, by - 16, 14, 6, 0x8ab0e8); B.ellipse(cx + 2, by - 11, 10, 3, 0xe0f0ff);
+      B.poly([[cx - 2, by - 20], [cx + 6, by - 20], [cx - 2, by - 32]], 0x6a8ac8);
+      B.poly([[cx - 14, by - 14], [cx - 24, by - 22], [cx - 22, by - 8]], 0x6a8ac8);
+      eyes(B, cx + 8, by - 17, 0, 2.6);
+      for (let i = 0; i < 3; i++) B.poly([[cx + 8 + i * 2.5, by - 11], [cx + 10 + i * 2.5, by - 11], [cx + 9 + i * 2.5, by - 9]], 0xffffff);
+    } });
+  add({ id: 'petcat', slot: 'pet', name: 'SPACE CAT', price: 15000, desc: 'SHE WAS HERE BEFORE YOU. SHE WILL BE HERE AFTER.', hop: 0.4,
+    paint(B, cx, by) {
+      B.ball(cx - 2, by - 9, 12, 8, R(0x3a3444)); B.ball(cx + 8, by - 18, 8, 7, R(0x4a4454));
+      for (const s of [-1, 1]) B.poly([[cx + 8 + s * 7, by - 20], [cx + 8 + s * 2, by - 23], [cx + 8 + s * 7, by - 30]], 0x4a4454);
+      B.disc(cx + 5, by - 18, 2, 0x8affa0); B.disc(cx + 11, by - 18, 2, 0x8affa0); B.rect(cx + 5, by - 19, 1, 2, INK); B.rect(cx + 11, by - 19, 1, 2, INK);
+      B.rect(cx + 7, by - 15, 2, 1, 0xff8ab0);
+      B.ellipse(cx - 6, by - 8, 6, 4, 0x7ab8ff, 0.5);
+    },
+    live(ctx, t) { const k = Math.sin(t * 3) * 3; X.line(ctx, -7, -4, -12, -10 + k, '#3a3444'); X.line(ctx, -12, -10 + k, -11, -14 + k, '#3a3444'); } });
+  add({ id: 'petrobot', slot: 'pet', name: 'TINY ROBOT', price: 20000, desc: 'BEEP. IT MEANS HELLO. IT ALSO MEANS OWNER IS POOR.', hop: 0.6,
+    paint(B, cx, by) {
+      B.block(cx - 9, by - 16, 18, 14, [0xa8b0c8, 0xd8e0f0, 0x6a7088], 3, 3);
+      B.round(cx - 10, by - 30, 20, 14, 4, 0xc8d0e0); B.round(cx - 8, by - 28, 16, 10, 3, 0x1a2a3a);
+      B.rect(cx - 5, by - 25, 3, 3, 0x7dff9a); B.rect(cx + 2, by - 25, 3, 3, 0x7dff9a);
+      B.rect(cx - 1, by - 36, 2, 6, 0x8a8a9a);
+      for (const s of [-1, 1]) B.rect(cx + s * 5 - 2, by - 3, 4, 3, 0x4a5064);
+    },
+    live(ctx, t) { X.rect(ctx, -1, -19, 2, 2, Math.sin(t * 6) > 0 ? '#ff5a4d' : '#6a2020'); } });
+  add({ id: 'petufo', slot: 'pet', name: 'MINI UFO', price: 45000, desc: 'A SAUCER FOR ANTS. THE ANTS WANT IT BACK.', fly: 1,
+    paint(B, cx, by) { B.ellipse(cx, by - 12, 18, 5, 0x8a92a8); B.ellipse(cx, by - 14, 16, 3, 0xc0c8d8); B.ellipse(cx, by - 18, 8, 6, 0x7ec8ff, 0.8); B.disc(cx - 2, by - 20, 1.6, 0xffffff); },
+    live(ctx, t) { for (let k = 0; k < 4; k++) X.rect(ctx, -7 + k * 4.5, -6, 1, 1, Math.floor(t * 6 + k) % 2 ? '#ffd34d' : '#ff5a8a'); ctx.globalAlpha = 0.25; X.poly(ctx, [[-4, -5], [4, -5], [7, 6], [-7, 6]], '#8affa0'); ctx.globalAlpha = 1; } });
+  add({ id: 'petchum', slot: 'pet', name: 'BABY CHUM', price: 500000, desc: 'A VERY SMALL MR CHUM. HE CHARGES INTEREST ON CUDDLES.', hop: 0.5,
+    paint(B, cx, by) {
+      B.block(cx - 8, by - 14, 16, 14, [0x2a2e44, 0x4a4e68, 0x14162a], 3, 2);
+      B.poly([[cx - 2, by - 14], [cx + 2, by - 14], [cx, by - 6]], 0xd83a4a);
+      B.ball(cx, by - 22, 11, 9, [0x7a8ab8, 0xaab8e0, 0x4a5a88]);
+      B.poly([[cx - 2, by - 28], [cx + 6, by - 28], [cx - 2, by - 40]], 0x6a7aa8);
+      B.ellipse(cx + 3, by - 18, 7, 3, 0xe8f0ff); for (let i = 0; i < 4; i++) B.poly([[cx - 2 + i * 3, by - 19], [cx + i * 3, by - 19], [cx - 1 + i * 3, by - 16]], 0xffffff);
+      eyes(B, cx + 3, by - 24, 4, 2.2);
+    } });
+
+  const BY = {};
+  for (const c of L) BY[c.id] = c;
+  const SLOTS = ['hat', 'face', 'back', 'pet'];
+  const SLOT_NAME = { hat: 'HATS', face: 'FACE', back: 'BACK', pet: 'PETS', colour: 'COLOURS' };
+
+  /* The colour options from the old wardrobe, as shop items. */
+  const COLOURS = [];
+  for (const grp of ['skin', 'suit', 'glass']) {
+    const c = D.COS[grp];
+    if (!c) continue;
+    for (const o of c.options) {
+      if (!o.cost) continue;
+      COLOURS.push({ id: grp + ':' + o.id, slot: 'colour', grp, opt: o.id, name: o.name.toUpperCase(), price: o.cost, col: o.c,
+        desc: (grp === 'skin' ? 'NEW SKIN COLOUR. ' : grp === 'suit' ? 'NEW SUIT COLOUR. ' : 'NEW EYE TINT. ') + c.blurb.toUpperCase() });
+    }
+  }
+  for (const c of COLOURS) BY[c.id] = c;
+
+  /* --------------------------------------------------------------- save */
+  function st(g) {
+    const s = g.save;
+    if (!s.cosm) s.cosm = { own: {}, on: {} };
+    if (!s.cosm.own) s.cosm.own = {};
+    if (!s.cosm.on) s.cosm.on = {};
+    return s.cosm;
+  }
+  function owns(g, id) {
+    const it = BY[id];
+    if (it && it.slot === 'colour') return !!st(g).own[id] || (g.save.cos && g.save.cos[it.grp] === it.opt);
+    return !!st(g).own[id];
+  }
+  function wearing(g, id) {
+    const it = BY[id];
+    if (!it) return false;
+    if (it.slot === 'colour') return !!(g.save.cos && g.save.cos[it.grp] === it.opt);
+    return st(g).on[it.slot] === id;
+  }
+  function buy(g, id) {
+    const it = BY[id];
+    if (!it || owns(g, id)) return false;
+    if (g.save.credits < it.price) return false;
+    g.save.credits -= it.price;
+    st(g).own[id] = 1;
+    wear(g, id);
+    g.saveGame && g.saveGame();
+    return true;
+  }
+  function wear(g, id) {
+    const it = BY[id];
+    if (!it || !owns(g, id)) return;
+    if (it.slot === 'colour') {
+      if (!g.save.cos) g.save.cos = {};
+      g.save.cos[it.grp] = wearing(g, id) ? D.COS[it.grp].options[0].id : it.opt;
+    } else {
+      const on = st(g).on;
+      on[it.slot] = on[it.slot] === id ? null : id;
+    }
+    g.saveGame && g.saveGame();
+  }
+
+  /* ---------------------------------------------------------------- art */
+  const ART = {};
+  function art(id) {
+    if (ART[id]) return ART[id];
+    const it = BY[id];
+    if (!it || !it.paint) return null;
+    const B = PT.buf(W, H), a = ANCHOR[it.slot];
+    it.paint(B, a[0], a[1]);
+    B.rim(0xffffff, 0, -1, 0.3);
+    if (!it.over) B.outline(INK);
+    const cv = B.toCanvas();
+    cv.ox = a[0] / HD; cv.oy = a[1] / HD;
+    return (ART[id] = cv);
+  }
+  function blit(ctx, id, x, y, face, t, o, sy) {
+    const it = BY[id];
+    const cv = art(id);
+    ctx.save();
+    ctx.translate(Math.round(x), Math.round(y));
+    if (face < 0) ctx.scale(-1, 1);
+    if (sy && sy !== 1) ctx.scale(1, sy);
+    if (it.flap) { ctx.translate(0, 0); ctx.scale(1, 0.85 + Math.sin(t * 7) * 0.15); ctx.rotate(Math.sin(t * 7) * 0.12); }
+    if (cv) ctx.drawImage(cv, -cv.ox, -cv.oy, W / HD, H / HD);
+    if (it.live) it.live(ctx, t, o || {});
+    ctx.restore();
+  }
+
+  /* Where the parts of the alien are, relative to the point the moon hands
+     over (the top of the head). Found by eye. */
+  const OFF = { hat: [0, 3], face: [2, 7], back: [-5, 21] };
+
+  function drawBehind(ctx, g, x, y, face, t, sq, o) {
+    const id = st(g).on.back;
+    if (!id || !BY[id]) return;
+    blit(ctx, id, x + OFF.back[0] * face, y + OFF.back[1] * (sq || 1), face, t, o);
+  }
+  function drawOnPlayer(ctx, g, x, y, face, t, sq, o) {
+    const on = st(g).on;
+    if (on.face && BY[on.face]) blit(ctx, on.face, x + OFF.face[0] * face, y + OFF.face[1] * (sq || 1), face, t, o);
+    if (on.hat && BY[on.hat]) {
+      const it = BY[on.hat];
+      const bob = it.bob ? Math.sin(t * 2) * it.bob - 3 : 0;
+      blit(ctx, on.hat, x + OFF.hat[0] * face, y + OFF.hat[1] + bob, face, t, o);
+    }
+  }
+
+  /* The pet: it trots (or floats) after you, a little behind and a little
+     late, and hops when it catches up. */
+  const PET = { x: 0, y: 0, vx: 0, face: 1, t: 0, init: 0, key: '' };
+  function petStep(g, dt, px, py, key) {
+    const id = st(g).on.pet;
+    if (!id || !BY[id]) return null;
+    if (!PET.init || PET.key !== key) { PET.x = px - 20; PET.y = py; PET.init = 1; PET.key = key; }
+    const it = BY[id];
+    const want = px - 22 * (g._petFace || 1);
+    const dx = want - PET.x;
+    PET.vx = U.lerp(PET.vx, U.clamp(dx * 4, -160, 160), Math.min(1, dt * 6));
+    PET.x += PET.vx * dt;
+    if (Math.abs(dx) > 200) PET.x = want;
+    if (Math.abs(PET.vx) > 6) PET.face = PET.vx > 0 ? 1 : -1;
+    PET.y = py;
+    PET.t += dt;
+    return PET;
+  }
+  function drawPet(ctx, g, t, screenX, groundY, walking) {
+    const id = st(g).on.pet;
+    if (!id || !BY[id]) return;
+    const it = BY[id];
+    let y = groundY;
+    if (it.fly) y -= 14 + Math.sin(t * 2.4) * 3;
+    else if (it.hop) y -= Math.abs(Math.sin(t * 7 * it.hop)) * (Math.abs(PET.vx) > 10 ? 6 : 1.5);
+    // a shadow under it
+    ctx.globalAlpha = 0.3; X.blob(ctx, screenX, groundY + 1, 7, 2, '#0a0614'); ctx.globalAlpha = 1;
+    const sq = it.hop && !it.fly ? 1 + Math.sin(t * 14 * it.hop) * 0.04 : 1;
+    blit(ctx, id, screenX, y, PET.face, t, { vx: PET.vx }, sq);
+  }
+
+  /* A little portrait of any item, for the shop: the painted part of it
+     scaled to fill the box, and still moving. */
+  const BOX = {};
+  function boxOf(id) {
+    if (BOX[id]) return BOX[id];
+    const cv = art(id);
+    if (!cv) return (BOX[id] = { cx: W / HD / 2, cy: H / HD / 2, w: 20, h: 20 });
+    const d = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data;
+    let x0 = cv.width, y0 = cv.height, x1 = 0, y1 = 0;
+    for (let y = 0; y < cv.height; y++) for (let x = 0; x < cv.width; x++) if (d[(y * cv.width + x) * 4 + 3] > 40) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+    if (x1 < x0) { x0 = 0; y0 = 0; x1 = cv.width - 1; y1 = cv.height - 1; }
+    // things drawn live (a cape, a balloon) have no paint: give them a box
+    const it = BY[id];
+    if (it.live && (x1 - x0) < 8) { x0 = W / 2 - 40; x1 = W / 2 + 20; y0 = ANCHOR[it.slot][1] - 60; y1 = ANCHOR[it.slot][1] + 40; }
+    return (BOX[id] = { cx: (x0 + x1) / 2 / HD, cy: (y0 + y1) / 2 / HD, w: Math.max(6, (x1 - x0) / HD), h: Math.max(6, (y1 - y0) / HD) });
+  }
+  function icon(ctx, id, x, y, size, t) {
+    const it = BY[id];
+    if (!it) return;
+    if (it.slot === 'colour') {
+      // a swatch: three blobs of the colours it gives you
+      const c = it.col;
+      X.blob(ctx, x, y, size * 0.34, size * 0.34, c[1]);
+      X.blob(ctx, x - 1, y - 1, size * 0.3, size * 0.3, c[0]);
+      X.blob(ctx, x - size * 0.12, y - size * 0.14, size * 0.1, size * 0.1, c[2]);
+      return;
+    }
+    const cv = art(id), b = boxOf(id);
+    const k = Math.min(3, size / b.w, size / b.h);
+    const a = ANCHOR[it.slot];
+    ctx.save();
+    ctx.translate(Math.round(x), Math.round(y));
+    ctx.scale(k, k);
+    ctx.translate(-b.cx, -b.cy);
+    if (cv) ctx.drawImage(cv, 0, 0, W / HD, H / HD);
+    if (it.live) { ctx.translate(a[0] / HD, a[1] / HD); it.live(ctx, t, {}); }
+    ctx.restore();
+  }
+
+  PD.cosm = { LIST: L, COLOURS, BY, SLOTS, SLOT_NAME, st, owns, wearing, buy, wear, art, icon, drawOnPlayer, drawBehind, petStep, drawPet, OFF, PET };
 })(window.PD);
 
 /* ===== src/build.js ===== */
@@ -22287,6 +21304,1120 @@ window.PD = window.PD || {};
     riding, rideUpdate, rideFocus, rideOverlay, rideHidesUfo,
     houseTier, bedTier, bonus, valueBonus, waterAt, waterDepth, owned, buy, price, st, funScore, M, VIS
   };
+})(window.PD);
+
+/* ===== src/laptop.js ===== */
+/* THE LAPTOP. A battered ZORBBOOK on a cardboard box in the cave, running
+   ZORB OS. Everything you own comes through it:
+
+     ABAY        the shop. Buildings for the moon, things to wear, upgrades
+                 for the saucer and for you, and the place you sell your ore
+     CHUM BANK   what you owe Mr Chum, and the buttons that make it smaller
+     STAR MAP    out to the sky and the next planet
+     MAIL        people who have your address, sadly
+     SETTINGS    sound, full screen, and throwing it all away
+
+   It is drawn close up, filling the screen: the lid and its bezel, the glass,
+   the keyboard deck in perspective with keys that go down when you click,
+   your own two tentacles on the keys and the trackpad, the cardboard under
+   it, a mug that steams and the cave wall behind with the fairy lights.
+
+   Keeps the old desk's API (PD.desk): enter, update, draw, close, touchMode. */
+(function (PD) {
+  'use strict';
+  const U = PD.util;
+  const F = PD.font;
+  const A = PD.audio;
+  const D = PD.data;
+  const X = PD.pxd;
+  const PT = PD.paint;
+  const VW = 480, VH = 270, HD = 2;
+
+  // the lid, the glass, the deck
+  const LX = 42, LY = 2, LW = 396, LH = 206;
+  const SX = 54, SY = 11, SW = 372, SH = 186;
+  const TOP = 11;                                  // the OS menu bar
+  const DOCK_H = 30;
+
+  const T = {
+    ink: '#1e2238', dim: '#6a6e88', faint: '#a8acc0', page: '#f4f5fa', card: '#ffffff', line: '#dde0ea',
+    green: '#1f9a4a', red: '#e5394a', blue: '#2f6fe0', ylw: '#f5b82a', glass: '#0e1424',
+    bar: '#101626', accent: '#7ef9ff', pink: '#ff5a8a'
+  };
+
+  const S = {
+    app: null, closing: 0, k: 0, from: [240, 180],
+    boot: 0, cx: 240, cy: 120, fire: false, fx: 0, fy: 0, used: false,
+    scroll: 0, scrollTo: 0,
+    toasts: [], coins: [], keys: [], press: 0, typeT: 0, tapHand: 0,
+    shop: { top: 0, sub: 0, sel: null, confirm: 0, confirmId: null },
+    mail: 0, wipe: 0, t: 0, lock: 0, hoverDock: -1, bounce: {}, wall: 0,
+    status: ''
+  };
+
+  /* ================================================================ PAINTED
+     Everything that does not move is painted once at double detail. */
+  let BACK = null, WALLS = [], KEYS = [];
+  function paintBack() {
+    if (BACK) return BACK;
+    const B = PT.buf(VW * HD, VH * HD);
+    // the cave wall: dark lumpy rock
+    B.texture(0, 0, VW * HD, VH * HD, [0x1a1428, 0x241c36, 0x2e2444, 0x382c52], 38, 4);
+    for (let i = 0; i < 26; i++) {
+      const x = U.hash2(i, 1) * VW * HD, y = U.hash2(i, 2) * 300, r = 20 + U.hash2(i, 3) * 50;
+      B.ball(x, y, r, r * 0.7, [0x2e2444, 0x3e3258, 0x1a1428]);
+    }
+    for (let i = 0; i < 40; i++) B.rect(U.hash2(i, 9) * VW * HD, U.hash2(i, 8) * 320, 6 + U.hash2(i, 7) * 10, 2, 0x3a5a3a, 0.5);
+    // the top of the cardboard box
+    const by = 200 * HD;
+    B.rect(0, by, VW * HD, VH * HD - by, 0xb8905a);
+    B.texture(0, by, VW * HD, VH * HD - by, [0xa88050, 0xb8905a, 0xc49c64], 14, 6);
+    for (let x = 0; x < VW * HD; x += 7) B.rect(x, by, 1, VH * HD - by, 0xa8804e, 0.35);
+    B.rect(0, by, VW * HD, 3, 0xd8b078);
+    B.rect(0, by + 3, VW * HD, 2, 0x8a6a3a);
+    // parcel tape down the middle, and a printed arrow
+    B.rect(0, by + 60, VW * HD, 26, 0xd8c890, 0.75); B.rect(0, by + 60, VW * HD, 2, 0xfff0c0, 0.6);
+    B.poly([[860, by + 10], [900, by + 10], [880, by - 12 + 10]], 0x6a4a28, 0.5);
+    // coffee rings
+    for (const [x, y] of [[120, by + 104], [790, by + 112]]) { B.ellipse(x, y, 26, 9, 0x7a5028, 0.35); B.ellipse(x, y, 22, 7, 0xb8905a); }
+    BACK = B.toCanvas();
+    return BACK;
+  }
+
+  // the lid and the deck, painted into their own layer so the glass can go between
+  let LID = null, DECK = null;
+  function paintLid() {
+    if (LID) return LID;
+    const B = PT.buf(LW * HD, LH * HD);
+    B.round(0, 0, LW * HD, LH * HD, 14, 0x2a2e3c);
+    B.round(2, 2, LW * HD - 4, LH * HD - 4, 12, 0x3a3e50);
+    B.round(6, 6, LW * HD - 12, LH * HD - 12, 10, 0x1a1c26);
+    // the glass hole is cut when drawing; a bit of wear on the bezel
+    B.rect(20, LH * HD - 14, LW * HD - 40, 1, 0x4a4e60);
+    const cv = B.toCanvas();
+    const q = cv.getContext('2d');
+    // the brand, and the webcam
+    LID = cv;
+    return LID;
+  }
+  function paintDeck() {
+    if (DECK) return DECK;
+    const W = VW * HD, H = (VH - 206) * HD;
+    const B = PT.buf(W, H);
+    const topL = 36 * HD, topR = (VW - 36) * HD, botL = 4 * HD, botR = (VW - 4) * HD;
+    const at = y => [topL + (botL - topL) * y / H, topR + (botR - topR) * y / H];
+    for (let y = 0; y < H; y++) {
+      const [x0, x1] = at(y);
+      for (let x = Math.floor(x0); x < x1; x++) B.set(x, y, y < 6 ? 0x5a5e70 : PT.mix(0x3a3e4e, 0x2a2e3a, y / H));
+    }
+    // the hinge
+    B.round(topL + 40, 0, topR - topL - 80, 8, 3, 0x1a1c24);
+    // keys: six rows, in perspective
+    KEYS = [];
+    const rows = 5;
+    for (let r = 0; r < rows; r++) {
+      const y0 = 14 + r * 17, y1 = y0 + 14;
+      const [a0, a1] = at(y0), [b0, b1] = at(y1);
+      const n = r === 4 ? 9 : 14;
+      for (let i = 0; i < n; i++) {
+        let f0 = 0.08 + i / n * 0.84, f1 = f0 + 0.84 / n - 0.008;
+        if (r === 4 && i === 4) { f1 += 0; }
+        if (r === 4 && (i === 3 || i === 4 || i === 5)) { if (i !== 4) continue; f0 = 0.08 + 3 / n * 0.84; f1 = 0.08 + 6 / n * 0.84 - 0.008; }
+        const xa = a0 + (a1 - a0) * f0, xb = a0 + (a1 - a0) * f1, xc = b0 + (b1 - b0) * f1, xd = b0 + (b1 - b0) * f0;
+        B.poly([[xa, y0], [xb, y0], [xc, y1], [xd, y1]], 0x15161e);
+        B.poly([[xa + 1, y0], [xb - 1, y0], [xc - 2, y1 - 3], [xd + 2, y1 - 3]], 0x262833);
+        B.line(xa + 2, y0 + 1, xb - 2, y0 + 1, 0x3a3c4a, 1);
+        KEYS.push({ x: (xa + xb + xc + xd) / 4 / HD, y: (y0 + y1) / 2 / HD + 206, w: (xb - xa) / HD, h: (y1 - y0) / HD, pts: [[xa, y0], [xb, y0], [xc, y1], [xd, y1]].map(p => [p[0] / HD, p[1] / HD + 206]) });
+      }
+    }
+    // the trackpad
+    const ty = 104;
+    if (ty < H) {
+      const [p0, p1] = at(ty);
+      const cx = (p0 + p1) / 2;
+      B.poly([[cx - 70, ty], [cx + 70, ty], [cx + 76, H], [cx - 76, H]], 0x30323e);
+      B.line(cx - 70, ty, cx + 70, ty, 0x4a4e5e, 1);
+    }
+    // stickers on the deck
+    B.disc(topL + 40, 100, 12, 0xff5a8a); B.disc(topL + 40, 100, 8, 0xffd34d);
+    B.round(topR - 90, 96, 50, 18, 4, 0x3ad8a8); B.rect(topR - 84, 102, 38, 3, 0x1a6a5a);
+    B.outline(0x0a0a10);
+    DECK = B.toCanvas();
+    return DECK;
+  }
+
+  /* The wallpapers: deep space with a ringed planet, painted once each. */
+  function paintWall(i) {
+    if (WALLS[i]) return WALLS[i];
+    const W = SW * HD, H = SH * HD;
+    const B = PT.buf(W, H);
+    const top = [[0x0a0a2a, 0x2a1050, 0x5a2a7a], [0x02121e, 0x0a3a4a, 0x2a8a8a], [0x1a0a10, 0x5a1a2a, 0xd86a3a]][i % 3];
+    for (let y = 0; y < H; y++) {
+      const q = y / H;
+      const c = q < 0.6 ? PT.mix(top[0], top[1], q / 0.6) : PT.mix(top[1], top[2], (q - 0.6) / 0.4);
+      for (let x = 0; x < W; x++) {
+        const n = U.fbm(x * 0.012 + i * 5, y * 0.02, 3);
+        B.set(x, y, n > 0.58 ? PT.mix(c, top[2], (n - 0.58) * 2.2) : c);
+      }
+    }
+    for (let k = 0; k < 260; k++) { const x = U.hash2(k, 11 + i) * W, y = U.hash2(k, 12 + i) * H; B.rect(x, y, 1, 1, 0xffffff, 0.3 + U.hash2(k, 13) * 0.7); }
+    for (let k = 0; k < 12; k++) { const x = U.hash2(k, 21 + i) * W, y = U.hash2(k, 22 + i) * H * 0.7; B.rect(x - 2, y, 5, 1, 0xffffff, 0.8); B.rect(x, y - 2, 1, 5, 0xffffff, 0.8); }
+    // the planet with its ring
+    const px = W * (i === 1 ? 0.28 : 0.72), py = H * 0.46, pr = 90;
+    const ring = (a0, a1) => { for (let a = a0; a < a1; a += 0.003) for (let k = 0; k < 5; k++) { const rr2 = 1.65 + k * 0.07; B.rect(px + Math.cos(a) * pr * rr2, py + Math.sin(a) * pr * 0.3 * rr2, 2, 2, [0xe8d8ff, 0xc8b0f0, 0xa890d8, 0xd8c8ff, 0x9a80c8][k], 0.75); } };
+    ring(Math.PI, Math.PI * 2);
+    B.ball(px, py, pr, pr, i === 2 ? [0xd86a3a, 0xffb07a, 0x6a2a1a] : i === 1 ? [0x3ab8a8, 0x9af8e8, 0x1a4a5a] : [0x8a5ad8, 0xc8a8ff, 0x3a2a7a]);
+    for (let y = -pr + 6; y < pr; y += 11) { const hw = Math.sqrt(Math.max(0, pr * pr - y * y)) * 0.96; B.rect(px - hw, py + y, hw * 2, 3, 0xffffff, 0.07); }
+    ring(0, Math.PI);
+    B.ball(px - pr * 2.1, py - pr * 0.9, 18, 18, [0xa8a0c0, 0xe0d8f0, 0x5a5270]);
+    WALLS[i] = B.toCanvas();
+    return WALLS[i];
+  }
+
+  /* The dock icons, painted like real app icons: a rounded square with a
+     gradient and a picture on it. */
+  const ICONS = {};
+  function paintIcon(id) {
+    if (ICONS[id]) return ICONS[id];
+    const N = 48, B = PT.buf(N, N);
+    const bg = { abay: [0xffffff, 0xe8eaf4], bank: [0x1a2a5a, 0x0a1430], map: [0x2a1a5a, 0x5a2a8a], mail: [0x3a8aff, 0x1a5ad8], setup: [0x8a8ea8, 0x4a4e68], power: [0xff5a5a, 0xb82a3a], wall: [0x3ad8a8, 0x1a8a7a] }[id];
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+      const r = 11, px = x < r ? r - x - 0.5 : (x >= N - r ? x - (N - r) + 0.5 : 0), py = y < r ? r - y - 0.5 : (y >= N - r ? y - (N - r) + 0.5 : 0);
+      if (px * px + py * py > r * r) continue;
+      B.set(x, y, PT.mix(bg[0], bg[1], y / N));
+    }
+    const c = N / 2;
+    if (id === 'abay') {
+      B.round(12, 18, 24, 22, 4, 0xe5394a); B.rect(12, 18, 24, 3, 0xff7a8a);
+      B.line(18, 18, 18, 11, 0x9a1a2a, 2); B.line(30, 18, 30, 11, 0x9a1a2a, 2); B.line(18, 11, 30, 11, 0x9a1a2a, 2);
+      B.disc(19, 29, 3, 0xffffff); B.disc(29, 29, 3, 0xffd34d);
+    } else if (id === 'bank') {
+      B.ball(c, c + 2, 15, 15, [0xffc83a, 0xfff0a0, 0xb8801a], true);
+      B.poly([[c - 6, c + 8], [c + 7, c + 8], [c + 3, c - 1], [c - 3, c - 10]], 0x5a7ab0);
+      B.line(c - 3, c - 8, c - 4, c + 6, 0x9ab8e8, 1);
+    } else if (id === 'map') {
+      B.ball(c, c, 12, 12, [0x5ad8a8, 0xa8ffe0, 0x1a6a5a]);
+      B.ellipse(c, c, 21, 5, 0xffd34d); B.ellipse(c, c - 1, 13, 3, null);
+      B.ball(c, c - 1, 12, 9, [0x5ad8a8, 0xa8ffe0, 0x1a6a5a]);
+      for (let k = 0; k < 8; k++) B.rect(U.hash2(k, 4) * N, U.hash2(k, 5) * N, 1, 1, 0xffffff);
+    } else if (id === 'mail') {
+      B.rect(9, 14, 30, 21, 0xffffff); B.poly([[9, 14], [39, 14], [24, 27]], 0xe8ecf8); B.line(9, 14, 24, 27, 0xa8b0c8, 1); B.line(39, 14, 24, 27, 0xa8b0c8, 1);
+    } else if (id === 'setup') {
+      for (let k = 0; k < 8; k++) { const a = k / 8 * Math.PI * 2; B.disc(c + Math.cos(a) * 13, c + Math.sin(a) * 13, 4, 0xd8dce8); }
+      B.disc(c, c, 13, 0xd8dce8); B.disc(c, c, 5, 0x4a4e68);
+    } else if (id === 'power') {
+      for (let a = -1.0; a < Math.PI * 2 - 1.1; a += 0.03) { const aa = a - Math.PI / 2 + 0.55; B.rect(c + Math.cos(aa) * 12 - 1.5, c + 2 + Math.sin(aa) * 12 - 1.5, 3, 3, 0xffffff); }
+      B.rect(c - 1.5, 10, 3, 16, 0xffffff);
+    } else if (id === 'wall') {
+      B.ball(c + 6, c + 6, 10, 10, [0xffd34d, 0xfff0a0, 0xc8902a]); B.poly([[8, 38], [22, 20], [30, 30], [36, 24], [42, 38]], 0x1a4a4a);
+    }
+    B.rect(4, 2, N - 8, 1, 0xffffff, 0.35);
+    const cv = B.toCanvas();
+    ICONS[id] = cv;
+    return cv;
+  }
+
+  /* Painted icons for the saucer upgrades. */
+  const SHIPICON = {};
+  function shipIcon(id) {
+    if (SHIPICON[id]) return SHIPICON[id];
+    const N = 64, B = PT.buf(N, N), c = N / 2;
+    if (id === 'laser') {
+      B.round(8, 26, 30, 14, 5, 0x6a7088); B.rect(10, 28, 26, 3, 0xa8b0c8); B.rect(38, 29, 8, 8, 0x4a5064);
+      B.rect(44, 31, 18, 4, 0xff3a4a); B.rect(44, 32, 18, 2, 0xffc0c8); B.round(16, 38, 8, 12, 2, 0x4a5064);
+    } else if (id === 'heat') {
+      B.poly([[c, 6], [c + 22, 14], [c + 18, 40], [c, 58], [c - 18, 40], [c - 22, 14]], 0xd8581a);
+      B.poly([[c, 12], [c + 16, 18], [c + 13, 38], [c, 52], [c - 13, 38], [c - 16, 18]], 0xff8a2a);
+      B.poly([[c - 6, 44], [c + 6, 44], [c + 4, 30], [c + 8, 20], [c, 26], [c - 4, 16], [c - 8, 30]], 0xffd34d);
+    } else if (id === 'ice') {
+      B.poly([[6, 50], [58, 50], [52, 26], [12, 26]], 0x8ad8ff); B.poly([[10, 48], [54, 48], [50, 30], [14, 30]], 0xc8f0ff);
+      for (let k = 0; k < 4; k++) B.poly([[14 + k * 11, 50], [22 + k * 11, 50], [18 + k * 11, 60]], 0xe8f8ff);
+      B.rect(26, 12, 12, 16, 0x6a7088);
+    } else if (id === 'armour') {
+      B.round(10, 10, 44, 44, 6, 0x6a7088); B.round(13, 13, 38, 38, 5, 0x9aa0b8); B.rect(13, 13, 38, 4, 0xc8ccd8);
+      for (const [x, y] of [[17, 17], [47, 17], [17, 47], [47, 47]]) B.disc(x, y, 2.5, 0x4a5064);
+      B.line(20, 32, 44, 32, 0x6a7088, 2);
+    } else if (id === 'bubble') {
+      B.disc(c, c, 26, 0x5ad8ff, 0.35); B.disc(c, c, 22, 0x9af0ff, 0.2); B.ellipse(c - 10, c - 12, 7, 5, 0xffffff, 0.8);
+      B.ellipse(c, c + 6, 12, 4, 0x8a92a8); B.ellipse(c, c + 3, 6, 5, 0x7ec8ff, 0.9);
+    } else if (id === 'magnet') {
+      for (let a = 0; a <= Math.PI; a += 0.02) { B.disc(c + Math.cos(a) * 18, 30 + Math.sin(a) * 18, 7, 0xe5394a); }
+      B.rect(c - 25, 14, 14, 16, 0xe5394a); B.rect(c + 11, 14, 14, 16, 0xe5394a);
+      B.rect(c - 25, 8, 14, 8, 0xd8dce8); B.rect(c + 11, 8, 14, 8, 0xd8dce8);
+      B.disc(c, 10, 4, 0xffd34d);
+    } else if (id === 'turbo') {
+      B.poly([[4, 32], [30, 18], [30, 46]], 0xffd34d); B.poly([[14, 32], [30, 24], [30, 40]], 0xffffff);
+      B.round(28, 20, 26, 24, 6, 0x6a7088); B.rect(30, 22, 22, 4, 0xa8b0c8); B.rect(52, 26, 8, 12, 0x3a3e4e);
+    } else if (id === 'radar') {
+      B.ellipse(c, 40, 22, 9, 0x9aa0b8); B.poly([[c - 20, 40], [c + 20, 40], [c + 4, 16]], 0xc8ccd8); B.rect(c - 2, 40, 4, 18, 0x6a7088);
+      for (let r = 8; r < 30; r += 7) for (let a = -0.9; a < -0.2; a += 0.05) B.rect(c + 8 + Math.cos(a) * r, 20 + Math.sin(a) * r, 2, 2, 0x7dff9a);
+    } else if (id === 'warp') {
+      for (let a = 0; a < 18; a += 0.05) { const r = a * 1.5; B.disc(c + Math.cos(a) * r, c + Math.sin(a) * r, 2, PT.mix(0x7ef9ff, 0xa86ae8, a / 18)); }
+    } else {
+      B.ball(c, c, 20, 20, R3(0x8a92a8));
+    }
+    B.outline(0x160f24);
+    const cv = B.toCanvas();
+    SHIPICON[id] = cv;
+    return cv;
+  }
+  function R3(c) { return PT.ramp(c); }
+
+  /* ================================================================ WIDGETS */
+  function hot(x, y, w, h) { return S.cx >= x && S.cx < x + w && S.cy >= y && S.cy < y + h; }
+  function clicked(x, y, w, h) {
+    if (!S.fire || S.used) return false;
+    if (S.fx >= x && S.fx < x + w && S.fy >= y && S.fy < y + h) { S.used = true; return true; }
+    return false;
+  }
+  // a rounded rectangle, pixel exact
+  function rr(ctx, x, y, w, h, r, col) {
+    x = Math.round(x); y = Math.round(y); w = Math.round(w); h = Math.round(h);
+    ctx.fillStyle = col;
+    for (let i = 0; i < r; i++) {
+      const inset = r - Math.floor(Math.sqrt(r * r - (r - i - 0.5) * (r - i - 0.5)));
+      ctx.fillRect(x + inset, y + i, w - inset * 2, 1);
+      ctx.fillRect(x + inset, y + h - 1 - i, w - inset * 2, 1);
+    }
+    ctx.fillRect(x, y + r, w, h - r * 2);
+  }
+  function shadow(ctx, x, y, w, h, r) {
+    ctx.globalAlpha = 0.14; rr(ctx, x + 1, y + 2, w, h, r, '#000000');
+    ctx.globalAlpha = 0.08; rr(ctx, x - 1, y + 1, w + 2, h + 3, r + 1, '#000000');
+    ctx.globalAlpha = 1;
+  }
+  function button(ctx, x, y, w, h, label, o) {
+    o = o || {};
+    const on = o.enabled !== false;
+    const over = on && hot(x, y, w, h);
+    const down = over && PD.input.mouse.left;
+    const col = !on ? '#c8cad6' : (o.col || T.blue);
+    if (!o.flat) shadow(ctx, x, y + (down ? 1 : 0), w, h, 3);
+    rr(ctx, x, y + (down ? 1 : 0), w, h, 3, over ? PT.css(PT.mix(col, 0xffffff, 0.15)) : col);
+    ctx.globalAlpha = 0.25; rr(ctx, x + 1, y + 1 + (down ? 1 : 0), w - 2, Math.max(1, Math.floor(h / 2) - 1), 2, '#ffffff'); ctx.globalAlpha = 1;
+    F.draw(ctx, label, x + w / 2, y + Math.floor((h - 7) / 2) + (down ? 1 : 0), on ? (o.ink || '#ffffff') : '#8a8ea0', { center: true, shadow: false });
+    return on && clicked(x, y, w, h);
+  }
+  function wrap(str, n) {
+    const words = String(str).split(' '), out = [];
+    let line = '';
+    for (const w of words) {
+      if ((line + ' ' + w).trim().length > n) { if (line) out.push(line); line = w; }
+      else line = (line + ' ' + w).trim();
+    }
+    if (line) out.push(line);
+    return out;
+  }
+  function clip(str, n) { str = String(str); return str.length <= n ? str : str.slice(0, Math.max(1, n - 1)) + '.'; }
+  function stars(ctx, x, y, n) {
+    for (let i = 0; i < 5; i++) {
+      const c = i < n ? T.ylw : '#d8dae4';
+      X.rect(ctx, x + i * 6 + 2, y, 1, 5, c); X.rect(ctx, x + i * 6, y + 2, 5, 1, c); X.rect(ctx, x + i * 6 + 1, y + 1, 3, 3, c);
+    }
+  }
+  function toast(title, text, col) {
+    S.toasts.unshift({ title, text, col: col || T.accent, t: 0 });
+    if (S.toasts.length > 3) S.toasts.length = 3;
+    A.sfx.tone(1320, { type: 'sine', dur: 0.08, vol: 0.05 }); A.sfx.tone(1760, { type: 'sine', dur: 0.1, vol: 0.05, delay: 0.08 });
+  }
+  function burst(x, y, n) {
+    for (let i = 0; i < n; i++) S.coins.push({ x, y, vx: U.rand(-90, 90), vy: U.rand(-140, -40), t: 0, life: 1 + Math.random() * 0.5, r: Math.random() * 6 });
+  }
+
+  /* ================================================================== ENTER */
+  function enter(g) {
+    S.lock = 0.3; S.boot = 0; S.app = null; S.k = 0; S.closing = 0;
+    S.scroll = S.scrollTo = 0;
+    S.cx = VW / 2; S.cy = 120;
+    S.toasts.length = 0; S.coins.length = 0;
+    S.wipe = 0;
+    S.wall = (g.save.wall || 0) % 3;
+    paintBack(); paintDeck(); paintWall(S.wall);
+    if (PD.chum && PD.chum.call) PD.chum.call(g, 'desk');
+    A.sfx.tone(520, { type: 'sine', to: 780, dur: 0.25, vol: 0.06 });
+    A.sfx.tone(1040, { type: 'sine', dur: 0.3, vol: 0.05, delay: 0.25 });
+    // tell them what is new
+    setTimeout(() => {
+      if (g.tutActive && g.tutActive()) toast('ZORB OS', 'OPEN ABAY. SELL YOUR ROCKS.', T.ylw);
+      else if ((g.save.debt || 0) > 0) toast('CHUM BANK', 'YOU OWE $' + U.fmt(g.save.debt) + '. HAVE A NICE DAY.', T.pink);
+    }, 900);
+  }
+  function close(g) {
+    if (PD.fx.wipeActive()) return;
+    A.sfx.tone(780, { type: 'sine', to: 260, dur: 0.3, vol: 0.06 });
+    g.wipeTo(SX + SW / 2, SY + SH / 2, '#0e1424', () => { PD.home.leaveDesk(g); }, 'bars');
+  }
+
+  const DOCK = [
+    { id: 'abay', name: 'ABAY' }, { id: 'bank', name: 'CHUM BANK' }, { id: 'map', name: 'STAR MAP' },
+    { id: 'mail', name: 'MAIL' }, { id: 'setup', name: 'SETTINGS' }, { id: 'power', name: 'SHUT THE LID' }
+  ];
+  function openApp(g, id, from) {
+    if (id === 'power') { close(g); return; }
+    if (id === 'map') {
+      if (g.tutAllows && !g.tutAllows('desk', 'map')) { g.tutNope('desk'); toast('ZORB OS', 'SELL FIRST. THEN THE SKY.', T.red); return; }
+      if (PD.fx.wipeActive()) return;
+      A.sfx.tone(440, { type: 'triangle', to: 1200, dur: 0.4, vol: 0.06 });
+      g.wipeTo(SX + SW / 2, SY + SH / 2, '#0e1424', () => { PD.home.leaveDesk(g); g.openChart(); }, 'sweep');
+      return;
+    }
+    S.bounce[id] = 1;
+    S.app = id; S.k = 0; S.closing = 0; S.from = from || [240, SY + SH - 14];
+    S.scroll = S.scrollTo = 0;
+    if (id === 'abay') { S.shop.sel = null; S.shop.confirm = 0; if (g.tutActive && g.tutActive()) { S.shop.top = TOPS.indexOf('SELL'); } }
+    A.sfx.tone(660, { type: 'sine', to: 990, dur: 0.12, vol: 0.06 });
+  }
+  function closeApp() { if (!S.app) return; S.closing = 1; A.sfx.tone(700, { type: 'sine', to: 420, dur: 0.1, vol: 0.05 }); }
+
+  /* ================================================================= UPDATE */
+  function update(dt, g) {
+    const IN = PD.input, m = IN.mouse;
+    S.t += dt;
+    S.lock = Math.max(0, S.lock - dt);
+    S.boot = Math.min(3, S.boot + dt);
+    S.press = Math.max(0, S.press - dt * 4);
+    S.typeT = Math.max(0, S.typeT - dt);
+    S.shop.confirm = Math.max(0, S.shop.confirm - dt);
+    if (S.app && !S.closing) S.k = Math.min(1, S.k + dt * 4.5);
+    if (S.closing) { S.k = Math.max(0, S.k - dt * 6); if (S.k <= 0) { S.app = null; S.closing = 0; } }
+    for (const k in S.bounce) { S.bounce[k] = Math.max(0, S.bounce[k] - dt * 1.4); }
+    for (let i = S.toasts.length - 1; i >= 0; i--) { S.toasts[i].t += dt; if (S.toasts[i].t > 4) S.toasts.splice(i, 1); }
+    for (let i = S.keys.length - 1; i >= 0; i--) { S.keys[i].t -= dt; if (S.keys[i].t <= 0) S.keys.splice(i, 1); }
+    for (let i = S.coins.length - 1; i >= 0; i--) {
+      const c = S.coins[i];
+      c.t += dt; c.x += c.vx * dt; c.y += c.vy * dt; c.vy += 300 * dt; c.r += dt * 10;
+      if (c.t > c.life) S.coins.splice(i, 1);
+    }
+    // the pointer follows the mouse, a hair behind so it feels like it has weight
+    const tx = U.clamp(m.x, SX + 1, SX + SW - 2), ty = U.clamp(m.y, SY + 1, SY + SH - 2);
+    if (PD.touch && PD.touch.enabled) { S.cx = tx; S.cy = ty; }
+    else { S.cx = U.damp(S.cx, tx, 0.55, dt); S.cy = U.damp(S.cy, ty, 0.55, dt); }
+    S.fire = false; S.used = false;
+    if (S.lock <= 0 && S.boot > 1.1 && m.leftPressed && m.inside) {
+      S.fire = true; S.fx = tx; S.fy = ty; S.cx = tx; S.cy = ty;
+      S.press = 1; S.typeT = 0.15; S.tapHand ^= 1;
+      if (KEYS.length) for (let k = 0; k < 2; k++) S.keys.push({ i: (Math.random() * KEYS.length) | 0, t: 0.14 });
+      A.sfx.tone(1900, { type: 'square', dur: 0.015, vol: 0.035 });
+    }
+    if (m.wheel) S.scrollTo += m.wheel * 24;
+    if (IN.hit('down')) S.scrollTo += 30;
+    if (IN.hit('up')) S.scrollTo -= 30;
+    S.scrollTo = Math.max(0, S.scrollTo);
+    S.scroll = U.damp(S.scroll, S.scrollTo, 0.35, dt);
+    if (S.lock <= 0 && IN.hit('esc')) { if (S.app) closeApp(); else close(g); }
+    if (S.lock <= 0 && IN.hit('KeyQ')) close(g);
+  }
+
+  /* =================================================================== DRAW */
+  function draw(ctx, g, t) {
+    ctx.drawImage(paintBack(), 0, 0, VW, VH);
+    drawRoomLife(ctx, g, t);
+    // the lid, its shadow on the cardboard, then the glass inside it
+    ctx.globalAlpha = 0.35; X.blob(ctx, 240, 206, 210, 8, '#000000'); ctx.globalAlpha = 1;
+    ctx.drawImage(paintLid(), LX, LY, LW, LH);
+    // brand on the bottom bezel, webcam on the top
+    F.draw(ctx, 'ZORBBOOK PRO', 240, LY + LH - 8, '#5a6078', { center: true, shadow: false });
+    X.rect(ctx, 239, LY + 4, 3, 3, '#0a0a10'); X.rect(ctx, 240, LY + 5, 1, 1, S.boot < 1.2 || Math.sin(t * 2) > 0 ? '#3aff6a' : '#1a5a2a');
+    // a sticky note stuck to the bezel
+    ctx.save(); ctx.translate(LX - 20, LY + 40); ctx.rotate(-0.14);
+    X.rect(ctx, 0, 0, 26, 22, '#ffe86a'); X.rect(ctx, 0, 0, 26, 3, '#ffd83a');
+    F.draw(ctx, 'OWE', 2, 5, '#6a4a1a', { shadow: false }); F.draw(ctx, 'CHUM', 2, 13, '#c83a3a', { shadow: false });
+    ctx.restore();
+    drawScreen(ctx, g, t);
+    ctx.drawImage(paintDeck(), 0, 206, VW, VH - 206);
+    // keys that are down right now
+    for (const k of S.keys) { const K = KEYS[k.i]; if (!K) continue; ctx.globalAlpha = 0.6; X.poly(ctx, K.pts, '#7ef9ff'); ctx.globalAlpha = 1; }
+    // the glow of the screen on the keys
+    PT.glow(ctx, 240, 214, 190, S.app === 'abay' ? '#ffffff' : '#7ab8ff', 0.12);
+    drawHands(ctx, g, t);
+  }
+
+  function drawRoomLife(ctx, g, t) {
+    // fairy lights along the top of the cave, peeking over the lid
+    for (let i = 0; i < 24; i++) {
+      const x = 4 + i * 20, y = 6 + Math.sin(i * 0.9) * 3 + (i % 2) * 2;
+      const c = ['#ff5a8a', '#ffd34d', '#7ef9ff', '#8affa0'][i % 4];
+      const on = Math.sin(t * 2 + i * 1.7) > -0.4;
+      if (x > LX - 2 && x < LX + LW + 2) continue;
+      if (on) PT.glow(ctx, x, y + 3, 9, c, 0.35);
+      X.rect(ctx, x, y, 3, 4, on ? c : '#3a3044');
+    }
+    // the mug, steaming
+    const mx = 18, my = 222;
+    X.rect(ctx, mx, my, 18, 20, '#e8e0f0'); X.rect(ctx, mx, my, 18, 3, '#ffffff'); X.rect(ctx, mx + 2, my + 1, 14, 2, '#5a3a1a');
+    X.rect(ctx, mx + 18, my + 5, 4, 9, '#e8e0f0'); X.rect(ctx, mx + 19, my + 7, 2, 5, '#b8905a');
+    F.draw(ctx, '#1', mx + 4, my + 9, '#e5394a', { shadow: false });
+    for (let k = 0; k < 3; k++) { const q = (t * 0.4 + k / 3) % 1; ctx.globalAlpha = (1 - q) * 0.35; X.blob(ctx, mx + 9 + Math.sin(q * 6 + k) * 3, my - 4 - q * 22, 2 + q * 3, 2 + q * 2, '#ffffff'); }
+    ctx.globalAlpha = 1;
+    // a wedge of cheese that Brenda has had a go at
+    X.poly(ctx, [[446, 244], [476, 244], [476, 232]], '#ffd34d'); X.rect(ctx, 446, 244, 30, 6, '#e8b820');
+    X.rect(ctx, 458, 245, 3, 3, '#c89a1e'); X.rect(ctx, 468, 246, 2, 2, '#c89a1e');
+  }
+
+  function drawScreen(ctx, g, t) {
+    ctx.save();
+    ctx.beginPath(); ctx.rect(SX, SY, SW, SH); ctx.clip();
+    X.rect(ctx, SX, SY, SW, SH, '#000000');
+    if (S.boot < 1.1) drawBoot(ctx, t);
+    else {
+      const wp = paintWall(S.wall);
+      const drift = Math.sin(t * 0.05) * 4;
+      ctx.drawImage(wp, SX - 4 + drift, SY, SW + 8, SH);
+      drawWidgets(ctx, g, t);
+      if (S.app) drawWindow(ctx, g, t);
+      drawDock(ctx, g, t);
+      drawMenuBar(ctx, g, t);
+      drawToasts(ctx, g, t);
+      for (const c of S.coins) {
+        const w = Math.max(1, Math.round(Math.abs(Math.cos(c.r)) * 4));
+        X.rect(ctx, c.x - w / 2, c.y - 2, w, 5, '#ffc83a'); X.rect(ctx, c.x - w / 2, c.y - 2, Math.max(1, w - 1), 1, '#fff0a0');
+      }
+      drawCursor(ctx, g, t);
+    }
+    // the glass: a faint reflection across the top-left
+    ctx.globalAlpha = 0.05;
+    X.poly(ctx, [[SX, SY], [SX + 150, SY], [SX + 60, SY + SH], [SX, SY + SH]], '#ffffff');
+    ctx.globalAlpha = 1;
+    ctx.restore();
+  }
+
+  function drawBoot(ctx, t) {
+    const q = S.boot / 1.1;
+    X.rect(ctx, SX, SY, SW, SH, '#05070e');
+    const s = 1 + Math.sin(q * Math.PI) * 0.1;
+    ctx.globalAlpha = Math.min(1, q * 3);
+    F.draw(ctx, 'ZORB', SX + SW / 2, SY + SH / 2 - 22, '#7ef9ff', { center: true, scale: 3, shadow: false });
+    F.draw(ctx, 'O S', SX + SW / 2, SY + SH / 2 + 4, '#aab0d0', { center: true, shadow: false });
+    ctx.globalAlpha = 1;
+    X.rect(ctx, SX + SW / 2 - 40, SY + SH / 2 + 22, 80, 3, '#1a2238');
+    X.rect(ctx, SX + SW / 2 - 40, SY + SH / 2 + 22, Math.round(80 * Math.min(1, q * 1.1) * s / s), 3, '#7ef9ff');
+  }
+
+  function drawMenuBar(ctx, g, t) {
+    ctx.globalAlpha = 0.82; X.rect(ctx, SX, SY, SW, TOP, '#0a0e1a'); ctx.globalAlpha = 1;
+    X.rect(ctx, SX, SY + TOP, SW, 1, '#2a3050');
+    F.draw(ctx, 'Z', SX + 5, SY + 2, T.accent, { shadow: false });
+    F.draw(ctx, S.app ? appName(S.app) : 'ZORB OS', SX + 15, SY + 2, '#ffffff', { shadow: false });
+    // the right side: money, wifi, battery, clock
+    const d = new Date();
+    const hh = d.getHours(), mm = d.getMinutes();
+    const clock = (hh % 12 || 12) + ':' + (mm < 10 ? '0' : '') + mm;
+    let x = SX + SW - 4;
+    F.draw(ctx, clock, x, SY + 2, '#ffffff', { right: true, shadow: false }); x -= F.width(clock, 1) + 6;
+    // battery, draining in a way that is never explained
+    const bat = 0.2 + 0.7 * ((Math.sin(t * 0.03) + 1) / 2);
+    X.rect(ctx, x - 13, SY + 3, 12, 6, '#8a90a8'); X.rect(ctx, x - 12, SY + 4, 10, 4, '#0a0e1a'); X.rect(ctx, x - 1, SY + 5, 1, 2, '#8a90a8');
+    X.rect(ctx, x - 12, SY + 4, Math.round(10 * bat), 4, bat < 0.3 ? T.red : '#8affa0');
+    x -= 18;
+    for (let i = 0; i < 3; i++) X.rect(ctx, x - 10 + i * 3, SY + 8 - i * 2, 2, 1 + i * 2, i < 2 ? '#ffffff' : '#5a6078');
+    x -= 16;
+    const cash = '$' + U.fmt(g.save.credits);
+    F.draw(ctx, cash, x, SY + 2, '#8affa0', { right: true, shadow: false });
+  }
+  function appName(id) { const d = DOCK.find(o => o.id === id); return d ? d.name : id.toUpperCase(); }
+
+  /* The desktop: a widget with what you owe, and one with what you are worth. */
+  function drawWidgets(ctx, g, t) {
+    const x = SX + 8, y = SY + TOP + 8;
+    ctx.globalAlpha = 0.55; rr(ctx, x, y, 110, 50, 5, '#0a0e1a'); ctx.globalAlpha = 1;
+    F.draw(ctx, 'NET WORTH', x + 6, y + 5, '#8a90b8', { shadow: false });
+    F.draw(ctx, '$' + U.fmt(PD.story && PD.story.netWorth ? PD.story.netWorth(g) : g.save.credits), x + 6, y + 15, '#ffffff', { scale: 2, shadow: false });
+    // a little line chart, always going up, because that is what charts do
+    let px = x + 6, py = y + 44;
+    for (let i = 0; i < 20; i++) {
+      const nx = x + 6 + i * 5, ny = y + 44 - i * 0.6 - Math.abs(Math.sin(i * 1.7 + 3)) * 5;
+      X.line(ctx, px, py, nx, ny, '#8affa0'); px = nx; py = ny;
+    }
+    const debt = g.save.debt || 0;
+    if (debt > 0) {
+      const y2 = y + 56;
+      ctx.globalAlpha = 0.55; rr(ctx, x, y2, 110, 34, 5, '#2a0a14'); ctx.globalAlpha = 1;
+      F.draw(ctx, 'YOU OWE MR CHUM', x + 6, y2 + 5, '#ff9aa8', { shadow: false });
+      F.draw(ctx, '$' + U.fmt(debt), x + 6, y2 + 16, '#ff5a6a', { scale: 2, shadow: false });
+    }
+    // a hint of what to do
+    if (!S.app) {
+      const tip = g.tutActive && g.tutActive() ? 'OPEN ABAY AND SELL YOUR ROCKS' : 'CLICK AN APP BELOW';
+      F.draw(ctx, tip, SX + SW / 2, SY + SH - DOCK_H - 14 + Math.round(Math.sin(t * 3)), '#c8d0f0', { center: true, shadow: '#0a0e1a' });
+    }
+  }
+
+  function drawDock(ctx, g, t) {
+    const n = DOCK.length, base = 22, gap = 6;
+    const hide = S.app ? S.k : 0;
+    const dy = Math.round(hide * (DOCK_H + 6));
+    const w0 = n * base + (n - 1) * gap + 12;
+    const x0 = SX + (SW - w0) / 2, y0 = SY + SH - DOCK_H + 2 + dy;
+    ctx.globalAlpha = 0.45; rr(ctx, x0, y0, w0, DOCK_H - 4, 6, '#c8d0f0'); ctx.globalAlpha = 0.25; rr(ctx, x0, y0, w0, 2, 1, '#ffffff'); ctx.globalAlpha = 1;
+    S.hoverDock = -1;
+    for (let i = 0; i < n; i++) {
+      const d = DOCK[i];
+      const cx = x0 + 6 + i * (base + gap) + base / 2;
+      const prox = Math.max(0, 1 - Math.abs(S.cx - cx) / 40) * (S.cy > y0 - 12 ? 1 : 0);
+      const s = 1 + prox * 0.35;
+      const bnc = S.bounce[d.id] ? Math.abs(Math.sin(S.bounce[d.id] * 9)) * S.bounce[d.id] * 8 : 0;
+      const sz = Math.round(base * s), ix = Math.round(cx - sz / 2), iy = Math.round(y0 + DOCK_H - 7 - sz - bnc);
+      ctx.drawImage(paintIcon(d.id), ix, iy, sz, sz);
+      if (d.id === 'mail') { X.blob(ctx, ix + sz - 3, iy + 3, 4, 4, T.red); F.draw(ctx, String(mailbox(g).length), ix + sz - 3, iy + 1, '#ffffff', { center: true, shadow: false }); }
+      if (S.app === d.id) X.rect(ctx, cx - 1, y0 + DOCK_H - 6, 2, 2, '#ffffff');
+      if (!S.app && hot(ix, iy, sz, sz + 4)) {
+        S.hoverDock = i;
+        const lw = F.width(d.name, 1) + 8;
+        ctx.globalAlpha = 0.85; rr(ctx, cx - lw / 2, iy - 13, lw, 10, 3, '#0a0e1a'); ctx.globalAlpha = 1;
+        F.draw(ctx, d.name, cx, iy - 11, '#ffffff', { center: true, shadow: false });
+      }
+      if (!S.app && clicked(ix, iy, sz, sz + 4)) openApp(g, d.id, [cx, iy]);
+    }
+  }
+
+  function drawToasts(ctx, g, t) {
+    for (let i = 0; i < S.toasts.length; i++) {
+      const o = S.toasts[i];
+      const k = Math.min(1, o.t * 5) * (o.t > 3.6 ? Math.max(0, (4 - o.t) / 0.4) : 1);
+      const w = 150, h = 22;
+      const x = SX + SW - 4 - w + Math.round((1 - k) * (w + 10)), y = SY + TOP + 4 + i * (h + 3);
+      ctx.globalAlpha = 0.92; shadow(ctx, x, y, w, h, 4); rr(ctx, x, y, w, h, 4, '#1a2036'); ctx.globalAlpha = 1;
+      X.rect(ctx, x + 3, y + 4, 2, h - 8, o.col);
+      F.draw(ctx, o.title, x + 9, y + 3, o.col, { shadow: false });
+      F.draw(ctx, clip(o.text, 23), x + 9, y + 12, '#e0e4f4', { shadow: false });
+    }
+  }
+
+  function drawCursor(ctx, g, t) {
+    const x = Math.round(S.cx), y = Math.round(S.cy);
+    const pts = [[0, 0], [0, 10], [3, 7], [5, 11], [7, 10], [5, 6], [9, 6]];
+    ctx.globalAlpha = 0.35; X.poly(ctx, pts.map(p => [x + p[0] + 1, y + p[1] + 1]), '#000000'); ctx.globalAlpha = 1;
+    X.poly(ctx, pts.map(p => [x + p[0] - 0.5, y + p[1] - 0.5]), '#0a0a10');
+    X.poly(ctx, [[1, 2], [1, 8], [3, 6], [5, 9], [6, 8.6], [4.4, 5.2], [7, 5.2]].map(p => [x + p[0] - 0.2, y + p[1]]), '#ffffff');
+    if (S.press > 0) { ctx.globalAlpha = S.press * 0.6; X.frame(ctx, x - 4 - (1 - S.press) * 6, y - 4 - (1 - S.press) * 6, 8 + (1 - S.press) * 12, 8 + (1 - S.press) * 12, '#7ef9ff'); ctx.globalAlpha = 1; }
+  }
+
+  /* The window: it grows out of the icon that opened it. */
+  function drawWindow(ctx, g, t) {
+    const wx = SX + 6, wy = SY + TOP + 3, ww = SW - 12, wh = SH - TOP - 6;
+    const e = S.k >= 1 ? 1 : 1 - Math.pow(1 - S.k, 3);
+    if (e < 0.999) {
+      const fx = S.from[0], fy = S.from[1];
+      const x = U.lerp(fx - 8, wx, e), y = U.lerp(fy - 8, wy, e), w = U.lerp(16, ww, e), h = U.lerp(16, wh, e);
+      ctx.globalAlpha = 0.5 + e * 0.5; rr(ctx, x, y, w, h, 5, S.app === 'bank' ? '#101a3a' : '#f4f5fa'); ctx.globalAlpha = 1;
+      if (e < 0.75) return;
+    }
+    shadow(ctx, wx, wy, ww, wh, 5);
+    const dark = S.app === 'bank' || S.app === 'setup';
+    rr(ctx, wx, wy, ww, wh, 5, dark ? '#0e1630' : T.page);
+    // the title bar
+    rr(ctx, wx, wy, ww, 12, 5, dark ? '#1a2448' : '#e2e4ee'); X.rect(ctx, wx, wy + 8, ww, 4, dark ? '#1a2448' : '#e2e4ee');
+    X.rect(ctx, wx, wy + 12, ww, 1, dark ? '#2a3460' : '#c8cad8');
+    const dots = [['#ff5f57', 'close'], ['#febc2e', 'min'], ['#28c840', 'max']];
+    for (let i = 0; i < 3; i++) {
+      const dx = wx + 7 + i * 9, dy = wy + 6;
+      X.blob(ctx, dx, dy, 3, 3, dots[i][0]);
+      if (hot(wx + 3, wy + 2, 30, 9)) X.rect(ctx, dx - 1, dy - 0.5, 2, 1, '#5a1a1a');
+    }
+    if (clicked(wx + 2, wy + 1, 30, 10)) { closeApp(); return; }
+    F.draw(ctx, appTitle(g), wx + ww / 2, wy + 3, dark ? '#c8d0f0' : '#4a4e68', { center: true, shadow: false });
+    const bx = wx + 1, by = wy + 13, bw = ww - 2, bh = wh - 14;
+    ctx.save();
+    ctx.beginPath(); ctx.rect(bx, by, bw, bh); ctx.clip();
+    if (S.app === 'abay') drawAbay(ctx, g, t, bx, by, bw, bh);
+    else if (S.app === 'bank') drawBank(ctx, g, t, bx, by, bw, bh);
+    else if (S.app === 'mail') drawMail(ctx, g, t, bx, by, bw, bh);
+    else if (S.app === 'setup') drawSetup(ctx, g, t, bx, by, bw, bh);
+    ctx.restore();
+  }
+  function appTitle(g) {
+    if (S.app === 'abay') return 'ABAY - EVERYTHING, DELIVERED TO YOUR MOON';
+    if (S.app === 'bank') return 'CHUM BANK - PRIVATE CLIENTS';
+    if (S.app === 'mail') return 'MAIL - ' + mailbox(g).length + ' MESSAGES';
+    if (S.app === 'setup') return 'SETTINGS';
+    return '';
+  }
+
+  /* =================================================================== ABAY */
+  const TOPS = ['HOT', 'BUILD', 'STYLE', 'SHIP', 'GEAR', 'SELL'];
+  const TOPNAME = { HOT: 'HOT DEALS', BUILD: 'BUILDINGS', STYLE: 'WEAR IT', SHIP: 'SAUCER', GEAR: 'DIG GEAR', SELL: 'SELL ROCKS' };
+  const BUILDSUB = [['INDUSTRY', 'INDUSTRY'], ['FUN', 'FUN'], ['NATURE', 'NATURE'], ['DECOR', 'DECOR'], ['HOME', 'HOME'], ['FURNITURE', 'INSIDE']];
+  const STYLESUB = [['hat', 'HATS'], ['face', 'FACE'], ['back', 'BACK'], ['pet', 'PETS'], ['colour', 'COLOURS']];
+  const GEARSUB = [['DIG', 'DIG'], ['BODY', 'BODY'], ['BANG', 'BANG'], ['BIZ', 'BIZ']];
+  const SELLERS = ['krunk_tools_99', 'moon_mart', 'zorb_official', 'sack_dave', 'wet_ted', 'bort_electronics', 'garden_of_zorb', 'chum_enterprises'];
+
+  function subsFor(top) { return top === 'BUILD' ? BUILDSUB : top === 'STYLE' ? STYLESUB : top === 'GEAR' ? GEARSUB : null; }
+
+  /* Every shelf is turned into the same kind of entry, so one grid shows them. */
+  function entry(g, kind, id) {
+    if (kind === 'build') {
+      const b = PD.buildart.BY[id];
+      const have = PD.build.owned(g, id);
+      const placed = PD.build.st(g).out.concat(PD.build.st(g).in).filter(o => o.id === id).length;
+      const up = b.where === 'up';
+      const done = up && (b.up === 'house' ? PD.build.houseTier(g) : PD.build.bedTier(g)) >= b.tier;
+      return { kind, id, name: b.name, price: b.price, desc: b.desc, fx: fxLine(b), have: have + placed, sold: done || (up && have > 0),
+        badge: done ? 'BUILT' : (have + placed ? 'OWN ' + (have + placed) : null), stars: 3 + (b.price % 3), seller: SELLERS[b.price % SELLERS.length] };
+    }
+    if (kind === 'cosm') {
+      const c = PD.cosm.BY[id];
+      const own = PD.cosm.owns(g, id), on = PD.cosm.wearing(g, id);
+      return { kind, id, name: c.name, price: c.price, desc: c.desc, fx: c.slot === 'pet' ? 'FOLLOWS YOU ABOUT' : c.slot === 'colour' ? 'CHANGES HOW YOU LOOK' : 'WEAR IT ON YOUR ' + (c.slot === 'hat' ? 'HEAD' : c.slot.toUpperCase()),
+        have: own ? 1 : 0, sold: own, wear: own, on, badge: on ? 'WEARING' : (own ? 'OWNED' : null), stars: 4 + (c.price % 2), seller: 'moon_mart' };
+    }
+    if (kind === 'ship') {
+      const it = D.SHIPX[id], lv = g.shipLvl(id);
+      return { kind, id, name: it.name, price: g.shipPrice(id), desc: it.desc, fx: lv < it.max ? 'NEXT: ' + it.lv[lv] : 'MAXED: ' + it.lv[it.max - 1],
+        have: lv, lvl: lv, max: it.max, sold: lv >= it.max, badge: lv ? 'LV ' + lv + '/' + it.max : null, stars: 5, seller: 'saucer_bits' };
+    }
+    const it = D.ABAYX[id], lv = g.save.upg[id] || 0, cap = g.abayMax(id);
+    return { kind: 'gear', id, name: it.name, price: g.abayPrice(id), desc: it.blurb, fx: 'LEVEL ' + lv + ' OF ' + cap, have: lv, lvl: lv, max: cap,
+      sold: lv >= cap, badge: lv ? 'LV ' + lv : null, stars: it.stars, seller: it.seller };
+  }
+  function fxLine(b) {
+    const f = b.fx || {};
+    if (b.where === 'up') return 'UPGRADES YOUR ' + (b.up === 'house' ? 'HOUSE' : 'BED');
+    if (f.ore) return 'DIGS ORE EVERY ' + f.every + ' SECONDS';
+    if (f.sell) return 'SELLS YOUR ORE FOR YOU';
+    if (f.cash) return 'MAKES $' + U.fmt(f.cash) + ' EVERY ' + f.every + 'S';
+    if (f.interest) return 'PAYS INTEREST ON YOUR MONEY';
+    if (f.value) return 'ORE SELLS FOR ' + Math.round(f.value * 100) + '% MORE';
+    if (f.bonus) return 'A BONUS FOR YOUR ' + f.bonus.toUpperCase();
+    if (b.ride) return 'A RIDE. YOU CAN GET ON IT';
+    if (b.fun) return 'BRINGS TOURISTS. TOURISTS PAY';
+    if (b.water) return 'WATER. PUT FLOATIES IN IT';
+    return 'MAKES THE PLACE NICER';
+  }
+  function shelf(g, top, sub) {
+    const out = [];
+    if (top === 'BUILD') {
+      const cat = BUILDSUB[sub][0];
+      for (const b of PD.buildart.LIST) if (b.cat === cat) out.push(entry(g, 'build', b.id));
+    } else if (top === 'STYLE') {
+      const slot = STYLESUB[sub][0];
+      const list = slot === 'colour' ? PD.cosm.COLOURS : PD.cosm.LIST.filter(c => c.slot === slot);
+      for (const c of list) out.push(entry(g, 'cosm', c.id));
+    } else if (top === 'SHIP') {
+      for (const it of D.SHIP) out.push(entry(g, 'ship', it.id));
+      const seen = {};
+      for (const it of D.ABAY) if ((it.cat === 'SHIP' || it.id === 'scooter') && !seen[it.id] && D.UPG[it.id] && it.id !== 'drones' && it.id !== 'droneyield') { seen[it.id] = 1; out.push(entry(g, 'gear', it.id)); }
+    } else if (top === 'GEAR') {
+      const cat = GEARSUB[sub][0];
+      const seen = {};
+      for (const it of D.ABAY) if (it.cat === cat && !seen[it.id] && D.UPG[it.id]) { seen[it.id] = 1; out.push(entry(g, 'gear', it.id)); }
+      if (cat === 'DIG') for (const id of ['drones', 'droneyield']) if (D.ABAYX[id] && D.UPG[id]) out.push(entry(g, 'gear', id));
+    } else if (top === 'HOT') {
+      // a different handful every hour: things you do not have yet
+      const hour = Math.floor(Date.now() / 3.6e6);
+      const pool = [];
+      for (const b of PD.buildart.LIST) if (!PD.build.owned(g, b.id) && b.where !== 'up') pool.push(['build', b.id]);
+      for (const c of PD.cosm.LIST) if (!PD.cosm.owns(g, c.id)) pool.push(['cosm', c.id]);
+      for (const it of D.SHIP) if (g.shipLvl(it.id) < it.max) pool.push(['ship', it.id]);
+      const pick = [];
+      for (let i = 0; i < 12 && pool.length; i++) { const k = Math.floor(U.hash2(hour, i * 7 + 3) * pool.length); pick.push(pool.splice(k, 1)[0]); }
+      pick.sort((a, b) => entry(g, a[0], a[1]).price - entry(g, b[0], b[1]).price);
+      for (const [k, id] of pick) out.push(entry(g, k, id));
+      // the first one is on offer
+      if (out[0]) { out[0].deal = 1; out[0].was = out[0].price; out[0].price = Math.round(out[0].price * 0.75); }
+    }
+    return out;
+  }
+
+  function drawAbay(ctx, g, t, bx, by, bw, bh) {
+    const sh = S.shop;
+    // the header: logo, search, money
+    X.rect(ctx, bx, by, bw, 20, '#ffffff'); X.rect(ctx, bx, by + 20, bw, 1, T.line);
+    const L = [['A', T.red], ['B', T.blue], ['A', T.ylw], ['Y', T.green]];
+    for (let i = 0; i < 4; i++) {
+      const j = hot(bx + 4, by + 2, 44, 16) ? Math.round(Math.sin(t * 12 + i) * 1.5) : 0;
+      F.draw(ctx, L[i][0], bx + 6 + i * 11, by + 3 + j, L[i][1], { scale: 2, shadow: false });
+    }
+    const sx = bx + 54, sw = 170;
+    rr(ctx, sx, by + 4, sw, 12, 6, '#eef0f6'); X.rect(ctx, sx + 5, by + 7, 4, 4, '#a8acc0'); X.rect(ctx, sx + 8, by + 10, 2, 2, '#a8acc0');
+    const SEARCH = ['SHARK FLOATIE', 'HOW TO PAY OFF A SHARK', 'ROLLER COASTER CHEAP', 'HAT FOR ALIEN', 'LAZER BEAM', 'IS MR CHUM A REAL SHARK'];
+    const q = SEARCH[Math.floor(t / 4) % SEARCH.length], nc = Math.min(q.length, Math.floor((t % 4) * 8));
+    F.draw(ctx, q.slice(0, nc) + (Math.sin(t * 8) > 0 ? '_' : ''), sx + 14, by + 7, T.dim, { shadow: false });
+    F.draw(ctx, '$' + U.fmt(g.save.credits), bx + bw - 6, by + 7, T.green, { right: true, shadow: false });
+
+    // the side bar of departments
+    const sx0 = bx, sy0 = by + 21, sideW = 62;
+    X.rect(ctx, sx0, sy0, sideW, bh - 21, '#eceef5'); X.rect(ctx, sx0 + sideW, sy0, 1, bh - 21, T.line);
+    for (let i = 0; i < TOPS.length; i++) {
+      const y = sy0 + 4 + i * 16, on = sh.top === i, over = hot(sx0 + 2, y, sideW - 4, 14);
+      if (on) rr(ctx, sx0 + 3, y, sideW - 6, 14, 3, '#ffffff');
+      else if (over) rr(ctx, sx0 + 3, y, sideW - 6, 14, 3, '#f6f7fb');
+      if (on) X.rect(ctx, sx0 + 3, y + 3, 2, 8, [T.red, T.blue, T.pink, T.accent, T.ylw, T.green][i]);
+      F.draw(ctx, TOPS[i], sx0 + 9, y + 4, on ? T.ink : T.dim, { shadow: false });
+      if (TOPS[i] === 'SELL' && g.vaultTotal() > 0) { X.blob(ctx, sx0 + sideW - 9, y + 7, 3, 3, T.green); }
+      if (clicked(sx0 + 2, y, sideW - 4, 14)) {
+        if (g.tutActive && g.tutActive() && TOPS[i] !== 'SELL') { g.tutNope('desk'); toast('ABAY', 'SELL YOUR ROCKS FIRST.', T.red); }
+        else { sh.top = i; sh.sub = 0; sh.sel = null; S.scroll = S.scrollTo = 0; A.sfx.tone(1100, { type: 'square', dur: 0.02, vol: 0.03 }); }
+      }
+    }
+    // the rep of the seller, which is you
+    F.draw(ctx, 'YOU: 62%', sx0 + 6, by + bh - 20, T.dim, { shadow: false });
+    stars(ctx, sx0 + 6, by + bh - 11, 3);
+
+    const cx0 = bx + sideW + 1, cw = bw - sideW - 1;
+    const top = TOPS[sh.top];
+    if (top === 'SELL') { drawSell(ctx, g, t, cx0, sy0, cw, bh - 21); return; }
+
+    // the sub tabs
+    let gy0 = sy0 + 2;
+    const subs = subsFor(top);
+    if (subs) {
+      let x = cx0 + 4;
+      for (let i = 0; i < subs.length; i++) {
+        const w = F.width(subs[i][1], 1) + 10, on = sh.sub === i;
+        rr(ctx, x, gy0 + 1, w, 11, 5, on ? T.ink : (hot(x, gy0 + 1, w, 11) ? '#dfe2ec' : '#eceef5'));
+        F.draw(ctx, subs[i][1], x + w / 2, gy0 + 3, on ? '#ffffff' : T.dim, { center: true, shadow: false });
+        if (clicked(x, gy0 + 1, w, 11)) { sh.sub = i; sh.sel = null; S.scroll = S.scrollTo = 0; A.sfx.tone(1100, { type: 'square', dur: 0.02, vol: 0.03 }); }
+        x += w + 3;
+      }
+      gy0 += 14;
+    } else {
+      F.draw(ctx, top === 'HOT' ? 'PICKED FOR YOU. YOU OWE MONEY.' : 'THE SPACE LANES NEED THESE', cx0 + 5, gy0 + 3, T.dim, { shadow: false });
+      gy0 += 13;
+    }
+    const list = shelf(g, top, sh.sub);
+    if (!sh.sel || !list.find(e => e.id === sh.sel)) sh.sel = list[0] ? list[0].id : null;
+
+    // the grid on the left, the item on the right
+    const detW = 112, gw = cw - detW - 2;
+    const cols = 3, cardW = Math.floor((gw - 8) / cols) - 3, cardH = 52;
+    const rows = Math.ceil(list.length / cols);
+    const viewH = by + bh - gy0;
+    S.scrollTo = Math.min(S.scrollTo, Math.max(0, rows * (cardH + 3) - viewH + 4));
+    ctx.save();
+    ctx.beginPath(); ctx.rect(cx0, gy0, gw, viewH); ctx.clip();
+    for (let i = 0; i < list.length; i++) {
+      const e = list[i];
+      const x = cx0 + 5 + (i % cols) * (cardW + 3), y = gy0 + 2 + Math.floor(i / cols) * (cardH + 3) - Math.round(S.scroll);
+      if (y > by + bh || y + cardH < gy0) continue;
+      const sel = sh.sel === e.id, over = hot(x, y, cardW, cardH) && S.cy > gy0;
+      const lift = over ? 1 : 0;
+      shadow(ctx, x, y - lift, cardW, cardH, 3);
+      rr(ctx, x, y - lift, cardW, cardH, 3, '#ffffff');
+      if (sel) { X.frame(ctx, x - 1, y - lift - 1, cardW + 2, cardH + 2, T.blue); }
+      // the photo
+      rr(ctx, x + 2, y + 2 - lift, cardW - 4, 32, 2, e.kind === 'cosm' ? '#f0f2fa' : e.kind === 'build' ? '#eef4fa' : '#f4f0fa');
+      picture(ctx, g, e, x + cardW / 2, y + 18 - lift, 28, t, over || sel);
+      if (e.badge) { const bw2 = F.width(e.badge, 1) + 4; X.rect(ctx, x + 2, y + 2 - lift, bw2, 8, e.on ? T.blue : T.green); F.draw(ctx, e.badge, x + 4, y + 3 - lift, '#ffffff', { shadow: false }); }
+      if (e.deal) { X.rect(ctx, x + cardW - 26, y + 2 - lift, 24, 8, T.red); F.draw(ctx, '-25%', x + cardW - 14, y + 3 - lift, '#ffffff', { center: true, shadow: false }); }
+      F.draw(ctx, clip(e.name, Math.floor((cardW - 4) / 6)), x + 3, y + 36 - lift, T.ink, { shadow: false });
+      const afford = g.save.credits >= e.price;
+      F.draw(ctx, e.sold ? (e.kind === 'cosm' ? 'OWNED' : 'MAXED') : '$' + U.fmt(e.price), x + 3, y + 44 - lift, e.sold ? T.dim : (afford ? T.green : T.red), { shadow: false });
+      if (clicked(x, y, cardW, cardH) && S.fy > gy0) { sh.sel = e.id; sh.confirm = 0; A.sfx.tone(1400, { type: 'square', dur: 0.02, vol: 0.03 }); }
+    }
+    ctx.restore();
+    // a scroll bar
+    if (rows * (cardH + 3) > viewH) {
+      const total = rows * (cardH + 3), th = Math.max(12, viewH * viewH / total), ty = gy0 + (viewH - th) * (S.scroll / Math.max(1, total - viewH));
+      rr(ctx, cx0 + gw - 3, ty, 3, th, 1, '#c8cad8');
+    }
+    // the detail panel
+    const e = list.find(o => o.id === sh.sel);
+    const dx = cx0 + gw + 1, dy = sy0;
+    X.rect(ctx, dx, dy, detW + 1, bh - 21, '#ffffff'); X.rect(ctx, dx, dy, 1, bh - 21, T.line);
+    if (!e) { F.draw(ctx, 'NOTHING HERE.', dx + detW / 2, dy + 30, T.dim, { center: true, shadow: false }); return; }
+    rr(ctx, dx + 5, dy + 4, detW - 8, 46, 3, '#f0f2fa');
+    picture(ctx, g, e, dx + 5 + (detW - 8) / 2, dy + 26, 42, t, true);
+    let ly = dy + 53;
+    const py = by + bh - 32;
+    for (const l of wrap(e.name, 17).slice(0, 2)) { F.draw(ctx, l, dx + 6, ly, T.ink, { shadow: false }); ly += 9; }
+    stars(ctx, dx + 6, ly, e.stars); F.draw(ctx, clip(e.seller, 7), dx + 38, ly, T.faint, { shadow: false }); ly += 9;
+    const room = Math.max(1, Math.floor((py - 12 - (e.deal ? 9 : 0) - ly) / 8));
+    const dl = wrap(e.desc, 17);
+    for (const l of dl.slice(0, room)) { F.draw(ctx, l, dx + 6, ly, T.dim, { shadow: false }); ly += 8; }
+    F.draw(ctx, clip(e.fx, 18), dx + 6, py - 10 - (e.deal ? 9 : 0), T.blue, { shadow: false });
+    // the money and the button
+    if (e.deal) { F.draw(ctx, '$' + U.fmt(e.was), dx + 6, py - 9, T.faint, { shadow: false }); X.rect(ctx, dx + 5, py - 6, F.width('$' + U.fmt(e.was), 1) + 2, 1, T.red); }
+    if (!e.sold) F.draw(ctx, '$' + U.fmt(e.price), dx + 6, py, g.save.credits >= e.price ? T.green : T.red, { scale: 2, shadow: false });
+    const btY = by + bh - 17, btW = detW - 10;
+    if (e.kind === 'cosm' && e.wear) {
+      if (button(ctx, dx + 5, btY, btW, 13, e.on ? 'TAKE IT OFF' : 'WEAR IT', { col: e.on ? '#8a8ea8' : T.blue })) {
+        PD.cosm.wear(g, e.id); A.sfx.tone(e.on ? 500 : 900, { type: 'triangle', to: e.on ? 300 : 1300, dur: 0.12, vol: 0.06 });
+      }
+      return;
+    }
+    if (e.sold) { button(ctx, dx + 5, btY, btW, 13, e.kind === 'build' ? 'BUILT' : 'MAXED OUT', { enabled: false }); return; }
+    const confirming = sh.confirm > 0 && sh.confirmId === e.id;
+    const afford = g.save.credits >= e.price;
+    if (button(ctx, dx + 5, btY, btW, 13, !afford ? 'NOT ENOUGH $' : (confirming ? 'SURE? CLICK AGAIN' : 'BUY IT NOW'), { col: confirming ? T.green : T.ylw, ink: confirming ? '#ffffff' : '#3a2a0a', enabled: afford })) {
+      if (g.tutAllows && !g.tutAllows('desk', 'buy')) { g.tutNope('desk'); toast('ABAY', 'SELL FIRST. SHOPPING IS FOR PEOPLE WITH MONEY.', T.red); return; }
+      if (!confirming && e.price >= 1000) { sh.confirm = 2.5; sh.confirmId = e.id; A.sfx.tone(900, { type: 'square', dur: 0.03, vol: 0.04 }); return; }
+      buyEntry(g, e, dx + detW / 2, btY);
+      sh.confirm = 0;
+    }
+  }
+
+  function buyEntry(g, e, x, y) {
+    let ok = false;
+    if (e.deal) { g.save.credits += e.was - e.price; }
+    if (e.kind === 'build') ok = PD.build.buy(g, e.id);
+    else if (e.kind === 'cosm') ok = PD.cosm.buy(g, e.id);
+    else if (e.kind === 'ship') ok = g.shipBuy(e.id);
+    else ok = g.abayBuy(e.id);
+    if (!ok) { if (e.deal) g.save.credits -= e.was - e.price; A.sfx.deny(); toast('ABAY', 'THAT DID NOT WORK. NOT ENOUGH MONEY?', T.red); return; }
+    burst(x, y, 16);
+    A.sfx.buy && A.sfx.buy();
+    A.sfx.tone(660, { type: 'triangle', to: 1320, dur: 0.2, vol: 0.07 });
+    S.lastBuy = e.name;
+    if (e.kind === 'build') toast('ORDER DELIVERED', e.name + ' - PRESS B ON THE MOON', T.green);
+    else if (e.kind === 'cosm') toast('ORDER DELIVERED', 'YOU ARE WEARING IT. LOOK.', T.green);
+    else toast('INSTALLED', e.name + ' ON YOUR ' + (e.kind === 'ship' ? 'SAUCER' : 'SUIT'), T.green);
+    g.saveGame && g.saveGame();
+  }
+
+  /* A picture for any entry, spinning a little when you look at it. */
+  const BOXC = new WeakMap();
+  function boxOf(cv) {
+    let b = BOXC.get(cv);
+    if (b) return b;
+    const d = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data;
+    let x0 = cv.width, y0 = cv.height, x1 = 0, y1 = 0;
+    for (let y = 0; y < cv.height; y++) for (let x = 0; x < cv.width; x++) if (d[(y * cv.width + x) * 4 + 3] > 40) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+    if (x1 < x0) { x0 = 0; y0 = 0; x1 = cv.width - 1; y1 = cv.height - 1; }
+    b = { x0, y0, w: x1 - x0 + 1, h: y1 - y0 + 1 };
+    BOXC.set(cv, b);
+    return b;
+  }
+  function fitDraw(ctx, cv, cx, cy, size, sx) {
+    const b = boxOf(cv);
+    const k = Math.min(size / b.w, size * 0.9 / b.h, 1.5);
+    const w = b.w * k, h = b.h * k;
+    ctx.save();
+    ctx.translate(Math.round(cx), Math.round(cy));
+    ctx.scale(sx || 1, 1);
+    ctx.drawImage(cv, b.x0, b.y0, b.w, b.h, -w / 2, -h / 2, w, h);
+    ctx.restore();
+  }
+  function picture(ctx, g, e, cx, cy, size, t, live) {
+    const wob = live ? 1 + Math.sin(t * 5) * 0.03 : 1;
+    if (e.kind === 'build') {
+      const b = PD.buildart.BY[e.id];
+      const cv = b.where === 'up' ? (b.up === 'house' ? PD.home.API.artHouse(b.tier) : PD.home.API.artBed(b.tier)) : PD.buildart.art(e.id);
+      if (cv) { ctx.globalAlpha = 0.18; X.blob(ctx, cx, cy + size * 0.42, size * 0.4, 2, '#000000'); ctx.globalAlpha = 1; fitDraw(ctx, cv, cx, cy, size * wob); }
+    } else if (e.kind === 'cosm') {
+      PD.cosm.icon(ctx, e.id, cx, cy, size * 0.9 * wob, t);
+    } else if (e.kind === 'ship') {
+      fitDraw(ctx, shipIcon(D.SHIPX[e.id].icon), cx, cy, size * 0.8 * wob);
+    } else {
+      const it = D.ABAYX[e.id];
+      const col = { DIG: '#ffb03a', BODY: '#ff7a9a', BANG: '#ff5a4d', BIZ: '#8affa0', SHIP: '#7ef9ff', JUNK: '#c8a8ff' }[it.cat] || '#c8c8d8';
+      X.blob(ctx, cx, cy, size * 0.38, size * 0.38, col);
+      X.blob(ctx, cx - 1, cy - 1, size * 0.32, size * 0.32, PT.css(PT.mix(col, 0xffffff, 0.3)));
+      const gl = GLYPH_OF[e.id] || 'machine';
+      const s = Math.max(1, Math.floor(size / 16));
+      PD.glyph.draw(ctx, gl, cx - 7 * s, cy - 7 * s, '#1e2238', '#5a5e78', s);
+    }
+  }
+  const GLYPH_OF = {
+    drill: 'drill', reach: 'drill', oxygen: 'o2', lung: 'o2', cargo: 'cargo', belly: 'cargo',
+    hull: 'hull', ironskin: 'hull', tether: 'weight', thruster: 'dash', dash: 'dash',
+    pistol: 'gun', trigger: 'gun', scatter: 'scatter', lance: 'lance', lamp: 'star',
+    magnet: 'weight', scanner: 'scan', crew: 'coin', refine: 'machine', greed: 'coin', warp: 'planet',
+    deflector: 'hull', navcom: 'scan', drones: 'machine', droneyield: 'star', scooter: 'dash'
+  };
+
+  /* SELL: the vault, what everything is worth, and one big green button. */
+  function drawSell(ctx, g, t, x0, y0, w, h) {
+    const keys = Object.keys(g.save.vault).filter(k => g.save.vault[k] > 0).sort((a, b) => D.MAT[b].cr - D.MAT[a].cr);
+    F.draw(ctx, 'SELL ROCKS', x0 + 6, y0 + 4, T.ink, { scale: 2, shadow: false });
+    F.draw(ctx, 'BUYERS ARE WAITING. THEY ARE ALWAYS WAITING.', x0 + 6, y0 + 20, T.dim, { shadow: false });
+    if (!keys.length) {
+      F.draw(ctx, 'YOUR VAULT IS EMPTY.', x0 + w / 2, y0 + 56, T.ink, { center: true, shadow: false });
+      F.draw(ctx, 'FLY TO A PLANET, DIG, COME BACK.', x0 + w / 2, y0 + 68, T.dim, { center: true, shadow: false });
+      return;
+    }
+    const ROW = 16, ly = y0 + 32, lh = h - 62;
+    F.draw(ctx, 'ROCK', x0 + 24, ly, T.faint, { shadow: false });
+    F.draw(ctx, 'QTY', x0 + w - 120, ly, T.faint, { right: true, shadow: false });
+    F.draw(ctx, 'EACH', x0 + w - 64, ly, T.faint, { right: true, shadow: false });
+    F.draw(ctx, 'TOTAL', x0 + w - 8, ly, T.faint, { right: true, shadow: false });
+    ctx.save(); ctx.beginPath(); ctx.rect(x0, ly + 9, w, lh); ctx.clip();
+    const maxScroll = Math.max(0, keys.length * ROW - lh);
+    S.scrollTo = Math.min(S.scrollTo, maxScroll);
+    for (let i = 0; i < keys.length; i++) {
+      const mat = +keys[i], n = g.save.vault[mat], y = ly + 10 + i * ROW - Math.round(S.scroll);
+      if (y > y0 + h || y + ROW < ly) continue;
+      rr(ctx, x0 + 4, y, w - 12, ROW - 2, 3, i % 2 ? '#ffffff' : '#f7f8fc');
+      PD.art.oreChip(ctx, mat, x0 + 7, y + 1, 12);
+      F.draw(ctx, clip(D.MAT[mat].name.toUpperCase(), 18), x0 + 24, y + 4, T.ink, { shadow: false });
+      const price = g.priceOf(mat), d = g.demandFor(mat);
+      F.draw(ctx, 'X' + n, x0 + w - 120, y + 4, T.ink, { right: true, shadow: false });
+      F.draw(ctx, '$' + U.fmt(price), x0 + w - 64, y + 4, T.ink, { right: true, shadow: false });
+      if (d > 1.06 || d < 0.94) { const up = d > 1.06; rr(ctx, x0 + w - 104, y + 2, 22, 9, 2, up ? T.green : T.red); F.draw(ctx, up ? 'HOT' : 'LOW', x0 + w - 93, y + 3, '#ffffff', { center: true, shadow: false }); }
+      F.draw(ctx, '$' + U.fmt(price * n), x0 + w - 8, y + 4, T.green, { right: true, shadow: false });
+    }
+    ctx.restore();
+    const val = g.vaultValue(), bonus = g.baseBonus ? g.baseBonus('refinery') : 0;
+    const total = Math.round(val * (1 + bonus));
+    const byy = y0 + h - 24;
+    X.rect(ctx, x0 + 4, byy - 4, w - 12, 1, T.line);
+    F.draw(ctx, g.vaultTotal() + ' ROCKS' + (bonus ? '  +' + Math.round(bonus * 100) + '% REFINERY' : ''), x0 + 6, byy + 5, T.dim, { shadow: false });
+    const pulse = g.tutActive && g.tutActive() ? Math.sin(t * 6) > 0 : false;
+    if (button(ctx, x0 + w - 150, byy, 142, 18, 'SELL IT ALL  $' + U.fmt(total), { col: pulse ? '#2fbf5a' : T.green })) {
+      if (!val) { A.sfx.deny(); return; }
+      g.sellAll();
+      burst(x0 + w - 80, byy, 40);
+      toast('SOLD', 'THE LOT. $' + U.fmt(total) + '. NOBODY LOOKED AT IT.', T.green);
+    }
+  }
+
+  /* ============================================================== CHUM BANK */
+  function drawBank(ctx, g, t, x0, y0, w, h) {
+    const debt = g.save.debt || 0, paid = g.save.paid || 0, D0 = PD.chum.DEBT0 || 1000000;
+    // a navy and gold private bank
+    for (let y = 0; y < h; y++) X.rect(ctx, x0, y0 + y, w, 1, PT.css(PT.mix(0x0e1630, 0x1a1030, y / h)));
+    F.draw(ctx, 'CHUM', x0 + 10, y0 + 6, '#ffc83a', { scale: 2, shadow: false });
+    F.draw(ctx, '& SONS PRIVATE BANK', x0 + 62, y0 + 12, '#c8a860', { shadow: false });
+    X.rect(ctx, x0 + 10, y0 + 22, w - 130, 1, '#5a4a28');
+    // Mr Chum himself, in the corner, watching
+    ctx.save(); ctx.beginPath(); ctx.rect(x0 + w - 112, y0 + 4, 106, h - 8); ctx.clip();
+    rr(ctx, x0 + w - 112, y0 + 4, 106, h - 8, 4, '#16204a');
+    PT.glow(ctx, x0 + w - 59, y0 + 50, 60, '#ffc83a', 0.12);
+    PD.chum.drawChumAt(ctx, x0 + w - 59, y0 + h + 30, 1.1, S.bankTalk > 0, t);
+    ctx.restore();
+    S.bankTalk = Math.max(0, (S.bankTalk || 0) - 1 / 60);
+    const say = S.bankSay || (debt > 0 ? 'I CAN SEE YOUR BALANCE FROM HERE.' : 'YOU ARE FREE. I HATE IT.');
+    const lines = wrap(say, 16);
+    const bh2 = lines.length * 9 + 6;
+    rr(ctx, x0 + w - 108, y0 + 8, 98, bh2, 3, '#ffffff');
+    X.poly(ctx, [[x0 + w - 70, y0 + 8 + bh2], [x0 + w - 62, y0 + 8 + bh2], [x0 + w - 66, y0 + 13 + bh2]], '#ffffff');
+    lines.forEach((l, i) => F.draw(ctx, l, x0 + w - 104, y0 + 11 + i * 9, T.ink, { shadow: false }));
+
+    const lx = x0 + 10;
+    if (debt > 0) {
+      F.draw(ctx, 'LOAN ACCOUNT 0000-POOL', lx, y0 + 28, '#8a90b8', { shadow: false });
+      F.draw(ctx, 'YOU OWE', lx, y0 + 40, '#c8d0f0', { shadow: false });
+      F.draw(ctx, '$' + U.fmt(debt), lx, y0 + 50, '#ff5a6a', { scale: 3, shadow: false });
+      // the bar, with a shark swimming along it
+      const f = U.clamp(paid / D0, 0, 1), bw = w - 140;
+      rr(ctx, lx, y0 + 76, bw, 8, 4, '#2a2448'); rr(ctx, lx, y0 + 76, Math.max(8, bw * f), 8, 4, '#ffc83a');
+      const sx = lx + bw * f, sy = y0 + 73 + Math.sin(t * 4) * 1;
+      X.poly(ctx, [[sx - 2, sy], [sx + 4, sy], [sx, sy - 6]], '#6a8ac8');
+      F.draw(ctx, 'PAID $' + U.fmt(paid) + '   ' + Math.round(f * 100) + '%', lx, y0 + 88, '#8a90b8', { shadow: false });
+      F.draw(ctx, 'IN YOUR POCKET: $' + U.fmt(g.save.credits), lx, y0 + 100, '#8affa0', { shadow: false });
+      const amts = [[10000, 'PAY $10K'], [100000, 'PAY $100K'], [1000000, 'PAY $1M'], [Infinity, 'PAY IT ALL']];
+      for (let i = 0; i < amts.length; i++) {
+        const [a, lab] = amts[i];
+        const amt = a === Infinity ? Math.min(debt, g.save.credits) : Math.min(a, debt);
+        const ok = amt > 0 && g.save.credits >= (a === Infinity ? 1 : amt);
+        const bxx = lx + (i % 2) * 112, byy = y0 + 112 + Math.floor(i / 2) * 18;
+        if (button(ctx, bxx, byy, 106, 14, lab, { col: i === 3 ? '#e5394a' : '#c8902a', enabled: ok })) {
+          const got = PD.story.pay(g, amt);
+          if (got > 0) {
+            burst(bxx + 53, byy, 24);
+            S.bankTalk = 2;
+            S.bankSay = U.pick(['LOVELY. KEEP GOING.', 'I CAN HEAR IT. THE MONEY. IT SINGS.', 'THAT IS A START. A SMALL ONE.', 'MY POOL THANKS YOU.', 'MORE. PLEASE. NO, NOT PLEASE. MORE.']);
+            toast('CHUM BANK', 'PAYMENT OF $' + U.fmt(got) + ' RECEIVED.', '#ffc83a');
+          }
+        }
+      }
+    } else {
+      F.draw(ctx, 'LOAN: PAID IN FULL', lx, y0 + 30, '#8affa0', { shadow: false });
+      F.draw(ctx, 'NOW: GET RICH', lx, y0 + 44, '#ffc83a', { scale: 2, shadow: false });
+      const nw = PD.story.netWorth(g), goal = PD.story.RICH;
+      const f = U.clamp(nw / goal, 0, 1), bw = w - 140;
+      F.draw(ctx, '$' + U.fmt(nw) + ' OF $' + U.fmt(goal), lx, y0 + 64, '#c8d0f0', { shadow: false });
+      rr(ctx, lx, y0 + 74, bw, 8, 4, '#2a2448'); rr(ctx, lx, y0 + 74, Math.max(8, bw * f), 8, 4, '#8affa0');
+      F.draw(ctx, 'BUILD THINGS THAT MAKE MONEY.', lx, y0 + 92, '#8a90b8', { shadow: false });
+      F.draw(ctx, 'BLOW UP PLANETS. SELL THE BITS.', lx, y0 + 102, '#8a90b8', { shadow: false });
+    }
+  }
+
+  /* =================================================================== MAIL */
+  function mailbox(g) {
+    const debt = g.save.debt || 0;
+    const box = [];
+    if (debt > 0) box.push(['MR CHUM', 'RE: MY POOL', 'I HAVE HAD THE POOL CLEANED. THE BILL IS ON YOUR ACCOUNT. SO IS THE POOL. SO IS THE BILL FOR THE BILL. YOU OWE $' + U.fmt(debt) + '. SMILE.', '#5a7ab0']);
+    else box.push(['MR CHUM', 'CONGRATULATIONS', 'YOU PAID ME BACK. I AM CONFUSED AND UPSET. I WILL FIND A WAY TO LEND YOU MORE MONEY. SOON.', '#5a7ab0']);
+    if (S.lastBuy) box.push(['ABAY ORDERS', 'YOUR ORDER: ' + S.lastBuy, 'YOUR ORDER HAS BEEN DELIVERED. IT WAS THROWN AT YOUR MOON FROM ORBIT. IT IS FINE. PROBABLY.', '#e5394a']);
+    box.push(['MUM', 'ARE YOU EATING', 'ARE YOU EATING. ARE YOU DESTROYING ENOUGH PLANETS. ARE YOU WEARING A HAT. ANSWER ONE. ANSWER ALL. LOVE MUM.', '#ff8ab0']);
+    if (PD.build && PD.build.funScore(g) > 0) box.push(['MOON REVIEWS', 'NEW REVIEW: 5 STARS', 'LOVELY LITTLE MOON. THE SHARK FLOATIE WAS WONDERFUL. THE OWNER WAS SWEATY. WILL VISIT AGAIN.', '#8affa0']);
+    box.push(['ZORB OS', 'UPDATE AVAILABLE', 'ZORB OS 11 IS HERE. IT IS THE SAME AS ZORB OS 10 BUT THE BUTTONS ARE ROUNDER. INSTALL NOW. OR LATER. OR NOW.', '#7ef9ff']);
+    box.push(['NOVA CORPS', 'YOU ARE ON A LIST', 'THIS IS AN AUTOMATED MESSAGE. YOU HAVE BEEN PUT ON A LIST. IT IS NOT A GOOD LIST. HAVE A NICE DAY.', '#ffd34d']);
+    box.push(['BRENDA', 'squeak', 'SQUEAK. SQUEAK SQUEAK. CHEESE. SQUEAK. (BRENDA HAS LEARNED TO TYPE. THIS IS A PROBLEM.)', '#c8b8d8']);
+    return box;
+  }
+  function drawMail(ctx, g, t, x0, y0, w, h) {
+    const box = mailbox(g);
+    S.mail = U.clamp(S.mail, 0, box.length - 1);
+    const lw = 130;
+    X.rect(ctx, x0, y0, lw, h, '#eef0f6'); X.rect(ctx, x0 + lw, y0, 1, h, T.line);
+    for (let i = 0; i < box.length; i++) {
+      const y = y0 + 3 + i * 20, on = S.mail === i;
+      if (on) rr(ctx, x0 + 3, y, lw - 6, 18, 3, '#ffffff');
+      X.blob(ctx, x0 + 12, y + 9, 6, 6, box[i][3]);
+      F.draw(ctx, box[i][0][0], x0 + 12, y + 6, '#ffffff', { center: true, shadow: false });
+      F.draw(ctx, clip(box[i][0], 16), x0 + 22, y + 3, T.ink, { shadow: false });
+      F.draw(ctx, clip(box[i][1], 16), x0 + 22, y + 11, T.dim, { shadow: false });
+      if (clicked(x0 + 3, y, lw - 6, 18)) { S.mail = i; A.sfx.tone(1200, { type: 'square', dur: 0.02, vol: 0.03 }); }
+    }
+    const m = box[S.mail];
+    const rx = x0 + lw + 10;
+    X.blob(ctx, rx + 8, y0 + 12, 8, 8, m[3]); F.draw(ctx, m[0][0], rx + 8, y0 + 9, '#ffffff', { center: true, shadow: false });
+    F.draw(ctx, m[0], rx + 22, y0 + 5, T.ink, { shadow: false });
+    F.draw(ctx, 'TO: YOU', rx + 22, y0 + 14, T.faint, { shadow: false });
+    F.draw(ctx, m[1].toUpperCase(), rx, y0 + 28, T.ink, { shadow: false });
+    X.rect(ctx, rx, y0 + 38, w - lw - 20, 1, T.line);
+    wrap(m[2], Math.floor((w - lw - 20) / 6)).forEach((l, i) => F.draw(ctx, l, rx, y0 + 44 + i * 10, T.dim, { shadow: false }));
+  }
+
+  /* =============================================================== SETTINGS */
+  function drawSetup(ctx, g, t, x0, y0, w, h) {
+    const lx = x0 + 12;
+    F.draw(ctx, 'THIS ZORBBOOK', lx, y0 + 8, '#ffffff', { scale: 2, shadow: false });
+    const lines = [
+      'OWNER: YOU (FOUND IT)',
+      'PLANETS DESTROYED: ' + g.save.destroyed.filter(Boolean).length + ' OF ' + D.BODIES.length,
+      'TOTAL EARNED: $' + U.fmt(g.save.totalEarned || 0),
+      'TITLE: ' + D.titleFor(g.save.dominion)
+    ];
+    lines.forEach((l, i) => F.draw(ctx, l, lx, y0 + 28 + i * 10, '#aab4d8', { shadow: false }));
+    const yy = y0 + 72;
+    if (button(ctx, lx, yy, 110, 14, A.state.sfx ? 'SOUND: ON' : 'SOUND: OFF', { col: '#3a5ad8' })) { A.toggleSfx(!A.state.sfx); A.toggleMusic(A.state.sfx); }
+    if (button(ctx, lx + 118, yy, 110, 14, 'FULL SCREEN', { col: '#3a5ad8' })) { try { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen(); } catch (e) { /* no */ } }
+    if (button(ctx, lx, yy + 20, 110, 14, 'CHANGE WALLPAPER', { col: '#2a9a8a' })) { S.wall = (S.wall + 1) % 3; g.save.wall = S.wall; paintWall(S.wall); }
+    if (button(ctx, lx, yy + 46, 228, 14, S.wipe > 0 ? 'REALLY? CLICK AGAIN TO WIPE' : 'THROW EVERYTHING AWAY (WIPE SAVE)', { col: '#c83a3a' })) {
+      if (S.wipe > 0) { S.wipe = 0; g.wipeSave(); toast('ZORB OS', 'IT IS ALL GONE. WELL DONE.', T.red); }
+      else S.wipe = 3;
+    }
+    S.wipe = Math.max(0, S.wipe - 1 / 60);
+  }
+
+  /* =================================================================== HANDS
+     Your own two tentacles: one on the keys, one on the trackpad. */
+  const HANDS = {};
+  function handArt(P) {
+    const key = P.skin;
+    if (HANDS[key]) return HANDS[key];
+    const B = PT.buf(64, 80);
+    const base = PT.hex(P.skin), C = [base, PT.hex(P.skinL), PT.hex(P.skinD)];
+    // a thick tentacle curling up from the bottom to a round tip
+    for (let i = 0; i <= 40; i++) {
+      const q = i / 40;
+      const x = 32 + Math.sin(q * 2.2) * 10, y = 78 - q * 62, r = 13 - q * 6;
+      B.ball(x, y, r, r * 0.9, C);
+    }
+    for (let i = 0; i < 6; i++) { const q = 0.2 + i * 0.13; B.disc(32 + Math.sin(q * 2.2) * 10 - 6, 78 - q * 62 + 2, 2.4 - i * 0.2, PT.mix(C[1], 0xffffff, 0.3)); }
+    B.outline(0x160f24);
+    return (HANDS[key] = B.toCanvas());
+  }
+  function drawHands(ctx, g, t) {
+    const P = PD.art.skinFor(g.save.cos).P;
+    const cv = handArt(P);
+    // left hand over the keys, tapping when you click
+    const tapL = S.typeT > 0 && S.tapHand ? 3 : 0;
+    ctx.save(); ctx.translate(126, 240 + tapL + Math.sin(t * 2.4) * 0.8); ctx.rotate(0.35);
+    ctx.drawImage(cv, -16, -10, 32, 40);
+    ctx.restore();
+    // right hand on the trackpad, moving with the pointer
+    const hx = 240 + (S.cx - (SX + SW / 2)) * 0.1, hy = 252 + (S.cy - (SY + SH / 2)) * 0.05 + (S.press > 0.5 ? 2 : 0);
+    ctx.save(); ctx.translate(hx, hy); ctx.rotate(-0.2);
+    ctx.drawImage(cv, -16, -10, 32, 40);
+    ctx.restore();
+  }
+
+  function touchMode() { return 'ui'; }
+
+  PD.desk = { enter, update, draw, close, touchMode, S, SX, SY, SW, SH, shelf, toast };
 })(window.PD);
 
 /* ===== src/cut.js ===== */
@@ -24124,6 +24255,14 @@ window.PD = window.PD || {};
       }
       if (s.paid !== undefined) base.paid = Math.max(0, +s.paid || 0);
       if (s.won) base.won = s.won;
+      // the saucer's upgrades, and everything you wear
+      if (s.ship && typeof s.ship === 'object') { base.ship = {}; for (const it of D.SHIP) if (+s.ship[it.id] > 0) base.ship[it.id] = U.clamp(+s.ship[it.id] | 0, 0, it.max); }
+      if (s.cosm && typeof s.cosm === 'object') {
+        base.cosm = { own: {}, on: {} };
+        const BYC = PD.cosm ? PD.cosm.BY : {};
+        if (s.cosm.own) for (const k in s.cosm.own) if (s.cosm.own[k] && BYC[k]) base.cosm.own[k] = 1;
+        if (s.cosm.on) for (const k of ['hat', 'face', 'back', 'pet']) if (s.cosm.on[k] && base.cosm.own[s.cosm.on[k]]) base.cosm.on[k] = s.cosm.on[k];
+      }
     }
     g.save = base;
     recompute();
@@ -24224,6 +24363,24 @@ window.PD = window.PD || {};
     if (!it) return 0;
     const lvl = g.save.upg[id] || 0;
     return Math.max(10, Math.round(D.abayCost(it, lvl) * (1 - g.brain('know') * 0.05)));
+  };
+  /* The saucer's own upgrades: what the space lanes ask of you. */
+  g.shipLvl = function (id) { return (g.save.ship && g.save.ship[id]) || 0; };
+  g.shipPrice = function (id) {
+    const it = D.SHIPX[id];
+    return it ? Math.round(it.base * Math.pow(it.growth, g.shipLvl(id)) / 50) * 50 : Infinity;
+  };
+  g.shipBuy = function (id) {
+    const it = D.SHIPX[id];
+    if (!it || g.shipLvl(id) >= it.max) { A.sfx.deny(); return false; }
+    const cost = g.shipPrice(id);
+    if (g.save.credits < cost) { A.sfx.deny(); return false; }
+    g.save.credits -= cost;
+    if (!g.save.ship) g.save.ship = {};
+    g.save.ship[id] = g.shipLvl(id) + 1;
+    A.sfx.buy();
+    saveGame();
+    return true;
   };
   g.abayBuy = function (id) {
     const it = D.ABAYX[id];

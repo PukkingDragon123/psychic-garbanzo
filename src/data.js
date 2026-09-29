@@ -296,6 +296,39 @@
     { id: 'warp', cat: 'SHIP', name: 'WARP THINGY', seller: 'bort_electronics', stars: 4,
       blurb: 'GO TO FURTHER SECTORS. BUY MORE FOR MORE FAR.', base: 4000, growth: 3.4, max: 3 }
   ];
+  /* ------------------------------------------------------------- the saucer
+     What the space lanes ask for. Some walls need a laser, some flares need
+     a heat shield, some comets need a plough, and a few planets will not let
+     you land at all until you have the right one. */
+  const SHIP = [
+    { id: 'laser', name: 'LAZER BEAM', max: 3, base: 2500, growth: 3.4, icon: 'laser',
+      desc: 'SHOOTS BY ITSELF. CUTS THROUGH ROCK WALLS IN THE LANES. IN A SPACE FIGHT, IT IS YOUR GUN.',
+      lv: ['CUTS ROCK WALLS', 'TWIN BEAMS', 'MEGA BEAM, THREE WIDE'] },
+    { id: 'heat', name: 'HEAT SHIELD', max: 3, base: 4000, growth: 3.2, icon: 'heat',
+      desc: 'FLY THROUGH SUN FLARES WITHOUT MELTING. THE HOT PLANETS WILL NOT LET YOU IN WITHOUT ONE.',
+      lv: ['SURVIVE FLARES', 'IGNORE FLARES', 'SUNBATHE'] },
+    { id: 'ice', name: 'ICE PLOUGH', max: 2, base: 6000, growth: 3, icon: 'ice',
+      desc: 'A BIG SCOOP ON THE FRONT. SMASHES ICE COMETS. THE COLD PLANETS NEED ONE.',
+      lv: ['SMASH ICE COMETS', 'SMASH ICE WALLS'] },
+    { id: 'armour', name: 'HULL ARMOUR', max: 5, base: 1200, growth: 2.1, icon: 'armour',
+      desc: 'BOLTED ON. EACH LEVEL IS ONE MORE HIT BEFORE THE SAUCER FALLS TO BITS.',
+      lv: ['+1 HIT', '+2 HITS', '+3 HITS', '+4 HITS', '+5 HITS'] },
+    { id: 'bubble', name: 'BUBBLE SHIELD', max: 3, base: 3500, growth: 2.6, icon: 'bubble',
+      desc: 'A BUBBLE THAT EATS ONE HIT AND THEN GROWS BACK. FASTER EACH LEVEL.',
+      lv: ['REGROWS IN 12S', 'REGROWS IN 8S', 'REGROWS IN 5S'] },
+    { id: 'magnet', name: 'COIN MAGNET', max: 3, base: 1500, growth: 2.4, icon: 'magnet',
+      desc: 'SPACE COINS FLY TO YOU. SO DO SPOONS. SO DOES ONE VERY CONFUSED BIRD.',
+      lv: ['SMALL PULL', 'BIG PULL', 'EVERYTHING'] },
+    { id: 'turbo', name: 'TURBO BOOST', max: 3, base: 2000, growth: 2.5, icon: 'turbo',
+      desc: 'HOLD RIGHT TO GO VERY FAST FOR A BIT. SMASHES SMALL ROCKS. DOUBLES COINS.',
+      lv: ['2 SECONDS', '3 SECONDS', '4 SECONDS'] },
+    { id: 'radar', name: 'DANGER RADAR', max: 2, base: 1600, growth: 3, icon: 'radar',
+      desc: 'BEEPS AND POINTS AT WHAT IS COMING BEFORE IT COMES.',
+      lv: ['WARNS YOU', 'WARNS YOU EARLIER'] }
+  ];
+  const SHIPX = {};
+  for (const it of SHIP) SHIPX[it.id] = it;
+
   /* ------------------------------------------------------------- the brain
      A brain in a jar of acid, wired to a stolen keyboard. It knows everything
      and it will sell you some of it, but it does not want money -- it wants
@@ -816,5 +849,5 @@
 
   PD.data = {
     BUILDINGS, BUILD_OF, MAT, M, ENEMY, BODIES, UPGRADES, UPG, upgradeCost, recipe, COSMETICS, COS, TITLES, titleFor, bountyFor,
-    STRATA, ZONES, zoneOf, FLORA, ABAY, ABAYX, abayCost, NEURONS, NEUR, neuronCost, BRAIN_LINES, BRAIN_IDLE, FACTIONS, LORE, ORB, MIX, MACHINES, METALS, GEMS, JUNK, goodOf, goodFromKey, NODES, appraiseSeconds, appraiseFee };
+    STRATA, ZONES, zoneOf, FLORA, ABAY, ABAYX, abayCost, SHIP, SHIPX, NEURONS, NEUR, neuronCost, BRAIN_LINES, BRAIN_IDLE, FACTIONS, LORE, ORB, MIX, MACHINES, METALS, GEMS, JUNK, goodOf, goodFromKey, NODES, appraiseSeconds, appraiseFee };
 })(window.PD);
