@@ -5,13 +5,14 @@ extremely evil alien. You have a drill. The galaxy has planets. You do the math.
 
 You also owe a shark a million dollars.
 
-You have a rock house on a dead moon, a drill, and a flying saucer up on two
-bricks. Fly out, pick a world, drop on it. Sink into the rock on a wire from
-your pod, chew through it for ore and gems, shoot the things that live down
-there, board the pod before your air runs out. Come home, sit down at the
-stolen human computer, list the rocks on **ABAY**, buy something stupid with
-the proceeds, do it again — then drill all the way to the **core** and blow the
-whole world apart.
+You live in a cardboard box in a cave on a small round moon, and you owe
+**Mr Chum** a million dollars because you crashed a UFO into his pool. Fly out,
+pick a world, drop on it. Sink into the rock on a wire from your pod, chew
+through it for ore and gems, shoot the things that live down there, board the
+pod before your air runs out. Fly home down the space lanes, open the laptop,
+sell the rocks on **ABAY**, pay the shark, and spend the rest on your moon: a
+factory, a pool, a roller coaster, a hat. Then drill all the way to the
+**core** of the next world and blow it apart. Pay Mr Chum off. Then get rich.
 
 **No build step, no dependencies, no asset files.** Every sprite, sound effect
 and note of music is generated in code at load time.
@@ -25,6 +26,95 @@ python3 -m http.server 8000   # then visit http://localhost:8000
 # one self-contained HTML file you can host or email:
 node tools/build.js           # -> dist/planet-destroyer.html
 ```
+
+## Pay off the shark, then get rich
+
+The casino, the Port and the market are gone. The game is about two numbers
+now, in the corner of the screen: what you owe Mr Chum, and what you are worth.
+
+**The opening.** A cold open in film bars: you took a UFO you cannot drive,
+Mr Chum was on his yacht on a shark floatie, and the UFO went into his pool.
+Then his office, where he tells you what you owe, and you get to answer:
+every line of the conversation has replies to pick (`IT WAS AN ACCIDENT`,
+`NICE POOL`, `CAN I PAY IN EXPOSURE`), and what you pick he remembers.
+Talking uses one **dialogue box** everywhere now: a portrait that talks,
+the words typed out with a blip per letter, and up to four answers.
+
+**The goal.** `GOAL: PAY MR CHUM BACK` sits top right with a bar and a PAY
+button (or P). Pay in any amounts you like; he gets friendlier as it goes down
+and calls you now and then to check. When it hits zero there is a scene, and
+the goal changes to `GET RICH`: ten million dollars of net worth.
+
+**The moon is round.** It is a whole small planet now and you walk all the way
+round it, with the camera turning so the ground stays under your feet. The sun
+goes round too, so there is day and night, stars that turn with the sky, and
+Mr Chum's face on a billboard on the far side, grinning at whatever you owe.
+Home is a **rocky cave**: a mattress on a cardboard box, a laptop on another
+box, a brain in a jar, fairy lights, a cooler, and Brenda the rat eating your
+cheese. The house and the bed upgrade in four steps each, from cardboard up.
+
+**Build.** Press **B** (or the button) and the world goes dark and blue and a
+**hologram build menu** comes up: tabs along the top, a ring of cards that
+turns to put one at the front, each with the thing on it spinning on a little
+projector, and what it does underneath. Pick one, walk it along the ground
+with a ghost of it that goes red where it will not fit, and **CONFIRM** to put
+it down; **MOVE** picks things back up. There are **over a hundred** things:
+auto miners that dig your own moon, ore factories that sell for you,
+polishers, a refinery, solar panels, a bank vault that pays interest; a pool,
+a hot tub, shark, duck, donut and flamingo floaties, a trampoline, a cannon, a
+slide, a Ferris wheel, and a **roller coaster you ride** (hold up to go faster,
+grab the coins); mountains, a volcano, lakes, a lava lake, a geyser, trees;
+statues, neon, a jukebox, a gnome; and inside the cave a TV, an arcade
+cabinet, a gaming PC, a piano, an aquarium, a disco ball. Fun things bring
+**tourists** in saucers, who walk about, ride things, pay for tickets and
+leave reviews. Things that make money keep making it while you are away.
+
+**The laptop.** A battered ZORBBOOK on a cardboard box, filling the screen,
+with your tentacles on the keys. It runs **ZORB OS**: a wallpaper, a menu bar
+with your money, the wifi and a battery that is always dying, widgets for your
+net worth and your debt, a **dock** that swells under the pointer, windows
+that open out of their icons, and notifications. **ABAY** is a proper shop:
+departments down the side (HOT, BUILD, STYLE, SHIP, GEAR, SELL), a grid of
+product cards with photos, and a panel for whichever you pick, with the price
+and BUY IT NOW (click twice for anything expensive). **CHUM BANK** is where
+you pay him. MAIL has people in it you would rather it did not. SELL is one
+big green button.
+
+**Things to wear.** Eighteen hats (a propeller cap that spins, a fishbowl with
+a fish in it, a crown, a traffic cone), glasses and visors, capes, wings and
+rocket boosters, and **pets** that follow you about (a pet rock that hops, a
+baby shark, a duck drone, a mini UFO, a very small Mr Chum), plus new skin,
+suit and eye colours. Everything you wear shows on you.
+
+**The space lanes.** Flying to a planet is a three-lane runner: you only go
+**up or down**. Rocks, **rock walls**, **sun flares**, **ice comets**, long
+**space trains** of ABAY containers, drifting **mines**, Nova Corps **laser
+gates** that switch on and off, and a **space whale** come down the lanes,
+with coins between them. The saucer's upgrades are bought on ABAY and bolted
+on where you can see them: a **LAZER BEAM** that fires by itself and cuts
+walls, a **HEAT SHIELD** to fly through flares, an **ICE PLOUGH** for comets,
+armour, a bubble shield that grows back, a coin magnet, turbo and a radar that
+points at what is coming. Three planets will not let you near without the one
+they need.
+
+**The space fight.** Half way to a hostile world the lanes go quiet, the alarm
+goes, and a swarm comes in from the right along curves, settles into a grid
+that breathes, and takes turns diving at you, Galaga style: bees, moths,
+shark fighters and big armoured beetles. Your gun fires by itself; you dodge.
+
+**What lives down there** has been painted again at double detail, four
+frames each, and there are three new things: the **Ore Mimic** (a lump of gold
+until you are close), the **Nova Drone** (floats and shoots) and the
+**Splitter Slime** (comes apart into mites). The **Core Warden** gets an
+entrance: the world slows down, the bars come in and its name slashes across
+the screen. **The rock** is painted again too: stone cobbled into little lit
+pebbles, ore as shiny nuggets pushed into rock of its own colour, gems as
+faceted crystals, ice glassy with bubbles in it.
+
+## How it got here
+
+Everything below is the game's history, round by round. Some of it is gone
+now (the casino, the Port, the market, the beige computer).
 
 ## One hand, twelve faces, and a crowd that plays
 

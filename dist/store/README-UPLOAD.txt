@@ -15,7 +15,7 @@ WHAT TO UPLOAD TO ITCH
 4. DESCRIPTION.md         the long description for the page body
    SHORT-DESCRIPTION.txt   the one-liner itch shows under the title
 
-Suggested tags: pixel-art, mining, sandbox, procedural-generation, casino,
-gambling, aliens, singleplayer, html5, no-assets
+Suggested tags: pixel-art, mining, sandbox, procedural-generation, base-building,
+endless-runner, shoot-em-up, aliens, singleplayer, html5, no-assets
 
 Genre: Adventure / Simulation.  Platform: HTML5 (plays in the browser).

@@ -101,21 +101,97 @@
     });
   }
 
-  function matShape(matId, mask, v) {
-    const m = D.MAT[matId];
-    return cut('m' + matId + '_' + mask + '_' + v, mask, v, c => {
-      c.fillStyle = m.c[1];
-      c.fillRect(0, 0, TILE, TILE);
-      // fine grain: half-unit flecks, only possible at 2x
-      for (let i = 0; i < 16; i++) {
-        const h = U.hash2(v * 31 + i, matId * 17 + i * 3);
-        const x = Math.floor(h * TILE * 2) / 2;
-        const y = Math.floor(U.hash2(matId + i * 7, v * 13 + 5) * TILE * 2) / 2;
-        c.fillStyle = h > 0.5 ? m.c[0] : m.c[2];
-        c.globalAlpha = 0.55;
-        c.fillRect(x, y, h > 0.72 ? 1 : 0.5, 0.5);
+  /* The inside of a tile, painted a pixel at a time at double detail:
+     rock is cobbled into little stones lit from the top left, ore is rock
+     with shiny nuggets pushed into it, gems grow as faceted crystals, and ice
+     is glassy with streaks and trapped bubbles. Four variants a material. */
+  const TEX = new Map();
+  const ROCKY = { crust: 1, stone: 1, shell: 1, basalt: 1, salt: 1, tar: 1, hull: 1, fungus: 1, bio: 1 };
+  const ICY = { ice: 1, frost: 1 };
+  const ORE = { iron: 1, copper: 1, silver: 1, gold: 1, cobalt: 1, titan: 1, quick: 1, uran: 1 };
+  function texOf(matId, v) {
+    const key = matId * 8 + v;
+    let cv = TEX.get(key);
+    if (cv) return cv;
+    const PT = PD.paint, m = D.MAT[matId], N = TILE * HD;
+    const B = PT.buf(N, N);
+    const C0 = PT.hex(m.c[0]), C1 = PT.hex(m.c[1]), C2 = PT.hex(m.c[2]);
+    const h = (k, s2) => U.hash2(matId * 131 + v * 17 + k, s2 * 7 + 3);
+    const quant = (x, y, val, pal) => {
+      const f = U.clamp(val, 0, 0.999) * pal.length;
+      let k = Math.floor(f);
+      if (f - k > PT.bayer(x, y) * 0.9 + 0.05) k = Math.min(pal.length - 1, k + 1);
+      return pal[U.clamp(k, 0, pal.length - 1)];
+    };
+    if (ROCKY[m.key] || (!ORE[m.key] && !ICY[m.key] && !m.shine)) {
+      // cobbles: a few seeds, every pixel belongs to the nearest
+      const seeds = [];
+      const n = 4 + Math.floor(h(1, 1) * 3);
+      for (let k = 0; k < n; k++) {
+        const sx = h(k, 2) * N, sy = h(k, 3) * N;
+        for (const ox of [-N, 0, N]) for (const oy of [-N, 0, N]) seeds.push([sx + ox, sy + oy]);
       }
-      c.globalAlpha = 1;
+      const pal = [PT.mul(C2, 0.85), C2, C1, C0, PT.mix(C0, 0xffffff, 0.25)];
+      for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+        let d1 = 1e9, d2 = 1e9, bs = null;
+        for (const sd of seeds) { const d = Math.hypot(x + 0.5 - sd[0], y + 0.5 - sd[1]); if (d < d1) { d2 = d1; d1 = d; bs = sd; } else if (d < d2) d2 = d; }
+        const edge = d2 - d1;
+        if (edge < 1.3) { B.set(x, y, pal[0]); continue; }
+        const dx = (x - bs[0]) / (d1 + 0.01), dy = (y - bs[1]) / (d1 + 0.01);
+        const rim = U.clamp(d1 / 7, 0, 1);
+        let val = 0.55 + (-dx * 0.7 - dy * 0.7) * rim * 0.4 - (edge < 2.6 ? 0.18 : 0) + (U.hash2(x + v * 40, y + matId * 9) - 0.5) * 0.18;
+        B.set(x, y, quant(x, y, val, pal));
+      }
+    } else if (ICY[m.key]) {
+      const pal = [C2, C1, C0, PT.mix(C0, 0xffffff, 0.5)];
+      for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+        const streak = Math.sin((x + y * 0.6) * 0.5 + v * 2) * 0.5 + 0.5;
+        const val = 0.4 + streak * 0.35 + (U.fbm((x + v * 20) * 0.15, y * 0.15, 2) - 0.5) * 0.4;
+        B.set(x, y, quant(x, y, val, pal));
+      }
+      for (let k = 0; k < 3; k++) { const bx = h(k, 5) * N, by = h(k, 6) * N, r = 1 + h(k, 7) * 1.5; B.disc(bx, by, r, PT.mix(C0, 0xffffff, 0.6)); B.disc(bx + 0.4, by + 0.4, Math.max(0.5, r - 0.8), C1); }
+      B.line(h(9, 1) * N, 0, h(9, 2) * N, N, C2, 1, 0.5);
+    } else {
+      // the rock it sits in: dull and dark, so the good stuff pops
+      const host = ORE[m.key] ? [PT.mul(C2, 0.62), PT.mul(C2, 0.8), C2, PT.mix(C2, C1, 0.5)] : [PT.mul(C2, 0.5), PT.mul(C2, 0.68), PT.mul(C2, 0.85)];
+      for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) B.set(x, y, quant(x, y, 0.45 + (U.hash2(x + v * 30, y + matId * 5) - 0.5) * 0.4 + (U.fbm(x * 0.2 + v, y * 0.2, 2) - 0.5) * 0.6, host));
+      const pal = [C1, PT.mix(C1, C0, 0.5), C0, PT.mix(C0, 0xffffff, 0.6)];
+      if (ORE[m.key]) {
+        // nuggets, shaded like little metal balls
+        const n = 3 + Math.floor(h(2, 2) * 2);
+        for (let k = 0; k < n; k++) {
+          const cx = 3 + h(k, 11) * (N - 6), cy = 3 + h(k, 12) * (N - 6), r = 2.4 + h(k, 13) * 2.6;
+          for (let y = Math.floor(cy - r - 1); y <= cy + r + 1; y++) for (let x = Math.floor(cx - r - 1); x <= cx + r + 1; x++) {
+            const a = Math.atan2(y - cy, x - cx), rr = r * (0.8 + 0.25 * Math.sin(a * 3 + k));
+            const d = Math.hypot(x + 0.5 - cx, y + 0.5 - cy);
+            if (d > rr || x < 0 || y < 0 || x >= N || y >= N) continue;
+            const val = 0.55 + (-(x - cx) - (y - cy)) / r * 0.3 - Math.pow(d / rr, 3) * 0.3;
+            B.set(x, y, quant(x, y, val, pal));
+          }
+          B.rect(cx - r * 0.4, cy - r * 0.45, 1, 1, 0xffffff);
+        }
+      } else {
+        // crystals: hexagonal prisms, a lit face and a dark face
+        const n = 2 + Math.floor(h(3, 2) * 2);
+        for (let k = 0; k < n; k++) {
+          const cx = 4 + h(k, 21) * (N - 8), cy = 5 + h(k, 22) * (N - 8), r = 3 + h(k, 23) * 3, a = (h(k, 24) - 0.5) * 1.2;
+          const ca = Math.cos(a), sa = Math.sin(a);
+          const P = (px, py) => [cx + px * ca - py * sa, cy + px * sa + py * ca];
+          const hgt = r * 1.8;
+          B.poly([P(-r * 0.5, hgt * 0.5), P(r * 0.5, hgt * 0.5), P(r * 0.5, -hgt * 0.3), P(0, -hgt * 0.6), P(-r * 0.5, -hgt * 0.3)], C1);
+          B.poly([P(-r * 0.5, hgt * 0.5), P(0, hgt * 0.5), P(0, -hgt * 0.6), P(-r * 0.5, -hgt * 0.3)], C0);
+          B.poly([P(r * 0.15, hgt * 0.5), P(r * 0.5, hgt * 0.5), P(r * 0.5, -hgt * 0.3), P(r * 0.15, -hgt * 0.45)], C2);
+          const g = P(-r * 0.25, -hgt * 0.2); B.rect(g[0], g[1], 1, 2, 0xffffff);
+        }
+      }
+    }
+    cv = B.toCanvas();
+    TEX.set(key, cv);
+    return cv;
+  }
+  function matShape(matId, mask, v) {
+    return cut('m' + matId + '_' + mask + '_' + v, mask, v, c => {
+      c.drawImage(texOf(matId, v), 0, 0, TILE, TILE);
     }, 2.5);
   }
 

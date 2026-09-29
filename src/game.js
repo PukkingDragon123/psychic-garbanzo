@@ -474,6 +474,7 @@
     g.destruction = null;
     g.victory = null;
     g.cinematic = false;
+    g.bossSeen = 0; g.bossCard = null;
 
     g.ship.x = g.world.cx * TILE;
     g.ship.y = Math.max(30, g.world.bodyTopPx - 70);
@@ -915,6 +916,27 @@
     saveGame();
   };
 
+  /* The boss's name on the screen, film style: bars, a slash of colour and
+     the name punched in letter by letter. */
+  function drawBossCard(ctx, b) {
+    const t = b.t;
+    const inK = U.smoothstep(0, 0.35, t) * (1 - U.smoothstep(2.7, 3.2, t));
+    const bh = Math.round(inK * 34);
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(0, 0, VW, bh); ctx.fillRect(0, VH - bh, VW, bh);
+    if (inK <= 0.05) return;
+    // a red slash across the middle
+    const sx = U.lerp(-VW, 0, U.smoothstep(0.1, 0.5, t)) + (t > 2.7 ? (t - 2.7) * 900 : 0);
+    ctx.globalAlpha = 0.85;
+    PD.pxd.poly(ctx, [[sx, 196], [sx + VW + 60, 186], [sx + VW + 60, 222], [sx, 232]], '#6a0a14');
+    ctx.globalAlpha = 1;
+    PD.pxd.poly(ctx, [[sx, 196], [sx + VW + 60, 186], [sx + VW + 60, 188], [sx, 198]], '#ff5a4d');
+    const n = Math.min(b.name.length, Math.floor((t - 0.4) * 22));
+    if (n > 0) F.draw(ctx, b.name.slice(0, n), 60, 196, '#ffffff', { scale: 3, shadow: '#1a0006' });
+    if (t > 1.1) F.draw(ctx, b.sub, 62, 219, '#ffb0a8', { shadow: false });
+    if (t > 0.4 && t < 2.7 && Math.sin(t * 30) > 0) F.draw(ctx, '!!', VW - 60, 194, '#ffd34d', { scale: 3, shadow: '#1a0006' });
+  }
+
   /* --------------------------------------------------- the money shot
      Core at zero: fissures spread, then the whole body comes apart. */
   function beginDestruction() {
@@ -1194,6 +1216,26 @@
 
     if (g.destruction) updateDestruction(dt);
 
+    /* THE ENTRANCE. The first time the Core Warden sees you, the world slows
+       right down, the bars come in and it gets its name on the screen. */
+    if (g.state === 'play' && !g.bossSeen && g.player && !g.destruction) {
+      for (const m of g.mobs) {
+        if (m.dead || m.type !== 'guardian') continue;
+        if (U.dist(m.x, m.y, g.player.x, g.player.y) < 150) {
+          g.bossSeen = 1;
+          g.bossCard = { t: 0, name: 'CORE WARDEN', sub: 'GUARDIAN OF ' + D.BODIES[g.bodyIndex].name.toUpperCase(), mob: m };
+          A.sfx.rumble(); A.sfx.tone(90, { type: 'sawtooth', to: 40, dur: 1.2, vol: 0.14 });
+          FX.shake(6); FX.flash(0.25, '#ff8a3d');
+          break;
+        }
+      }
+    }
+    if (g.bossCard) {
+      g.bossCard.t += dt;
+      if (g.bossCard.t < 2.4) dt *= 0.18;
+      if (g.bossCard.t > 3.2) g.bossCard = null;
+    }
+
     const p = g.player;
     p.update(dt, g);
 
@@ -1329,6 +1371,11 @@
     const leadY = U.clamp((m.y - VH / 2) * 0.14, -26, 26);
     let tx = p.x - VW / 2 + leadX;
     let ty = p.y - VH / 2 + leadY;
+    // during the boss's entrance, look at the boss
+    if (g.bossCard && g.bossCard.mob && !g.bossCard.mob.dead) {
+      const b = g.bossCard.mob, k = U.smoothstep(0, 0.5, g.bossCard.t) * (1 - U.smoothstep(2.4, 3.1, g.bossCard.t));
+      tx = U.lerp(tx, (p.x + b.x) / 2 - VW / 2, k); ty = U.lerp(ty, (p.y + b.y) / 2 - VH / 2 + 10, k);
+    }
     tx = U.clamp(tx, 0, Math.max(0, g.world.pxW - VW));
     ty = U.clamp(ty, -40, Math.max(0, g.world.pxH - VH));
     g.cam.x = U.damp(g.cam.x, tx, slow ? 0.06 : 0.16, dt);
@@ -1644,6 +1691,7 @@
     }
 
     if (g.state !== 'victory' && g.state !== 'ending') UI.hud(ctx, g);
+    if (g.bossCard) drawBossCard(ctx, g.bossCard);
     UI.sellSplash(ctx, g);
     tutDraw(ctx);
 
