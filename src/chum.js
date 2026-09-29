@@ -724,10 +724,7 @@
      rain, then whatever Mr Chum has on in his own house. */
   const BEAT_TRACK = { universal: 'casino', floor: 'casino', drag: 'city', fist: 'city',
     chum: 'chum', drop: 'chum' };
-  function track() {
-    const b = BEATS[IN_S.beat];
-    return (b && BEAT_TRACK[b.id]) || 'casino';
-  }
+  function track() { return PD.story ? PD.story.track() : 'city'; }
 
   function update(dt, g) {
     updateBite(dt, g);
@@ -3293,7 +3290,10 @@
   /* There is no opening cutscene any more. The night starts with you already on
      your feet in the casino -- the machine is at the back of the room and you go
      and find it yourself. Everything after that is beats. */
-  function enterIntro(g) {
+  /* The opening night is story.js's now: the crash, the street, the office.
+     These stay as the names game.js calls. */
+  function enterIntro(g) { ensureArt(); PD.story.startIntro(g); }
+  function enterIntroOld(g) {
     ensureArt();
     IN_S.beat = 0; IN_S.t = 0; IN_S.line = 0; IN_S.chars = 0; IN_S.pop = 0; IN_S.quit = 0;
     IN_S.flash = 0;
@@ -3342,7 +3342,8 @@
     });
   }
 
-  function updateIntro(dt, g) {
+  function updateIntro(dt, g) { PD.story.updateIntro(dt, g); }
+  function updateIntroOld(dt, g) {
     if (IN_S.done) return;
     const IN = PD.input;
     IN_S.t += dt;
@@ -3422,7 +3423,8 @@
     return out.length ? out : [''];
   }
 
-  function drawIntro(ctx, g, t) {
+  function drawIntro(ctx, g, t) { PD.story.drawIntro(ctx, g, t); }
+  function drawIntroOld(ctx, g, t) {
     const id = BEATS[IN_S.beat] ? BEATS[IN_S.beat].id : 'drop';
     if (id === 'universal') { drawUniversal(ctx, g, t); return; }
     else if (id === 'floor') drawFloor(ctx, g, t);

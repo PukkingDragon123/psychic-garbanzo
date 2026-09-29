@@ -2,11 +2,11 @@
    The night used to end in a slideshow: a painted street going past behind
    a fixed picture of you being dragged, then a painted room seen from the
    carpet. Both of them are ROOMS now, built exactly the way the moon and the
-   casino and the market are built -- a floor, a camera that follows you, the
+   cave are built -- a floor, a camera that follows you, the
    same zoom, the same characters walking about on the same feet -- except
    that for the length of a cutscene the controls are not yours.
 
-     STREET   a long wet road in the city under the casino. Drax has you by
+     STREET   a long wet road in Mr Chum's city. Drax has you by
               the ankle, the big one walks behind, and everybody on the
               pavement turns to watch you go past.
      OFFICE   the room at the top of the building. A window over the city, a
@@ -60,7 +60,6 @@
   function shot() {
     const P = PD.home.P, L = C.line;
     const cur = parse(C.lines[L]);
-    if (C.tour) return tourShot();
     if (C.id === 'street') {
       const gx = C.gx;
       if (C.fist > 0) return { x: gx - 20, y: ROAD - 34, z: 2.6, snap: 1 };
@@ -75,8 +74,9 @@
     const mid = (P.x + 408) / 2;
     if (C.pose === 'down') return { x: P.x + 20, y: FLOOR - 16, z: 2.5 };
     if (cur.who === 'you') return { x: P.x + 16, y: FLOOR - 30, z: 2.1 };
-    if (L === 6) return { x: (P.x + C.drax.x) / 2, y: FLOOR - 30, z: 1.9 };
-    if (L === 3 || L === C.lines.length - 1) return { x: 400, y: FLOOR - 62, z: 2.3 };
+    if (typeof C.lines[L] === 'string' && C.lines[L].indexOf('PUT THE WATCH') >= 0) return { x: (P.x + C.drax.x) / 2, y: FLOOR - 30, z: 1.9 };
+    if (parse(C.lines[L]).talk) return { x: mid, y: FLOOR - 48, z: 1.7 };
+    if (L === C.lines.length - 1) return { x: 400, y: FLOOR - 62, z: 2.3 };
     return { x: mid, y: FLOOR - 42, z: 1.55 };
   }
 
@@ -94,7 +94,7 @@
       });
     }
   }
-  const GAWK = ['OOF', 'NOT AGAIN', 'IS THAT THE TEN-IN-A-ROW MAN', 'DO NOT LOOK',
+  const GAWK = ['OOF', 'NOT AGAIN', 'IS THAT THE POOL GUY', 'DO NOT LOOK',
     'HE OWES CHUM', 'MIND THE PUDDLE', 'POOR GUY', 'THAT WAS MY BIN', 'WOW', 'SHAME'];
   const BUBS = [];                     // what the pavement says, in the world
 
@@ -143,6 +143,7 @@
 
   /* Who says a line, and what, with the name taken off the front. */
   function parse(line) {
+    if (line && typeof line === 'object') return { who: null, text: '', talk: line.talk };
     const m = /^([A-Z ]+): (.*)$/.exec(line || '');
     if (!m) return { who: null, text: line || '' };
     const nm = m[1];
@@ -164,6 +165,17 @@
     const cur = C.lines[C.line];
     const pc = parse(cur);
     const full = pc.text;
+    /* A line can be a whole conversation with replies. The scene holds on
+       it until the conversation is over, then carries on. */
+    if (pc.talk) {
+      if (!C.talking) {
+        C.talking = 1;
+        const conv = Object.assign({}, pc.talk, { onEnd: () => { C.talking = 0; nextLine(g); } });
+        PD.talk.start(g, conv);
+      }
+      if (C.id === 'street') updateStreet(dt, g, P); else updateOffice(dt, g, P);
+      return;
+    }
     // the portrait slides in whenever somebody new starts talking
     if (pc.who !== C.port.who) { C.port.who = pc.who; C.port.k = 0; }
     C.port.k = Math.min(1, C.port.k + dt * 4);
@@ -245,7 +257,7 @@
     C.bolt = Math.max(0, (C.bolt || 0) - dt * 2.5);
     if (U.chance(dt * 0.16)) { C.bolt = 1; A.sfx.thunder(true); }
     P.y = FLOOR; P.vy = 0;
-    if (C.line >= 1 && C.pose === 'down') {
+    if (C.line >= 1 && C.pose === 'down' && C.lid <= 0.05) {
       C.pose = 'up'; P.face = 1; A.sfx.tone(300, { type: 'triangle', to: 520, dur: 0.2, vol: 0.06 });
       C.walkTo = 250;
     }
@@ -262,13 +274,14 @@
        goes back to where he was standing. */
     const dr = C.drax;
     let want = dr.home;
-    if (C.line === 6) want = P.x + 20;
+    const WL = C.lines.findIndex(l => typeof l === 'string' && l.indexOf('PUT THE WATCH') >= 0);
+    if (C.line === WL) want = P.x + 20;
     const dd = want - dr.x;
     dr.vx = Math.abs(dd) > 2 ? Math.sign(dd) * 60 : 0;
     dr.x += dr.vx * dt;
     if (dr.vx) dr.face = Math.sign(dr.vx);
     else dr.face = -1;
-    if (C.line === 6 && Math.abs(dd) <= 2 && !C.watch) {
+    if (C.line === WL && Math.abs(dd) <= 2 && !C.watch) {
       C.watch = 1; C.watchT = 0;
       A.sfx.tone(1400, { type: 'square', to: 300, dur: 0.18, vol: 0.08 }); A.sfx.thud();
     }
@@ -686,7 +699,7 @@
     }
 
     const cur = C.lines[C.line];
-    if (cur !== undefined && !C.ending && !(C.title && C.title.t < 1.9)) {
+    if (cur !== undefined && !C.ending && !(C.title && C.title.t < 1.9) && !parse(cur).talk) {
       const p = parse(cur);
       const shown = p.text.slice(0, Math.floor(C.chars));
       const done = Math.floor(C.chars) >= p.text.length;
@@ -777,97 +790,9 @@
     F.draw(ctx, 'ESC  SKIP', VW - 10, VH - 17, 'rgba(178,162,216,0.9)', { right: true, shadow: '#000000' });
   }
 
-  /* ------------------------------------------------------------ THE TOUR
-     The first time you step off the shuttle at the Port, the camera takes
-     the controls for twenty seconds and shows you round: the docks, the
-     stalls, the market, the casino in the middle of it, the terrace. Same
-     room, same crowd, still going about their business underneath it. */
-  const TOUR = [
-    { deck: 0, x0: 170, x1: 420, dur: 5, z0: 2.0, z1: 1.65, text: 'THE PORT. EVERYTHING HERE IS FOR SALE.' },
-    { deck: 0, x0: 420, x1: 700, dur: 5.5, z0: 1.65, z1: 1.8, text: 'THE DOCKS: FRUIT, FISH, A GRILL. WHAT YOU EAT HERE GOES DOWN THE HOLE WITH YOU.' },
-    { deck: 1, x0: 180, x1: 600, dur: 6, z0: 1.5, z1: 1.5, text: 'THE MARKET. NINE REAL SHOPS, AND EVERY ONE OF THEM SELLS YOU SOMETHING.' },
-    { deck: 1, x0: 700, x1: 806, dur: 4.5, z0: 1.6, z1: 2.2, text: 'AND IN THE MIDDLE OF IT, OF COURSE, A CASINO.' },
-    { deck: 2, x0: 420, x1: 640, dur: 4.5, z0: 1.7, z1: 1.5, text: 'UP TOP: PERMITS, AND A BANK THAT HAS NEVER HEARD OF YOU.' }
-  ];
-  function tour(g) {
-    const H = PD.home;
-    C.tour = { i: 0, t: 0, chars: 0, back: { deck: H.S.deck, x: H.P.x } };
-    C.title = { a: 'WELCOME TO', b: 'THE PORT', t: 0 };
-    C.bars = 0;
-    H.S.deck = TOUR[0].deck;
-  }
-  function touring() { return !!C.tour; }
-  function tourShot() {
-    const st = TOUR[C.tour.i] || TOUR[TOUR.length - 1];
-    const f = U.smoothstep(0, 1, Math.min(1, C.tour.t / st.dur));
-    return { x: U.lerp(st.x0, st.x1, f), y: PD.home.DECK_Y[st.deck] - 34, z: U.lerp(st.z0, st.z1, f) };
-  }
-  function endTour(g) {
-    const H = PD.home, b = C.tour.back;
-    C.tour = null; C.title = null;
-    H.S.deck = b.deck;
-    H.P.x = b.x; H.P.y = H.groundY(b.x);
-    g.save.seenPort = 1; g.saveGame();
-    PD.chum.call(g, 'hub');
-  }
-  function updateTour(dt, g) {
-    const IN = PD.input, m = IN.mouse;
-    C.bars = Math.min(1, C.bars + dt * 2.2);
-    if (C.title) C.title.t += dt;
-    if (IN.hit('esc')) { endTour(g); return; }
-    const titling = C.title && C.title.t < 1.9;
-    if (titling) return;
-    const T = C.tour, st = TOUR[T.i];
-    T.t += dt;
-    T.chars = Math.min(st.text.length, T.chars + dt * 46);
-    const poke = IN.hit('KeyE') || IN.hit('space') || IN.hit('enter') || (m.inside && m.leftPressed);
-    if (poke && T.chars < st.text.length) T.chars = st.text.length;
-    else if (poke || T.t > st.dur + 0.6) {
-      T.i++; T.t = 0; T.chars = 0; C.pop = 0; A.sfx.click();
-      if (T.i >= TOUR.length) { endTour(g); return; }
-      PD.home.S.deck = TOUR[T.i].deck;
-    }
-    C.pop = Math.min(1, C.pop + dt * 4.5);
-  }
-  function drawTourOverlay(ctx, g, t) {
-    const T = C.tour;
-    if (!T) return;
-    const st = TOUR[T.i];
-    if (st && !(C.title && C.title.t < 1.9)) {
-      const shown = st.text.slice(0, Math.floor(T.chars));
-      let sc = 2, rows = PD.chum.wrap(shown, VW - 76, 2);
-      if (rows.length > 2) { sc = 1; rows = PD.chum.wrap(shown, VW - 76, 1); }
-      const lh = sc === 2 ? 17 : 10, dh = 16 + (rows.length - 1) * lh + 7 * sc;
-      ctx.save(); ctx.translate(0, -(VH - 12 - dh) + 14);
-      PD.chum.captionCard(ctx, rows, sc, C.pop, t, Math.floor(T.chars) >= st.text.length && Math.sin(t * 4) > 0 ? 'E / TAP' : null);
-      ctx.restore();
-      // where you are in the tour: five dots
-      for (let i = 0; i < TOUR.length; i++) X.rect(ctx, 240 - TOUR.length * 5 + i * 10, VH - 16, 6, 3, i === T.i ? '#ffd34d' : '#4a4470');
-    }
-    if (C.title && C.title.t < 2.4) {
-      const q = C.title.t;
-      const inK = Math.min(1, q / 0.35), outK = Math.max(0, (q - 1.9) / 0.5);
-      const w = VW * inK;
-      ctx.globalAlpha = 1 - outK;
-      X.rect(ctx, (VW - w) / 2, 104, w, 56, '#000000');
-      X.rect(ctx, (VW - w) / 2, 104, w, 1, '#7ef9ff'); X.rect(ctx, (VW - w) / 2, 159, w, 1, '#7ef9ff');
-      if (inK >= 1) {
-        const n = Math.floor((q - 0.35) * 30);
-        F.draw(ctx, C.title.a.slice(0, n), 240, 112, '#8a86a8', { center: true, shadow: false });
-        F.draw(ctx, C.title.b.slice(0, Math.max(0, n - 6)), 240, 128, '#ffffff', { center: true, scale: 2, shadow: '#0a2a3a' });
-      }
-      ctx.globalAlpha = 1;
-    }
-    const bh = Math.round(22 * (1 - Math.pow(1 - C.bars, 3)));
-    X.rect(ctx, 0, 0, VW, bh, '#000000');
-    X.rect(ctx, 0, VH - bh, VW, bh, '#000000');
-    X.plate(ctx, VW - 62, VH - 20, 56, 13, 'rgba(6,3,14,0.7)', null, null, 3);
-    F.draw(ctx, 'ESC  SKIP', VW - 10, VH - 17, 'rgba(178,162,216,0.9)', { right: true, shadow: '#000000' });
-  }
-
   function track() { return C.id === 'street' ? 'city' : 'chum'; }
   function rainy() { return C.on && C.id === 'street'; }
 
   PD.cut = { owns, active, play, finish, roomW, bounds, floor, viewY, update, drawBack, drawFront,
-    drawOverlay, hidePlayer, track, rainy, focusX, focusY, zoom, snap, tour, touring, tourShot, updateTour, drawTourOverlay, C, WALKERS, STREET_W };
+    drawOverlay, hidePlayer, track, rainy, focusX, focusY, zoom, snap, C, touring: () => false, WALKERS, STREET_W };
 })(window.PD);

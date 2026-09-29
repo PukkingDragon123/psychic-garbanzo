@@ -132,6 +132,17 @@
       if (Array.isArray(s.plants)) base.plants = s.plants.slice(0, 6).map(v => U.clamp(+v || 0, 0, 3));
       if (s.snack && typeof s.snack === 'object' && +s.snack.n > 0) base.snack = s.snack;
       base.seenPort = s.seenPort ? 1 : 0;
+      if (s.build && typeof s.build === 'object') {
+        const bd = s.build;
+        base.build = {
+          inv: {}, out: [], in: [], house: U.clamp(+bd.house || 0, 0, 4), bed: U.clamp(+bd.bed || 0, 0, 4),
+          last: +bd.last || Date.now()
+        };
+        if (bd.inv) for (const k in bd.inv) if (+bd.inv[k] > 0 && PD.buildart.BY[k]) base.build.inv[k] = Math.min(99, +bd.inv[k] | 0);
+        for (const w of ['out', 'in']) if (Array.isArray(bd[w])) for (const o of bd[w]) if (o && PD.buildart.BY[o.id]) base.build[w].push({ id: o.id, x: +o.x || 0, acc: +o.acc || 0 });
+      }
+      if (s.paid !== undefined) base.paid = Math.max(0, +s.paid || 0);
+      if (s.won) base.won = s.won;
     }
     g.save = base;
     recompute();
@@ -178,7 +189,7 @@
     A.sfx.tone(900, { type: 'triangle', to: 300, dur: 0.2, vol: 0.05, delay: 0.26 });
   };
 
-  g.valueMult = function () { return (1 + g.save.bonus / 100 + g.save.dominion * 0.004) * (1 + ((g.snackNow && g.snackNow.value) || 0)); };
+  g.valueMult = function () { return (1 + g.save.bonus / 100 + g.save.dominion * 0.004) * (1 + (PD.build ? PD.build.valueBonus(g) : 0)); };
 
   /* ---------------------------------------------------------------- the brain
      Neuron levels, what they are worth, and the THOTS that pay for them. */
@@ -577,8 +588,8 @@
   /* What is standing on the pads, and what it is worth to you. */
   g.baseLvl = function (id) { return (g.save.base && g.save.base[id]) || 0; };
   g.baseBonus = function (id) {
-    const b = D.BUILD_OF[id];
-    return b ? b.bonus[Math.min(b.max, g.baseLvl(id))] : 0;
+    // the base buildings are things you build on the moon now
+    return PD.build ? PD.build.bonus(g, id) : 0;
   };
   g.baseCost = function (id) {
     const b = D.BUILD_OF[id], lvl = g.baseLvl(id);
@@ -838,21 +849,11 @@
 
   function arriveHome(n) {
     g.state = 'home';
-    g.snackNow = null;                // it wears off on the way home
     if (n > 0) PD.chum.call(g, 'back');
-    const pad = PD.home.SPOTS[1].x;
-    PD.home.enter(g, pad - 70);
+    PD.home.arrive(g, n);
     A.sfx.dock();
     A.drill(false); A.thrust(0);
-    if (n > 0) {
-      // the haul tumbles out of the saucer and rolls across the regolith
-      const bx = pad, by = PD.home.groundY(pad) - 30;
-      for (let i = 0; i < Math.min(40, n * 2); i++) {
-        FX.spawn({ x: bx + U.rand(-12, 12), y: by, vx: U.rand(-40, 40), vy: U.rand(-90, -20),
-          life: 0.9, size: 2, color: i % 2 ? '#ffb03d' : '#c9bce8', grav: 160, drag: 1 });
-      }
-      FX.text(bx, by - 12, '+' + n + ' ORE', '#ffb03d', 2);
-    }
+    if (PD.story) PD.story.onHome(g, n);
     saveGame();
   }
   g.arriveHome = arriveHome;
@@ -882,9 +883,6 @@
     else { g.player.reset(g.ship.x, g.ship.y + 34); g.player.clearCargo(); }
     g.state = 'play';
     g.player.docked = false;
-    // whatever you bought to eat at the market, you eat now
-    const ate = PD.market && PD.market.eat(g);
-    if (ate) FX.text(g.player.x, g.player.y - 30, 'FULL OF ' + ate.names.join(' + '), '#ffd34d', 1);
     PD.chum.call(g, 'dig');
     A.sfx.warp();
     FX.flash(0.8, '#a9d8ff');
@@ -1103,6 +1101,9 @@
 
     // Zaz keeps working in every state where time passes
     if (g.state !== 'title' && g.state !== 'pause') demandTick(dt);
+    // the machines on the moon keep working while you are anywhere else
+    if (PD.build && g.save.seenIntro && g.state !== 'title' && g.state !== 'lab' && g.state !== 'pause') PD.build.tick(dt, g);
+    if (PD.talk && PD.talk.active()) { PD.talk.update(dt, g); FX.update(dt, null); return; }
 
 
     if (g.state === 'starmap') {
@@ -1637,6 +1638,12 @@
   }
 
   function blit() {
+    // a conversation goes over whatever it interrupted
+    if (PD.talk && PD.talk.active()) {
+      ctx.setTransform(HD, 0, 0, HD, 0, 0);
+      ctx.imageSmoothingEnabled = false;
+      PD.talk.draw(ctx, g, g.time);
+    }
     /* The shark goes over everything. He is drawn here rather than in each
        state's own pass because he interrupts all of them equally. */
     if (g.state !== 'intro' && PD.chum.active()) {
