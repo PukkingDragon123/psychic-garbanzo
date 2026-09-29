@@ -1078,7 +1078,7 @@
       case 'intro': return PD.chum.track ? PD.chum.track() : 'casino';
       case 'home': return PD.home.track ? PD.home.track() : 'moon';
       case 'desk': case 'starmap': case 'mind': return 'moon';
-      case 'travel': return 'dig';
+      case 'travel': return PD.travel.track ? PD.travel.track() : 'dig';
       case 'victory': case 'ending': return 'title';
       case 'play': {
         for (const m of g.mobs) if (!m.dead && m.spec && m.spec.kind === 'boss') return 'boss';

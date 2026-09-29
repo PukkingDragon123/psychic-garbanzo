@@ -113,6 +113,8 @@
   function drop(g, i) {
     if (i > g.save.unlocked) { say('DESTROY ' + D.BODIES[g.save.unlocked].name.toUpperCase() + ' FIRST.'); A.sfx.deny(); return; }
     if (!zoneOpen(g, D.zoneOf(i))) { A.sfx.deny(); return; }
+    const nd = PD.travel.need && PD.travel.need(g, i);
+    if (nd) { say('NEEDS A ' + nd[1] + '. BUY ONE ON ABAY.'); A.sfx.deny(); return; }
     /* The crossing is a real journey now: the chart hands off to the flight
        rather than dropping you on the rock between two frames. */
     PD.travel.enter(g, i);
@@ -296,7 +298,11 @@
     ox += 24;
     for (const pair of b.ores.slice(0, 8)) { PD.art.oreChip(ctx, pair[0], ox, VH - 26, 14); ox += 15; }
     if (g.save.destroyed[S.selBody]) F.draw(ctx, 'ALREADY DESTROYED', ox + 10, VH - 22, '#ff6b8a', { shadow: false });
-    if (open) {
+    const nd = open && PD.travel.need ? PD.travel.need(g, S.selBody) : null;
+    if (nd) {
+      F.draw(ctx, 'NEEDS A ' + nd[1], VW - 14, VH - 30, Math.sin(t * 5) > 0 ? '#ff6b8a' : '#ffd34d', { right: true, shadow: false });
+      F.draw(ctx, nd[2] + '. ABAY SELLS ONE.', VW - 14, VH - 20, '#9c8ec4', { right: true, shadow: false });
+    } else if (open) {
       const bw = 110, bx = VW - bw - 12, by = VH - 30;
       ctx.fillStyle = Math.sin(t * 4) > 0 ? '#39ffa6' : '#2ad48a';
       ctx.fillRect(bx, by, bw, 20);
@@ -307,5 +313,5 @@
     }
   }
 
-  PD.starmap = { enter, update, draw, S };
+  PD.starmap = { enter, update, draw, S, say };
 })(window.PD);
