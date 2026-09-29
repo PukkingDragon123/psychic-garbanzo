@@ -77,14 +77,30 @@
     ];
   }
 
+  /* The opening is one short talk now: you, Mr Chum, and the bill. */
   function startIntro(g) {
-    IS.on = 1; IS.beat = 'crash'; IS.line = 0; IS.lt = 0; IS.t = 0; IS.chars = 0; IS.pop = 0; IS.done = 0; IS.bits.length = 0;
-    IS.cam = { x: SHOTS[0].x, y: SHOTS[0].y, z: 2.6 };
-    IS.title = 0;
+    IS.on = 0; IS.done = 0;
     g.save.story = 1;
-    g.saveGame();
-    g.state = 'intro';
-    A.sfx.tone(180, { type: 'square', to: 90, dur: 0.5, vol: 0.1 });
+    g.state = 'home';
+    PD.home.enter(g);
+    const end = (g2) => {
+      if (IS.done) return;
+      IS.done = 1;
+      g2.save.seenIntro = 1;
+      g2.save.debt = PD.chum.DEBT0;
+      g2.save.paid = 0;
+      g2.saveGame();
+    };
+    PD.talk.start(g, { start: 'a', onEnd: end, nodes: {
+      a: { who: 'chum', face: 'angry', text: 'YOU CRASHED A UFO INTO MY POOL.', next: 'b' },
+      b: { who: 'you', text: 'IT WAS ALREADY LIKE THAT.', next: 'c' },
+      c: { who: 'chum', face: 'smug', text: 'ONE MILLION DOLLARS. DIG IT OUT OF SOME PLANETS.', choices: [
+        { t: 'I WILL PAY YOU BACK', next: 'd', fx: g2 => { g2.save.chumMood = 1; } },
+        { t: 'WHAT IF I JUST RUN', next: 'e', fx: g2 => { g2.save.chumMood = -1; } }
+      ] },
+      d: { who: 'chum', face: 'smug', text: 'GOOD. THE UFO IS OUTSIDE. GO.', next: null },
+      e: { who: 'chum', face: 'angry', text: 'I AM A SHARK. I WILL FIND YOU. GO DIG.', next: null }
+    } });
   }
   function introActive() { return !!IS.on; }
 
