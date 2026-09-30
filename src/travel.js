@@ -218,7 +218,7 @@
     S.lane = 1; S.py = LANES[1]; S.pvy = 0; S.tilt = 0; S.squash = 0;
     S.obs.length = 0; S.coins.length = 0; S.parts.length = 0; S.shots.length = 0; S.foes.length = 0; S.ebul.length = 0; S.warn.length = 0;
     S.hpMax = 3 + g.shipLvl('armour'); S.hp = S.hpMax;
-    S.bubble = g.shipLvl('bubble') > 0 ? 1 : 0; S.bubbleT = 0;
+    S.bubble = g.shipLvl('bubble') > 0 || (PD.unlock && PD.unlock.has(g, 'FLY3')) ? 1 : 0; S.bubbleT = 0;
     S.invuln = 0; S.shake = 0; S.flash = 0; S.turbo = 0; S.turboCd = 0;
     S.cash = 0; S.combo = 0; S.comboT = 0; S.hits = 0; S.kills = 0; S.gained = 0;
     S.nextChunk = 1.6; S.fought = 0; S.flashed = 0; S.dest = null; S.fight = null; S.beam = null; S.heat = 0; S.bars = 1; S.wreck = 0; S.slow = 1;
@@ -242,16 +242,21 @@
     }
     common(g, index);
     S.dir = 'out'; S.phase = 'launch'; S.ore = 0;
+    S.showcase = g.save.shipNew && D.SHIPX[g.save.shipNew] ? g.save.shipNew : null; g.save.shipNew = null;
+    if (S.showcase) { S.t = -2.2; A.sfx.fanfare && A.sfx.fanfare(); }
     PD.chum.call(g, 'travel');
     const warp = g.save.upg.warp || 0;
     S.dur = Math.max(16, (20 + index * 3.2) * (1 - Math.min(0.3, warp * 0.05)));
+    if (PD.unlock && PD.unlock.has(g, 'FLY2')) S.dur *= 0.7;
     banner('DESTINATION', S.body.name.toUpperCase(), S.body.tint);
+    if (S.showcase) S.bannerT += 2.4;
     say('HOLD ON TO SOMETHING.');
   }
   function enterReturn(g, ore) {
     common(g, g.bodyIndex || 0);
     S.dir = 'home'; S.phase = 'launch'; S.ore = ore || 0;
     S.dur = Math.max(12, 13 + S.index * 1.6);
+    if (PD.unlock && PD.unlock.has(g, 'FLY2')) S.dur *= 0.7;
     banner('GOING HOME', S.ore > 0 ? S.ore + ' ROCKS IN THE HOLD' : 'EMPTY HANDED', '#8affa0');
     say(S.ore > 0 ? 'DO NOT DROP ANY.' : 'NOTHING IN THE HOLD. GOING HOME ANYWAY.');
   }
@@ -456,7 +461,7 @@
   }
   function grabCoin(g, c) {
     S.combo++; S.comboT = 1.2;
-    const v = Math.round((4 + S.index * 3) * (S.turbo > 0 ? 2 : 1) * (S.x2 > S.t ? 2 : 1));
+    const v = Math.round((4 + S.index * 3) * (S.turbo > 0 ? 2 : 1) * (S.x2 > S.t ? 2 : 1) * (PD.unlock && PD.unlock.has(g, 'FLY1') ? 2 : 1));
     S.cash += v;
     A.sfx.tone(880 + Math.min(12, S.combo) * 60, { type: 'square', dur: 0.04, vol: 0.035 });
     for (let k = 0; k < 3; k++) S.parts.push({ x: c.x, y: c.y, vx: U.rand(-40, 40), vy: U.rand(-60, 10), life: 0.35, col: '#ffe070', r: 1 });
@@ -808,7 +813,7 @@
   function drawWorlds(ctx, g, t) {
     // the moon you left, falling behind at the start
     const from = S.dir === 'out' ? S.moon : S.planet, to = S.dir === 'out' ? S.planet : S.moon;
-    const lt = S.phase === 'launch' ? S.t : 2.4 + S.rt;
+    const lt = S.phase === 'launch' ? Math.max(0, S.t) : 2.4 + S.rt;
     if (lt < 7) {
       const k = Math.min(1, lt / 6);
       const size = 420 * (1 - k * 0.6), y = VH + 110 + k * k * 320;
@@ -895,7 +900,7 @@
     const skin = PD.art.skinFor(g.save.cos).pod;
     const blink = S.invuln > 0 && Math.sin(t * 40) > 0;
     const sq = 1 + S.squash * 0.18;
-    let y = S.py + Math.sin(t * 3) * 1.5, x = S.phase === 'launch' ? PX - 40 + Math.min(1, S.t / 2) * 40 : PX, sc = 1;
+    let y = S.py + Math.sin(t * 3) * 1.5, x = S.phase === 'launch' ? PX - 40 + U.clamp(S.t / 2, 0, 1) * 40 : PX, sc = 1;
     if (S.phase === 'land' && S.dest) {
       const q = U.smoothstep(0, 2.2, S.t);
       x = U.lerp(PX, S.dest[0] - S.dest[2] * 0.1, q); y = U.lerp(S.py, S.dest[1] - S.dest[2] * 0.05, q) + Math.sin(q * Math.PI) * -20;
@@ -911,17 +916,24 @@
     X.poly(ctx, [[-14, -3], [-14, 3], [-14 - fk, 0]], S.turbo > 0 ? '#7ef9ff' : '#ff8a3d');
     X.poly(ctx, [[-14, -1.5], [-14, 1.5], [-14 - fk * 0.6, 0]], '#fff0c0');
     if (!blink) {
-      const k = 0.62;
+      const k = 0.72;
       const fr = skin.frames[Math.floor(t * 8) % skin.frames.length];
       ctx.drawImage(fr, -skin.ox * k, -skin.oy * k, skin.w * k, skin.h * k);
     }
-    // the upgrades, where you can see them
-    if (S.lv.laser) { X.rect(ctx, 8, 2, 10, 3, '#6a7088'); X.rect(ctx, 16, 2, 3, 3, '#ff3a4a'); if (S.lv.laser >= 2) { X.rect(ctx, 8, -6, 9, 2, '#6a7088'); X.rect(ctx, 15, -6, 2, 2, '#ff3a4a'); } }
-    if (S.lv.ice) { X.poly(ctx, [[14, -6], [22, -2], [22, 8], [14, 10]], '#8ad8ff'); X.poly(ctx, [[15, -4], [20, -1], [20, 6], [15, 8]], '#c8f0ff'); }
-    if (S.lv.armour) for (let i = 0; i < Math.min(3, S.lv.armour); i++) X.rect(ctx, -10 + i * 7, 6, 6, 3, '#8a90a8');
-    if (S.lv.heat) { X.poly(ctx, [[10, -9], [16, -4], [16, 4], [10, 9]], '#d8581a'); X.rect(ctx, 14, -3, 2, 6, '#ffb03a'); if (S.heat > 0) { ctx.globalAlpha = S.heat * 0.5; X.blob(ctx, 4, 0, 20, 13, '#ff8a2a'); ctx.globalAlpha = 1; } }
-    if (S.lv.magnet) { X.rect(ctx, -2, -14, 2, 4, '#e5394a'); X.rect(ctx, 2, -14, 2, 4, '#e5394a'); X.rect(ctx, -2, -15, 6, 1, '#d8dce8'); }
-    if (S.lv.radar) { X.rect(ctx, -6, -13, 1, 4, '#8a90a8'); X.blob(ctx, -5.5, -14, 2, 1, Math.sin(t * 6) > 0 ? '#7dff9a' : '#2a5a3a'); }
+    // the upgrades, bolted on where you can see them, painted like the shop
+    const part = (id, x, y, sz, rot, flip) => {
+      const cv = PD.prodart && PD.prodart.art('ship', id);
+      if (!cv) return;
+      ctx.save(); ctx.translate(x, y); if (rot) ctx.rotate(rot); if (flip) ctx.scale(-1, 1);
+      ctx.drawImage(cv, -sz / 2, -sz / 2, sz, sz); ctx.restore();
+    };
+    if (S.lv.heat) { part('heat', 15, 1, 16, Math.PI / 2); if (S.heat > 0) { ctx.globalAlpha = S.heat * 0.5; X.blob(ctx, 8, 0, 20, 13, '#ff8a2a'); ctx.globalAlpha = 1; } }
+    if (S.lv.ice) part('ice', 18, 6, 15, -Math.PI / 2);
+    if (S.lv.armour) for (let i = 0; i < Math.min(3, S.lv.armour); i++) part('armour', -9 + i * 7, 7, 8);
+    if (S.lv.laser) { part('laser', 12, 3, 16); if (S.lv.laser >= 2) part('laser', 11, -5, 13); if (S.beam) { PT.glow(ctx, 20, 3, 8, '#ff3a4a', 0.6); } }
+    if (S.lv.magnet) part('magnet', 0, -14, 10);
+    if (S.lv.radar) { ctx.save(); ctx.translate(-8, -13); ctx.rotate(Math.sin(t * 2) * 0.3); part('radar', 0, 0, 11); ctx.restore(); }
+    if (S.lv.turbo) part('turbo', -16, 2, 12, 0, true);
     ctx.restore();
     if (S.bubble && S.phase !== 'land') {
       ctx.globalAlpha = 0.12 + Math.sin(t * 4) * 0.04; X.blob(ctx, x, y, 23, 17, '#7ef9ff');
@@ -959,8 +971,22 @@
       X.rect(ctx, VW - 70, VH - 5, Math.round(60 * (ready ? 1 : 1 - S.turboCd / 9)), 2, ready ? '#7ef9ff' : '#3a6a88');
       if (ready && S.phase === 'run') F.draw(ctx, 'RIGHT: TURBO', VW - 72, VH - 14, '#7ef9ff', { right: true, shadow: '#1a1030' });
     }
+    // a new part, shown off before the trip
+    if (S.showcase && S.phase === 'launch' && S.t < 0) {
+      const k = U.clamp((S.t + 2.2) / 0.3, 0, 1), out = U.clamp(-S.t / 0.3, 0, 1);
+      ctx.globalAlpha = 0.75 * Math.min(k, out); X.rect(ctx, 0, 0, VW, VH, '#0a0614'); ctx.globalAlpha = 1;
+      if (k > 0.2) {
+        PD.prodart.stage(ctx, 170, 60, 140, 110, '#ffd34d', t, true, 0);
+        const cv = PD.prodart.art('ship', S.showcase), s2 = 70 * (k < 1 ? 1 + (1 - k) * 0.6 : 1 + Math.sin(t * 3) * 0.04);
+        ctx.save(); ctx.translate(240, 115 + Math.sin(t * 2) * 2); ctx.rotate(Math.sin(t * 1.4) * 0.12); ctx.drawImage(cv, -s2 / 2, -s2 / 2, s2, s2); ctx.restore();
+        PD.prodart.shine(ctx, 170, 60, 140, 110, t, 0);
+        F.draw(ctx, 'NEW PART INSTALLED', 240, 176, '#ffd34d', { center: true, shadow: '#1a1030' });
+        F.draw(ctx, D.SHIPX[S.showcase].name, 240, 188, '#ffffff', { center: true, scale: 2, shadow: '#1a1030' });
+        PD.prodart.burst(ctx, 312, 70, 0.5, 'NEW!', '#ff5a8a');
+      }
+    }
     // the big words
-    if (S.bannerT > 0 && S.banner) {
+    if (S.bannerT > 0 && S.banner && !(S.showcase && S.t < 0)) {
       const k = Math.min(1, (3.2 - S.bannerT) * 4) * Math.min(1, S.bannerT * 2);
       const w = Math.round(260 * k);
       ctx.globalAlpha = 0.8 * k; X.rect(ctx, 240 - w / 2, 96, w, 40, '#0a0614'); ctx.globalAlpha = 1;

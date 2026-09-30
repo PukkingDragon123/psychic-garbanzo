@@ -722,6 +722,8 @@
     // P, or the pink button on the goal: talk to Mr Chum about money
     if (P.lock <= 0 && PD.story && PD.story.checkPay(g)) return;
     // B: the build menu, anywhere you can stand
+    // REMOTE LOGIN: the computer from anywhere
+    if (P.lock <= 0 && IN.hit('KeyC') && PD.unlock && PD.unlock.has(g, 'PC2') && !(PD.build && PD.build.active())) { P.lock = 1; g.wipeTo(240, 135, '#1b2430', () => { g.state = 'desk'; PD.desk.enter(g); }, 'bars'); return; }
     if (P.lock <= 0 && PD.build && (IN.hit('KeyB') || (m.inside && m.leftPressed && PD.build.hitButton(m.x, m.y)))) {
       if (!g.tutAllows || g.tutAllows('home', 'build')) { PD.build.open(g, S.scene); return; }
       g.tutNope('home'); return;

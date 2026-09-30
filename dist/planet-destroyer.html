@@ -14102,7 +14102,7 @@ window.PD = window.PD || {};
     S.lane = 1; S.py = LANES[1]; S.pvy = 0; S.tilt = 0; S.squash = 0;
     S.obs.length = 0; S.coins.length = 0; S.parts.length = 0; S.shots.length = 0; S.foes.length = 0; S.ebul.length = 0; S.warn.length = 0;
     S.hpMax = 3 + g.shipLvl('armour'); S.hp = S.hpMax;
-    S.bubble = g.shipLvl('bubble') > 0 ? 1 : 0; S.bubbleT = 0;
+    S.bubble = g.shipLvl('bubble') > 0 || (PD.unlock && PD.unlock.has(g, 'FLY3')) ? 1 : 0; S.bubbleT = 0;
     S.invuln = 0; S.shake = 0; S.flash = 0; S.turbo = 0; S.turboCd = 0;
     S.cash = 0; S.combo = 0; S.comboT = 0; S.hits = 0; S.kills = 0; S.gained = 0;
     S.nextChunk = 1.6; S.fought = 0; S.flashed = 0; S.dest = null; S.fight = null; S.beam = null; S.heat = 0; S.bars = 1; S.wreck = 0; S.slow = 1;
@@ -14126,16 +14126,21 @@ window.PD = window.PD || {};
     }
     common(g, index);
     S.dir = 'out'; S.phase = 'launch'; S.ore = 0;
+    S.showcase = g.save.shipNew && D.SHIPX[g.save.shipNew] ? g.save.shipNew : null; g.save.shipNew = null;
+    if (S.showcase) { S.t = -2.2; A.sfx.fanfare && A.sfx.fanfare(); }
     PD.chum.call(g, 'travel');
     const warp = g.save.upg.warp || 0;
     S.dur = Math.max(16, (20 + index * 3.2) * (1 - Math.min(0.3, warp * 0.05)));
+    if (PD.unlock && PD.unlock.has(g, 'FLY2')) S.dur *= 0.7;
     banner('DESTINATION', S.body.name.toUpperCase(), S.body.tint);
+    if (S.showcase) S.bannerT += 2.4;
     say('HOLD ON TO SOMETHING.');
   }
   function enterReturn(g, ore) {
     common(g, g.bodyIndex || 0);
     S.dir = 'home'; S.phase = 'launch'; S.ore = ore || 0;
     S.dur = Math.max(12, 13 + S.index * 1.6);
+    if (PD.unlock && PD.unlock.has(g, 'FLY2')) S.dur *= 0.7;
     banner('GOING HOME', S.ore > 0 ? S.ore + ' ROCKS IN THE HOLD' : 'EMPTY HANDED', '#8affa0');
     say(S.ore > 0 ? 'DO NOT DROP ANY.' : 'NOTHING IN THE HOLD. GOING HOME ANYWAY.');
   }
@@ -14340,7 +14345,7 @@ window.PD = window.PD || {};
   }
   function grabCoin(g, c) {
     S.combo++; S.comboT = 1.2;
-    const v = Math.round((4 + S.index * 3) * (S.turbo > 0 ? 2 : 1) * (S.x2 > S.t ? 2 : 1));
+    const v = Math.round((4 + S.index * 3) * (S.turbo > 0 ? 2 : 1) * (S.x2 > S.t ? 2 : 1) * (PD.unlock && PD.unlock.has(g, 'FLY1') ? 2 : 1));
     S.cash += v;
     A.sfx.tone(880 + Math.min(12, S.combo) * 60, { type: 'square', dur: 0.04, vol: 0.035 });
     for (let k = 0; k < 3; k++) S.parts.push({ x: c.x, y: c.y, vx: U.rand(-40, 40), vy: U.rand(-60, 10), life: 0.35, col: '#ffe070', r: 1 });
@@ -14692,7 +14697,7 @@ window.PD = window.PD || {};
   function drawWorlds(ctx, g, t) {
     // the moon you left, falling behind at the start
     const from = S.dir === 'out' ? S.moon : S.planet, to = S.dir === 'out' ? S.planet : S.moon;
-    const lt = S.phase === 'launch' ? S.t : 2.4 + S.rt;
+    const lt = S.phase === 'launch' ? Math.max(0, S.t) : 2.4 + S.rt;
     if (lt < 7) {
       const k = Math.min(1, lt / 6);
       const size = 420 * (1 - k * 0.6), y = VH + 110 + k * k * 320;
@@ -14779,7 +14784,7 @@ window.PD = window.PD || {};
     const skin = PD.art.skinFor(g.save.cos).pod;
     const blink = S.invuln > 0 && Math.sin(t * 40) > 0;
     const sq = 1 + S.squash * 0.18;
-    let y = S.py + Math.sin(t * 3) * 1.5, x = S.phase === 'launch' ? PX - 40 + Math.min(1, S.t / 2) * 40 : PX, sc = 1;
+    let y = S.py + Math.sin(t * 3) * 1.5, x = S.phase === 'launch' ? PX - 40 + U.clamp(S.t / 2, 0, 1) * 40 : PX, sc = 1;
     if (S.phase === 'land' && S.dest) {
       const q = U.smoothstep(0, 2.2, S.t);
       x = U.lerp(PX, S.dest[0] - S.dest[2] * 0.1, q); y = U.lerp(S.py, S.dest[1] - S.dest[2] * 0.05, q) + Math.sin(q * Math.PI) * -20;
@@ -14795,17 +14800,24 @@ window.PD = window.PD || {};
     X.poly(ctx, [[-14, -3], [-14, 3], [-14 - fk, 0]], S.turbo > 0 ? '#7ef9ff' : '#ff8a3d');
     X.poly(ctx, [[-14, -1.5], [-14, 1.5], [-14 - fk * 0.6, 0]], '#fff0c0');
     if (!blink) {
-      const k = 0.62;
+      const k = 0.72;
       const fr = skin.frames[Math.floor(t * 8) % skin.frames.length];
       ctx.drawImage(fr, -skin.ox * k, -skin.oy * k, skin.w * k, skin.h * k);
     }
-    // the upgrades, where you can see them
-    if (S.lv.laser) { X.rect(ctx, 8, 2, 10, 3, '#6a7088'); X.rect(ctx, 16, 2, 3, 3, '#ff3a4a'); if (S.lv.laser >= 2) { X.rect(ctx, 8, -6, 9, 2, '#6a7088'); X.rect(ctx, 15, -6, 2, 2, '#ff3a4a'); } }
-    if (S.lv.ice) { X.poly(ctx, [[14, -6], [22, -2], [22, 8], [14, 10]], '#8ad8ff'); X.poly(ctx, [[15, -4], [20, -1], [20, 6], [15, 8]], '#c8f0ff'); }
-    if (S.lv.armour) for (let i = 0; i < Math.min(3, S.lv.armour); i++) X.rect(ctx, -10 + i * 7, 6, 6, 3, '#8a90a8');
-    if (S.lv.heat) { X.poly(ctx, [[10, -9], [16, -4], [16, 4], [10, 9]], '#d8581a'); X.rect(ctx, 14, -3, 2, 6, '#ffb03a'); if (S.heat > 0) { ctx.globalAlpha = S.heat * 0.5; X.blob(ctx, 4, 0, 20, 13, '#ff8a2a'); ctx.globalAlpha = 1; } }
-    if (S.lv.magnet) { X.rect(ctx, -2, -14, 2, 4, '#e5394a'); X.rect(ctx, 2, -14, 2, 4, '#e5394a'); X.rect(ctx, -2, -15, 6, 1, '#d8dce8'); }
-    if (S.lv.radar) { X.rect(ctx, -6, -13, 1, 4, '#8a90a8'); X.blob(ctx, -5.5, -14, 2, 1, Math.sin(t * 6) > 0 ? '#7dff9a' : '#2a5a3a'); }
+    // the upgrades, bolted on where you can see them, painted like the shop
+    const part = (id, x, y, sz, rot, flip) => {
+      const cv = PD.prodart && PD.prodart.art('ship', id);
+      if (!cv) return;
+      ctx.save(); ctx.translate(x, y); if (rot) ctx.rotate(rot); if (flip) ctx.scale(-1, 1);
+      ctx.drawImage(cv, -sz / 2, -sz / 2, sz, sz); ctx.restore();
+    };
+    if (S.lv.heat) { part('heat', 15, 1, 16, Math.PI / 2); if (S.heat > 0) { ctx.globalAlpha = S.heat * 0.5; X.blob(ctx, 8, 0, 20, 13, '#ff8a2a'); ctx.globalAlpha = 1; } }
+    if (S.lv.ice) part('ice', 18, 6, 15, -Math.PI / 2);
+    if (S.lv.armour) for (let i = 0; i < Math.min(3, S.lv.armour); i++) part('armour', -9 + i * 7, 7, 8);
+    if (S.lv.laser) { part('laser', 12, 3, 16); if (S.lv.laser >= 2) part('laser', 11, -5, 13); if (S.beam) { PT.glow(ctx, 20, 3, 8, '#ff3a4a', 0.6); } }
+    if (S.lv.magnet) part('magnet', 0, -14, 10);
+    if (S.lv.radar) { ctx.save(); ctx.translate(-8, -13); ctx.rotate(Math.sin(t * 2) * 0.3); part('radar', 0, 0, 11); ctx.restore(); }
+    if (S.lv.turbo) part('turbo', -16, 2, 12, 0, true);
     ctx.restore();
     if (S.bubble && S.phase !== 'land') {
       ctx.globalAlpha = 0.12 + Math.sin(t * 4) * 0.04; X.blob(ctx, x, y, 23, 17, '#7ef9ff');
@@ -14843,8 +14855,22 @@ window.PD = window.PD || {};
       X.rect(ctx, VW - 70, VH - 5, Math.round(60 * (ready ? 1 : 1 - S.turboCd / 9)), 2, ready ? '#7ef9ff' : '#3a6a88');
       if (ready && S.phase === 'run') F.draw(ctx, 'RIGHT: TURBO', VW - 72, VH - 14, '#7ef9ff', { right: true, shadow: '#1a1030' });
     }
+    // a new part, shown off before the trip
+    if (S.showcase && S.phase === 'launch' && S.t < 0) {
+      const k = U.clamp((S.t + 2.2) / 0.3, 0, 1), out = U.clamp(-S.t / 0.3, 0, 1);
+      ctx.globalAlpha = 0.75 * Math.min(k, out); X.rect(ctx, 0, 0, VW, VH, '#0a0614'); ctx.globalAlpha = 1;
+      if (k > 0.2) {
+        PD.prodart.stage(ctx, 170, 60, 140, 110, '#ffd34d', t, true, 0);
+        const cv = PD.prodart.art('ship', S.showcase), s2 = 70 * (k < 1 ? 1 + (1 - k) * 0.6 : 1 + Math.sin(t * 3) * 0.04);
+        ctx.save(); ctx.translate(240, 115 + Math.sin(t * 2) * 2); ctx.rotate(Math.sin(t * 1.4) * 0.12); ctx.drawImage(cv, -s2 / 2, -s2 / 2, s2, s2); ctx.restore();
+        PD.prodart.shine(ctx, 170, 60, 140, 110, t, 0);
+        F.draw(ctx, 'NEW PART INSTALLED', 240, 176, '#ffd34d', { center: true, shadow: '#1a1030' });
+        F.draw(ctx, D.SHIPX[S.showcase].name, 240, 188, '#ffffff', { center: true, scale: 2, shadow: '#1a1030' });
+        PD.prodart.burst(ctx, 312, 70, 0.5, 'NEW!', '#ff5a8a');
+      }
+    }
     // the big words
-    if (S.bannerT > 0 && S.banner) {
+    if (S.bannerT > 0 && S.banner && !(S.showcase && S.t < 0)) {
       const k = Math.min(1, (3.2 - S.bannerT) * 4) * Math.min(1, S.bannerT * 2);
       const w = Math.round(260 * k);
       ctx.globalAlpha = 0.8 * k; X.rect(ctx, 240 - w / 2, 96, w, 40, '#0a0614'); ctx.globalAlpha = 1;
@@ -15236,11 +15262,15 @@ window.PD = window.PD || {};
   function say(m) { S.line = m; S.lineT = 3.4; }
 
   /* ------------------------------------------------------ the unlock tree */
-  const ROW0 = 44, ROWH = 22, COL0 = 278, COLW = 54;
-  function uPos(n) {
-    const bi = PD.unlock.BRANCHES.findIndex(b => b.id === n.branch);
-    return { x: COL0 + (n.tier - 1) * COLW, y: ROW0 + bi * ROWH };
+  /* The unlock tree is a web, like the neurons: the core in the middle and
+     a branch for each department running out from it, tier by tier. */
+  const UX = 318, UY = 106;
+  function bAngle(bi) { const nb = PD.unlock.BRANCHES.length; return -Math.PI / 2 + bi / nb * Math.PI * 2; }
+  function uPosAt(bi, tier) {
+    const a = bAngle(bi) + (tier % 2 ? 0.05 : -0.05);
+    return { x: Math.round(UX + Math.cos(a) * (52 + (tier - 1) * 31)), y: Math.round(UY + Math.sin(a) * (31 + (tier - 1) * 15)) };
   }
+  function uPos(n) { return uPosAt(PD.unlock.BRANCHES.findIndex(b => b.id === n.branch), n.tier); }
 
   function open(g) {
     g.state = 'mind';
@@ -15323,7 +15353,7 @@ window.PD = window.PD || {};
       return;
     }
     const U2 = PD.unlock;
-    for (const n of U2.NODES) { const p = uPos(n); if (m.x > p.x - 23 && m.x < p.x + 23 && Math.abs(m.y - p.y) < 9) S.hover = n.id; }
+    for (const n of U2.NODES) { const p = uPos(n); if (Math.abs(m.x - p.x) < 11 && Math.abs(m.y - p.y) < 8) S.hover = n.id; }
     const cur = U2.BY[S.usel] || U2.NODES[0];
     const moveTo = (bd, td) => {
       const bi = U2.BRANCHES.findIndex(b => b.id === cur.branch);
@@ -15337,10 +15367,10 @@ window.PD = window.PD || {};
       }
       A.sfx.click();
     };
-    if (IN.hit('right')) moveTo(0, 1);
-    if (IN.hit('left')) moveTo(0, -1);
-    if (IN.hit('down')) moveTo(1, 0);
-    if (IN.hit('up')) moveTo(-1, 0);
+    if (IN.hit('right')) moveTo(1, 0);
+    if (IN.hit('left')) moveTo(-1, 0);
+    if (IN.hit('up')) moveTo(0, 1);
+    if (IN.hit('down')) moveTo(0, -1);
     if (S.hover && m.leftPressed && !inBack) { if (S.usel === S.hover) unlockNode(g, U2.BY[S.hover]); else { S.usel = S.hover; A.sfx.click(); } }
     for (let i = 0; i < FEEDS.length; i++) if (m.leftPressed && inRect(m, feedBtn(i))) feed(g, FEEDS[i][0]);
     if (IN.hit('KeyF')) feed(g, 100);
@@ -15575,32 +15605,43 @@ window.PD = window.PD || {};
   function drawUnlocks(ctx, g, t) {
     const U2 = PD.unlock;
     holo(ctx, 164, 26, 308, 160, HOLO, 0.6);
-    // the root, and the traces out to each branch
-    const root = { x: 180, y: 110 };
-    hexChip(ctx, root.x, root.y, 26, 18, '#0e4a5a', '#7ef9ff', true);
-    F.draw(ctx, 'CORE', root.x, root.y - 3, '#ffffff', { center: true, shadow: false });
-    U2.BRANCHES.forEach((b, i) => {
-      const y = ROW0 + i * ROWH;
-      X.line(ctx, root.x + 12, root.y, 198, root.y, '#1e4a6a');
-      X.line(ctx, 198, root.y, 198, y, '#1e4a6a');
-      X.line(ctx, 198, y, COL0 - 24, y, '#1e4a6a');
-      F.draw(ctx, b.name, 202, y - 8, b.col, { shadow: false });
+    // the core, and a branch out to each department
+    const root = { x: UX, y: UY };
+    const pulse = 0.5 + Math.sin(t * 3) * 0.2;
+    PT.glow(ctx, root.x, root.y, 30, '#7ef9ff', 0.3 + S.flash * 0.5);
+    U2.BRANCHES.forEach((b, bi) => {
       const row = U2.NODES.filter(n => n.branch === b.id);
-      for (let k = 1; k < row.length; k++) {
-        const a = uPos(row[k - 1]), c = uPos(row[k]);
-        const live = U2.has(g, row[k - 1].id) && U2.has(g, row[k].id);
-        X.line(ctx, a.x + 23, a.y, c.x - 23, c.y, live ? b.col : '#1e4a6a', live ? 2 : 1);
+      let prev = root, prevOn = true;
+      for (const n of row) {
+        const p = uPos(n), on = U2.has(g, n.id);
+        const live = on && prevOn;
+        // a curved trace, with a spark running along it when both ends are lit
+        const mx = (prev.x + p.x) / 2 + (p.y - prev.y) * 0.18, my = (prev.y + p.y) / 2 - (p.x - prev.x) * 0.18;
+        X.curve(ctx, prev.x, prev.y, mx, my, p.x, p.y, live ? b.col : '#1e4a6a', live ? 2 : 1, 10);
+        if (live) {
+          const f = (t * 0.7 + bi * 0.13 + n.tier * 0.2) % 1, q = 1 - f;
+          X.rect(ctx, q * q * prev.x + 2 * q * f * mx + f * f * p.x - 1, q * q * prev.y + 2 * q * f * my + f * f * p.y - 1, 3, 3, '#ffffff');
+        }
+        prev = p; prevOn = on;
       }
+      // the branch's name, off the end of it
+      const end = uPosAt(bi, (row.length || 1) + 1), a = bAngle(bi);
+      const lx = U.clamp(end.x + Math.cos(a) * 4, 176, 460), ly = U.clamp(end.y - 3, 30, 180);
+      F.draw(ctx, b.name, lx, ly, b.col, { center: true, shadow: '#060a1e' });
     });
+    hexChip(ctx, root.x, root.y, 30, 20, '#0e4a5a', '#7ef9ff', true);
+    F.draw(ctx, 'CORE', root.x, root.y - 3, '#ffffff', { center: true, shadow: false });
     for (const p of S.pulses) { const f = U.clamp(p.t, 0, 1); X.line(ctx, p.a.x, p.a.y, U.lerp(p.a.x, p.b.x, f), U.lerp(p.a.y, p.b.y, f), '#ffffff', 3); }
     for (const n of U2.NODES) {
       const p = uPos(n), st = U2.canUnlock(g, n), sel = S.usel === n.id, grow = S.grew === n.id ? S.growT : 0;
       const edge = st === 'done' ? n.col : st === 'ready' ? '#ffd34d' : st === 'poor' ? '#4a7a9a' : '#243a5a';
-      hexChip(ctx, p.x, p.y, 46 + grow * 6, 16 + grow * 3, st === 'done' ? '#123a4a' : '#0a1a2e', edge, sel || st === 'ready');
+      const w = 20 + grow * 8, h = 14 + grow * 4;
+      hexChip(ctx, p.x, p.y, w, h, st === 'done' ? PT.css(PT.mul(PT.hex(n.col), 0.35)) : '#0a1a2e', edge, sel || st === 'ready' || (st === 'done' && pulse > 0.6));
       if (st === 'done') F.draw(ctx, U2.ROMAN[n.tier], p.x, p.y - 3, '#ffffff', { center: true, shadow: false });
-      else if (st === 'needs') G.draw(ctx, 'lock', p.x - 7, p.y - 7, '#3a5a7a', '#243a5a');
-      else F.draw(ctx, n.cost + 'P', p.x, p.y - 3, st === 'ready' ? '#ffd34d' : '#6a9ab8', { center: true, shadow: false });
-      if (sel) { const k = Math.round(Math.abs(Math.sin(t * 4)) * 2); X.frame(ctx, p.x - 26 - k, p.y - 11 - k, 52 + k * 2, 22 + k * 2, '#ffd34d'); }
+      else if (st === 'needs') { X.rect(ctx, p.x - 2, p.y - 2, 4, 4, '#243a5a'); }
+      else F.draw(ctx, U2.ROMAN[n.tier], p.x, p.y - 3, st === 'ready' ? '#ffd34d' : '#6a9ab8', { center: true, shadow: false });
+      if (n.fn) X.rect(ctx, p.x + w / 2 - 3, p.y - h / 2, 3, 3, '#ffffff');
+      if (sel) { const k = Math.round(Math.abs(Math.sin(t * 4)) * 2); X.frame(ctx, p.x - w / 2 - 3 - k, p.y - h / 2 - 3 - k, w + 6 + k * 2, h + 6 + k * 2, '#ffd34d'); }
     }
     // feed the brain
     for (let i = 0; i < FEEDS.length; i++) {
@@ -15613,7 +15654,8 @@ window.PD = window.PD || {};
     const n = U2.BY[S.usel] || U2.NODES[0], st = U2.canUnlock(g, n);
     holo(ctx, 164, 206, 308, 56, n.col);
     F.draw(ctx, n.name, 172, 211, '#ffffff', { scale: 2, shadow: false });
-    F.draw(ctx, n.items.length + ' THINGS ON ABAY', 172, 228, n.col, { shadow: false });
+    if (n.fn) { const ls = wrap(n.fn, 48); ls.slice(0, 2).forEach((l, i) => F.draw(ctx, l, 172, 228 + i * 9, n.col, { shadow: false })); }
+    else F.draw(ctx, n.items.length + ' THINGS ON ABAY', 172, 228, n.col, { shadow: false });
     const shown = n.items.slice(0, 7);
     shown.forEach(([k, id], i) => thumb(ctx, k, id, 180 + i * 22, 248, 18, t));
     if (shown.length) F.draw(ctx, itemName(shown[0][0], shown[0][1]) + (n.items.length > 1 ? ' AND MORE' : ''), 336, 228, '#9ad8e8', { shadow: false });
@@ -17509,6 +17551,8 @@ window.PD = window.PD || {};
     // P, or the pink button on the goal: talk to Mr Chum about money
     if (P.lock <= 0 && PD.story && PD.story.checkPay(g)) return;
     // B: the build menu, anywhere you can stand
+    // REMOTE LOGIN: the computer from anywhere
+    if (P.lock <= 0 && IN.hit('KeyC') && PD.unlock && PD.unlock.has(g, 'PC2') && !(PD.build && PD.build.active())) { P.lock = 1; g.wipeTo(240, 135, '#1b2430', () => { g.state = 'desk'; PD.desk.enter(g); }, 'bars'); return; }
     if (P.lock <= 0 && PD.build && (IN.hit('KeyB') || (m.inside && m.leftPressed && PD.build.hitButton(m.x, m.y)))) {
       if (!g.tutAllows || g.tutAllows('home', 'build')) { PD.build.open(g, S.scene); return; }
       g.tutNope('home'); return;
@@ -18282,38 +18326,221 @@ window.PD = window.PD || {};
 
   // =========================================================== FURNITURE (the cave)
   function inItem(id, name, price, w, h, desc, paint, live) { add({ id, name, cat: 'FURNITURE', where: 'in', price, w, h, desc, paint, live }); }
-  inItem('tv', 'OLD TELLY', 900, 30, 34, 'SHOWS THE RACING. ONLY THE RACING.', (B, cx, gy) => { B.block(cx - 26, gy - 20, 52, 20, WOOD, 4); B.round(cx - 22, gy - 64, 44, 44, 5, 0x5a5a6a); B.round(cx - 18, gy - 60, 30, 32, 4, 0x1a2a3a); B.disc(cx + 17, gy - 52, 3, 0xc8c8d8); B.line(cx - 6, gy - 64, cx - 16, gy - 78, 0x8a8a9a, 1); B.line(cx + 2, gy - 64, cx + 10, gy - 80, 0x8a8a9a, 1); },
-    (ctx, t) => { X.rect(ctx, -8, -29, 14, 14, ['#3a8ad8', '#7ad84a', '#d8a83a'][Math.floor(t * 1.5) % 3]); X.rect(ctx, -8 + ((t * 20) % 14), -22, 2, 2, '#ffffff'); PT.glow(ctx, -1, -22, 20, '#6ab0ff', 0.25); });
-  inItem('arcade', 'ARCADE CABINET', 3500, 24, 50, 'ONE GAME. IT IS YOURS. YOU ARE STILL BAD AT IT.', (B, cx, gy) => { B.poly([[cx - 20, gy], [cx + 20, gy], [cx + 20, gy - 70], [cx + 14, gy - 100], [cx - 20, gy - 100]], 0x6a3ac8); B.rect(cx - 16, gy - 90, 28, 26, 0x0a0a14); B.rect(cx - 20, gy - 62, 40, 10, 0x3a1a8a); B.disc(cx - 8, gy - 57, 3, 0xff4a4a); B.disc(cx + 4, gy - 57, 2, 0xffd34d); B.rect(cx - 20, gy - 100, 34, 6, 0xffd34d); },
-    (ctx, t) => { const x = Math.sin(t * 3) * 6; X.rect(ctx, -6 + x, -38, 3, 3, '#7dff9a'); X.rect(ctx, -2 - x, -42, 2, 2, '#ff5a8a'); PT.glow(ctx, -1, -39, 16, '#a86aff', 0.3); });
-  inItem('beanbag', 'BEAN BAG', 600, 26, 18, 'YOU SIT IN IT AND IT EATS YOU. LOVELY.', (B, cx, gy) => { B.ball(cx, gy - 14, 26, 16, [0xe8583a, 0xff8a6a, 0xa83a2a], true); B.ellipse(cx - 4, gy - 22, 12, 5, 0xc8482a); });
-  inItem('lavalamp', 'LAVA LAMP', 700, 12, 30, 'THE BLOBS GO UP. THE BLOBS COME DOWN.', (B, cx, gy) => { B.poly([[cx - 8, gy], [cx + 8, gy], [cx + 5, gy - 10], [cx - 5, gy - 10]], 0xc8a040); B.poly([[cx - 6, gy - 10], [cx + 6, gy - 10], [cx + 9, gy - 44], [cx - 9, gy - 44]], 0x3a1a5a); B.poly([[cx - 6, gy - 44], [cx + 6, gy - 44], [cx + 3, gy - 54], [cx - 3, gy - 54]], 0xc8a040); },
-    (ctx, t) => { for (let k = 0; k < 3; k++) { const y = -8 - ((t * (4 + k) + k * 7) % 16); X.blob(ctx, Math.sin(t + k) * 1.5, y, 2.2, 2.6, '#ff6a3a'); } PT.glow(ctx, 0, -14, 18, '#ff6a3a', 0.3); });
-  inItem('aquarium', 'FISH TANK', 2600, 40, 34, 'THREE FISH. YOU HAVE NAMED ALL OF THEM DAVE.', (B, cx, gy) => { B.block(cx - 36, gy - 14, 72, 14, WOOD, 4); B.rect(cx - 34, gy - 60, 68, 46, 0x1a4a7a); B.rect(cx - 34, gy - 60, 68, 3, 0x5a6a7a); B.rect(cx - 30, gy - 22, 60, 6, 0xc8a060); for (let k = 0; k < 3; k++) B.rect(cx - 22 + k * 18, gy - 34, 2, 12, 0x3a8a4a); },
-    (ctx, t) => { for (let k = 0; k < 3; k++) { const x = -12 + ((t * (6 + k * 2) + k * 9) % 28), y = -22 + k * 5; X.blob(ctx, x, y, 2.4, 1.6, ['#ffb03d', '#ff5a8a', '#7ef9ff'][k]); } X.rect(ctx, -14 + ((t * 5) % 4), -16 - ((t * 9) % 12), 1, 1, '#ffffff'); PT.glow(ctx, 0, -20, 22, '#4ab0ff', 0.2); });
-  inItem('bookshelf', 'BOOKSHELF', 1200, 30, 50, 'NINE BOOKS ABOUT ROCKS. ONE ABOUT SHARKS. HE WROTE IT.', (B, cx, gy) => { B.block(cx - 26, gy - 100, 52, 100, WOOD, 4, 4); for (let j = 0; j < 3; j++) { B.rect(cx - 22, gy - 92 + j * 30, 44, 26, 0x2a1a10); for (let k = 0; k < 6; k++) B.rect(cx - 20 + k * 7, gy - 88 + j * 30 + (k % 2) * 2, 5, 22 - (k % 2) * 2, [0xc83a3a, 0x3a6ac8, 0xd8a83a, 0x3aa86a][(k + j) % 4]); } });
-  inItem('rug', 'FLUFFY RUG', 500, 50, 4, 'FLUFFY. THE RAT HAS ALREADY CLAIMED IT.', (B, cx, gy) => { B.ellipse(cx, gy - 3, 50, 5, 0xe87aa8); B.ellipse(cx, gy - 3, 40, 3, 0xff9ac8); for (let k = 0; k < 12; k++) B.rect(cx - 48 + k * 8, gy - 1, 2, 3, 0xffc0d8); });
-  inItem('teddy', 'GIANT TEDDY', 1400, 26, 36, 'BIGGER THAN YOU. HUGS BACK IF YOU ASK NICELY.', (B, cx, gy) => { B.ball(cx, gy - 24, 22, 22, [0xc8905a, 0xe8b07a, 0x8a5a34]); B.ball(cx, gy - 58, 16, 15, [0xc8905a, 0xe8b07a, 0x8a5a34]); for (const s of [-1, 1]) { B.disc(cx + s * 12, gy - 70, 6, 0xc8905a); B.disc(cx + s * 12, gy - 70, 3, 0xe8a0a0); B.disc(cx + s * 6, gy - 60, 2, 0x1a1024); } B.ellipse(cx, gy - 52, 6, 4, 0xe8c8a8); B.disc(cx, gy - 54, 2, 0x3a1a1a); B.rect(cx - 10, gy - 44, 20, 4, 0xd83a4a); });
-  inItem('toybot', 'TOY ROBOT', 1800, 16, 24, 'WINDS UP. WALKS INTO THE WALL. WINDS UP.', (B, cx, gy) => { panel(B, cx - 12, gy - 30, 24, 22, METAL); B.rect(cx - 10, gy - 8, 6, 8, METAL[2]); B.rect(cx + 4, gy - 8, 6, 8, METAL[2]); panel(B, cx - 9, gy - 46, 18, 14, METAL); B.rect(cx - 6, gy - 42, 4, 3, 0xff4a4a); B.rect(cx + 2, gy - 42, 4, 3, 0xff4a4a); B.line(cx, gy - 46, cx, gy - 52, METAL[2], 1); },
-    (ctx, t) => { X.blob(ctx, 0, -26, 1.5, 1.5, Math.sin(t * 6) > 0 ? '#ffd34d' : '#5a4a1a'); X.rect(ctx, 6, -16 + Math.sin(t * 8) * 2, 3, 1, '#c8ccd8'); });
-  inItem('rubberduck', 'RUBBER DUCK (HUGE)', 900, 22, 24, 'IT SQUEAKS. NOBODY KNOWS HOW. IT HAS NO SQUEAKER.', (B, cx, gy) => { B.ball(cx, gy - 14, 20, 13, [0xffd34d, 0xfff0a0, 0xc89a1e], true); B.ball(cx + 10, gy - 34, 11, 11, [0xffd34d, 0xfff0a0, 0xc89a1e], true); B.poly([[cx + 18, gy - 34], [cx + 30, gy - 32], [cx + 18, gy - 28]], 0xff8a2a); B.disc(cx + 12, gy - 38, 2, 0x1a1024); });
-  inItem('disco', 'DISCO BALL', 2200, 20, 40, 'EVERY NIGHT IS A PARTY IF YOU ARE BRAVE.', (B, cx, gy) => { B.rect(cx - 1, gy - 80, 2, 50, 0x8a8a9a); B.rect(cx - 16, gy - 4, 32, 4, 0x3a3a4a); B.rect(cx - 1, gy - 30, 2, 26, 0x3a3a4a); },
-    (ctx, t) => { const y = -40; X.blob(ctx, 0, y, 7, 7, '#c8ccd8'); for (let k = 0; k < 6; k++) { const a = t * 2 + k; X.rect(ctx, Math.cos(a) * 5 - 1, y + Math.sin(a * 1.3) * 5 - 1, 2, 2, '#ffffff'); }
-      for (let k = 0; k < 5; k++) { const a = t * 1.3 + k * 1.3; ctx.globalAlpha = 0.25; X.blob(ctx, Math.cos(a) * 60, -10 + Math.sin(a * 0.7) * 20, 3, 3, ['#ff5a8a', '#7ef9ff', '#ffd34d', '#8aff9a', '#b08aff'][k]); } ctx.globalAlpha = 1; });
-  inItem('gamingpc', 'GAMING PC', 6000, 30, 40, 'RGB. ALL OF IT RGB. IT RUNS THE CALCULATOR AT 900 FPS.', (B, cx, gy) => { B.block(cx - 28, gy - 12, 56, 12, WOOD, 3); B.round(cx - 24, gy - 60, 30, 46, 3, 0x1a1a24); B.rect(cx - 20, gy - 56, 22, 38, 0x2a2a3a); B.round(cx + 8, gy - 48, 20, 16, 2, 0x1a1a24); B.rect(cx + 10, gy - 46, 16, 11, 0x0a2a4a); },
-    (ctx, t) => { const c = ['#ff5a8a', '#7ef9ff', '#ffd34d', '#8aff9a', '#b08aff'][Math.floor(t * 3) % 5]; X.rect(ctx, -9, -27, 2, 18, c); X.rect(ctx, -3, -27, 2, 18, c); X.rect(ctx, 6, -23, 7, 5, '#3a8ad8'); PT.glow(ctx, -5, -18, 16, c, 0.35); });
-  inItem('hammock', 'HAMMOCK', 1100, 44, 30, 'STRUNG BETWEEN TWO ROCKS. SWINGS WHEN YOU BREATHE.', (B, cx, gy) => { for (const s of [-1, 1]) B.line(cx + s * 40, gy, cx + s * 40, gy - 50, WOOD[0], 4); },
-    (ctx, t) => { const sw = Math.sin(t * 1.2) * 2; X.curve(ctx, -20, -24, sw, -8, 20, -24, '#e8583a', 3, 12); X.line(ctx, -20, -24, -20, -25, '#8a5a34', 1); });
-  inItem('piano', 'TOY PIANO', 1600, 30, 26, 'EIGHT KEYS. PLAYS ONE SONG. BADLY.', (B, cx, gy) => { B.block(cx - 28, gy - 30, 56, 30, [0xd83a4a, 0xff6a7a, 0x8a1a2a], 5, 4); B.rect(cx - 24, gy - 26, 48, 10, 0xffffff); for (let k = 0; k < 8; k++) B.rect(cx - 22 + k * 6, gy - 26, 1, 10, 0x3a3a4a); for (let k = 0; k < 5; k++) B.rect(cx - 20 + k * 9, gy - 26, 3, 6, 0x1a1a24); } );
-  inItem('plantpot', 'HOUSE PLANT', 400, 16, 30, 'IT IS ALIVE. THAT MAKES TWO OF YOU.', (B, cx, gy) => { B.poly([[cx - 10, gy], [cx + 10, gy], [cx + 12, gy - 18], [cx - 12, gy - 18]], 0xc86a3a); for (let k = 0; k < 7; k++) { const a = -Math.PI / 2 + (k - 3) * 0.4; B.ellipse(cx + Math.cos(a) * 12, gy - 30 + Math.sin(a) * 14, 5, 8, k % 2 ? LEAF[0] : LEAF[1]); } } ,
-    (ctx, t) => {});
-  inItem('minifridge', 'MINI FRIDGE', 1300, 18, 26, 'COLD. FULL OF CHEESE. BRENDA KNOWS.', (B, cx, gy) => { B.round(cx - 16, gy - 50, 32, 50, 4, 0xe8e8f0); B.rect(cx - 16, gy - 30, 32, 2, 0xa8a8b8); B.rect(cx + 8, gy - 44, 3, 10, 0x8a8a9a); B.rect(cx - 10, gy - 44, 8, 6, 0xffd34d); } );
-  inItem('trophies', 'TROPHY SHELF', 3000, 30, 30, 'EVERY PLANET YOU BROKE, IN LITTLE GOLD CUPS.', (B, cx, gy) => { B.block(cx - 28, gy - 12, 56, 12, WOOD, 3); for (let k = 0; k < 3; k++) { const x = cx - 18 + k * 18; B.rect(x - 4, gy - 16, 8, 4, 0xc8901e); B.rect(x - 1, gy - 26, 2, 10, 0xffd34d); B.ellipse(x, gy - 30, 7, 6, 0xffd34d); B.ellipse(x - 2, gy - 32, 2, 2, 0xfff0a0); } },
-    (ctx, t) => { if (Math.sin(t * 2) > 0.8) X.rect(ctx, -9 + ((t * 7) % 18), -16, 1, 1, '#ffffff'); });
-  inItem('neonin', 'NEON SIGN: HOME', 1500, 30, 20, 'IT SAYS HOME. IN CASE YOU FORGET.', (B, cx, gy) => { B.rect(cx - 2, gy - 20, 4, 20, 0x3a3a4a); B.round(cx - 30, gy - 44, 60, 24, 4, 0x1a1024); },
-    (ctx, t) => { const on = Math.sin(t * 13) > -0.8; F.draw(ctx, 'HOME', 0, -20, on ? '#ff7ac4' : '#4a1a3a', { center: true, shadow: false }); if (on) PT.glow(ctx, 0, -16, 24, '#ff7ac4', 0.35); });
-  inItem('fireplace', 'FIREPLACE', 4200, 40, 40, 'IN A CAVE. ON A MOON. WITH NO AIR. IT WORKS. DO NOT ASK.', (B, cx, gy) => { B.block(cx - 38, gy - 80, 76, 80, [0x8a5a4a, 0xb07a6a, 0x5a3a2a], 8, 4); B.rect(cx - 24, gy - 44, 48, 44, 0x1a0a0a); B.rect(cx - 42, gy - 82, 84, 6, 0x6a4a3a); } ,
-    (ctx, t) => { for (let k = 0; k < 4; k++) { const h = 6 + Math.abs(Math.sin(t * 7 + k)) * 6; X.poly(ctx, [[-8 + k * 5, -1], [-4 + k * 5, -1], [-6 + k * 5, -1 - h]], k % 2 ? '#ffb040' : '#ff6a2a'); } PT.glow(ctx, 0, -8, 30, '#ff8a3a', 0.4); });
+  /* Furniture, painted properly: wood with grain, lacquer with a gloss on
+     it, glass with a glare, fabric with a nap, chrome with a hard highlight. */
+  function grain(B, x, y, w, h, C) {
+    B.rect(x, y, w, h, C[0]);
+    for (let j = 0; j < h; j += 3) for (let i = 0; i < w; i++) {
+      const n = Math.sin((i + x) * 0.08 + Math.sin((j + y) * 0.21) * 2 + j * 0.9);
+      if (n > 0.82) B.set(x + i, y + j, C[2], 0.5); else if (n < -0.9) B.set(x + i, y + j, C[1], 0.5);
+    }
+    B.rect(x, y, w, 2, C[1]); B.rect(x, y + h - 2, w, 2, C[2]); B.rect(x + w - 2, y, 2, h, C[2], 0.6);
+  }
+  function glass(B, x, y, w, h, top, bot) {
+    for (let j = 0; j < h; j++) B.rect(x, y + j, w, 1, PT.mix(top, bot, j / h));
+    B.poly([[x + 3, y + 2], [x + w * 0.45, y + 2], [x + w * 0.2, y + h - 3], [x + 3, y + h - 3]], 0xffffff, 0.08);
+    B.line(x + 4, y + 4, x + 4, y + h * 0.4, 0xffffff, 1, 0.5);
+  }
+  function fuzz(B, x, y, w, h, C) {
+    for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) {
+      if (B.alpha(x + i, y + j) < 128) continue;
+      const n = U.hash2(x + i, y + j);
+      if (n > 0.86) B.set(x + i, y + j, C[1], 0.7); else if (n < 0.1) B.set(x + i, y + j, C[2], 0.6);
+    }
+  }
+  const LACQ = [0xd8303e, 0xff7a86, 0x7a1422];
+  const CHROME = [0xa8b0c4, 0xf0f4ff, 0x5a6278];
+  inItem('tv', 'OLD TELLY', 900, 30, 34, 'SHOWS THE RACING. ONLY THE RACING.', (B, cx, gy) => {
+    grain(B, cx - 26, gy - 18, 52, 14, WOOD); for (const s of [-1, 1]) B.rect(cx + s * 20 - 2, gy - 4, 4, 4, WOOD[2]);
+    B.round(cx - 25, gy - 66, 50, 48, 7, 0x3a2418); B.round(cx - 24, gy - 65, 48, 46, 6, WOOD[1]);
+    grain(B, cx - 22, gy - 63, 44, 42, [0x8a5a34, 0xb07a4a, 0x5a3a20]);
+    B.round(cx - 20, gy - 60, 30, 34, 6, 0x14161e); glass(B, cx - 18, gy - 58, 26, 30, 0x2a4a5a, 0x10202a);
+    B.round(cx + 12, gy - 60, 9, 34, 2, 0x5a3a20);
+    for (const y of [-54, -44]) { B.disc(cx + 16.5, gy + y, 3.2, 0x1a1024); B.disc(cx + 16.5, gy + y, 2.6, CHROME[0]); B.rect(cx + 16, gy + y - 2.6, 1, 2.6, 0x1a1024); }
+    for (let k = 0; k < 4; k++) B.rect(cx + 13, gy - 36 + k * 2, 7, 1, 0x2a1a10);
+    B.line(cx - 4, gy - 66, cx - 16, gy - 84, CHROME[2], 1); B.line(cx + 2, gy - 66, cx + 12, gy - 86, CHROME[2], 1);
+    B.disc(cx - 16, gy - 84, 1.6, CHROME[1]); B.disc(cx + 12, gy - 86, 1.6, CHROME[1]); B.ellipse(cx - 1, gy - 66, 5, 2, CHROME[0]);
+  }, (ctx, t) => { X.rect(ctx, -8, -29, 13, 14, ['#3a8ad8', '#7ad84a', '#d8a83a'][Math.floor(t * 1.5) % 3]); X.rect(ctx, -8 + ((t * 20) % 13), -22, 2, 2, '#ffffff'); X.rect(ctx, -8, -29 + ((t * 30) % 14), 13, 1, '#ffffff'); PT.glow(ctx, -1, -22, 20, '#6ab0ff', 0.25); });
+  inItem('arcade', 'ARCADE CABINET', 3500, 24, 50, 'ONE GAME. IT IS YOURS. YOU ARE STILL BAD AT IT.', (B, cx, gy) => {
+    const P = [0x5a2ab8, 0x8a5ae8, 0x2a1068];
+    B.poly([[cx - 22, gy], [cx + 22, gy], [cx + 22, gy - 64], [cx + 16, gy - 70], [cx + 18, gy - 102], [cx - 22, gy - 102]], P[2]);
+    B.poly([[cx - 20, gy], [cx + 20, gy], [cx + 20, gy - 64], [cx + 14, gy - 70], [cx + 16, gy - 100], [cx - 20, gy - 100]], P[0]);
+    B.rect(cx - 20, gy - 100, 4, 100, P[1]);
+    for (const [x, y] of [[-12, -20], [10, -36], [-6, -10]]) { B.rect(cx + x - 1, gy + y - 3, 2, 6, 0xffd34d); B.rect(cx + x - 3, gy + y - 1, 6, 2, 0xffd34d); }
+    B.round(cx - 18, gy - 102, 36, 12, 2, 0x1a0a2a); B.rect(cx - 16, gy - 100, 32, 8, 0xff5aa8); for (let k = 0; k < 4; k++) B.rect(cx - 13 + k * 7, gy - 99, 4, 6, [0xffd34d, 0x7ef9ff, 0xffffff, 0x8affa0][k]);
+    B.round(cx - 17, gy - 90, 32, 28, 3, 0x0a0a14); glass(B, cx - 15, gy - 88, 28, 24, 0x1a2a4a, 0x05080e);
+    B.poly([[cx - 22, gy - 62], [cx + 22, gy - 62], [cx + 24, gy - 52], [cx - 24, gy - 52]], 0x2a1068); B.poly([[cx - 21, gy - 61], [cx + 21, gy - 61], [cx + 22, gy - 55], [cx - 22, gy - 55]], 0x3a1a8a);
+    B.rect(cx - 12, gy - 64, 2, 6, CHROME[2]); B.ball(cx - 11, gy - 65, 3, 3, [0xff3a4a, 0xffa0a8, 0x8a1020], true);
+    for (const [x, c] of [[0, 0xffd34d], [6, 0x3ad8ff], [12, 0x8affa0]]) { B.ellipse(cx + x, gy - 57, 2.4, 1.6, PT.mul(c, 0.6)); B.ellipse(cx + x, gy - 58, 2.2, 1.4, c); }
+    B.round(cx - 10, gy - 40, 20, 22, 2, 0x1a0a2a); for (const x of [-5, 3]) { B.rect(cx + x, gy - 36, 3, 6, 0xff3a4a); B.rect(cx + x + 1, gy - 35, 1, 4, 0xffd0d0); }
+  }, (ctx, t) => { const x = Math.sin(t * 3) * 6; X.rect(ctx, -6 + x, -38, 3, 3, '#7dff9a'); X.rect(ctx, -2 - x, -42, 2, 2, '#ff5a8a'); X.rect(ctx, -7, -44 + ((t * 20) % 12), 14, 1, '#1a3a6a'); PT.glow(ctx, -1, -39, 16, '#a86aff', 0.3); PT.glow(ctx, 0, -48, 14, '#ff5aa8', 0.25); });
+  inItem('beanbag', 'BEAN BAG', 600, 26, 18, 'YOU SIT IN IT AND IT EATS YOU. LOVELY.', (B, cx, gy) => {
+    B.ellipse(cx, gy - 2, 26, 4, 0x2a1020, 0.5);
+    B.ball(cx, gy - 15, 27, 16, [0xe8583a, 0xff9a7a, 0x9a2a1a], true);
+    B.ball(cx + 4, gy - 25, 16, 8, [0xd8482a, 0xff8a6a, 0x9a2a1a]);
+    B.line(cx - 22, gy - 12, cx - 4, gy - 28, 0x9a2a1a, 1, 0.8); B.line(cx + 22, gy - 10, cx + 8, gy - 30, 0x9a2a1a, 1, 0.8);
+    fuzz(B, cx - 27, gy - 32, 54, 30, [0, 0xffb09a, 0xa83a2a]);
+  });
+  inItem('lavalamp', 'LAVA LAMP', 700, 12, 30, 'THE BLOBS GO UP. THE BLOBS COME DOWN.', (B, cx, gy) => {
+    B.poly([[cx - 9, gy], [cx + 9, gy], [cx + 5, gy - 12], [cx - 5, gy - 12]], 0xa87a2a); B.poly([[cx - 8, gy], [cx - 2, gy], [cx - 1, gy - 12], [cx - 4, gy - 12]], 0xffe07a, 0.6); B.rect(cx - 9, gy - 3, 18, 2, 0x6a4a1a);
+    B.poly([[cx - 5, gy - 12], [cx + 5, gy - 12], [cx + 9, gy - 44], [cx - 9, gy - 44]], 0x2a0e4a);
+    for (let j = 0; j < 32; j++) B.rect(cx - 5 - j * 0.12, gy - 12 - j, 10 + j * 0.25, 1, PT.mix(0x6a2a8a, 0x2a0e4a, j / 32), 0.7);
+    B.line(cx - 4, gy - 16, cx - 7, gy - 40, 0xffffff, 1, 0.35);
+    B.poly([[cx - 9, gy - 44], [cx + 9, gy - 44], [cx + 4, gy - 56], [cx - 4, gy - 56]], 0xa87a2a); B.poly([[cx - 8, gy - 44], [cx - 3, gy - 44], [cx - 2, gy - 56], [cx - 4, gy - 56]], 0xffe07a, 0.6);
+  }, (ctx, t) => { for (let k = 0; k < 3; k++) { const y = -8 - ((t * (4 + k) + k * 7) % 14); X.blob(ctx, Math.sin(t + k) * 1.5, y, 2.2, 2.8, '#ff6a3a'); X.blob(ctx, Math.sin(t + k) * 1.5 - 0.6, y - 0.8, 1, 1.2, '#ffb07a'); } PT.glow(ctx, 0, -14, 18, '#ff6a3a', 0.3); });
+  inItem('aquarium', 'FISH TANK', 2600, 40, 34, 'THREE FISH. YOU HAVE NAMED ALL OF THEM DAVE.', (B, cx, gy) => {
+    grain(B, cx - 38, gy - 16, 76, 16, WOOD); B.rect(cx - 1, gy - 14, 2, 12, WOOD[2]); B.rect(cx - 8, gy - 9, 3, 2, CHROME[1]); B.rect(cx + 5, gy - 9, 3, 2, CHROME[1]);
+    B.rect(cx - 36, gy - 66, 72, 50, 0x1a1a24);
+    glass(B, cx - 34, gy - 62, 68, 46, 0x3a9ad8, 0x0a3a6a);
+    for (let k = 0; k < 34; k++) B.disc(cx - 32 + U.hash2(k, 1) * 64, gy - 20 + U.hash2(k, 2) * 3, 1.4, [0xffd34d, 0xff8ab0, 0x7ef9ff, 0xffffff, 0xc86a3a][k % 5]);
+    for (let k = 0; k < 4; k++) { let x = cx - 26 + k * 16; for (let j = 0; j < 24 + k * 4; j++) { x += Math.sin(j * 0.3 + k) * 0.6; B.rect(x, gy - 20 - j, 2, 1, k % 2 ? 0x3aa86a : 0x5ad88a); } }
+    B.block(cx + 12, gy - 34, 14, 16, [0x9a92b8, 0xc8c0e0, 0x5a5270], 2); for (let k = 0; k < 3; k++) B.rect(cx + 12 + k * 5, gy - 37, 3, 4, 0x9a92b8); B.round(cx + 16, gy - 28, 5, 8, 2, 0x1a1024);
+    B.rect(cx - 38, gy - 70, 76, 5, 0x2a2a34); B.rect(cx - 38, gy - 70, 76, 1, 0x6a6a7a); B.rect(cx - 30, gy - 66, 60, 2, 0xfff0c0, 0.6);
+  }, (ctx, t) => { for (let k = 0; k < 3; k++) { const q = ((t * (0.12 + k * 0.03) + k * 0.33) % 1), dir = Math.sin(t * 0.3 + k) > 0 ? 1 : -1; const x = -14 + ((t * (6 + k * 2) + k * 9) % 28), y = -22 + k * 5; const c = ['#ffb03d', '#ff5a8a', '#7ef9ff'][k]; X.blob(ctx, x, y, 2.6, 1.6, c); X.poly(ctx, [[x - 2.5, y], [x - 5, y - 2], [x - 5, y + 2]], c); X.rect(ctx, x + 1, y - 1, 1, 1, '#1a1024'); }
+    for (let k = 0; k < 4; k++) X.rect(ctx, -14, -16 - ((t * 9 + k * 3) % 12), 1, 1, '#ffffff'); PT.glow(ctx, 0, -20, 24, '#4ab0ff', 0.2); });
+  inItem('bookshelf', 'BOOKSHELF', 1200, 30, 50, 'NINE BOOKS ABOUT ROCKS. ONE ABOUT SHARKS. HE WROTE IT.', (B, cx, gy) => {
+    grain(B, cx - 28, gy - 102, 56, 102, WOOD);
+    for (let j = 0; j < 3; j++) {
+      const y0 = gy - 94 + j * 30;
+      B.rect(cx - 23, y0, 46, 25, 0x2a1a10); B.rect(cx - 23, y0, 46, 3, 0x1a0e08);
+      let x = cx - 22;
+      for (let k = 0; x < cx + 16; k++) {
+        const w = 4 + Math.floor(U.hash2(k, j) * 4), h = 16 + Math.floor(U.hash2(k, j + 5) * 8), c = [0xc83a3a, 0x3a6ac8, 0xd8a83a, 0x3aa86a, 0x8a4ac8, 0xe8e0c8][(k + j * 2) % 6];
+        if (k === 3 && j === 1) { B.poly([[x, y0 + 25], [x + 5, y0 + 25], [x + 14, y0 + 9], [x + 9, y0 + 7]], c); x += 12; continue; }
+        B.rect(x, y0 + 25 - h, w, h, c); B.rect(x, y0 + 25 - h, 1, h, PT.mix(c, 0xffffff, 0.4)); B.rect(x + w - 1, y0 + 25 - h, 1, h, PT.mul(c, 0.6));
+        B.rect(x, y0 + 28 - h, w, 1, 0xffd34d, 0.8); B.rect(x, y0 + 20, w, 1, 0xffd34d, 0.6);
+        x += w + 1;
+      }
+    }
+    B.poly([[cx + 10, gy - 102], [cx + 22, gy - 102], [cx + 20, gy - 110], [cx + 12, gy - 110]], 0xc86a3a); for (let k = 0; k < 5; k++) B.ellipse(cx + 16 + (k - 2) * 4, gy - 114 - (k % 2) * 3, 3, 5, k % 2 ? LEAF[0] : LEAF[1]);
+  });
+  inItem('rug', 'FLUFFY RUG', 500, 50, 4, 'FLUFFY. THE RAT HAS ALREADY CLAIMED IT.', (B, cx, gy) => {
+    B.ellipse(cx, gy - 3, 50, 6, 0xb84a7a); B.ellipse(cx, gy - 3.5, 47, 5, 0xe87aa8); B.ellipse(cx, gy - 3.5, 36, 3.6, 0xffd8e8); B.ellipse(cx, gy - 3.5, 26, 2.6, 0xe87aa8); B.ellipse(cx, gy - 3.5, 14, 1.6, 0xffd34d);
+    fuzz(B, cx - 50, gy - 9, 100, 10, [0, 0xffffff, 0xb84a7a]);
+    for (let k = 0; k < 14; k++) { B.rect(cx - 52 + k * 8, gy - 1, 2, 3, 0xffc0d8); B.rect(cx - 52 + k * 8, gy + 1, 2, 1, 0xe87aa8); }
+  });
+  inItem('teddy', 'GIANT TEDDY', 1400, 26, 36, 'BIGGER THAN YOU. HUGS BACK IF YOU ASK NICELY.', (B, cx, gy) => {
+    const T = [0xc8905a, 0xecb880, 0x8a5a34];
+    for (const s of [-1, 1]) { B.ball(cx + s * 14, gy - 8, 9, 8, T); B.ellipse(cx + s * 15, gy - 7, 5, 5, 0xf0c8a0); }
+    B.ball(cx, gy - 26, 22, 20, T, true);
+    B.ellipse(cx, gy - 24, 12, 11, 0xf0d0a8); B.line(cx, gy - 34, cx, gy - 14, 0xc8905a, 1, 0.6);
+    for (const s of [-1, 1]) B.ball(cx + s * 21, gy - 30, 7, 10, T);
+    B.ball(cx, gy - 58, 17, 15, T, true);
+    for (const s of [-1, 1]) { B.disc(cx + s * 13, gy - 71, 7, T[2]); B.disc(cx + s * 13, gy - 71, 6, T[0]); B.disc(cx + s * 13, gy - 71, 3.2, 0xe8a0a0); }
+    B.ellipse(cx, gy - 52, 8, 6, 0xf0d0a8);
+    for (const s of [-1, 1]) { B.disc(cx + s * 6, gy - 61, 2.6, 0x1a1024); B.disc(cx + s * 6 - 0.8, gy - 62, 0.8, 0xffffff); B.ellipse(cx + s * 11, gy - 55, 2.6, 1.4, 0xff9ab8, 0.7); }
+    B.ellipse(cx, gy - 55, 2.6, 2, 0x3a1a1a); B.line(cx, gy - 53, cx, gy - 50, 0x3a1a1a, 1); B.line(cx - 3, gy - 49, cx + 3, gy - 49, 0x3a1a1a, 1);
+    B.poly([[cx - 10, gy - 46], [cx - 2, gy - 42], [cx - 10, gy - 38]], 0xd83a4a); B.poly([[cx + 10, gy - 46], [cx + 2, gy - 42], [cx + 10, gy - 38]], 0xd83a4a); B.disc(cx, gy - 42, 2.4, 0xff5a6a);
+    fuzz(B, cx - 30, gy - 80, 60, 80, [0, 0xf8d0a0, 0x8a5a34]);
+  });
+  inItem('toybot', 'TOY ROBOT', 1800, 16, 24, 'WINDS UP. WALKS INTO THE WALL. WINDS UP.', (B, cx, gy) => {
+    for (const s of [-1, 1]) { B.round(cx + s * 6 - 4, gy - 10, 8, 10, 2, CHROME[2]); B.rect(cx + s * 6 - 5, gy - 3, 10, 3, 0xd83a4a); }
+    B.round(cx - 12, gy - 32, 24, 22, 4, CHROME[2]); B.round(cx - 11, gy - 31, 22, 20, 3, CHROME[0]); B.rect(cx - 11, gy - 31, 6, 20, CHROME[1], 0.5);
+    B.disc(cx, gy - 22, 5, 0x1a1024); B.disc(cx, gy - 22, 4, 0xffd34d); B.line(cx, gy - 22, cx + 2, gy - 25, 0x1a1024, 1);
+    for (const s of [-1, 1]) { B.line(cx + s * 12, gy - 28, cx + s * 17, gy - 18, CHROME[2], 3); B.poly([[cx + s * 15, gy - 18], [cx + s * 20, gy - 18], [cx + s * 18, gy - 13]], 0xd83a4a); }
+    B.rect(cx + 12, gy - 24, 5, 2, 0xc8a040); B.rect(cx + 16, gy - 27, 2, 8, 0xc8a040);
+    B.round(cx - 9, gy - 48, 18, 16, 3, CHROME[2]); B.round(cx - 8, gy - 47, 16, 14, 2, CHROME[0]);
+    B.round(cx - 6, gy - 45, 12, 6, 2, 0x1a1024); for (const x of [-3, 3]) B.disc(cx + x, gy - 42, 1.6, 0xff4a4a);
+    for (let k = 0; k < 4; k++) B.rect(cx - 5 + k * 3, gy - 37, 2, 2, 0x1a1024);
+    B.line(cx, gy - 48, cx, gy - 54, CHROME[2], 1); B.ball(cx, gy - 56, 2.6, 2.6, [0xff3a4a, 0xffa0a8, 0x8a1020], true);
+  }, (ctx, t) => { X.blob(ctx, 0, -28, 1.2, 1.2, Math.sin(t * 6) > 0 ? '#ff4a4a' : '#5a1a1a'); X.rect(ctx, 7, -14 + Math.sin(t * 8) * 2, 2, 1, '#e8c86a'); });
+  inItem('rubberduck', 'RUBBER DUCK (HUGE)', 900, 22, 24, 'IT SQUEAKS. NOBODY KNOWS HOW. IT HAS NO SQUEAKER.', (B, cx, gy) => {
+    B.ellipse(cx, gy - 2, 22, 3, 0x3a2a10, 0.4);
+    B.ball(cx - 2, gy - 14, 21, 13, [0xffd34d, 0xfff4b0, 0xc8901e], true);
+    B.poly([[cx - 22, gy - 16], [cx - 30, gy - 26], [cx - 18, gy - 22]], 0xffd34d);
+    B.ball(cx - 4, gy - 16, 10, 6, [0xf0c030, 0xfff0a0, 0xc8901e]);
+    B.ball(cx + 10, gy - 34, 12, 11, [0xffd34d, 0xfff4b0, 0xc8901e], true);
+    B.poly([[cx + 17, gy - 34], [cx + 31, gy - 32], [cx + 27, gy - 29], [cx + 17, gy - 29]], 0xff8a2a); B.line(cx + 18, gy - 31, cx + 29, gy - 31, 0xc85a1a, 1);
+    B.disc(cx + 13, gy - 38, 2.6, 0x1a1024); B.disc(cx + 12, gy - 39, 1, 0xffffff); B.ellipse(cx + 8, gy - 32, 3, 1.8, 0xff9a6a, 0.6);
+  });
+  inItem('disco', 'DISCO BALL', 2200, 20, 40, 'EVERY NIGHT IS A PARTY IF YOU ARE BRAVE.', (B, cx, gy) => {
+    B.block(cx - 16, gy - 12, 32, 12, [0x2a2a38, 0x4a4a5a, 0x14141e], 2); B.disc(cx - 7, gy - 6, 4, 0x0a0a10); B.disc(cx + 7, gy - 6, 4, 0x0a0a10); B.disc(cx - 7, gy - 6, 1.5, CHROME[0]); B.disc(cx + 7, gy - 6, 1.5, CHROME[0]);
+    B.rect(cx - 1, gy - 66, 3, 54, CHROME[2]); B.rect(cx - 1, gy - 66, 1, 54, CHROME[1]);
+    const by = gy - 80, r = 14;
+    for (let y = -r; y <= r; y++) for (let x = -r; x <= r; x++) {
+      if (x * x + y * y > r * r) continue;
+      const tile = ((Math.floor((x + 20) / 3) + Math.floor((y + 20) / 3)) % 3);
+      const l = 0.5 - (x + y) / (r * 3);
+      const c = tile === 0 ? PT.mix(0x5a6278, 0xffffff, U.clamp(l, 0, 1)) : tile === 1 ? PT.mix(0x8a92a8, 0xe0e8ff, U.clamp(l - 0.1, 0, 1)) : 0x3a4258;
+      B.set(cx + x, by + y, (x + 21) % 3 === 0 || (y + 21) % 3 === 0 ? 0x2a2e3a : c);
+    }
+    B.disc(cx - 5, by - 5, 3, 0xffffff, 0.8);
+  }, (ctx, t) => { for (let k = 0; k < 6; k++) { const a = t * 2 + k; if (Math.sin(a * 3) > 0.6) { const x = Math.cos(a) * 6, y = -40 + Math.sin(a * 1.3) * 6; X.rect(ctx, x - 1, y, 3, 1, '#ffffff'); X.rect(ctx, x, y - 1, 1, 3, '#ffffff'); } }
+    for (let k = 0; k < 6; k++) { const a = t * 1.3 + k * 1.1; ctx.globalAlpha = 0.28; X.blob(ctx, Math.cos(a) * 60, -10 + Math.sin(a * 0.7) * 24, 3, 2, ['#ff5a8a', '#7ef9ff', '#ffd34d', '#8aff9a', '#b08aff', '#ffffff'][k]); } ctx.globalAlpha = 1; PT.glow(ctx, 0, -40, 20, '#ffffff', 0.12); });
+  inItem('gamingpc', 'GAMING PC', 6000, 30, 40, 'RGB. ALL OF IT RGB. IT RUNS THE CALCULATOR AT 900 FPS.', (B, cx, gy) => {
+    grain(B, cx - 30, gy - 14, 60, 6, [0x2a2a34, 0x4a4a5a, 0x14141e]); for (const s of [-1, 1]) B.rect(cx + s * 26 - 2, gy - 8, 4, 8, 0x14141e);
+    B.round(cx - 26, gy - 64, 20, 50, 2, 0x0a0a10); B.rect(cx - 24, gy - 62, 16, 46, 0x1a1a24); glass(B, cx - 23, gy - 61, 14, 44, 0x2a2a4a, 0x10101a);
+    for (const y of [-54, -40, -26]) { B.disc(cx - 16, gy + y, 5, 0x3a3a4a); B.disc(cx - 16, gy + y, 1.5, 0x6a6a7a); }
+    B.round(cx - 2, gy - 60, 32, 22, 2, 0x0a0a10); glass(B, cx, gy - 58, 28, 18, 0x1a3a6a, 0x0a1428);
+    B.rect(cx + 12, gy - 38, 4, 10, 0x2a2a34); B.rect(cx + 6, gy - 29, 16, 2, 0x2a2a34);
+    B.round(cx - 2, gy - 18, 26, 4, 1, 0x1a1a24);
+  }, (ctx, t) => { const c = ['#ff5a8a', '#7ef9ff', '#ffd34d', '#8aff9a', '#b08aff'][Math.floor(t * 3) % 5];
+    for (const y of [-27, -20, -13]) { X.rect(ctx, -10, y - 1, 5, 1, c); X.rect(ctx, -8, y - 3, 1, 5, c); }
+    X.rect(ctx, -12, -31, 1, 23, c); X.rect(ctx, 0, -9, 12, 1, c);
+    X.rect(ctx, 2, -27, 10, 4, '#3a8ad8'); X.rect(ctx, 2 + ((t * 8) % 8), -24, 3, 2, '#ffd34d');
+    PT.glow(ctx, -8, -20, 16, c, 0.35); });
+  inItem('hammock', 'HAMMOCK', 1100, 44, 30, 'STRUNG BETWEEN TWO ROCKS. SWINGS WHEN YOU BREATHE.', (B, cx, gy) => {
+    for (const s of [-1, 1]) { grain(B, cx + s * 40 - 3, gy - 54, 6, 54, WOOD); B.ball(cx + s * 40, gy - 56, 4, 3, WOOD); B.ellipse(cx + s * 40, gy, 7, 2, 0x2a1a10); }
+  }, (ctx, t) => { const sw = Math.sin(t * 1.2) * 2;
+    for (let k = 0; k < 6; k++) { const q0 = k / 6, q1 = (k + 1) / 6; const y0 = -25 + Math.sin(q0 * Math.PI) * (16 + sw), y1 = -25 + Math.sin(q1 * Math.PI) * (16 + sw);
+      X.poly(ctx, [[-20 + q0 * 40, y0], [-20 + q1 * 40, y1], [-20 + q1 * 40, y1 - 4], [-20 + q0 * 40, y0 - 4]], k % 2 ? '#ffd34d' : '#e8583a'); }
+    X.line(ctx, -20, -27, -18, -27, '#8a5a34'); X.line(ctx, 18, -27, 20, -27, '#8a5a34'); });
+  inItem('piano', 'TOY PIANO', 1600, 30, 26, 'EIGHT KEYS. PLAYS ONE SONG. BADLY.', (B, cx, gy) => {
+    for (const x of [-22, 20]) B.rect(cx + x, gy - 12, 3, 12, LACQ[2]);
+    B.poly([[cx - 28, gy - 12], [cx + 28, gy - 12], [cx + 28, gy - 34], [cx + 14, gy - 46], [cx - 28, gy - 34]], LACQ[2]);
+    B.poly([[cx - 27, gy - 13], [cx + 27, gy - 13], [cx + 27, gy - 33], [cx + 14, gy - 44], [cx - 27, gy - 33]], LACQ[0]);
+    B.poly([[cx - 26, gy - 34], [cx + 10, gy - 34], [cx + 6, gy - 60], [cx - 20, gy - 48]], 0x1a0a0e); B.poly([[cx - 25, gy - 35], [cx + 8, gy - 35], [cx + 5, gy - 57], [cx - 19, gy - 48]], LACQ[0]);
+    B.line(cx - 18, gy - 47, cx + 4, gy - 56, LACQ[1], 1, 0.9); B.line(cx + 2, gy - 36, cx + 2, gy - 56, 0x3a1a1a, 1);
+    B.rect(cx - 24, gy - 26, 48, 11, 0xfff8f0); for (let k = 0; k < 8; k++) B.rect(cx - 24 + k * 6, gy - 26, 1, 11, 0x8a8a9a);
+    for (const k of [0, 1, 3, 4, 5]) B.rect(cx - 21 + k * 6, gy - 26, 3, 6, 0x14141e);
+    B.line(cx - 26, gy - 30, cx + 20, gy - 30, LACQ[1], 1, 0.8);
+  });
+  inItem('plantpot', 'HOUSE PLANT', 400, 16, 30, 'IT IS ALIVE. THAT MAKES TWO OF YOU.', (B, cx, gy) => {
+    B.poly([[cx - 10, gy], [cx + 10, gy], [cx + 13, gy - 20], [cx - 13, gy - 20]], 0xc8643a); B.poly([[cx - 10, gy], [cx - 4, gy], [cx - 5, gy - 20], [cx - 13, gy - 20]], 0xe88a5a);
+    B.rect(cx - 14, gy - 23, 28, 5, 0xa84a2a); B.rect(cx - 14, gy - 23, 28, 1, 0xe88a5a); B.ellipse(cx, gy - 23, 12, 2, 0x3a2418);
+    const leaf = (x, y, a, s) => { const pts = []; for (let k = 0; k <= 10; k++) { const q = k / 10; pts.push([x + Math.cos(a) * q * s * 16 - Math.sin(a) * Math.sin(q * Math.PI) * s * 6, y + Math.sin(a) * q * s * 16 + Math.cos(a) * Math.sin(q * Math.PI) * s * 6]); } for (let k = 10; k >= 0; k--) { const q = k / 10; pts.push([x + Math.cos(a) * q * s * 16 + Math.sin(a) * Math.sin(q * Math.PI) * s * 6, y + Math.sin(a) * q * s * 16 - Math.cos(a) * Math.sin(q * Math.PI) * s * 6]); } B.poly(pts, LEAF[0]); B.line(x, y, x + Math.cos(a) * s * 15, y + Math.sin(a) * s * 15, LEAF[1], 1); };
+    for (let k = 0; k < 7; k++) { const a = -Math.PI / 2 + (k - 3) * 0.42; B.line(cx, gy - 24, cx + Math.cos(a) * 8, gy - 24 + Math.sin(a) * 12, LEAF[2], 1); leaf(cx + Math.cos(a) * 8, gy - 24 + Math.sin(a) * 12, a, 0.9 + (k % 2) * 0.25); }
+  }, (ctx, t) => {});
+  inItem('minifridge', 'MINI FRIDGE', 1300, 18, 26, 'COLD. FULL OF CHEESE. BRENDA KNOWS.', (B, cx, gy) => {
+    for (const s of [-1, 1]) B.rect(cx + s * 12 - 2, gy - 3, 4, 3, 0x2a2a34);
+    B.round(cx - 17, gy - 52, 34, 50, 5, 0x8a8aa0); B.round(cx - 16, gy - 51, 32, 48, 4, 0xe8eaf4); B.rect(cx - 16, gy - 51, 7, 48, 0xffffff, 0.6); B.rect(cx + 11, gy - 51, 5, 48, 0xb8bccc, 0.8);
+    B.rect(cx - 16, gy - 34, 32, 2, 0x9a9eb0);
+    B.round(cx + 8, gy - 48, 4, 11, 2, CHROME[2]); B.rect(cx + 9, gy - 47, 1, 9, CHROME[1]); B.round(cx + 8, gy - 30, 4, 16, 2, CHROME[2]); B.rect(cx + 9, gy - 29, 1, 14, CHROME[1]);
+    B.poly([[cx - 11, gy - 26], [cx - 1, gy - 26], [cx - 1, gy - 18]], 0xffd34d); B.rect(cx - 8, gy - 24, 2, 2, 0xc89a1e);
+    B.round(cx - 11, gy - 46, 9, 7, 2, 0xff5a8a); B.disc(cx - 7, gy - 42.5, 1.5, 0xffffff);
+  });
+  inItem('trophies', 'TROPHY SHELF', 3000, 30, 30, 'EVERY PLANET YOU BROKE, IN LITTLE GOLD CUPS.', (B, cx, gy) => {
+    grain(B, cx - 30, gy - 14, 60, 14, WOOD); B.rect(cx - 26, gy - 10, 52, 5, 0x5a3a20);
+    const G = [0xffc83a, 0xfff4b0, 0xb8801a];
+    [[-18, 1], [0, 1.3], [18, 1]].forEach(([dx, k]) => {
+      const x = cx + dx;
+      B.block(x - 6 * k, gy - 19 * k, 12 * k, 5 * k, [0x3a2a1a, 0x6a4a2a, 0x1a1008], 1); B.rect(x - 3 * k, gy - 18 * k, 6 * k, 2, G[0]);
+      B.rect(x - 1.2 * k, gy - 28 * k, 2.4 * k, 10 * k, G[2]); B.rect(x - 0.6 * k, gy - 28 * k, 1, 10 * k, G[0]);
+      B.ball(x, gy - 34 * k, 8 * k, 7 * k, G, true); B.ellipse(x, gy - 40 * k, 8 * k, 2 * k, G[2]);
+      for (const s of [-1, 1]) { for (let a = 0; a < Math.PI; a += 0.2) B.rect(x + s * (8 * k + Math.sin(a) * 3 * k), gy - 38 * k + a * 2.2 * k, 1.5, 1.5, G[0]); }
+    });
+  }, (ctx, t) => { const x = -12 + ((t * 7) % 24); if (Math.sin(t * 2) > 0.5) { X.rect(ctx, x - 1, -18, 3, 1, '#ffffff'); X.rect(ctx, x, -19, 1, 3, '#ffffff'); } });
+  inItem('neonin', 'NEON SIGN: HOME', 1500, 30, 20, 'IT SAYS HOME. IN CASE YOU FORGET.', (B, cx, gy) => {
+    B.rect(cx - 2, gy - 20, 4, 20, 0x2a2a34); B.rect(cx - 1, gy - 20, 1, 20, 0x5a5a6a); B.ellipse(cx, gy, 8, 2, 0x2a2a34);
+    B.round(cx - 32, gy - 46, 64, 28, 4, 0x0e0818); B.round(cx - 31, gy - 45, 62, 26, 3, 0x1a1030);
+    for (const x of [-28, 28]) for (const y of [-42, -22]) B.disc(cx + x, gy + y, 1.4, CHROME[0]);
+    B.line(cx + 26, gy - 20, cx + 32, gy - 6, 0x14141e, 1);
+  }, (ctx, t) => { const on = Math.sin(t * 13) > -0.8; if (on) PT.glow(ctx, 0, -16, 28, '#ff7ac4', 0.4); F.draw(ctx, 'HOME', 1, -19, on ? '#8a2a5a' : '#2a0a1a', { center: true, shadow: false }); F.draw(ctx, 'HOME', 0, -20, on ? '#ffd0ec' : '#4a1a3a', { center: true, shadow: false }); if (on) { X.rect(ctx, -13, -11, 26, 1, '#ff7ac4'); } });
+  inItem('fireplace', 'FIREPLACE', 4200, 40, 40, 'IN A CAVE. ON A MOON. WITH NO AIR. IT WORKS. DO NOT ASK.', (B, cx, gy) => {
+    B.rect(cx - 38, gy - 78, 76, 78, 0x4a3a3a);
+    for (let r = 0; r < 8; r++) for (let k = 0; k < 6; k++) {
+      const off = r % 2 ? 6 : 0, x = cx - 38 + k * 13 + off, y = gy - 78 + r * 10, w = 12;
+      if (x > cx + 36) continue;
+      const c = [0x9a8078, 0x8a7068, 0xa89088, 0x7a6058][(k + r * 3) % 4];
+      B.round(x, y, Math.min(w, cx + 38 - x), 9, 2, c); B.rect(x + 1, y + 1, Math.min(w, cx + 38 - x) - 2, 1, PT.mix(c, 0xffffff, 0.35));
+    }
+    B.round(cx - 25, gy - 46, 50, 46, 10, 0x2a1a18); B.round(cx - 22, gy - 43, 44, 43, 8, 0x0e0606);
+    for (const s of [-1, 1]) B.line(cx + s * 10, gy - 4, cx - s * 10, gy - 10, 0x5a3a20, 4);
+    B.rect(cx - 18, gy - 3, 36, 3, 0x2a2a34);
+    grain(B, cx - 44, gy - 86, 88, 9, WOOD);
+    B.round(cx + 18, gy - 102, 16, 16, 7, 0xc8a040); B.disc(cx + 26, gy - 94, 6, 0xfff8e0); B.line(cx + 26, gy - 94, cx + 26, gy - 98, 0x1a1024, 1); B.line(cx + 26, gy - 94, cx + 29, gy - 94, 0x1a1024, 1);
+    B.poly([[cx - 30, gy - 86], [cx - 22, gy - 86], [cx - 22, gy - 72], [cx - 18, gy - 68], [cx - 26, gy - 66], [cx - 30, gy - 72]], 0xd83a4a); B.rect(cx - 30, gy - 86, 8, 3, 0xffffff);
+  }, (ctx, t) => { for (let k = 0; k < 5; k++) { const h = 7 + Math.abs(Math.sin(t * 7 + k * 1.3)) * 8; X.poly(ctx, [[-10 + k * 5, -2], [-5 + k * 5, -2], [-7.5 + k * 5 + Math.sin(t * 5 + k) * 1.5, -2 - h]], k % 2 ? '#ffb040' : '#ff6a2a'); X.poly(ctx, [[-9 + k * 5, -2], [-6 + k * 5, -2], [-7.5 + k * 5, -2 - h * 0.5]], '#fff0a0'); } PT.glow(ctx, 0, -8, 32, '#ff8a3a', 0.45); });
 
   // =========================================================== FUN
   add({ id: 'coaster', name: 'ROLLER COASTER', cat: 'FUN', price: 220000, w: 190, h: 110, ride: 'coaster', fun: 5,
@@ -18984,6 +19211,282 @@ window.PD = window.PD || {};
   PD.cosm = { LIST: L, COLOURS, BY, SLOTS, SLOT_NAME, st, owns, wearing, buy, wear, art, icon, drawOnPlayer, drawBehind, petStep, drawPet, OFF, PET };
 })(window.PD);
 
+/* ===== src/prodart.js ===== */
+/* PRODART: the product shots for ABAY. Every tool and saucer part gets its
+   own painted picture, done like a box-art render: fat shapes, a hard gloss,
+   a coloured rim light and a dark outline, so buying a drill bit feels like
+   buying something.
+
+   And the stage they sit on: a cartoon sunburst in the colour of how rare
+   the thing is, sparkles, and a shine that sweeps across the card. */
+(function (PD) {
+  'use strict';
+  const U = PD.util;
+  const X = PD.pxd;
+  const PT = PD.paint;
+  const HD = 2, N = 80, C = N / 2;
+  const INK = 0x160f24;
+  const R = PT.ramp;
+  const STEEL = [0x9aa4bc, 0xe8eeff, 0x4a5270], DARK = [0x3a3e52, 0x6a7088, 0x1a1c28];
+  const ORANGE = [0xff8a2a, 0xffd08a, 0xa8481a], GOLD = [0xffc83a, 0xfff4b0, 0xb8801a];
+  const RED = [0xe5394a, 0xff9aa6, 0x8a1422], BLUE = [0x3a7ae8, 0xa8ccff, 0x1a3a8a], GREEN = [0x3ac86a, 0xb0ffc8, 0x1a6a3a];
+  const PINK = [0xff7ab0, 0xffd0e4, 0xb83a6a], CYAN = [0x3ad8f0, 0xc8faff, 0x1a7a9a], PURP = [0x9a5ae8, 0xe0c8ff, 0x4a1a8a];
+
+  function cyl(B, x, y, w, h, Cc) {
+    B.rect(x, y, w, h, Cc[0]);
+    B.rect(x, y, w * 0.28, h, Cc[1], 0.55); B.rect(x + w * 0.08, y, w * 0.08, h, 0xffffff, 0.5);
+    B.rect(x + w * 0.72, y, w * 0.28, h, Cc[2], 0.6);
+  }
+  function bolt(B, x, y) { B.disc(x, y, 1.8, STEEL[2]); B.disc(x - 0.4, y - 0.4, 1, STEEL[1]); }
+  function gun(B, body, tip, barrels, big) {
+    const L = big ? 30 : 22;
+    B.round(C - 22, C - 6, 30, 14, 5, body[2]); B.round(C - 21, C - 5, 28, 12, 4, body[0]); B.rect(C - 19, C - 4, 24, 3, body[1], 0.8);
+    B.poly([[C - 16, C + 6], [C - 6, C + 6], [C - 10, C + 22], [C - 19, C + 20]], DARK[0]); B.poly([[C - 16, C + 6], [C - 12, C + 6], [C - 15, C + 20], [C - 19, C + 20]], DARK[1]);
+    for (let k = 0; k < barrels; k++) { const dy = (k - (barrels - 1) / 2) * 7; B.round(C + 6, C - 2 + dy, L, 5, 2, STEEL[2]); B.rect(C + 7, C - 1 + dy, L - 2, 2, STEEL[1]); B.round(C + 4 + L, C - 3 + dy, 6, 7, 2, tip[0]); B.disc(C + 7 + L, C + 0.5 + dy, 2, tip[1]); }
+    B.round(C - 8, C - 12, 12, 7, 2, tip[2]); B.rect(C - 6, C - 11, 8, 4, tip[0]); B.rect(C - 5, C - 10, 2, 2, 0xffffff);
+    bolt(B, C - 16, C + 1);
+  }
+  function rocket(B, Cc, n) {
+    for (let k = 0; k < n; k++) {
+      const x = C - (n - 1) * 9 + k * 18;
+      B.round(x - 7, C - 18, 14, 32, 6, Cc[2]); B.round(x - 6, C - 17, 12, 30, 5, Cc[0]); B.rect(x - 5, C - 15, 3, 26, Cc[1], 0.7);
+      B.poly([[x - 7, C - 14], [x + 7, C - 14], [x, C - 30]], RED[0]); B.poly([[x - 7, C - 14], [x - 1, C - 14], [x, C - 30]], RED[1]);
+      B.round(x - 5, C + 12, 10, 6, 1, DARK[0]);
+      B.poly([[x - 4, C + 18], [x + 4, C + 18], [x, C + 32]], 0xffd34d); B.poly([[x - 2, C + 18], [x + 2, C + 18], [x, C + 26]], 0xffffff);
+    }
+  }
+
+  const P = {
+    drill(B) {
+      B.round(C - 30, C - 10, 24, 22, 6, ORANGE[2]); B.round(C - 29, C - 9, 22, 20, 5, ORANGE[0]); B.rect(C - 27, C - 8, 18, 5, ORANGE[1], 0.8);
+      B.poly([[C - 22, C + 10], [C - 12, C + 10], [C - 14, C + 26], [C - 24, C + 24]], DARK[0]);
+      B.round(C - 8, C - 7, 8, 16, 2, STEEL[2]); B.rect(C - 7, C - 6, 6, 3, STEEL[1]);
+      for (let x = 0; x < 34; x++) { const h = Math.max(1, 8 * (1 - x / 34)); for (let y = -h; y <= h; y++) B.set(C + x, C + 1 + y, ((x + Math.round(y) * 2) % 8) < 4 ? STEEL[1] : STEEL[2]); }
+      B.disc(C + 34, C + 1, 1.5, 0xffffff);
+    },
+    reach(B) {
+      for (let k = 0; k < 4; k++) { const x = C - 28 + k * 13, w = 16 - k * 2; B.round(x, C - w / 2 + 2, 14, w, 2, STEEL[2]); B.rect(x + 1, C - w / 2 + 3, 12, 2, STEEL[1]); }
+      for (let x = 0; x < 16; x++) { const h = Math.max(1, 5 * (1 - x / 16)); for (let y = -h; y <= h; y++) B.set(C + 24 + x, C + 2 + y, ((x + Math.round(y) * 2) % 6) < 3 ? ORANGE[1] : ORANGE[2]); }
+      B.round(C - 34, C - 6, 10, 16, 3, ORANGE[0]);
+    },
+    oxygen(B) {
+      B.round(C - 12, C - 20, 24, 44, 10, BLUE[2]); B.round(C - 11, C - 19, 22, 42, 9, BLUE[0]); B.rect(C - 8, C - 16, 5, 36, BLUE[1], 0.7);
+      B.rect(C - 11, C - 4, 22, 5, 0xffffff); B.rect(C - 11, C - 4, 22, 1, 0xc8d4e8);
+      B.round(C - 5, C - 28, 10, 9, 2, STEEL[2]); B.rect(C - 3, C - 27, 6, 7, STEEL[0]);
+      B.disc(C + 12, C - 28, 7, STEEL[2]); B.disc(C + 12, C - 28, 5.5, 0xffffff); B.line(C + 12, C - 28, C + 15, C - 31, RED[0], 1); B.line(C + 5, C - 27, C + 1, C - 26, STEEL[2], 2);
+    },
+    lung(B) {
+      for (const s of [-1, 1]) { B.ball(C + s * 10, C + 2, 11, 18, PINK, true); for (let k = 0; k < 4; k++) B.line(C + s * 3, C - 8 + k * 5, C + s * (8 + k * 2), C - 4 + k * 6, PINK[2], 1, 0.7); }
+      B.round(C - 3, C - 26, 6, 18, 2, 0xf0d0e0); for (let k = 0; k < 4; k++) B.rect(C - 3, C - 24 + k * 4, 6, 1, PINK[2]);
+      B.round(C - 16, C + 16, 32, 8, 3, 0x9a5a3a); B.rect(C - 14, C + 17, 28, 2, 0xc88a5a);
+    },
+    cargo(B) {
+      B.ball(C, C + 6, 24, 20, [0xb8905a, 0xe8c890, 0x7a5a30]);
+      B.poly([[C - 10, C - 12], [C + 10, C - 12], [C + 6, C - 22], [C - 6, C - 22]], 0x9a7040); B.rect(C - 12, C - 14, 24, 4, 0x5a3a20);
+      for (let k = 0; k < 8; k++) B.rect(C - 18 + k * 4.5, C + 6, 2, 1, 0x7a5a30);
+      for (const [x, y, r, c] of [[-6, -18, 5, 0x8a7aa8], [4, -20, 6, 0xffc83a], [0, -24, 4, 0x7ef9ff]]) B.ball(C + x, C + y, r, r * 0.85, R(c), true);
+    },
+    belly(B) {
+      B.ball(C, C + 2, 24, 22, PINK, true);
+      for (let k = 0; k < 5; k++) B.line(C - 16 + k * 8, C - 16, C - 18 + k * 8, C + 18, PINK[2], 1, 0.4);
+      B.rect(C - 24, C + 2, 48, 6, 0x5a3a20); B.round(C - 5, C, 10, 10, 2, GOLD[0]); B.rect(C - 2, C + 2, 4, 6, 0x5a3a20);
+    },
+    hull(B) {
+      B.poly([[C - 22, C - 20], [C + 22, C - 20], [C + 26, C + 4], [C, C + 26], [C - 26, C + 4]], STEEL[2]);
+      B.poly([[C - 20, C - 18], [C + 20, C - 18], [C + 23, C + 3], [C, C + 23], [C - 23, C + 3]], STEEL[0]);
+      B.poly([[C - 20, C - 18], [C - 2, C - 18], [C - 2, C + 22], [C - 23, C + 3]], STEEL[1], 0.45);
+      B.line(C, C - 18, C, C + 22, STEEL[2], 2);
+      for (const [x, y] of [[-16, -14], [16, -14], [-18, 2], [18, 2], [0, 18]]) bolt(B, C + x, C + y);
+      B.line(C - 10, C - 6, C - 4, C + 2, STEEL[2], 1); B.line(C - 4, C + 2, C - 8, C + 8, STEEL[2], 1);
+    },
+    ironskin(B) {
+      B.ball(C, C, 26, 22, GREEN, true);
+      for (let y = -16; y < 18; y += 6) for (let x = -20; x < 22; x += 7) { const xx = C + x + ((y / 6) % 2 ? 3 : 0); if (Math.hypot(xx - C, (C + y - C) * 1.2) < 22) { B.ellipse(xx, C + y, 3, 2.2, GREEN[2]); B.ellipse(xx - 0.5, C + y - 0.5, 2.4, 1.6, GREEN[1]); } }
+    },
+    tether(B) {
+      for (let r = 6; r < 24; r += 4) for (let a = 0; a < Math.PI * 2; a += 0.05) B.disc(C + Math.cos(a) * r, C + 4 + Math.sin(a) * r * 0.6, 2.2, (Math.floor(a * 6 + r) % 2) ? 0xe8c890 : 0xb8905a);
+      B.line(C + 22, C + 4, C + 30, C - 22, 0xe8c890, 3); B.poly([[C + 26, C - 22], [C + 34, C - 22], [C + 30, C - 30]], STEEL[0]);
+    },
+    thruster(B) {
+      B.round(C - 26, C - 12, 30, 24, 8, ORANGE[2]); B.round(C - 25, C - 11, 28, 22, 7, ORANGE[0]); B.rect(C - 22, C - 9, 20, 5, ORANGE[1], 0.8);
+      B.poly([[C + 2, C - 7], [C + 26, C - 4], [C + 26, C + 4], [C + 2, C + 7]], STEEL[0]); B.rect(C + 4, C - 5, 20, 2, STEEL[1]);
+      B.round(C - 20, C + 10, 10, 14, 2, DARK[0]);
+      for (let k = 0; k < 5; k++) B.poly([[C + 26, C - 3 + k * 1.5], [C + 34 + k * 2, C - 6 + k * 3], [C + 34 + k * 2, C - 4 + k * 3]], 0xc8f0ff, 0.6);
+      B.disc(C - 12, C, 5, DARK[0]); B.disc(C - 12, C, 3, 0xffd34d);
+    },
+    dash(B) { rocket(B, STEEL, 2); },
+    scooter(B) {
+      B.round(C - 14, C - 26, 28, 20, 6, RED[2]); B.round(C - 13, C - 25, 26, 18, 5, RED[0]); B.rect(C - 10, C - 22, 20, 4, RED[1], 0.8);
+      B.rect(C - 4, C - 6, 8, 26, DARK[0]); B.rect(C - 3, C - 6, 2, 26, DARK[1]);
+      B.ellipse(C, C + 22, 12, 4, STEEL[2]); for (let k = 0; k < 3; k++) B.ellipse(C + (k - 1) * 8, C + 22, 3, 6, STEEL[0]);
+      B.line(C + 13, C - 20, C + 30, C - 28, DARK[0], 3); B.ball(C + 31, C - 28, 3, 3, RED);
+    },
+    pistol(B) { gun(B, BLUE, CYAN, 1); },
+    trigger(B) { gun(B, ORANGE, [0xffd34d, 0xffffff, 0xc89a1e], 1); for (let k = 0; k < 3; k++) B.line(C - 14 + k * 3, C + 10, C - 12 + k * 3, C + 16, 0xffd34d, 1); },
+    scatter(B) { gun(B, PURP, PINK, 3); },
+    lance(B) { gun(B, RED, [0xff5a4d, 0xffe0a0, 0x8a1a10], 1, true); B.rect(C + 42, C - 1, 6, 3, 0xffe0a0); },
+    lamp(B) {
+      B.ball(C - 4, C + 6, 22, 16, [0xffd34d, 0xfff0a0, 0xc89a1e], true); B.rect(C - 26, C + 12, 44, 4, 0xc89a1e);
+      B.round(C + 8, C - 6, 14, 14, 4, DARK[0]); B.disc(C + 15, C + 1, 5, 0xfff8d0); B.disc(C + 14, C, 2, 0xffffff);
+      B.poly([[C + 20, C - 4], [C + 40, C - 16], [C + 40, C + 18], [C + 20, C + 6]], 0xfff8d0, 0.35);
+    },
+    magnet(B) {
+      for (let a = 0; a <= Math.PI; a += 0.03) { B.disc(C + Math.cos(a) * 16, C - 4 + Math.sin(a) * 16, 8, RED[2]); B.disc(C + Math.cos(a) * 16 - 1, C - 5 + Math.sin(a) * 16, 6.5, RED[0]); }
+      for (let a = 0.3; a < 2.8; a += 0.05) B.disc(C + Math.cos(a) * 12, C - 7 + Math.sin(a) * 12, 1.2, RED[1]);
+      for (const s of [-1, 1]) { B.rect(C + s * 16 - 8, C - 22, 16, 18, RED[0]); B.rect(C + s * 16 - 8, C - 30, 16, 9, STEEL[0]); B.rect(C + s * 16 - 8, C - 30, 16, 2, STEEL[1]); }
+      for (let k = 0; k < 3; k++) B.line(C - 20 + k * 20, C - 36, C - 22 + k * 20, C - 42, CYAN[1], 1);
+    },
+    scanner(B) {
+      B.round(C - 18, C - 26, 36, 52, 6, DARK[2]); B.round(C - 17, C - 25, 34, 50, 5, DARK[0]); B.rect(C - 15, C - 23, 5, 46, DARK[1], 0.6);
+      B.round(C - 13, C - 20, 26, 22, 3, 0x0a1a10);
+      for (let r = 4; r < 12; r += 3) for (let a = 0; a < Math.PI * 2; a += 0.12) B.rect(C + Math.cos(a) * r, C - 9 + Math.sin(a) * r, 1, 1, 0x3aff7a, 0.6);
+      B.line(C, C - 9, C + 9, C - 15, 0x8affa0, 1); B.disc(C - 5, C - 13, 1.5, 0xffd34d);
+      for (let k = 0; k < 3; k++) B.round(C - 11 + k * 8, C + 8, 6, 5, 1, [RED[0], 0xffd34d, GREEN[0]][k]);
+      B.rect(C + 8, C - 34, 2, 10, STEEL[2]); B.disc(C + 9, C - 35, 2.5, RED[0]);
+    },
+    crew(B) {
+      B.round(C - 20, C - 24, 40, 48, 3, 0x1a3a6a); B.round(C - 19, C - 23, 38, 46, 3, BLUE[0]); B.rect(C - 19, C - 23, 5, 46, BLUE[2]);
+      B.rect(C + 16, C - 22, 3, 44, 0xfff8e8); for (let k = 0; k < 6; k++) B.rect(C + 16, C - 20 + k * 7, 3, 1, 0xc8c0b0);
+      B.rect(C - 10, C - 16, 24, 10, 0xffd34d); B.rect(C - 8, C - 13, 20, 1, 0x8a5a1a); B.rect(C - 8, C - 10, 14, 1, 0x8a5a1a);
+      B.disc(C + 2, C + 8, 7, GOLD[0]); B.rect(C + 1, C + 3, 2, 10, GOLD[2]);
+    },
+    refine(B) {
+      B.round(C - 22, C - 26, 44, 52, 5, 0x9aa0b8); B.round(C - 21, C - 25, 42, 50, 4, 0xf0f2fa); B.rect(C - 21, C - 25, 8, 50, 0xffffff, 0.6);
+      B.rect(C - 21, C - 16, 42, 2, 0xb8bccc);
+      for (let k = 0; k < 3; k++) B.disc(C - 12 + k * 7, C - 20, 2, [RED[0], GREEN[0], 0xffd34d][k]);
+      B.disc(C, C + 6, 15, 0x6a7088); B.disc(C, C + 6, 12, 0x2a8ad8); B.disc(C, C + 6, 12, 0xc8f0ff, 0.25);
+      for (const [x, y, c] of [[-4, 6, 0xffc83a], [4, 10, 0x8a7aa8], [2, 0, 0x7ef9ff]]) B.ball(C + x, C + y, 3.5, 3, R(c), true);
+      B.ellipse(C - 5, C, 5, 3, 0xffffff, 0.5);
+    },
+    greed(B) {
+      B.round(C - 16, C - 20, 32, 42, 8, 0x5a8a7a); B.round(C - 15, C - 19, 30, 40, 7, 0x8ad8b8, 0.6); B.rect(C - 18, C - 26, 36, 8, 0x6a7088); B.rect(C - 18, C - 26, 36, 2, 0xc8ccd8);
+      B.ball(C, C + 4, 10, 9, GOLD, true); for (let k = 0; k < 4; k++) B.line(C - 6 + k * 4, C - 4, C - 8 + k * 5, C + 12, GOLD[2], 1, 0.7);
+      B.line(C - 11, C - 14, C - 11, C + 12, 0xffffff, 2, 0.6);
+    },
+    drones(B) {
+      B.ball(C, C + 4, 16, 12, STEEL, true); B.round(C - 10, C - 2, 20, 9, 3, 0x0a1a2a); B.disc(C - 5, C + 2, 2, 0x7dff9a); B.disc(C + 5, C + 2, 2, 0x7dff9a);
+      for (const s of [-1, 1]) { B.line(C + s * 14, C - 2, C + s * 24, C - 12, STEEL[2], 2); B.ellipse(C + s * 24, C - 14, 11, 2, 0xc8ccd8, 0.8); B.disc(C + s * 24, C - 14, 2, DARK[0]); }
+      B.poly([[C - 6, C + 16], [C + 6, C + 16], [C, C + 24]], 0xffd34d);
+    },
+    droneyield(B) {
+      B.rect(C - 24, C - 28, 48, 56, 0x2a2a3a); B.rect(C - 22, C - 26, 44, 52, 0xfff8e8);
+      B.rect(C - 20, C - 24, 40, 30, 0x7ab8ff); B.ellipse(C, C - 2, 20, 6, 0x5ad88a);
+      B.line(C, C - 24, C, C - 12, 0x3a2a1a, 1); B.ball(C, C - 8, 6, 5, [0xc8a07a, 0xf0d0a8, 0x8a6a4a]); B.disc(C - 2, C - 9, 1, INK); B.disc(C + 2, C - 9, 1, INK);
+      B.rect(C - 16, C + 10, 32, 3, 0x1a1a24); B.rect(C - 12, C + 16, 24, 3, 0x1a1a24);
+    },
+    warp(B) {
+      B.round(C - 8, C - 28, 16, 56, 4, DARK[0]);
+      for (let k = 0; k < 7; k++) { const y = C - 24 + k * 7.5; B.ellipse(C, y, 18, 4, PT.mix(0xb88a2a, 0xffd08a, k % 2 ? 0.2 : 0.8)); B.ellipse(C, y - 1, 16, 2.5, GOLD[1], 0.6); }
+      B.disc(C, C - 32, 6, CYAN[0]); B.disc(C, C - 32, 3.5, 0xffffff);
+    },
+    deflector(B) {
+      B.disc(C, C, 30, CYAN[0], 0.3); B.disc(C, C, 26, CYAN[1], 0.18); for (let a = 0; a < Math.PI * 2; a += 0.02) B.rect(C + Math.cos(a) * 30, C + Math.sin(a) * 30, 2, 2, CYAN[1], 0.8);
+      B.ellipse(C - 12, C - 14, 8, 5, 0xffffff, 0.8); B.ellipse(C, C + 8, 14, 4, STEEL[2]); B.ellipse(C, C + 6, 12, 3, STEEL[0]); B.ellipse(C, C + 2, 6, 5, 0x7ec8ff, 0.9);
+    },
+    navcom(B) {
+      B.block(C - 22, C - 16, 44, 36, [0xd8a83a, 0xffe08a, 0x8a6a1a], 6, 5);
+      B.disc(C - 7, C + 4, 9, 0x2a2a34); for (let r = 2; r < 9; r += 2) for (let a = 0; a < Math.PI * 2; a += 0.3) B.rect(C - 7 + Math.cos(a) * r, C + 4 + Math.sin(a) * r, 1, 1, 0x5a5a6a);
+      B.round(C + 5, C - 8, 12, 8, 2, 0x0a1a10); B.rect(C + 7, C - 6, 8, 2, 0x7dff9a);
+      B.rect(C + 12, C - 34, 2, 18, STEEL[2]); B.disc(C + 13, C - 35, 3, RED[0]);
+      for (let k = 0; k < 3; k++) for (let a = -0.7; a < 0.7; a += 0.1) B.rect(C + 13 + Math.cos(a) * (6 + k * 5), C - 35 + Math.sin(a) * (6 + k * 5), 1, 1, 0xffd34d);
+    }
+  };
+  // the saucer's parts, done the same way
+  const SHIP = {
+    laser(B) { gun(B, [0x6a7088, 0xc8ccd8, 0x2a2e3c], RED, 1, true); for (let x = C + 40; x < N; x++) B.rect(x, C - 1, 1, 3, 0xff3a4a, 1 - (x - C - 40) / 10); },
+    heat(B) {
+      B.poly([[C, C - 30], [C + 26, C - 20], [C + 22, C + 12], [C, C + 30], [C - 22, C + 12], [C - 26, C - 20]], 0x8a2a0a);
+      B.poly([[C, C - 27], [C + 23, C - 18], [C + 19, C + 11], [C, C + 27], [C - 19, C + 11], [C - 23, C - 18]], ORANGE[0]);
+      B.poly([[C, C - 27], [C - 23, C - 18], [C - 19, C + 11], [C, C + 27]], ORANGE[1], 0.5);
+      B.poly([[C - 8, C + 16], [C + 8, C + 16], [C + 6, C - 2], [C + 12, C - 14], [C + 2, C - 6], [C - 3, C - 20], [C - 10, C - 2]], 0xffd34d); B.poly([[C - 4, C + 14], [C + 4, C + 14], [C + 3, C + 2], [C, C - 6], [C - 4, C + 2]], 0xffffff);
+    },
+    ice(B) {
+      B.poly([[C - 30, C + 22], [C + 30, C + 22], [C + 24, C - 6], [C - 24, C - 6]], CYAN[2]); B.poly([[C - 27, C + 20], [C + 27, C + 20], [C + 22, C - 4], [C - 22, C - 4]], 0xc8f4ff);
+      B.poly([[C - 27, C + 20], [C - 6, C + 20], [C - 8, C - 4], [C - 22, C - 4]], 0xffffff, 0.6);
+      for (let k = 0; k < 5; k++) B.poly([[C - 26 + k * 11, C + 22], [C - 18 + k * 11, C + 22], [C - 22 + k * 11, C + 32]], 0xe8faff);
+      B.round(C - 8, C - 22, 16, 18, 3, DARK[0]); bolt(B, C - 4, C - 16); bolt(B, C + 4, C - 16);
+    },
+    armour(B) { P.hull(B); },
+    bubble(B) { P.deflector(B); },
+    magnet(B) { P.magnet(B); },
+    turbo(B) {
+      B.round(C - 20, C - 14, 36, 28, 8, DARK[2]); B.round(C - 19, C - 13, 34, 26, 7, STEEL[0]); B.rect(C - 17, C - 11, 30, 5, STEEL[1]);
+      B.disc(C - 2, C, 9, DARK[0]); for (let k = 0; k < 6; k++) { const a = k / 6 * Math.PI * 2; B.line(C - 2, C, C - 2 + Math.cos(a) * 8, C + Math.sin(a) * 8, STEEL[1], 2); }
+      B.poly([[C + 15, C - 8], [C + 15, C + 8], [C + 38, C]], CYAN[0]); B.poly([[C + 15, C - 4], [C + 15, C + 4], [C + 30, C]], 0xffffff);
+    },
+    radar(B) { P.navcom(B); },
+    warp(B) { P.warp(B); }
+  };
+  const CACHE = {};
+  function art(kind, id) {
+    const key = kind + ':' + id;
+    if (CACHE[key] !== undefined) return CACHE[key];
+    const f = kind === 'ship' ? SHIP[id] : P[id];
+    if (!f) return (CACHE[key] = null);
+    const B = PT.buf(N, N);
+    f(B);
+    B.rim(0xffffff, -1, -1, 0.45);
+    B.outline(INK);
+    return (CACHE[key] = B.toCanvas());
+  }
+
+  /* How rare it is, by what it costs. */
+  const RARITY = [[2000, 'COMMON', '#4ac88a'], [20000, 'RARE', '#3a9aff'], [150000, 'EPIC', '#b05aff'], [Infinity, 'LEGEND', '#ffb81a']];
+  function rarity(price) { for (const r of RARITY) if (price <= r[0]) return r; return RARITY[3]; }
+
+  /* The stage: rays turning slowly behind the product, a glow, sparkles,
+     and every few seconds a shine across the glass. */
+  function stage(ctx, x, y, w, h, col, t, hot, seed) {
+    ctx.save();
+    ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip();
+    const cx = x + w / 2, cy = y + h / 2;
+    const g = ctx.createRadialGradient(cx, cy, 2, cx, cy, Math.max(w, h) * 0.7);
+    ctx.fillStyle = PT.css(PT.mul(PT.hex(col), 0.3)); ctx.fillRect(x, y, w, h);
+    g.addColorStop(0, PT.rgba(PT.mix(PT.hex(col), 0xffffff, 0.4), 0.9)); g.addColorStop(0.5, PT.rgba(col, 0.45)); g.addColorStop(1, PT.rgba(col, 0.05));
+    ctx.fillStyle = g; ctx.fillRect(x, y, w, h);
+    const rays = 12, rot = t * (hot ? 0.6 : 0.2) + (seed || 0);
+    ctx.globalAlpha = hot ? 0.3 : 0.18;
+    for (let k = 0; k < rays; k++) {
+      const a0 = rot + k / rays * Math.PI * 2, a1 = a0 + Math.PI / rays;
+      X.poly(ctx, [[cx, cy], [cx + Math.cos(a0) * w, cy + Math.sin(a0) * w], [cx + Math.cos(a1) * w, cy + Math.sin(a1) * w]], '#ffffff');
+    }
+    ctx.globalAlpha = 1;
+    for (let k = 0; k < 4; k++) {
+      const q = (t * 0.7 + k * 0.27 + (seed || 0)) % 1, sx = x + 4 + U.hash2(k, Math.floor(t * 0.7 + k * 0.27 + (seed || 0))) * (w - 8), sy = y + 4 + U.hash2(k + 9, Math.floor(t * 0.7 + (seed || 0))) * (h - 8);
+      const s = Math.sin(q * Math.PI);
+      ctx.globalAlpha = s;
+      X.rect(ctx, sx - 1, sy, 3, 1, '#ffffff'); X.rect(ctx, sx, sy - 1, 1, 3, '#ffffff');
+      if (s > 0.7) { X.rect(ctx, sx - 2, sy, 1, 1, '#ffffff'); X.rect(ctx, sx + 2, sy, 1, 1, '#ffffff'); }
+    }
+    ctx.globalAlpha = 1;
+    ctx.restore();
+  }
+  // the shine that crosses the card, drawn after the product
+  function shine(ctx, x, y, w, h, t, seed) {
+    const q = ((t * 0.35 + (seed || 0)) % 1.8);
+    if (q > 1) return;
+    ctx.save(); ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip();
+    const sx = x - 20 + q * (w + 40);
+    ctx.globalAlpha = 0.35; X.poly(ctx, [[sx, y], [sx + 8, y], [sx - 6, y + h], [sx - 14, y + h]], '#ffffff');
+    ctx.globalAlpha = 0.18; X.poly(ctx, [[sx + 11, y], [sx + 14, y], [sx, y + h], [sx - 3, y + h]], '#ffffff');
+    ctx.restore(); ctx.globalAlpha = 1;
+  }
+  /* A cartoon burst for the moment you buy something. */
+  function burst(ctx, x, y, k, word, col) {
+    if (k <= 0) return;
+    const s = k < 0.15 ? k / 0.15 * 1.3 : 1.3 - Math.min(0.3, (k - 0.15) * 2);
+    const n = 14, r0 = 14 * s, r1 = 26 * s;
+    const pts = [];
+    for (let i = 0; i < n * 2; i++) { const a = i / (n * 2) * Math.PI * 2, r = i % 2 ? r0 : r1; pts.push([x + Math.cos(a) * r, y + Math.sin(a) * r * 0.8]); }
+    X.poly(ctx, pts.map(p => [p[0] + 2, p[1] + 2]), '#1a1024');
+    X.poly(ctx, pts, col || '#ffd34d');
+    X.poly(ctx, pts.map(p => [x + (p[0] - x) * 0.8, y + (p[1] - y) * 0.8]), '#ffffff');
+    PD.font.draw(ctx, word, x, y - 3 * Math.max(1, Math.round(s)), '#e5394a', { center: true, scale: Math.max(1, Math.round(s)), shadow: '#1a1024' });
+  }
+
+  PD.prodart = { art, rarity, stage, shine, burst, P, SHIP };
+})(window.PD);
+
 /* ===== src/unlock.js ===== */
 /* UNLOCK: the skill tree that decides what ABAY will sell you.
 
@@ -19011,7 +19514,19 @@ window.PD = window.PD || {};
     { id: 'DECOR', name: 'DECOR', col: '#c8a8ff' },
     { id: 'HOME', name: 'HOME', col: '#ffd34d' },
     { id: 'STYLE', name: 'STYLE', col: '#7ef9ff' },
-    { id: 'SHIP', name: 'SAUCER', col: '#ff5a6a' }
+    { id: 'SHIP', name: 'SAUCER', col: '#ff5a6a' },
+    { id: 'PC', name: 'COMPUTER', col: '#8affd0', fn: 1 },
+    { id: 'FLY', name: 'FLIGHT', col: '#ffe070', fn: 1 }
+  ];
+  /* The functions: things the computer and the saucer can do, not things
+     you buy. */
+  const FUNCS = [
+    { id: 'PC1', branch: 'PC', tier: 1, name: 'HOT DEALS', cost: 15, fn: 'OPENS THE HOT TAB ON ABAY: PICKS FOR YOU, ONE OF THEM 25% OFF' },
+    { id: 'PC2', branch: 'PC', tier: 2, name: 'REMOTE LOGIN', cost: 60, fn: 'PRESS C ANYWHERE ON THE MOON TO USE THE COMPUTER' },
+    { id: 'PC3', branch: 'PC', tier: 3, name: 'AUTO SELL', cost: 200, fn: 'YOUR HOLD SELLS ITSELF THE MOMENT YOU LAND, 5% OVER THE ODDS' },
+    { id: 'FLY1', branch: 'FLY', tier: 1, name: 'COIN RUSH', cost: 20, fn: 'SPACE COINS IN THE LANES ARE WORTH DOUBLE' },
+    { id: 'FLY2', branch: 'FLY', tier: 2, name: 'AUTOPILOT', cost: 80, fn: 'EVERY TRIP IS 30% SHORTER' },
+    { id: 'FLY3', branch: 'FLY', tier: 3, name: 'STARTER SHIELD', cost: 250, fn: 'EVERY TRIP STARTS WITH A FREE BUBBLE SHIELD' }
   ];
   const SHIP_TIER = { armour: 0, magnet: 0, radar: 0, laser: 1, bubble: 1, ice: 2, turbo: 2, heat: 3 };
 
@@ -19049,6 +19564,10 @@ window.PD = window.PD || {};
   for (const it of D.SHIP) addItem('ship', it.id);
   for (const br of BRANCHES) {
     let prev = null;
+    if (br.fn) {
+      for (const f of FUNCS.filter(f => f.branch === br.id)) { const n = Object.assign({ needs: prev, items: [], col: br.col }, f); NODES.push(n); BY[n.id] = n; prev = n.id; }
+      continue;
+    }
     for (let t = 1; t <= 4; t++) {
       const key = br.id + t;
       if (!ITEMS[key]) continue;
@@ -20815,7 +21334,7 @@ window.PD = window.PD || {};
     S.bounce[id] = 1;
     S.app = id; S.k = 0; S.closing = 0; S.from = from || [240, SY + SH - 14];
     S.scroll = S.scrollTo = 0;
-    if (id === 'abay') { S.shop.sel = null; S.shop.confirm = 0; if (g.tutActive && g.tutActive()) { S.shop.top = TOPS.indexOf('SELL'); } }
+    if (id === 'abay') { S.shop.sel = null; S.shop.confirm = 0; if (TOPS[S.shop.top] === 'HOT' && PD.unlock && !PD.unlock.has(g, 'PC1')) S.shop.top = 1; if (g.tutActive && g.tutActive()) { S.shop.top = TOPS.indexOf('SELL'); } }
     A.sfx.tone(660, { type: 'sine', to: 990, dur: 0.12, vol: 0.06 });
   }
   function closeApp() { if (!S.app) return; S.closing = 1; A.sfx.tone(700, { type: 'sine', to: 420, dur: 0.1, vol: 0.05 }); }
@@ -21154,6 +21673,7 @@ window.PD = window.PD || {};
     else if (S.app === 'mail') drawMail(ctx, g, t, bx, by, bw, bh);
     else if (S.app === 'setup') drawSetup(ctx, g, t, bx, by, bw, bh);
     ctx.restore();
+    if (S.pop) { S.pop.t += 1 / 60; PD.prodart.burst(ctx, S.pop.x, S.pop.y - S.pop.t * 10, S.pop.t < 1.1 ? S.pop.t : 0, S.pop.word, '#ffd34d'); if (S.pop.t > 1.1) S.pop = null; }
   }
   function appTitle(g) {
     if (S.app === 'abay') return 'ABAY - EVERYTHING, DELIVERED TO YOUR MOON';
@@ -21281,7 +21801,10 @@ window.PD = window.PD || {};
       if (on) X.rect(ctx, sx0 + 3, y + 3, 2, 8, [T.red, T.blue, T.pink, T.accent, T.ylw, T.green][i]);
       F.draw(ctx, TOPS[i], sx0 + 9, y + 4, on ? T.ink : T.dim, { shadow: false });
       if (TOPS[i] === 'SELL' && g.vaultTotal() > 0) { X.blob(ctx, sx0 + sideW - 9, y + 7, 3, 3, T.green); }
+      const hotLock = TOPS[i] === 'HOT' && PD.unlock && !PD.unlock.has(g, 'PC1');
+      if (hotLock) PD.glyph.draw(ctx, 'lock', sx0 + sideW - 16, y, '#8a8ea8', '#5a5e78');
       if (clicked(sx0 + 2, y, sideW - 4, 14)) {
+        if (hotLock) { toast('LOCKED', 'HOT DEALS: UNLOCK IT IN THE BRAIN.', '#c8a8ff'); continue; }
         if (g.tutActive && g.tutActive() && TOPS[i] !== 'SELL') { g.tutNope('desk'); toast('ABAY', 'SELL YOUR ROCKS FIRST.', T.red); }
         else { sh.top = i; sh.sub = 0; sh.sel = null; S.scroll = S.scrollTo = 0; A.sfx.tone(1100, { type: 'square', dur: 0.02, vol: 0.03 }); }
       }
@@ -21332,8 +21855,13 @@ window.PD = window.PD || {};
       rr(ctx, x, y - lift, cardW, cardH, 3, '#ffffff');
       if (sel) { X.frame(ctx, x - 1, y - lift - 1, cardW + 2, cardH + 2, T.blue); }
       // the photo
-      rr(ctx, x + 2, y + 2 - lift, cardW - 4, 32, 2, e.kind === 'cosm' ? '#f0f2fa' : e.kind === 'build' ? '#eef4fa' : '#f4f0fa');
-      picture(ctx, g, e, x + cardW / 2, y + 18 - lift, 28, t, over || sel);
+      const rar = PD.prodart.rarity(e.was || e.price);
+      X.rect(ctx, x + 2, y + 2 - lift, cardW - 4, 32, '#1a1030');
+      PD.prodart.stage(ctx, x + 2, y + 2 - lift, cardW - 4, 32, rar[2], t, over || sel, i * 0.37);
+      picture(ctx, g, e, x + cardW / 2, y + 18 - lift + (over ? Math.sin(t * 6) * 1 : 0), 28, t, over || sel);
+      PD.prodart.shine(ctx, x + 2, y + 2 - lift, cardW - 4, 32, t, i * 0.41);
+      if (!e.locked) { X.rect(ctx, x + 2, y + 28 - lift, F.width(rar[1], 1) + 3, 7, rar[2]); F.draw(ctx, rar[1], x + 3, y + 28 - lift, '#ffffff', { shadow: false }); }
+      if (sel || over) X.frame(ctx, x, y - lift, cardW, cardH, rar[2]);
       if (e.locked) { ctx.globalAlpha = 0.55; X.rect(ctx, x + 2, y + 2 - lift, cardW - 4, 32, '#20243a'); ctx.globalAlpha = 1; PD.glyph.draw(ctx, 'lock', x + cardW / 2 - 7, y + 11 - lift, '#ffd34d', '#8a6a1a'); }
       if (e.badge) { const bw2 = F.width(e.badge, 1) + 4; X.rect(ctx, x + 2, y + 2 - lift, bw2, 8, e.locked ? '#5a4a8a' : (e.on ? T.blue : T.green)); F.draw(ctx, e.badge, x + 4, y + 3 - lift, '#ffffff', { shadow: false }); }
       if (e.deal) { X.rect(ctx, x + cardW - 26, y + 2 - lift, 24, 8, T.red); F.draw(ctx, '-25%', x + cardW - 14, y + 3 - lift, '#ffffff', { center: true, shadow: false }); }
@@ -21353,8 +21881,14 @@ window.PD = window.PD || {};
     const dx = cx0 + gw + 1, dy = sy0;
     X.rect(ctx, dx, dy, detW + 1, bh - 21, '#ffffff'); X.rect(ctx, dx, dy, 1, bh - 21, T.line);
     if (!e) { F.draw(ctx, 'NOTHING HERE.', dx + detW / 2, dy + 30, T.dim, { center: true, shadow: false }); return; }
-    rr(ctx, dx + 5, dy + 4, detW - 8, 46, 3, '#f0f2fa');
-    picture(ctx, g, e, dx + 5 + (detW - 8) / 2, dy + 26, 42, t, true);
+    const rar = PD.prodart.rarity(e.was || e.price);
+    X.rect(ctx, dx + 5, dy + 4, detW - 8, 46, '#1a1030');
+    PD.prodart.stage(ctx, dx + 5, dy + 4, detW - 8, 46, rar[2], t, true, 1.7);
+    ctx.save(); ctx.translate(dx + 5 + (detW - 8) / 2, dy + 26 + Math.sin(t * 2.4) * 1.5); ctx.rotate(Math.sin(t * 1.7) * 0.05);
+    picture(ctx, g, e, 0, 0, 42, t, true);
+    ctx.restore();
+    PD.prodart.shine(ctx, dx + 5, dy + 4, detW - 8, 46, t, 0.9);
+    X.rect(ctx, dx + 5, dy + 43, F.width(rar[1], 1) + 4, 7, rar[2]); F.draw(ctx, rar[1], dx + 7, dy + 43, '#ffffff', { shadow: false });
     let ly = dy + 53;
     const py = by + bh - 32;
     for (const l of wrap(e.name, 17).slice(0, 2)) { F.draw(ctx, l, dx + 6, ly, T.ink, { shadow: false }); ly += 9; }
@@ -21401,7 +21935,8 @@ window.PD = window.PD || {};
     burst(x, y, 16);
     A.sfx.buy && A.sfx.buy();
     A.sfx.tone(660, { type: 'triangle', to: 1320, dur: 0.2, vol: 0.07 });
-    S.lastBuy = e.name; S.lesson = e.kind;
+    if (e.kind === 'ship') g.save.shipNew = e.id;
+    S.lastBuy = e.name; S.lesson = e.kind; S.pop = { t: 0, x, y: y - 30, word: U.pick(['NEW!', 'GOT IT!', 'YES!', 'POW!']) };
     if (e.kind === 'build') toast('ORDER DELIVERED', e.name + ' - PRESS B ON THE MOON', T.green);
     else if (e.kind === 'cosm') toast('ORDER DELIVERED', 'YOU ARE WEARING IT. LOOK.', T.green);
     else toast('INSTALLED', e.name + ' ON YOUR ' + (e.kind === 'ship' ? 'SAUCER' : 'SUIT'), T.green);
@@ -21440,7 +21975,9 @@ window.PD = window.PD || {};
     } else if (e.kind === 'cosm') {
       PD.cosm.icon(ctx, e.id, cx, cy, size * 0.9 * wob, t);
     } else if (e.kind === 'ship') {
-      fitDraw(ctx, shipIcon(D.SHIPX[e.id].icon), cx, cy, size * 0.8 * wob);
+      fitDraw(ctx, PD.prodart.art('ship', e.id) || shipIcon(D.SHIPX[e.id].icon), cx, cy, size * 0.9 * wob);
+    } else if (PD.prodart.art('gear', e.id)) {
+      fitDraw(ctx, PD.prodart.art('gear', e.id), cx, cy, size * 0.9 * wob);
     } else {
       const it = D.ABAYX[e.id];
       const col = { DIG: '#ffb03a', BODY: '#ff7a9a', BANG: '#ff5a4d', BIZ: '#8affa0', SHIP: '#7ef9ff', JUNK: '#c8a8ff' }[it.cat] || '#c8c8d8';
@@ -24255,6 +24792,14 @@ window.PD = window.PD || {};
     g.state = 'home';
     if (n > 0) PD.chum.call(g, 'back');
     PD.home.arrive(g, n);
+    // AUTO SELL: the hold sells itself as you land
+    if (PD.unlock && PD.unlock.has(g, 'PC3') && g.vaultValue() > 0) {
+      const before = g.save.credits;
+      g.sellAll();
+      const got = g.save.credits - before, extra = Math.round(got * 0.05);
+      g.save.credits += extra; g.save.totalEarned += extra;
+      if (PD.home.say) PD.home.say('AUTO SELL: +$' + U.fmt(got + extra));
+    }
     A.sfx.dock();
     A.drill(false); A.thrust(0);
     if (PD.story) PD.story.onHome(g, n);

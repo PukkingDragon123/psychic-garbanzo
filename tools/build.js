@@ -13,7 +13,7 @@ const OUT = process.argv[2] || path.join(ROOT, 'dist', 'planet-destroyer.html');
 const SOURCES = [
   'util', 'pix', 'glyph', 'pxd', 'paint', 'data', 'art', 'mobart', 'rig', 'arthome', 'galaxy', 'font', 'audio', 'input',
   'touch', 'fx', 'world', 'entities', 'player', 'ui', 'chum', 'talk', 'travel', 'starmap', 'mind', 'mall',
-  'crowd', 'moon', 'buildart', 'cosm', 'unlock', 'rat', 'build', 'laptop', 'cut', 'story', 'lab', 'game'
+  'crowd', 'moon', 'buildart', 'cosm', 'prodart', 'unlock', 'rat', 'build', 'laptop', 'cut', 'story', 'lab', 'game'
 ];
 
 function read(p) { return fs.readFileSync(path.join(ROOT, p), 'utf8'); }

@@ -24,7 +24,19 @@
     { id: 'DECOR', name: 'DECOR', col: '#c8a8ff' },
     { id: 'HOME', name: 'HOME', col: '#ffd34d' },
     { id: 'STYLE', name: 'STYLE', col: '#7ef9ff' },
-    { id: 'SHIP', name: 'SAUCER', col: '#ff5a6a' }
+    { id: 'SHIP', name: 'SAUCER', col: '#ff5a6a' },
+    { id: 'PC', name: 'COMPUTER', col: '#8affd0', fn: 1 },
+    { id: 'FLY', name: 'FLIGHT', col: '#ffe070', fn: 1 }
+  ];
+  /* The functions: things the computer and the saucer can do, not things
+     you buy. */
+  const FUNCS = [
+    { id: 'PC1', branch: 'PC', tier: 1, name: 'HOT DEALS', cost: 15, fn: 'OPENS THE HOT TAB ON ABAY: PICKS FOR YOU, ONE OF THEM 25% OFF' },
+    { id: 'PC2', branch: 'PC', tier: 2, name: 'REMOTE LOGIN', cost: 60, fn: 'PRESS C ANYWHERE ON THE MOON TO USE THE COMPUTER' },
+    { id: 'PC3', branch: 'PC', tier: 3, name: 'AUTO SELL', cost: 200, fn: 'YOUR HOLD SELLS ITSELF THE MOMENT YOU LAND, 5% OVER THE ODDS' },
+    { id: 'FLY1', branch: 'FLY', tier: 1, name: 'COIN RUSH', cost: 20, fn: 'SPACE COINS IN THE LANES ARE WORTH DOUBLE' },
+    { id: 'FLY2', branch: 'FLY', tier: 2, name: 'AUTOPILOT', cost: 80, fn: 'EVERY TRIP IS 30% SHORTER' },
+    { id: 'FLY3', branch: 'FLY', tier: 3, name: 'STARTER SHIELD', cost: 250, fn: 'EVERY TRIP STARTS WITH A FREE BUBBLE SHIELD' }
   ];
   const SHIP_TIER = { armour: 0, magnet: 0, radar: 0, laser: 1, bubble: 1, ice: 2, turbo: 2, heat: 3 };
 
@@ -62,6 +74,10 @@
   for (const it of D.SHIP) addItem('ship', it.id);
   for (const br of BRANCHES) {
     let prev = null;
+    if (br.fn) {
+      for (const f of FUNCS.filter(f => f.branch === br.id)) { const n = Object.assign({ needs: prev, items: [], col: br.col }, f); NODES.push(n); BY[n.id] = n; prev = n.id; }
+      continue;
+    }
     for (let t = 1; t <= 4; t++) {
       const key = br.id + t;
       if (!ITEMS[key]) continue;

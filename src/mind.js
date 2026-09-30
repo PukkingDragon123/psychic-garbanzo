@@ -46,11 +46,15 @@
   function say(m) { S.line = m; S.lineT = 3.4; }
 
   /* ------------------------------------------------------ the unlock tree */
-  const ROW0 = 44, ROWH = 22, COL0 = 278, COLW = 54;
-  function uPos(n) {
-    const bi = PD.unlock.BRANCHES.findIndex(b => b.id === n.branch);
-    return { x: COL0 + (n.tier - 1) * COLW, y: ROW0 + bi * ROWH };
+  /* The unlock tree is a web, like the neurons: the core in the middle and
+     a branch for each department running out from it, tier by tier. */
+  const UX = 318, UY = 106;
+  function bAngle(bi) { const nb = PD.unlock.BRANCHES.length; return -Math.PI / 2 + bi / nb * Math.PI * 2; }
+  function uPosAt(bi, tier) {
+    const a = bAngle(bi) + (tier % 2 ? 0.05 : -0.05);
+    return { x: Math.round(UX + Math.cos(a) * (52 + (tier - 1) * 31)), y: Math.round(UY + Math.sin(a) * (31 + (tier - 1) * 15)) };
   }
+  function uPos(n) { return uPosAt(PD.unlock.BRANCHES.findIndex(b => b.id === n.branch), n.tier); }
 
   function open(g) {
     g.state = 'mind';
@@ -133,7 +137,7 @@
       return;
     }
     const U2 = PD.unlock;
-    for (const n of U2.NODES) { const p = uPos(n); if (m.x > p.x - 23 && m.x < p.x + 23 && Math.abs(m.y - p.y) < 9) S.hover = n.id; }
+    for (const n of U2.NODES) { const p = uPos(n); if (Math.abs(m.x - p.x) < 11 && Math.abs(m.y - p.y) < 8) S.hover = n.id; }
     const cur = U2.BY[S.usel] || U2.NODES[0];
     const moveTo = (bd, td) => {
       const bi = U2.BRANCHES.findIndex(b => b.id === cur.branch);
@@ -147,10 +151,10 @@
       }
       A.sfx.click();
     };
-    if (IN.hit('right')) moveTo(0, 1);
-    if (IN.hit('left')) moveTo(0, -1);
-    if (IN.hit('down')) moveTo(1, 0);
-    if (IN.hit('up')) moveTo(-1, 0);
+    if (IN.hit('right')) moveTo(1, 0);
+    if (IN.hit('left')) moveTo(-1, 0);
+    if (IN.hit('up')) moveTo(0, 1);
+    if (IN.hit('down')) moveTo(0, -1);
     if (S.hover && m.leftPressed && !inBack) { if (S.usel === S.hover) unlockNode(g, U2.BY[S.hover]); else { S.usel = S.hover; A.sfx.click(); } }
     for (let i = 0; i < FEEDS.length; i++) if (m.leftPressed && inRect(m, feedBtn(i))) feed(g, FEEDS[i][0]);
     if (IN.hit('KeyF')) feed(g, 100);
@@ -385,32 +389,43 @@
   function drawUnlocks(ctx, g, t) {
     const U2 = PD.unlock;
     holo(ctx, 164, 26, 308, 160, HOLO, 0.6);
-    // the root, and the traces out to each branch
-    const root = { x: 180, y: 110 };
-    hexChip(ctx, root.x, root.y, 26, 18, '#0e4a5a', '#7ef9ff', true);
-    F.draw(ctx, 'CORE', root.x, root.y - 3, '#ffffff', { center: true, shadow: false });
-    U2.BRANCHES.forEach((b, i) => {
-      const y = ROW0 + i * ROWH;
-      X.line(ctx, root.x + 12, root.y, 198, root.y, '#1e4a6a');
-      X.line(ctx, 198, root.y, 198, y, '#1e4a6a');
-      X.line(ctx, 198, y, COL0 - 24, y, '#1e4a6a');
-      F.draw(ctx, b.name, 202, y - 8, b.col, { shadow: false });
+    // the core, and a branch out to each department
+    const root = { x: UX, y: UY };
+    const pulse = 0.5 + Math.sin(t * 3) * 0.2;
+    PT.glow(ctx, root.x, root.y, 30, '#7ef9ff', 0.3 + S.flash * 0.5);
+    U2.BRANCHES.forEach((b, bi) => {
       const row = U2.NODES.filter(n => n.branch === b.id);
-      for (let k = 1; k < row.length; k++) {
-        const a = uPos(row[k - 1]), c = uPos(row[k]);
-        const live = U2.has(g, row[k - 1].id) && U2.has(g, row[k].id);
-        X.line(ctx, a.x + 23, a.y, c.x - 23, c.y, live ? b.col : '#1e4a6a', live ? 2 : 1);
+      let prev = root, prevOn = true;
+      for (const n of row) {
+        const p = uPos(n), on = U2.has(g, n.id);
+        const live = on && prevOn;
+        // a curved trace, with a spark running along it when both ends are lit
+        const mx = (prev.x + p.x) / 2 + (p.y - prev.y) * 0.18, my = (prev.y + p.y) / 2 - (p.x - prev.x) * 0.18;
+        X.curve(ctx, prev.x, prev.y, mx, my, p.x, p.y, live ? b.col : '#1e4a6a', live ? 2 : 1, 10);
+        if (live) {
+          const f = (t * 0.7 + bi * 0.13 + n.tier * 0.2) % 1, q = 1 - f;
+          X.rect(ctx, q * q * prev.x + 2 * q * f * mx + f * f * p.x - 1, q * q * prev.y + 2 * q * f * my + f * f * p.y - 1, 3, 3, '#ffffff');
+        }
+        prev = p; prevOn = on;
       }
+      // the branch's name, off the end of it
+      const end = uPosAt(bi, (row.length || 1) + 1), a = bAngle(bi);
+      const lx = U.clamp(end.x + Math.cos(a) * 4, 176, 460), ly = U.clamp(end.y - 3, 30, 180);
+      F.draw(ctx, b.name, lx, ly, b.col, { center: true, shadow: '#060a1e' });
     });
+    hexChip(ctx, root.x, root.y, 30, 20, '#0e4a5a', '#7ef9ff', true);
+    F.draw(ctx, 'CORE', root.x, root.y - 3, '#ffffff', { center: true, shadow: false });
     for (const p of S.pulses) { const f = U.clamp(p.t, 0, 1); X.line(ctx, p.a.x, p.a.y, U.lerp(p.a.x, p.b.x, f), U.lerp(p.a.y, p.b.y, f), '#ffffff', 3); }
     for (const n of U2.NODES) {
       const p = uPos(n), st = U2.canUnlock(g, n), sel = S.usel === n.id, grow = S.grew === n.id ? S.growT : 0;
       const edge = st === 'done' ? n.col : st === 'ready' ? '#ffd34d' : st === 'poor' ? '#4a7a9a' : '#243a5a';
-      hexChip(ctx, p.x, p.y, 46 + grow * 6, 16 + grow * 3, st === 'done' ? '#123a4a' : '#0a1a2e', edge, sel || st === 'ready');
+      const w = 20 + grow * 8, h = 14 + grow * 4;
+      hexChip(ctx, p.x, p.y, w, h, st === 'done' ? PT.css(PT.mul(PT.hex(n.col), 0.35)) : '#0a1a2e', edge, sel || st === 'ready' || (st === 'done' && pulse > 0.6));
       if (st === 'done') F.draw(ctx, U2.ROMAN[n.tier], p.x, p.y - 3, '#ffffff', { center: true, shadow: false });
-      else if (st === 'needs') G.draw(ctx, 'lock', p.x - 7, p.y - 7, '#3a5a7a', '#243a5a');
-      else F.draw(ctx, n.cost + 'P', p.x, p.y - 3, st === 'ready' ? '#ffd34d' : '#6a9ab8', { center: true, shadow: false });
-      if (sel) { const k = Math.round(Math.abs(Math.sin(t * 4)) * 2); X.frame(ctx, p.x - 26 - k, p.y - 11 - k, 52 + k * 2, 22 + k * 2, '#ffd34d'); }
+      else if (st === 'needs') { X.rect(ctx, p.x - 2, p.y - 2, 4, 4, '#243a5a'); }
+      else F.draw(ctx, U2.ROMAN[n.tier], p.x, p.y - 3, st === 'ready' ? '#ffd34d' : '#6a9ab8', { center: true, shadow: false });
+      if (n.fn) X.rect(ctx, p.x + w / 2 - 3, p.y - h / 2, 3, 3, '#ffffff');
+      if (sel) { const k = Math.round(Math.abs(Math.sin(t * 4)) * 2); X.frame(ctx, p.x - w / 2 - 3 - k, p.y - h / 2 - 3 - k, w + 6 + k * 2, h + 6 + k * 2, '#ffd34d'); }
     }
     // feed the brain
     for (let i = 0; i < FEEDS.length; i++) {
@@ -423,7 +438,8 @@
     const n = U2.BY[S.usel] || U2.NODES[0], st = U2.canUnlock(g, n);
     holo(ctx, 164, 206, 308, 56, n.col);
     F.draw(ctx, n.name, 172, 211, '#ffffff', { scale: 2, shadow: false });
-    F.draw(ctx, n.items.length + ' THINGS ON ABAY', 172, 228, n.col, { shadow: false });
+    if (n.fn) { const ls = wrap(n.fn, 48); ls.slice(0, 2).forEach((l, i) => F.draw(ctx, l, 172, 228 + i * 9, n.col, { shadow: false })); }
+    else F.draw(ctx, n.items.length + ' THINGS ON ABAY', 172, 228, n.col, { shadow: false });
     const shown = n.items.slice(0, 7);
     shown.forEach(([k, id], i) => thumb(ctx, k, id, 180 + i * 22, 248, 18, t));
     if (shown.length) F.draw(ctx, itemName(shown[0][0], shown[0][1]) + (n.items.length > 1 ? ' AND MORE' : ''), 336, 228, '#9ad8e8', { shadow: false });

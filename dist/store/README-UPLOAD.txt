@@ -6,10 +6,10 @@ WHAT TO UPLOAD TO ITCH
    viewport to 960 x 540. The zip has index.html at its root and an .itch.toml
    beside it, which is all itch needs.
 
-2. itch-cover.png   630 x 500
+2. itch-cover.png / .gif   630 x 500 (the gif is animated)
    The cover image -- the thumbnail on the browse pages and in search.
 
-3. itch-banner.png  1920 x 480
+3. itch-banner.png / .gif  1920 x 480 (the gif is animated)
    For the page header / background image if you customise the page theme.
 
 4. DESCRIPTION.md         the long description for the page body

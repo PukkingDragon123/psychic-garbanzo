@@ -374,7 +374,7 @@
     S.bounce[id] = 1;
     S.app = id; S.k = 0; S.closing = 0; S.from = from || [240, SY + SH - 14];
     S.scroll = S.scrollTo = 0;
-    if (id === 'abay') { S.shop.sel = null; S.shop.confirm = 0; if (g.tutActive && g.tutActive()) { S.shop.top = TOPS.indexOf('SELL'); } }
+    if (id === 'abay') { S.shop.sel = null; S.shop.confirm = 0; if (TOPS[S.shop.top] === 'HOT' && PD.unlock && !PD.unlock.has(g, 'PC1')) S.shop.top = 1; if (g.tutActive && g.tutActive()) { S.shop.top = TOPS.indexOf('SELL'); } }
     A.sfx.tone(660, { type: 'sine', to: 990, dur: 0.12, vol: 0.06 });
   }
   function closeApp() { if (!S.app) return; S.closing = 1; A.sfx.tone(700, { type: 'sine', to: 420, dur: 0.1, vol: 0.05 }); }
@@ -713,6 +713,7 @@
     else if (S.app === 'mail') drawMail(ctx, g, t, bx, by, bw, bh);
     else if (S.app === 'setup') drawSetup(ctx, g, t, bx, by, bw, bh);
     ctx.restore();
+    if (S.pop) { S.pop.t += 1 / 60; PD.prodart.burst(ctx, S.pop.x, S.pop.y - S.pop.t * 10, S.pop.t < 1.1 ? S.pop.t : 0, S.pop.word, '#ffd34d'); if (S.pop.t > 1.1) S.pop = null; }
   }
   function appTitle(g) {
     if (S.app === 'abay') return 'ABAY - EVERYTHING, DELIVERED TO YOUR MOON';
@@ -840,7 +841,10 @@
       if (on) X.rect(ctx, sx0 + 3, y + 3, 2, 8, [T.red, T.blue, T.pink, T.accent, T.ylw, T.green][i]);
       F.draw(ctx, TOPS[i], sx0 + 9, y + 4, on ? T.ink : T.dim, { shadow: false });
       if (TOPS[i] === 'SELL' && g.vaultTotal() > 0) { X.blob(ctx, sx0 + sideW - 9, y + 7, 3, 3, T.green); }
+      const hotLock = TOPS[i] === 'HOT' && PD.unlock && !PD.unlock.has(g, 'PC1');
+      if (hotLock) PD.glyph.draw(ctx, 'lock', sx0 + sideW - 16, y, '#8a8ea8', '#5a5e78');
       if (clicked(sx0 + 2, y, sideW - 4, 14)) {
+        if (hotLock) { toast('LOCKED', 'HOT DEALS: UNLOCK IT IN THE BRAIN.', '#c8a8ff'); continue; }
         if (g.tutActive && g.tutActive() && TOPS[i] !== 'SELL') { g.tutNope('desk'); toast('ABAY', 'SELL YOUR ROCKS FIRST.', T.red); }
         else { sh.top = i; sh.sub = 0; sh.sel = null; S.scroll = S.scrollTo = 0; A.sfx.tone(1100, { type: 'square', dur: 0.02, vol: 0.03 }); }
       }
@@ -891,8 +895,13 @@
       rr(ctx, x, y - lift, cardW, cardH, 3, '#ffffff');
       if (sel) { X.frame(ctx, x - 1, y - lift - 1, cardW + 2, cardH + 2, T.blue); }
       // the photo
-      rr(ctx, x + 2, y + 2 - lift, cardW - 4, 32, 2, e.kind === 'cosm' ? '#f0f2fa' : e.kind === 'build' ? '#eef4fa' : '#f4f0fa');
-      picture(ctx, g, e, x + cardW / 2, y + 18 - lift, 28, t, over || sel);
+      const rar = PD.prodart.rarity(e.was || e.price);
+      X.rect(ctx, x + 2, y + 2 - lift, cardW - 4, 32, '#1a1030');
+      PD.prodart.stage(ctx, x + 2, y + 2 - lift, cardW - 4, 32, rar[2], t, over || sel, i * 0.37);
+      picture(ctx, g, e, x + cardW / 2, y + 18 - lift + (over ? Math.sin(t * 6) * 1 : 0), 28, t, over || sel);
+      PD.prodart.shine(ctx, x + 2, y + 2 - lift, cardW - 4, 32, t, i * 0.41);
+      if (!e.locked) { X.rect(ctx, x + 2, y + 28 - lift, F.width(rar[1], 1) + 3, 7, rar[2]); F.draw(ctx, rar[1], x + 3, y + 28 - lift, '#ffffff', { shadow: false }); }
+      if (sel || over) X.frame(ctx, x, y - lift, cardW, cardH, rar[2]);
       if (e.locked) { ctx.globalAlpha = 0.55; X.rect(ctx, x + 2, y + 2 - lift, cardW - 4, 32, '#20243a'); ctx.globalAlpha = 1; PD.glyph.draw(ctx, 'lock', x + cardW / 2 - 7, y + 11 - lift, '#ffd34d', '#8a6a1a'); }
       if (e.badge) { const bw2 = F.width(e.badge, 1) + 4; X.rect(ctx, x + 2, y + 2 - lift, bw2, 8, e.locked ? '#5a4a8a' : (e.on ? T.blue : T.green)); F.draw(ctx, e.badge, x + 4, y + 3 - lift, '#ffffff', { shadow: false }); }
       if (e.deal) { X.rect(ctx, x + cardW - 26, y + 2 - lift, 24, 8, T.red); F.draw(ctx, '-25%', x + cardW - 14, y + 3 - lift, '#ffffff', { center: true, shadow: false }); }
@@ -912,8 +921,14 @@
     const dx = cx0 + gw + 1, dy = sy0;
     X.rect(ctx, dx, dy, detW + 1, bh - 21, '#ffffff'); X.rect(ctx, dx, dy, 1, bh - 21, T.line);
     if (!e) { F.draw(ctx, 'NOTHING HERE.', dx + detW / 2, dy + 30, T.dim, { center: true, shadow: false }); return; }
-    rr(ctx, dx + 5, dy + 4, detW - 8, 46, 3, '#f0f2fa');
-    picture(ctx, g, e, dx + 5 + (detW - 8) / 2, dy + 26, 42, t, true);
+    const rar = PD.prodart.rarity(e.was || e.price);
+    X.rect(ctx, dx + 5, dy + 4, detW - 8, 46, '#1a1030');
+    PD.prodart.stage(ctx, dx + 5, dy + 4, detW - 8, 46, rar[2], t, true, 1.7);
+    ctx.save(); ctx.translate(dx + 5 + (detW - 8) / 2, dy + 26 + Math.sin(t * 2.4) * 1.5); ctx.rotate(Math.sin(t * 1.7) * 0.05);
+    picture(ctx, g, e, 0, 0, 42, t, true);
+    ctx.restore();
+    PD.prodart.shine(ctx, dx + 5, dy + 4, detW - 8, 46, t, 0.9);
+    X.rect(ctx, dx + 5, dy + 43, F.width(rar[1], 1) + 4, 7, rar[2]); F.draw(ctx, rar[1], dx + 7, dy + 43, '#ffffff', { shadow: false });
     let ly = dy + 53;
     const py = by + bh - 32;
     for (const l of wrap(e.name, 17).slice(0, 2)) { F.draw(ctx, l, dx + 6, ly, T.ink, { shadow: false }); ly += 9; }
@@ -960,7 +975,8 @@
     burst(x, y, 16);
     A.sfx.buy && A.sfx.buy();
     A.sfx.tone(660, { type: 'triangle', to: 1320, dur: 0.2, vol: 0.07 });
-    S.lastBuy = e.name; S.lesson = e.kind;
+    if (e.kind === 'ship') g.save.shipNew = e.id;
+    S.lastBuy = e.name; S.lesson = e.kind; S.pop = { t: 0, x, y: y - 30, word: U.pick(['NEW!', 'GOT IT!', 'YES!', 'POW!']) };
     if (e.kind === 'build') toast('ORDER DELIVERED', e.name + ' - PRESS B ON THE MOON', T.green);
     else if (e.kind === 'cosm') toast('ORDER DELIVERED', 'YOU ARE WEARING IT. LOOK.', T.green);
     else toast('INSTALLED', e.name + ' ON YOUR ' + (e.kind === 'ship' ? 'SAUCER' : 'SUIT'), T.green);
@@ -999,7 +1015,9 @@
     } else if (e.kind === 'cosm') {
       PD.cosm.icon(ctx, e.id, cx, cy, size * 0.9 * wob, t);
     } else if (e.kind === 'ship') {
-      fitDraw(ctx, shipIcon(D.SHIPX[e.id].icon), cx, cy, size * 0.8 * wob);
+      fitDraw(ctx, PD.prodart.art('ship', e.id) || shipIcon(D.SHIPX[e.id].icon), cx, cy, size * 0.9 * wob);
+    } else if (PD.prodart.art('gear', e.id)) {
+      fitDraw(ctx, PD.prodart.art('gear', e.id), cx, cy, size * 0.9 * wob);
     } else {
       const it = D.ABAYX[e.id];
       const col = { DIG: '#ffb03a', BODY: '#ff7a9a', BANG: '#ff5a4d', BIZ: '#8affa0', SHIP: '#7ef9ff', JUNK: '#c8a8ff' }[it.cat] || '#c8c8d8';

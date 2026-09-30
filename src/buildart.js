@@ -263,38 +263,221 @@
 
   // =========================================================== FURNITURE (the cave)
   function inItem(id, name, price, w, h, desc, paint, live) { add({ id, name, cat: 'FURNITURE', where: 'in', price, w, h, desc, paint, live }); }
-  inItem('tv', 'OLD TELLY', 900, 30, 34, 'SHOWS THE RACING. ONLY THE RACING.', (B, cx, gy) => { B.block(cx - 26, gy - 20, 52, 20, WOOD, 4); B.round(cx - 22, gy - 64, 44, 44, 5, 0x5a5a6a); B.round(cx - 18, gy - 60, 30, 32, 4, 0x1a2a3a); B.disc(cx + 17, gy - 52, 3, 0xc8c8d8); B.line(cx - 6, gy - 64, cx - 16, gy - 78, 0x8a8a9a, 1); B.line(cx + 2, gy - 64, cx + 10, gy - 80, 0x8a8a9a, 1); },
-    (ctx, t) => { X.rect(ctx, -8, -29, 14, 14, ['#3a8ad8', '#7ad84a', '#d8a83a'][Math.floor(t * 1.5) % 3]); X.rect(ctx, -8 + ((t * 20) % 14), -22, 2, 2, '#ffffff'); PT.glow(ctx, -1, -22, 20, '#6ab0ff', 0.25); });
-  inItem('arcade', 'ARCADE CABINET', 3500, 24, 50, 'ONE GAME. IT IS YOURS. YOU ARE STILL BAD AT IT.', (B, cx, gy) => { B.poly([[cx - 20, gy], [cx + 20, gy], [cx + 20, gy - 70], [cx + 14, gy - 100], [cx - 20, gy - 100]], 0x6a3ac8); B.rect(cx - 16, gy - 90, 28, 26, 0x0a0a14); B.rect(cx - 20, gy - 62, 40, 10, 0x3a1a8a); B.disc(cx - 8, gy - 57, 3, 0xff4a4a); B.disc(cx + 4, gy - 57, 2, 0xffd34d); B.rect(cx - 20, gy - 100, 34, 6, 0xffd34d); },
-    (ctx, t) => { const x = Math.sin(t * 3) * 6; X.rect(ctx, -6 + x, -38, 3, 3, '#7dff9a'); X.rect(ctx, -2 - x, -42, 2, 2, '#ff5a8a'); PT.glow(ctx, -1, -39, 16, '#a86aff', 0.3); });
-  inItem('beanbag', 'BEAN BAG', 600, 26, 18, 'YOU SIT IN IT AND IT EATS YOU. LOVELY.', (B, cx, gy) => { B.ball(cx, gy - 14, 26, 16, [0xe8583a, 0xff8a6a, 0xa83a2a], true); B.ellipse(cx - 4, gy - 22, 12, 5, 0xc8482a); });
-  inItem('lavalamp', 'LAVA LAMP', 700, 12, 30, 'THE BLOBS GO UP. THE BLOBS COME DOWN.', (B, cx, gy) => { B.poly([[cx - 8, gy], [cx + 8, gy], [cx + 5, gy - 10], [cx - 5, gy - 10]], 0xc8a040); B.poly([[cx - 6, gy - 10], [cx + 6, gy - 10], [cx + 9, gy - 44], [cx - 9, gy - 44]], 0x3a1a5a); B.poly([[cx - 6, gy - 44], [cx + 6, gy - 44], [cx + 3, gy - 54], [cx - 3, gy - 54]], 0xc8a040); },
-    (ctx, t) => { for (let k = 0; k < 3; k++) { const y = -8 - ((t * (4 + k) + k * 7) % 16); X.blob(ctx, Math.sin(t + k) * 1.5, y, 2.2, 2.6, '#ff6a3a'); } PT.glow(ctx, 0, -14, 18, '#ff6a3a', 0.3); });
-  inItem('aquarium', 'FISH TANK', 2600, 40, 34, 'THREE FISH. YOU HAVE NAMED ALL OF THEM DAVE.', (B, cx, gy) => { B.block(cx - 36, gy - 14, 72, 14, WOOD, 4); B.rect(cx - 34, gy - 60, 68, 46, 0x1a4a7a); B.rect(cx - 34, gy - 60, 68, 3, 0x5a6a7a); B.rect(cx - 30, gy - 22, 60, 6, 0xc8a060); for (let k = 0; k < 3; k++) B.rect(cx - 22 + k * 18, gy - 34, 2, 12, 0x3a8a4a); },
-    (ctx, t) => { for (let k = 0; k < 3; k++) { const x = -12 + ((t * (6 + k * 2) + k * 9) % 28), y = -22 + k * 5; X.blob(ctx, x, y, 2.4, 1.6, ['#ffb03d', '#ff5a8a', '#7ef9ff'][k]); } X.rect(ctx, -14 + ((t * 5) % 4), -16 - ((t * 9) % 12), 1, 1, '#ffffff'); PT.glow(ctx, 0, -20, 22, '#4ab0ff', 0.2); });
-  inItem('bookshelf', 'BOOKSHELF', 1200, 30, 50, 'NINE BOOKS ABOUT ROCKS. ONE ABOUT SHARKS. HE WROTE IT.', (B, cx, gy) => { B.block(cx - 26, gy - 100, 52, 100, WOOD, 4, 4); for (let j = 0; j < 3; j++) { B.rect(cx - 22, gy - 92 + j * 30, 44, 26, 0x2a1a10); for (let k = 0; k < 6; k++) B.rect(cx - 20 + k * 7, gy - 88 + j * 30 + (k % 2) * 2, 5, 22 - (k % 2) * 2, [0xc83a3a, 0x3a6ac8, 0xd8a83a, 0x3aa86a][(k + j) % 4]); } });
-  inItem('rug', 'FLUFFY RUG', 500, 50, 4, 'FLUFFY. THE RAT HAS ALREADY CLAIMED IT.', (B, cx, gy) => { B.ellipse(cx, gy - 3, 50, 5, 0xe87aa8); B.ellipse(cx, gy - 3, 40, 3, 0xff9ac8); for (let k = 0; k < 12; k++) B.rect(cx - 48 + k * 8, gy - 1, 2, 3, 0xffc0d8); });
-  inItem('teddy', 'GIANT TEDDY', 1400, 26, 36, 'BIGGER THAN YOU. HUGS BACK IF YOU ASK NICELY.', (B, cx, gy) => { B.ball(cx, gy - 24, 22, 22, [0xc8905a, 0xe8b07a, 0x8a5a34]); B.ball(cx, gy - 58, 16, 15, [0xc8905a, 0xe8b07a, 0x8a5a34]); for (const s of [-1, 1]) { B.disc(cx + s * 12, gy - 70, 6, 0xc8905a); B.disc(cx + s * 12, gy - 70, 3, 0xe8a0a0); B.disc(cx + s * 6, gy - 60, 2, 0x1a1024); } B.ellipse(cx, gy - 52, 6, 4, 0xe8c8a8); B.disc(cx, gy - 54, 2, 0x3a1a1a); B.rect(cx - 10, gy - 44, 20, 4, 0xd83a4a); });
-  inItem('toybot', 'TOY ROBOT', 1800, 16, 24, 'WINDS UP. WALKS INTO THE WALL. WINDS UP.', (B, cx, gy) => { panel(B, cx - 12, gy - 30, 24, 22, METAL); B.rect(cx - 10, gy - 8, 6, 8, METAL[2]); B.rect(cx + 4, gy - 8, 6, 8, METAL[2]); panel(B, cx - 9, gy - 46, 18, 14, METAL); B.rect(cx - 6, gy - 42, 4, 3, 0xff4a4a); B.rect(cx + 2, gy - 42, 4, 3, 0xff4a4a); B.line(cx, gy - 46, cx, gy - 52, METAL[2], 1); },
-    (ctx, t) => { X.blob(ctx, 0, -26, 1.5, 1.5, Math.sin(t * 6) > 0 ? '#ffd34d' : '#5a4a1a'); X.rect(ctx, 6, -16 + Math.sin(t * 8) * 2, 3, 1, '#c8ccd8'); });
-  inItem('rubberduck', 'RUBBER DUCK (HUGE)', 900, 22, 24, 'IT SQUEAKS. NOBODY KNOWS HOW. IT HAS NO SQUEAKER.', (B, cx, gy) => { B.ball(cx, gy - 14, 20, 13, [0xffd34d, 0xfff0a0, 0xc89a1e], true); B.ball(cx + 10, gy - 34, 11, 11, [0xffd34d, 0xfff0a0, 0xc89a1e], true); B.poly([[cx + 18, gy - 34], [cx + 30, gy - 32], [cx + 18, gy - 28]], 0xff8a2a); B.disc(cx + 12, gy - 38, 2, 0x1a1024); });
-  inItem('disco', 'DISCO BALL', 2200, 20, 40, 'EVERY NIGHT IS A PARTY IF YOU ARE BRAVE.', (B, cx, gy) => { B.rect(cx - 1, gy - 80, 2, 50, 0x8a8a9a); B.rect(cx - 16, gy - 4, 32, 4, 0x3a3a4a); B.rect(cx - 1, gy - 30, 2, 26, 0x3a3a4a); },
-    (ctx, t) => { const y = -40; X.blob(ctx, 0, y, 7, 7, '#c8ccd8'); for (let k = 0; k < 6; k++) { const a = t * 2 + k; X.rect(ctx, Math.cos(a) * 5 - 1, y + Math.sin(a * 1.3) * 5 - 1, 2, 2, '#ffffff'); }
-      for (let k = 0; k < 5; k++) { const a = t * 1.3 + k * 1.3; ctx.globalAlpha = 0.25; X.blob(ctx, Math.cos(a) * 60, -10 + Math.sin(a * 0.7) * 20, 3, 3, ['#ff5a8a', '#7ef9ff', '#ffd34d', '#8aff9a', '#b08aff'][k]); } ctx.globalAlpha = 1; });
-  inItem('gamingpc', 'GAMING PC', 6000, 30, 40, 'RGB. ALL OF IT RGB. IT RUNS THE CALCULATOR AT 900 FPS.', (B, cx, gy) => { B.block(cx - 28, gy - 12, 56, 12, WOOD, 3); B.round(cx - 24, gy - 60, 30, 46, 3, 0x1a1a24); B.rect(cx - 20, gy - 56, 22, 38, 0x2a2a3a); B.round(cx + 8, gy - 48, 20, 16, 2, 0x1a1a24); B.rect(cx + 10, gy - 46, 16, 11, 0x0a2a4a); },
-    (ctx, t) => { const c = ['#ff5a8a', '#7ef9ff', '#ffd34d', '#8aff9a', '#b08aff'][Math.floor(t * 3) % 5]; X.rect(ctx, -9, -27, 2, 18, c); X.rect(ctx, -3, -27, 2, 18, c); X.rect(ctx, 6, -23, 7, 5, '#3a8ad8'); PT.glow(ctx, -5, -18, 16, c, 0.35); });
-  inItem('hammock', 'HAMMOCK', 1100, 44, 30, 'STRUNG BETWEEN TWO ROCKS. SWINGS WHEN YOU BREATHE.', (B, cx, gy) => { for (const s of [-1, 1]) B.line(cx + s * 40, gy, cx + s * 40, gy - 50, WOOD[0], 4); },
-    (ctx, t) => { const sw = Math.sin(t * 1.2) * 2; X.curve(ctx, -20, -24, sw, -8, 20, -24, '#e8583a', 3, 12); X.line(ctx, -20, -24, -20, -25, '#8a5a34', 1); });
-  inItem('piano', 'TOY PIANO', 1600, 30, 26, 'EIGHT KEYS. PLAYS ONE SONG. BADLY.', (B, cx, gy) => { B.block(cx - 28, gy - 30, 56, 30, [0xd83a4a, 0xff6a7a, 0x8a1a2a], 5, 4); B.rect(cx - 24, gy - 26, 48, 10, 0xffffff); for (let k = 0; k < 8; k++) B.rect(cx - 22 + k * 6, gy - 26, 1, 10, 0x3a3a4a); for (let k = 0; k < 5; k++) B.rect(cx - 20 + k * 9, gy - 26, 3, 6, 0x1a1a24); } );
-  inItem('plantpot', 'HOUSE PLANT', 400, 16, 30, 'IT IS ALIVE. THAT MAKES TWO OF YOU.', (B, cx, gy) => { B.poly([[cx - 10, gy], [cx + 10, gy], [cx + 12, gy - 18], [cx - 12, gy - 18]], 0xc86a3a); for (let k = 0; k < 7; k++) { const a = -Math.PI / 2 + (k - 3) * 0.4; B.ellipse(cx + Math.cos(a) * 12, gy - 30 + Math.sin(a) * 14, 5, 8, k % 2 ? LEAF[0] : LEAF[1]); } } ,
-    (ctx, t) => {});
-  inItem('minifridge', 'MINI FRIDGE', 1300, 18, 26, 'COLD. FULL OF CHEESE. BRENDA KNOWS.', (B, cx, gy) => { B.round(cx - 16, gy - 50, 32, 50, 4, 0xe8e8f0); B.rect(cx - 16, gy - 30, 32, 2, 0xa8a8b8); B.rect(cx + 8, gy - 44, 3, 10, 0x8a8a9a); B.rect(cx - 10, gy - 44, 8, 6, 0xffd34d); } );
-  inItem('trophies', 'TROPHY SHELF', 3000, 30, 30, 'EVERY PLANET YOU BROKE, IN LITTLE GOLD CUPS.', (B, cx, gy) => { B.block(cx - 28, gy - 12, 56, 12, WOOD, 3); for (let k = 0; k < 3; k++) { const x = cx - 18 + k * 18; B.rect(x - 4, gy - 16, 8, 4, 0xc8901e); B.rect(x - 1, gy - 26, 2, 10, 0xffd34d); B.ellipse(x, gy - 30, 7, 6, 0xffd34d); B.ellipse(x - 2, gy - 32, 2, 2, 0xfff0a0); } },
-    (ctx, t) => { if (Math.sin(t * 2) > 0.8) X.rect(ctx, -9 + ((t * 7) % 18), -16, 1, 1, '#ffffff'); });
-  inItem('neonin', 'NEON SIGN: HOME', 1500, 30, 20, 'IT SAYS HOME. IN CASE YOU FORGET.', (B, cx, gy) => { B.rect(cx - 2, gy - 20, 4, 20, 0x3a3a4a); B.round(cx - 30, gy - 44, 60, 24, 4, 0x1a1024); },
-    (ctx, t) => { const on = Math.sin(t * 13) > -0.8; F.draw(ctx, 'HOME', 0, -20, on ? '#ff7ac4' : '#4a1a3a', { center: true, shadow: false }); if (on) PT.glow(ctx, 0, -16, 24, '#ff7ac4', 0.35); });
-  inItem('fireplace', 'FIREPLACE', 4200, 40, 40, 'IN A CAVE. ON A MOON. WITH NO AIR. IT WORKS. DO NOT ASK.', (B, cx, gy) => { B.block(cx - 38, gy - 80, 76, 80, [0x8a5a4a, 0xb07a6a, 0x5a3a2a], 8, 4); B.rect(cx - 24, gy - 44, 48, 44, 0x1a0a0a); B.rect(cx - 42, gy - 82, 84, 6, 0x6a4a3a); } ,
-    (ctx, t) => { for (let k = 0; k < 4; k++) { const h = 6 + Math.abs(Math.sin(t * 7 + k)) * 6; X.poly(ctx, [[-8 + k * 5, -1], [-4 + k * 5, -1], [-6 + k * 5, -1 - h]], k % 2 ? '#ffb040' : '#ff6a2a'); } PT.glow(ctx, 0, -8, 30, '#ff8a3a', 0.4); });
+  /* Furniture, painted properly: wood with grain, lacquer with a gloss on
+     it, glass with a glare, fabric with a nap, chrome with a hard highlight. */
+  function grain(B, x, y, w, h, C) {
+    B.rect(x, y, w, h, C[0]);
+    for (let j = 0; j < h; j += 3) for (let i = 0; i < w; i++) {
+      const n = Math.sin((i + x) * 0.08 + Math.sin((j + y) * 0.21) * 2 + j * 0.9);
+      if (n > 0.82) B.set(x + i, y + j, C[2], 0.5); else if (n < -0.9) B.set(x + i, y + j, C[1], 0.5);
+    }
+    B.rect(x, y, w, 2, C[1]); B.rect(x, y + h - 2, w, 2, C[2]); B.rect(x + w - 2, y, 2, h, C[2], 0.6);
+  }
+  function glass(B, x, y, w, h, top, bot) {
+    for (let j = 0; j < h; j++) B.rect(x, y + j, w, 1, PT.mix(top, bot, j / h));
+    B.poly([[x + 3, y + 2], [x + w * 0.45, y + 2], [x + w * 0.2, y + h - 3], [x + 3, y + h - 3]], 0xffffff, 0.08);
+    B.line(x + 4, y + 4, x + 4, y + h * 0.4, 0xffffff, 1, 0.5);
+  }
+  function fuzz(B, x, y, w, h, C) {
+    for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) {
+      if (B.alpha(x + i, y + j) < 128) continue;
+      const n = U.hash2(x + i, y + j);
+      if (n > 0.86) B.set(x + i, y + j, C[1], 0.7); else if (n < 0.1) B.set(x + i, y + j, C[2], 0.6);
+    }
+  }
+  const LACQ = [0xd8303e, 0xff7a86, 0x7a1422];
+  const CHROME = [0xa8b0c4, 0xf0f4ff, 0x5a6278];
+  inItem('tv', 'OLD TELLY', 900, 30, 34, 'SHOWS THE RACING. ONLY THE RACING.', (B, cx, gy) => {
+    grain(B, cx - 26, gy - 18, 52, 14, WOOD); for (const s of [-1, 1]) B.rect(cx + s * 20 - 2, gy - 4, 4, 4, WOOD[2]);
+    B.round(cx - 25, gy - 66, 50, 48, 7, 0x3a2418); B.round(cx - 24, gy - 65, 48, 46, 6, WOOD[1]);
+    grain(B, cx - 22, gy - 63, 44, 42, [0x8a5a34, 0xb07a4a, 0x5a3a20]);
+    B.round(cx - 20, gy - 60, 30, 34, 6, 0x14161e); glass(B, cx - 18, gy - 58, 26, 30, 0x2a4a5a, 0x10202a);
+    B.round(cx + 12, gy - 60, 9, 34, 2, 0x5a3a20);
+    for (const y of [-54, -44]) { B.disc(cx + 16.5, gy + y, 3.2, 0x1a1024); B.disc(cx + 16.5, gy + y, 2.6, CHROME[0]); B.rect(cx + 16, gy + y - 2.6, 1, 2.6, 0x1a1024); }
+    for (let k = 0; k < 4; k++) B.rect(cx + 13, gy - 36 + k * 2, 7, 1, 0x2a1a10);
+    B.line(cx - 4, gy - 66, cx - 16, gy - 84, CHROME[2], 1); B.line(cx + 2, gy - 66, cx + 12, gy - 86, CHROME[2], 1);
+    B.disc(cx - 16, gy - 84, 1.6, CHROME[1]); B.disc(cx + 12, gy - 86, 1.6, CHROME[1]); B.ellipse(cx - 1, gy - 66, 5, 2, CHROME[0]);
+  }, (ctx, t) => { X.rect(ctx, -8, -29, 13, 14, ['#3a8ad8', '#7ad84a', '#d8a83a'][Math.floor(t * 1.5) % 3]); X.rect(ctx, -8 + ((t * 20) % 13), -22, 2, 2, '#ffffff'); X.rect(ctx, -8, -29 + ((t * 30) % 14), 13, 1, '#ffffff'); PT.glow(ctx, -1, -22, 20, '#6ab0ff', 0.25); });
+  inItem('arcade', 'ARCADE CABINET', 3500, 24, 50, 'ONE GAME. IT IS YOURS. YOU ARE STILL BAD AT IT.', (B, cx, gy) => {
+    const P = [0x5a2ab8, 0x8a5ae8, 0x2a1068];
+    B.poly([[cx - 22, gy], [cx + 22, gy], [cx + 22, gy - 64], [cx + 16, gy - 70], [cx + 18, gy - 102], [cx - 22, gy - 102]], P[2]);
+    B.poly([[cx - 20, gy], [cx + 20, gy], [cx + 20, gy - 64], [cx + 14, gy - 70], [cx + 16, gy - 100], [cx - 20, gy - 100]], P[0]);
+    B.rect(cx - 20, gy - 100, 4, 100, P[1]);
+    for (const [x, y] of [[-12, -20], [10, -36], [-6, -10]]) { B.rect(cx + x - 1, gy + y - 3, 2, 6, 0xffd34d); B.rect(cx + x - 3, gy + y - 1, 6, 2, 0xffd34d); }
+    B.round(cx - 18, gy - 102, 36, 12, 2, 0x1a0a2a); B.rect(cx - 16, gy - 100, 32, 8, 0xff5aa8); for (let k = 0; k < 4; k++) B.rect(cx - 13 + k * 7, gy - 99, 4, 6, [0xffd34d, 0x7ef9ff, 0xffffff, 0x8affa0][k]);
+    B.round(cx - 17, gy - 90, 32, 28, 3, 0x0a0a14); glass(B, cx - 15, gy - 88, 28, 24, 0x1a2a4a, 0x05080e);
+    B.poly([[cx - 22, gy - 62], [cx + 22, gy - 62], [cx + 24, gy - 52], [cx - 24, gy - 52]], 0x2a1068); B.poly([[cx - 21, gy - 61], [cx + 21, gy - 61], [cx + 22, gy - 55], [cx - 22, gy - 55]], 0x3a1a8a);
+    B.rect(cx - 12, gy - 64, 2, 6, CHROME[2]); B.ball(cx - 11, gy - 65, 3, 3, [0xff3a4a, 0xffa0a8, 0x8a1020], true);
+    for (const [x, c] of [[0, 0xffd34d], [6, 0x3ad8ff], [12, 0x8affa0]]) { B.ellipse(cx + x, gy - 57, 2.4, 1.6, PT.mul(c, 0.6)); B.ellipse(cx + x, gy - 58, 2.2, 1.4, c); }
+    B.round(cx - 10, gy - 40, 20, 22, 2, 0x1a0a2a); for (const x of [-5, 3]) { B.rect(cx + x, gy - 36, 3, 6, 0xff3a4a); B.rect(cx + x + 1, gy - 35, 1, 4, 0xffd0d0); }
+  }, (ctx, t) => { const x = Math.sin(t * 3) * 6; X.rect(ctx, -6 + x, -38, 3, 3, '#7dff9a'); X.rect(ctx, -2 - x, -42, 2, 2, '#ff5a8a'); X.rect(ctx, -7, -44 + ((t * 20) % 12), 14, 1, '#1a3a6a'); PT.glow(ctx, -1, -39, 16, '#a86aff', 0.3); PT.glow(ctx, 0, -48, 14, '#ff5aa8', 0.25); });
+  inItem('beanbag', 'BEAN BAG', 600, 26, 18, 'YOU SIT IN IT AND IT EATS YOU. LOVELY.', (B, cx, gy) => {
+    B.ellipse(cx, gy - 2, 26, 4, 0x2a1020, 0.5);
+    B.ball(cx, gy - 15, 27, 16, [0xe8583a, 0xff9a7a, 0x9a2a1a], true);
+    B.ball(cx + 4, gy - 25, 16, 8, [0xd8482a, 0xff8a6a, 0x9a2a1a]);
+    B.line(cx - 22, gy - 12, cx - 4, gy - 28, 0x9a2a1a, 1, 0.8); B.line(cx + 22, gy - 10, cx + 8, gy - 30, 0x9a2a1a, 1, 0.8);
+    fuzz(B, cx - 27, gy - 32, 54, 30, [0, 0xffb09a, 0xa83a2a]);
+  });
+  inItem('lavalamp', 'LAVA LAMP', 700, 12, 30, 'THE BLOBS GO UP. THE BLOBS COME DOWN.', (B, cx, gy) => {
+    B.poly([[cx - 9, gy], [cx + 9, gy], [cx + 5, gy - 12], [cx - 5, gy - 12]], 0xa87a2a); B.poly([[cx - 8, gy], [cx - 2, gy], [cx - 1, gy - 12], [cx - 4, gy - 12]], 0xffe07a, 0.6); B.rect(cx - 9, gy - 3, 18, 2, 0x6a4a1a);
+    B.poly([[cx - 5, gy - 12], [cx + 5, gy - 12], [cx + 9, gy - 44], [cx - 9, gy - 44]], 0x2a0e4a);
+    for (let j = 0; j < 32; j++) B.rect(cx - 5 - j * 0.12, gy - 12 - j, 10 + j * 0.25, 1, PT.mix(0x6a2a8a, 0x2a0e4a, j / 32), 0.7);
+    B.line(cx - 4, gy - 16, cx - 7, gy - 40, 0xffffff, 1, 0.35);
+    B.poly([[cx - 9, gy - 44], [cx + 9, gy - 44], [cx + 4, gy - 56], [cx - 4, gy - 56]], 0xa87a2a); B.poly([[cx - 8, gy - 44], [cx - 3, gy - 44], [cx - 2, gy - 56], [cx - 4, gy - 56]], 0xffe07a, 0.6);
+  }, (ctx, t) => { for (let k = 0; k < 3; k++) { const y = -8 - ((t * (4 + k) + k * 7) % 14); X.blob(ctx, Math.sin(t + k) * 1.5, y, 2.2, 2.8, '#ff6a3a'); X.blob(ctx, Math.sin(t + k) * 1.5 - 0.6, y - 0.8, 1, 1.2, '#ffb07a'); } PT.glow(ctx, 0, -14, 18, '#ff6a3a', 0.3); });
+  inItem('aquarium', 'FISH TANK', 2600, 40, 34, 'THREE FISH. YOU HAVE NAMED ALL OF THEM DAVE.', (B, cx, gy) => {
+    grain(B, cx - 38, gy - 16, 76, 16, WOOD); B.rect(cx - 1, gy - 14, 2, 12, WOOD[2]); B.rect(cx - 8, gy - 9, 3, 2, CHROME[1]); B.rect(cx + 5, gy - 9, 3, 2, CHROME[1]);
+    B.rect(cx - 36, gy - 66, 72, 50, 0x1a1a24);
+    glass(B, cx - 34, gy - 62, 68, 46, 0x3a9ad8, 0x0a3a6a);
+    for (let k = 0; k < 34; k++) B.disc(cx - 32 + U.hash2(k, 1) * 64, gy - 20 + U.hash2(k, 2) * 3, 1.4, [0xffd34d, 0xff8ab0, 0x7ef9ff, 0xffffff, 0xc86a3a][k % 5]);
+    for (let k = 0; k < 4; k++) { let x = cx - 26 + k * 16; for (let j = 0; j < 24 + k * 4; j++) { x += Math.sin(j * 0.3 + k) * 0.6; B.rect(x, gy - 20 - j, 2, 1, k % 2 ? 0x3aa86a : 0x5ad88a); } }
+    B.block(cx + 12, gy - 34, 14, 16, [0x9a92b8, 0xc8c0e0, 0x5a5270], 2); for (let k = 0; k < 3; k++) B.rect(cx + 12 + k * 5, gy - 37, 3, 4, 0x9a92b8); B.round(cx + 16, gy - 28, 5, 8, 2, 0x1a1024);
+    B.rect(cx - 38, gy - 70, 76, 5, 0x2a2a34); B.rect(cx - 38, gy - 70, 76, 1, 0x6a6a7a); B.rect(cx - 30, gy - 66, 60, 2, 0xfff0c0, 0.6);
+  }, (ctx, t) => { for (let k = 0; k < 3; k++) { const q = ((t * (0.12 + k * 0.03) + k * 0.33) % 1), dir = Math.sin(t * 0.3 + k) > 0 ? 1 : -1; const x = -14 + ((t * (6 + k * 2) + k * 9) % 28), y = -22 + k * 5; const c = ['#ffb03d', '#ff5a8a', '#7ef9ff'][k]; X.blob(ctx, x, y, 2.6, 1.6, c); X.poly(ctx, [[x - 2.5, y], [x - 5, y - 2], [x - 5, y + 2]], c); X.rect(ctx, x + 1, y - 1, 1, 1, '#1a1024'); }
+    for (let k = 0; k < 4; k++) X.rect(ctx, -14, -16 - ((t * 9 + k * 3) % 12), 1, 1, '#ffffff'); PT.glow(ctx, 0, -20, 24, '#4ab0ff', 0.2); });
+  inItem('bookshelf', 'BOOKSHELF', 1200, 30, 50, 'NINE BOOKS ABOUT ROCKS. ONE ABOUT SHARKS. HE WROTE IT.', (B, cx, gy) => {
+    grain(B, cx - 28, gy - 102, 56, 102, WOOD);
+    for (let j = 0; j < 3; j++) {
+      const y0 = gy - 94 + j * 30;
+      B.rect(cx - 23, y0, 46, 25, 0x2a1a10); B.rect(cx - 23, y0, 46, 3, 0x1a0e08);
+      let x = cx - 22;
+      for (let k = 0; x < cx + 16; k++) {
+        const w = 4 + Math.floor(U.hash2(k, j) * 4), h = 16 + Math.floor(U.hash2(k, j + 5) * 8), c = [0xc83a3a, 0x3a6ac8, 0xd8a83a, 0x3aa86a, 0x8a4ac8, 0xe8e0c8][(k + j * 2) % 6];
+        if (k === 3 && j === 1) { B.poly([[x, y0 + 25], [x + 5, y0 + 25], [x + 14, y0 + 9], [x + 9, y0 + 7]], c); x += 12; continue; }
+        B.rect(x, y0 + 25 - h, w, h, c); B.rect(x, y0 + 25 - h, 1, h, PT.mix(c, 0xffffff, 0.4)); B.rect(x + w - 1, y0 + 25 - h, 1, h, PT.mul(c, 0.6));
+        B.rect(x, y0 + 28 - h, w, 1, 0xffd34d, 0.8); B.rect(x, y0 + 20, w, 1, 0xffd34d, 0.6);
+        x += w + 1;
+      }
+    }
+    B.poly([[cx + 10, gy - 102], [cx + 22, gy - 102], [cx + 20, gy - 110], [cx + 12, gy - 110]], 0xc86a3a); for (let k = 0; k < 5; k++) B.ellipse(cx + 16 + (k - 2) * 4, gy - 114 - (k % 2) * 3, 3, 5, k % 2 ? LEAF[0] : LEAF[1]);
+  });
+  inItem('rug', 'FLUFFY RUG', 500, 50, 4, 'FLUFFY. THE RAT HAS ALREADY CLAIMED IT.', (B, cx, gy) => {
+    B.ellipse(cx, gy - 3, 50, 6, 0xb84a7a); B.ellipse(cx, gy - 3.5, 47, 5, 0xe87aa8); B.ellipse(cx, gy - 3.5, 36, 3.6, 0xffd8e8); B.ellipse(cx, gy - 3.5, 26, 2.6, 0xe87aa8); B.ellipse(cx, gy - 3.5, 14, 1.6, 0xffd34d);
+    fuzz(B, cx - 50, gy - 9, 100, 10, [0, 0xffffff, 0xb84a7a]);
+    for (let k = 0; k < 14; k++) { B.rect(cx - 52 + k * 8, gy - 1, 2, 3, 0xffc0d8); B.rect(cx - 52 + k * 8, gy + 1, 2, 1, 0xe87aa8); }
+  });
+  inItem('teddy', 'GIANT TEDDY', 1400, 26, 36, 'BIGGER THAN YOU. HUGS BACK IF YOU ASK NICELY.', (B, cx, gy) => {
+    const T = [0xc8905a, 0xecb880, 0x8a5a34];
+    for (const s of [-1, 1]) { B.ball(cx + s * 14, gy - 8, 9, 8, T); B.ellipse(cx + s * 15, gy - 7, 5, 5, 0xf0c8a0); }
+    B.ball(cx, gy - 26, 22, 20, T, true);
+    B.ellipse(cx, gy - 24, 12, 11, 0xf0d0a8); B.line(cx, gy - 34, cx, gy - 14, 0xc8905a, 1, 0.6);
+    for (const s of [-1, 1]) B.ball(cx + s * 21, gy - 30, 7, 10, T);
+    B.ball(cx, gy - 58, 17, 15, T, true);
+    for (const s of [-1, 1]) { B.disc(cx + s * 13, gy - 71, 7, T[2]); B.disc(cx + s * 13, gy - 71, 6, T[0]); B.disc(cx + s * 13, gy - 71, 3.2, 0xe8a0a0); }
+    B.ellipse(cx, gy - 52, 8, 6, 0xf0d0a8);
+    for (const s of [-1, 1]) { B.disc(cx + s * 6, gy - 61, 2.6, 0x1a1024); B.disc(cx + s * 6 - 0.8, gy - 62, 0.8, 0xffffff); B.ellipse(cx + s * 11, gy - 55, 2.6, 1.4, 0xff9ab8, 0.7); }
+    B.ellipse(cx, gy - 55, 2.6, 2, 0x3a1a1a); B.line(cx, gy - 53, cx, gy - 50, 0x3a1a1a, 1); B.line(cx - 3, gy - 49, cx + 3, gy - 49, 0x3a1a1a, 1);
+    B.poly([[cx - 10, gy - 46], [cx - 2, gy - 42], [cx - 10, gy - 38]], 0xd83a4a); B.poly([[cx + 10, gy - 46], [cx + 2, gy - 42], [cx + 10, gy - 38]], 0xd83a4a); B.disc(cx, gy - 42, 2.4, 0xff5a6a);
+    fuzz(B, cx - 30, gy - 80, 60, 80, [0, 0xf8d0a0, 0x8a5a34]);
+  });
+  inItem('toybot', 'TOY ROBOT', 1800, 16, 24, 'WINDS UP. WALKS INTO THE WALL. WINDS UP.', (B, cx, gy) => {
+    for (const s of [-1, 1]) { B.round(cx + s * 6 - 4, gy - 10, 8, 10, 2, CHROME[2]); B.rect(cx + s * 6 - 5, gy - 3, 10, 3, 0xd83a4a); }
+    B.round(cx - 12, gy - 32, 24, 22, 4, CHROME[2]); B.round(cx - 11, gy - 31, 22, 20, 3, CHROME[0]); B.rect(cx - 11, gy - 31, 6, 20, CHROME[1], 0.5);
+    B.disc(cx, gy - 22, 5, 0x1a1024); B.disc(cx, gy - 22, 4, 0xffd34d); B.line(cx, gy - 22, cx + 2, gy - 25, 0x1a1024, 1);
+    for (const s of [-1, 1]) { B.line(cx + s * 12, gy - 28, cx + s * 17, gy - 18, CHROME[2], 3); B.poly([[cx + s * 15, gy - 18], [cx + s * 20, gy - 18], [cx + s * 18, gy - 13]], 0xd83a4a); }
+    B.rect(cx + 12, gy - 24, 5, 2, 0xc8a040); B.rect(cx + 16, gy - 27, 2, 8, 0xc8a040);
+    B.round(cx - 9, gy - 48, 18, 16, 3, CHROME[2]); B.round(cx - 8, gy - 47, 16, 14, 2, CHROME[0]);
+    B.round(cx - 6, gy - 45, 12, 6, 2, 0x1a1024); for (const x of [-3, 3]) B.disc(cx + x, gy - 42, 1.6, 0xff4a4a);
+    for (let k = 0; k < 4; k++) B.rect(cx - 5 + k * 3, gy - 37, 2, 2, 0x1a1024);
+    B.line(cx, gy - 48, cx, gy - 54, CHROME[2], 1); B.ball(cx, gy - 56, 2.6, 2.6, [0xff3a4a, 0xffa0a8, 0x8a1020], true);
+  }, (ctx, t) => { X.blob(ctx, 0, -28, 1.2, 1.2, Math.sin(t * 6) > 0 ? '#ff4a4a' : '#5a1a1a'); X.rect(ctx, 7, -14 + Math.sin(t * 8) * 2, 2, 1, '#e8c86a'); });
+  inItem('rubberduck', 'RUBBER DUCK (HUGE)', 900, 22, 24, 'IT SQUEAKS. NOBODY KNOWS HOW. IT HAS NO SQUEAKER.', (B, cx, gy) => {
+    B.ellipse(cx, gy - 2, 22, 3, 0x3a2a10, 0.4);
+    B.ball(cx - 2, gy - 14, 21, 13, [0xffd34d, 0xfff4b0, 0xc8901e], true);
+    B.poly([[cx - 22, gy - 16], [cx - 30, gy - 26], [cx - 18, gy - 22]], 0xffd34d);
+    B.ball(cx - 4, gy - 16, 10, 6, [0xf0c030, 0xfff0a0, 0xc8901e]);
+    B.ball(cx + 10, gy - 34, 12, 11, [0xffd34d, 0xfff4b0, 0xc8901e], true);
+    B.poly([[cx + 17, gy - 34], [cx + 31, gy - 32], [cx + 27, gy - 29], [cx + 17, gy - 29]], 0xff8a2a); B.line(cx + 18, gy - 31, cx + 29, gy - 31, 0xc85a1a, 1);
+    B.disc(cx + 13, gy - 38, 2.6, 0x1a1024); B.disc(cx + 12, gy - 39, 1, 0xffffff); B.ellipse(cx + 8, gy - 32, 3, 1.8, 0xff9a6a, 0.6);
+  });
+  inItem('disco', 'DISCO BALL', 2200, 20, 40, 'EVERY NIGHT IS A PARTY IF YOU ARE BRAVE.', (B, cx, gy) => {
+    B.block(cx - 16, gy - 12, 32, 12, [0x2a2a38, 0x4a4a5a, 0x14141e], 2); B.disc(cx - 7, gy - 6, 4, 0x0a0a10); B.disc(cx + 7, gy - 6, 4, 0x0a0a10); B.disc(cx - 7, gy - 6, 1.5, CHROME[0]); B.disc(cx + 7, gy - 6, 1.5, CHROME[0]);
+    B.rect(cx - 1, gy - 66, 3, 54, CHROME[2]); B.rect(cx - 1, gy - 66, 1, 54, CHROME[1]);
+    const by = gy - 80, r = 14;
+    for (let y = -r; y <= r; y++) for (let x = -r; x <= r; x++) {
+      if (x * x + y * y > r * r) continue;
+      const tile = ((Math.floor((x + 20) / 3) + Math.floor((y + 20) / 3)) % 3);
+      const l = 0.5 - (x + y) / (r * 3);
+      const c = tile === 0 ? PT.mix(0x5a6278, 0xffffff, U.clamp(l, 0, 1)) : tile === 1 ? PT.mix(0x8a92a8, 0xe0e8ff, U.clamp(l - 0.1, 0, 1)) : 0x3a4258;
+      B.set(cx + x, by + y, (x + 21) % 3 === 0 || (y + 21) % 3 === 0 ? 0x2a2e3a : c);
+    }
+    B.disc(cx - 5, by - 5, 3, 0xffffff, 0.8);
+  }, (ctx, t) => { for (let k = 0; k < 6; k++) { const a = t * 2 + k; if (Math.sin(a * 3) > 0.6) { const x = Math.cos(a) * 6, y = -40 + Math.sin(a * 1.3) * 6; X.rect(ctx, x - 1, y, 3, 1, '#ffffff'); X.rect(ctx, x, y - 1, 1, 3, '#ffffff'); } }
+    for (let k = 0; k < 6; k++) { const a = t * 1.3 + k * 1.1; ctx.globalAlpha = 0.28; X.blob(ctx, Math.cos(a) * 60, -10 + Math.sin(a * 0.7) * 24, 3, 2, ['#ff5a8a', '#7ef9ff', '#ffd34d', '#8aff9a', '#b08aff', '#ffffff'][k]); } ctx.globalAlpha = 1; PT.glow(ctx, 0, -40, 20, '#ffffff', 0.12); });
+  inItem('gamingpc', 'GAMING PC', 6000, 30, 40, 'RGB. ALL OF IT RGB. IT RUNS THE CALCULATOR AT 900 FPS.', (B, cx, gy) => {
+    grain(B, cx - 30, gy - 14, 60, 6, [0x2a2a34, 0x4a4a5a, 0x14141e]); for (const s of [-1, 1]) B.rect(cx + s * 26 - 2, gy - 8, 4, 8, 0x14141e);
+    B.round(cx - 26, gy - 64, 20, 50, 2, 0x0a0a10); B.rect(cx - 24, gy - 62, 16, 46, 0x1a1a24); glass(B, cx - 23, gy - 61, 14, 44, 0x2a2a4a, 0x10101a);
+    for (const y of [-54, -40, -26]) { B.disc(cx - 16, gy + y, 5, 0x3a3a4a); B.disc(cx - 16, gy + y, 1.5, 0x6a6a7a); }
+    B.round(cx - 2, gy - 60, 32, 22, 2, 0x0a0a10); glass(B, cx, gy - 58, 28, 18, 0x1a3a6a, 0x0a1428);
+    B.rect(cx + 12, gy - 38, 4, 10, 0x2a2a34); B.rect(cx + 6, gy - 29, 16, 2, 0x2a2a34);
+    B.round(cx - 2, gy - 18, 26, 4, 1, 0x1a1a24);
+  }, (ctx, t) => { const c = ['#ff5a8a', '#7ef9ff', '#ffd34d', '#8aff9a', '#b08aff'][Math.floor(t * 3) % 5];
+    for (const y of [-27, -20, -13]) { X.rect(ctx, -10, y - 1, 5, 1, c); X.rect(ctx, -8, y - 3, 1, 5, c); }
+    X.rect(ctx, -12, -31, 1, 23, c); X.rect(ctx, 0, -9, 12, 1, c);
+    X.rect(ctx, 2, -27, 10, 4, '#3a8ad8'); X.rect(ctx, 2 + ((t * 8) % 8), -24, 3, 2, '#ffd34d');
+    PT.glow(ctx, -8, -20, 16, c, 0.35); });
+  inItem('hammock', 'HAMMOCK', 1100, 44, 30, 'STRUNG BETWEEN TWO ROCKS. SWINGS WHEN YOU BREATHE.', (B, cx, gy) => {
+    for (const s of [-1, 1]) { grain(B, cx + s * 40 - 3, gy - 54, 6, 54, WOOD); B.ball(cx + s * 40, gy - 56, 4, 3, WOOD); B.ellipse(cx + s * 40, gy, 7, 2, 0x2a1a10); }
+  }, (ctx, t) => { const sw = Math.sin(t * 1.2) * 2;
+    for (let k = 0; k < 6; k++) { const q0 = k / 6, q1 = (k + 1) / 6; const y0 = -25 + Math.sin(q0 * Math.PI) * (16 + sw), y1 = -25 + Math.sin(q1 * Math.PI) * (16 + sw);
+      X.poly(ctx, [[-20 + q0 * 40, y0], [-20 + q1 * 40, y1], [-20 + q1 * 40, y1 - 4], [-20 + q0 * 40, y0 - 4]], k % 2 ? '#ffd34d' : '#e8583a'); }
+    X.line(ctx, -20, -27, -18, -27, '#8a5a34'); X.line(ctx, 18, -27, 20, -27, '#8a5a34'); });
+  inItem('piano', 'TOY PIANO', 1600, 30, 26, 'EIGHT KEYS. PLAYS ONE SONG. BADLY.', (B, cx, gy) => {
+    for (const x of [-22, 20]) B.rect(cx + x, gy - 12, 3, 12, LACQ[2]);
+    B.poly([[cx - 28, gy - 12], [cx + 28, gy - 12], [cx + 28, gy - 34], [cx + 14, gy - 46], [cx - 28, gy - 34]], LACQ[2]);
+    B.poly([[cx - 27, gy - 13], [cx + 27, gy - 13], [cx + 27, gy - 33], [cx + 14, gy - 44], [cx - 27, gy - 33]], LACQ[0]);
+    B.poly([[cx - 26, gy - 34], [cx + 10, gy - 34], [cx + 6, gy - 60], [cx - 20, gy - 48]], 0x1a0a0e); B.poly([[cx - 25, gy - 35], [cx + 8, gy - 35], [cx + 5, gy - 57], [cx - 19, gy - 48]], LACQ[0]);
+    B.line(cx - 18, gy - 47, cx + 4, gy - 56, LACQ[1], 1, 0.9); B.line(cx + 2, gy - 36, cx + 2, gy - 56, 0x3a1a1a, 1);
+    B.rect(cx - 24, gy - 26, 48, 11, 0xfff8f0); for (let k = 0; k < 8; k++) B.rect(cx - 24 + k * 6, gy - 26, 1, 11, 0x8a8a9a);
+    for (const k of [0, 1, 3, 4, 5]) B.rect(cx - 21 + k * 6, gy - 26, 3, 6, 0x14141e);
+    B.line(cx - 26, gy - 30, cx + 20, gy - 30, LACQ[1], 1, 0.8);
+  });
+  inItem('plantpot', 'HOUSE PLANT', 400, 16, 30, 'IT IS ALIVE. THAT MAKES TWO OF YOU.', (B, cx, gy) => {
+    B.poly([[cx - 10, gy], [cx + 10, gy], [cx + 13, gy - 20], [cx - 13, gy - 20]], 0xc8643a); B.poly([[cx - 10, gy], [cx - 4, gy], [cx - 5, gy - 20], [cx - 13, gy - 20]], 0xe88a5a);
+    B.rect(cx - 14, gy - 23, 28, 5, 0xa84a2a); B.rect(cx - 14, gy - 23, 28, 1, 0xe88a5a); B.ellipse(cx, gy - 23, 12, 2, 0x3a2418);
+    const leaf = (x, y, a, s) => { const pts = []; for (let k = 0; k <= 10; k++) { const q = k / 10; pts.push([x + Math.cos(a) * q * s * 16 - Math.sin(a) * Math.sin(q * Math.PI) * s * 6, y + Math.sin(a) * q * s * 16 + Math.cos(a) * Math.sin(q * Math.PI) * s * 6]); } for (let k = 10; k >= 0; k--) { const q = k / 10; pts.push([x + Math.cos(a) * q * s * 16 + Math.sin(a) * Math.sin(q * Math.PI) * s * 6, y + Math.sin(a) * q * s * 16 - Math.cos(a) * Math.sin(q * Math.PI) * s * 6]); } B.poly(pts, LEAF[0]); B.line(x, y, x + Math.cos(a) * s * 15, y + Math.sin(a) * s * 15, LEAF[1], 1); };
+    for (let k = 0; k < 7; k++) { const a = -Math.PI / 2 + (k - 3) * 0.42; B.line(cx, gy - 24, cx + Math.cos(a) * 8, gy - 24 + Math.sin(a) * 12, LEAF[2], 1); leaf(cx + Math.cos(a) * 8, gy - 24 + Math.sin(a) * 12, a, 0.9 + (k % 2) * 0.25); }
+  }, (ctx, t) => {});
+  inItem('minifridge', 'MINI FRIDGE', 1300, 18, 26, 'COLD. FULL OF CHEESE. BRENDA KNOWS.', (B, cx, gy) => {
+    for (const s of [-1, 1]) B.rect(cx + s * 12 - 2, gy - 3, 4, 3, 0x2a2a34);
+    B.round(cx - 17, gy - 52, 34, 50, 5, 0x8a8aa0); B.round(cx - 16, gy - 51, 32, 48, 4, 0xe8eaf4); B.rect(cx - 16, gy - 51, 7, 48, 0xffffff, 0.6); B.rect(cx + 11, gy - 51, 5, 48, 0xb8bccc, 0.8);
+    B.rect(cx - 16, gy - 34, 32, 2, 0x9a9eb0);
+    B.round(cx + 8, gy - 48, 4, 11, 2, CHROME[2]); B.rect(cx + 9, gy - 47, 1, 9, CHROME[1]); B.round(cx + 8, gy - 30, 4, 16, 2, CHROME[2]); B.rect(cx + 9, gy - 29, 1, 14, CHROME[1]);
+    B.poly([[cx - 11, gy - 26], [cx - 1, gy - 26], [cx - 1, gy - 18]], 0xffd34d); B.rect(cx - 8, gy - 24, 2, 2, 0xc89a1e);
+    B.round(cx - 11, gy - 46, 9, 7, 2, 0xff5a8a); B.disc(cx - 7, gy - 42.5, 1.5, 0xffffff);
+  });
+  inItem('trophies', 'TROPHY SHELF', 3000, 30, 30, 'EVERY PLANET YOU BROKE, IN LITTLE GOLD CUPS.', (B, cx, gy) => {
+    grain(B, cx - 30, gy - 14, 60, 14, WOOD); B.rect(cx - 26, gy - 10, 52, 5, 0x5a3a20);
+    const G = [0xffc83a, 0xfff4b0, 0xb8801a];
+    [[-18, 1], [0, 1.3], [18, 1]].forEach(([dx, k]) => {
+      const x = cx + dx;
+      B.block(x - 6 * k, gy - 19 * k, 12 * k, 5 * k, [0x3a2a1a, 0x6a4a2a, 0x1a1008], 1); B.rect(x - 3 * k, gy - 18 * k, 6 * k, 2, G[0]);
+      B.rect(x - 1.2 * k, gy - 28 * k, 2.4 * k, 10 * k, G[2]); B.rect(x - 0.6 * k, gy - 28 * k, 1, 10 * k, G[0]);
+      B.ball(x, gy - 34 * k, 8 * k, 7 * k, G, true); B.ellipse(x, gy - 40 * k, 8 * k, 2 * k, G[2]);
+      for (const s of [-1, 1]) { for (let a = 0; a < Math.PI; a += 0.2) B.rect(x + s * (8 * k + Math.sin(a) * 3 * k), gy - 38 * k + a * 2.2 * k, 1.5, 1.5, G[0]); }
+    });
+  }, (ctx, t) => { const x = -12 + ((t * 7) % 24); if (Math.sin(t * 2) > 0.5) { X.rect(ctx, x - 1, -18, 3, 1, '#ffffff'); X.rect(ctx, x, -19, 1, 3, '#ffffff'); } });
+  inItem('neonin', 'NEON SIGN: HOME', 1500, 30, 20, 'IT SAYS HOME. IN CASE YOU FORGET.', (B, cx, gy) => {
+    B.rect(cx - 2, gy - 20, 4, 20, 0x2a2a34); B.rect(cx - 1, gy - 20, 1, 20, 0x5a5a6a); B.ellipse(cx, gy, 8, 2, 0x2a2a34);
+    B.round(cx - 32, gy - 46, 64, 28, 4, 0x0e0818); B.round(cx - 31, gy - 45, 62, 26, 3, 0x1a1030);
+    for (const x of [-28, 28]) for (const y of [-42, -22]) B.disc(cx + x, gy + y, 1.4, CHROME[0]);
+    B.line(cx + 26, gy - 20, cx + 32, gy - 6, 0x14141e, 1);
+  }, (ctx, t) => { const on = Math.sin(t * 13) > -0.8; if (on) PT.glow(ctx, 0, -16, 28, '#ff7ac4', 0.4); F.draw(ctx, 'HOME', 1, -19, on ? '#8a2a5a' : '#2a0a1a', { center: true, shadow: false }); F.draw(ctx, 'HOME', 0, -20, on ? '#ffd0ec' : '#4a1a3a', { center: true, shadow: false }); if (on) { X.rect(ctx, -13, -11, 26, 1, '#ff7ac4'); } });
+  inItem('fireplace', 'FIREPLACE', 4200, 40, 40, 'IN A CAVE. ON A MOON. WITH NO AIR. IT WORKS. DO NOT ASK.', (B, cx, gy) => {
+    B.rect(cx - 38, gy - 78, 76, 78, 0x4a3a3a);
+    for (let r = 0; r < 8; r++) for (let k = 0; k < 6; k++) {
+      const off = r % 2 ? 6 : 0, x = cx - 38 + k * 13 + off, y = gy - 78 + r * 10, w = 12;
+      if (x > cx + 36) continue;
+      const c = [0x9a8078, 0x8a7068, 0xa89088, 0x7a6058][(k + r * 3) % 4];
+      B.round(x, y, Math.min(w, cx + 38 - x), 9, 2, c); B.rect(x + 1, y + 1, Math.min(w, cx + 38 - x) - 2, 1, PT.mix(c, 0xffffff, 0.35));
+    }
+    B.round(cx - 25, gy - 46, 50, 46, 10, 0x2a1a18); B.round(cx - 22, gy - 43, 44, 43, 8, 0x0e0606);
+    for (const s of [-1, 1]) B.line(cx + s * 10, gy - 4, cx - s * 10, gy - 10, 0x5a3a20, 4);
+    B.rect(cx - 18, gy - 3, 36, 3, 0x2a2a34);
+    grain(B, cx - 44, gy - 86, 88, 9, WOOD);
+    B.round(cx + 18, gy - 102, 16, 16, 7, 0xc8a040); B.disc(cx + 26, gy - 94, 6, 0xfff8e0); B.line(cx + 26, gy - 94, cx + 26, gy - 98, 0x1a1024, 1); B.line(cx + 26, gy - 94, cx + 29, gy - 94, 0x1a1024, 1);
+    B.poly([[cx - 30, gy - 86], [cx - 22, gy - 86], [cx - 22, gy - 72], [cx - 18, gy - 68], [cx - 26, gy - 66], [cx - 30, gy - 72]], 0xd83a4a); B.rect(cx - 30, gy - 86, 8, 3, 0xffffff);
+  }, (ctx, t) => { for (let k = 0; k < 5; k++) { const h = 7 + Math.abs(Math.sin(t * 7 + k * 1.3)) * 8; X.poly(ctx, [[-10 + k * 5, -2], [-5 + k * 5, -2], [-7.5 + k * 5 + Math.sin(t * 5 + k) * 1.5, -2 - h]], k % 2 ? '#ffb040' : '#ff6a2a'); X.poly(ctx, [[-9 + k * 5, -2], [-6 + k * 5, -2], [-7.5 + k * 5, -2 - h * 0.5]], '#fff0a0'); } PT.glow(ctx, 0, -8, 32, '#ff8a3a', 0.45); });
 
   // =========================================================== FUN
   add({ id: 'coaster', name: 'ROLLER COASTER', cat: 'FUN', price: 220000, w: 190, h: 110, ride: 'coaster', fun: 5,

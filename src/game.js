@@ -880,6 +880,14 @@
     g.state = 'home';
     if (n > 0) PD.chum.call(g, 'back');
     PD.home.arrive(g, n);
+    // AUTO SELL: the hold sells itself as you land
+    if (PD.unlock && PD.unlock.has(g, 'PC3') && g.vaultValue() > 0) {
+      const before = g.save.credits;
+      g.sellAll();
+      const got = g.save.credits - before, extra = Math.round(got * 0.05);
+      g.save.credits += extra; g.save.totalEarned += extra;
+      if (PD.home.say) PD.home.say('AUTO SELL: +$' + U.fmt(got + extra));
+    }
     A.sfx.dock();
     A.drill(false); A.thrust(0);
     if (PD.story) PD.story.onHome(g, n);
