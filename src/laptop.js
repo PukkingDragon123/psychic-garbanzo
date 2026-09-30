@@ -25,10 +25,12 @@
   const VW = 480, VH = 270, HD = 2;
 
   // the lid, the glass, the deck
-  const LX = 42, LY = 2, LW = 396, LH = 206;
-  const SX = 54, SY = 11, SW = 372, SH = 186;
-  const TOP = 11;                                  // the OS menu bar
-  const DOCK_H = 30;
+  const LX = 32, LY = 0, LW = 416, LH = 214;       // the monitor's casing
+  const SX = 54, SY = 11, SW = 372, SH = 186;      // the glass
+  const TOP = 0;
+  const TB = 14;                                   // the taskbar
+  const DECK_Y = 214;                              // the top of the keyboard
+  const BOOT = 2.4;                                // seconds of BIOS before the desktop
 
   const T = {
     ink: '#1e2238', dim: '#6a6e88', faint: '#a8acc0', page: '#f4f5fa', card: '#ffffff', line: '#dde0ea',
@@ -75,92 +77,106 @@
     return BACK;
   }
 
-  // the lid and the deck, painted into their own layer so the glass can go between
+  /* The monitor: a fat beige CRT, gone a little yellow, with a deep bezel
+     round the glass, vents, a badge, a power button and two knobs. */
   let LID = null, DECK = null;
+  const BEIGE = [0xd6ccaa, 0xece4c8, 0xb0a482, 0x80765a, 0x5a5240];
+  function bevelBox(B, x, y, w, h, r, C) {
+    B.round(x, y, w, h, r, C[4]);
+    B.round(x + 1, y + 1, w - 2, h - 2, r, C[3]);
+    B.round(x + 1, y + 1, w - 4, h - 4, r, C[1]);
+    B.round(x + 4, y + 4, w - 8, h - 8, r, C[0]);
+  }
   function paintLid() {
     if (LID) return LID;
-    const B = PT.buf(LW * HD, LH * HD);
-    B.round(0, 0, LW * HD, LH * HD, 14, 0x2a2e3c);
-    B.round(2, 2, LW * HD - 4, LH * HD - 4, 12, 0x3a3e50);
-    B.round(6, 6, LW * HD - 12, LH * HD - 12, 10, 0x1a1c26);
-    // the glass hole is cut when drawing; a bit of wear on the bezel
-    B.rect(20, LH * HD - 14, LW * HD - 40, 1, 0x4a4e60);
-    const cv = B.toCanvas();
-    const q = cv.getContext('2d');
-    // the brand, and the webcam
-    LID = cv;
+    const W = LW * HD, H = LH * HD, B = PT.buf(W, H);
+    bevelBox(B, 0, 0, W, H, 18, BEIGE);
+    // plastic speckle and a little yellowing toward the top
+    for (let y = 6; y < H - 6; y++) for (let x = 6; x < W - 6; x++) {
+      if (B.get(x, y) !== BEIGE[0]) continue;
+      const n = U.hash2(x, y);
+      if (n > 0.93) B.set(x, y, BEIGE[2], 0.35); else if (n < 0.05) B.set(x, y, 0xfff8e0, 0.4);
+      if (y < 60) B.set(x, y, 0xe0c890, 0.1 * (1 - y / 60));
+    }
+    // the recess round the glass: stepped in twice, shadowed on top
+    const gx = (SX - LX) * HD, gy = (SY - LY) * HD, gw = SW * HD, gh = SH * HD;
+    B.round(gx - 18, gy - 16, gw + 36, gh + 32, 16, BEIGE[2]);
+    B.round(gx - 16, gy - 14, gw + 32, gh + 30, 14, BEIGE[3]);
+    B.round(gx - 14, gy - 12, gw + 28, gh + 24, 14, 0x3a3628);
+    B.rect(gx - 12, gy + gh + 10, gw + 24, 2, BEIGE[1], 0.5);
+    B.round(gx - 4, gy - 4, gw + 8, gh + 8, 14, 0x0a0c0a);
+    // the chin: badge, vents, knobs, power
+    const cy = gy + gh + 16;
+    B.round(W / 2 - 70, cy + 2, 140, 16, 4, BEIGE[3]); B.round(W / 2 - 68, cy + 3, 136, 13, 3, 0x2a2e3a);
+    for (let k = 0; k < 10; k++) B.rect(40 + k * 10, cy + 4, 6, 2, BEIGE[3]), B.rect(40 + k * 10, cy + 10, 6, 2, BEIGE[3]);
+    for (const x of [W - 150, W - 118]) { B.disc(x, cy + 9, 7, BEIGE[4]); B.disc(x, cy + 9, 6, BEIGE[2]); B.disc(x - 1, cy + 8, 4, BEIGE[1]); B.rect(x - 1, cy + 3, 2, 5, BEIGE[4]); }
+    B.round(W - 80, cy + 2, 28, 14, 3, BEIGE[4]); B.round(W - 79, cy + 3, 26, 11, 3, BEIGE[1]);
+    // side vents
+    for (let k = 0; k < 14; k++) { B.rect(10, 60 + k * 12, 14, 3, BEIGE[3]); B.rect(W - 24, 60 + k * 12, 14, 3, BEIGE[3]); }
+    // a sticker of a shark, peeling
+    B.round(20, 20, 30, 22, 4, 0xffffff); B.poly([[26, 36], [44, 36], [38, 24]], 0x5a7ab0); B.rect(26, 36, 18, 2, 0x5a7ab0);
+    LID = B.toCanvas();
     return LID;
   }
+  /* The keyboard: beige, chunky, in perspective, and a mouse on a mat. */
   function paintDeck() {
     if (DECK) return DECK;
-    const W = VW * HD, H = (VH - 206) * HD;
-    const B = PT.buf(W, H);
-    const topL = 36 * HD, topR = (VW - 36) * HD, botL = 4 * HD, botR = (VW - 4) * HD;
+    const W = VW * HD, H = (VH - DECK_Y) * HD, B = PT.buf(W, H);
+    const topL = 76 * HD, topR = 392 * HD, botL = 44 * HD, botR = 424 * HD;
     const at = y => [topL + (botL - topL) * y / H, topR + (botR - topR) * y / H];
+    // the mouse mat, and its shadow
+    B.round(398 * HD, 14, 76 * HD, H - 18, 10, 0x2a2e5a); B.round(400 * HD, 18, 72 * HD, H - 26, 8, 0x3a4288);
+    for (let k = 0; k < 5; k++) B.disc(412 * HD + k * 26, 40 + (k % 2) * 20, 3, 0xffd34d, 0.6);
     for (let y = 0; y < H; y++) {
       const [x0, x1] = at(y);
-      for (let x = Math.floor(x0); x < x1; x++) B.set(x, y, y < 6 ? 0x5a5e70 : PT.mix(0x3a3e4e, 0x2a2e3a, y / H));
+      for (let x = Math.floor(x0); x < x1; x++) B.set(x, y, y < 4 ? BEIGE[1] : (y > H - 6 ? BEIGE[3] : BEIGE[0]));
     }
-    // the hinge
-    B.round(topL + 40, 0, topR - topL - 80, 8, 3, 0x1a1c24);
-    // keys: six rows, in perspective
     KEYS = [];
     const rows = 5;
     for (let r = 0; r < rows; r++) {
-      const y0 = 14 + r * 17, y1 = y0 + 14;
+      const y0 = 8 + r * 20, y1 = y0 + 17;
       const [a0, a1] = at(y0), [b0, b1] = at(y1);
       const n = r === 4 ? 9 : 14;
       for (let i = 0; i < n; i++) {
-        let f0 = 0.08 + i / n * 0.84, f1 = f0 + 0.84 / n - 0.008;
-        if (r === 4 && i === 4) { f1 += 0; }
-        if (r === 4 && (i === 3 || i === 4 || i === 5)) { if (i !== 4) continue; f0 = 0.08 + 3 / n * 0.84; f1 = 0.08 + 6 / n * 0.84 - 0.008; }
+        let f0 = 0.04 + i / n * 0.92, f1 = f0 + 0.92 / n - 0.01;
+        if (r === 4 && (i === 3 || i === 5)) continue;
+        if (r === 4 && i === 4) { f0 = 0.04 + 3 / n * 0.92; f1 = 0.04 + 6 / n * 0.92 - 0.01; }
         const xa = a0 + (a1 - a0) * f0, xb = a0 + (a1 - a0) * f1, xc = b0 + (b1 - b0) * f1, xd = b0 + (b1 - b0) * f0;
-        B.poly([[xa, y0], [xb, y0], [xc, y1], [xd, y1]], 0x15161e);
-        B.poly([[xa + 1, y0], [xb - 1, y0], [xc - 2, y1 - 3], [xd + 2, y1 - 3]], 0x262833);
-        B.line(xa + 2, y0 + 1, xb - 2, y0 + 1, 0x3a3c4a, 1);
-        KEYS.push({ x: (xa + xb + xc + xd) / 4 / HD, y: (y0 + y1) / 2 / HD + 206, w: (xb - xa) / HD, h: (y1 - y0) / HD, pts: [[xa, y0], [xb, y0], [xc, y1], [xd, y1]].map(p => [p[0] / HD, p[1] / HD + 206]) });
+        const face = r === 0 ? (i === 0 ? 0xd8584a : 0x9a9480) : (r === 4 && i === 4 ? 0xe8e0c8 : 0xf0e8d0);
+        B.poly([[xa, y0], [xb, y0], [xc, y1], [xd, y1]], BEIGE[4]);
+        B.poly([[xa + 1, y0], [xb - 1, y0], [xc - 1, y1 - 1], [xd + 1, y1 - 1]], PT.mul(face, 0.72));
+        B.poly([[xa + 3, y0 + 1], [xb - 3, y0 + 1], [xc - 5, y1 - 6], [xd + 5, y1 - 6]], face);
+        B.line(xa + 3, y0 + 1, xb - 3, y0 + 1, 0xffffff, 1, 0.6);
+        if (r > 0 && r < 4 && U.hash2(i, r) > 0.3) B.rect((xa + xb) / 2 - 2, y0 + 4, 4, 3, 0x6a6250, 0.7);
+        KEYS.push({ pts: [[xa, y0], [xb, y0], [xc, y1], [xd, y1]].map(p => [p[0] / HD, p[1] / HD + DECK_Y]) });
       }
     }
-    // the trackpad
-    const ty = 104;
-    if (ty < H) {
-      const [p0, p1] = at(ty);
-      const cx = (p0 + p1) / 2;
-      B.poly([[cx - 70, ty], [cx + 70, ty], [cx + 76, H], [cx - 76, H]], 0x30323e);
-      B.line(cx - 70, ty, cx + 70, ty, 0x4a4e5e, 1);
-    }
-    // stickers on the deck
-    B.disc(topL + 40, 100, 12, 0xff5a8a); B.disc(topL + 40, 100, 8, 0xffd34d);
-    B.round(topR - 90, 96, 50, 18, 4, 0x3ad8a8); B.rect(topR - 84, 102, 38, 3, 0x1a6a5a);
-    B.outline(0x0a0a10);
+    // the cable to the mouse
+    for (let x = topR; x < 430 * HD; x += 2) B.rect(x, 20 + Math.sin(x * 0.02) * 6, 2, 2, 0x3a3628);
+    B.outline(0x14100a);
     DECK = B.toCanvas();
     return DECK;
   }
 
-  /* The wallpapers: deep space with a ringed planet, painted once each. */
+  /* The wallpapers: old ones, in few colours, ordered-dithered the way the
+     machine would have had to. Teal, a starry night, and a sunset. */
   function paintWall(i) {
     if (WALLS[i]) return WALLS[i];
-    const W = SW * HD, H = SH * HD;
-    const B = PT.buf(W, H);
-    const top = [[0x0a0a2a, 0x2a1050, 0x5a2a7a], [0x02121e, 0x0a3a4a, 0x2a8a8a], [0x1a0a10, 0x5a1a2a, 0xd86a3a]][i % 3];
-    for (let y = 0; y < H; y++) {
-      const q = y / H;
-      const c = q < 0.6 ? PT.mix(top[0], top[1], q / 0.6) : PT.mix(top[1], top[2], (q - 0.6) / 0.4);
-      for (let x = 0; x < W; x++) {
-        const n = U.fbm(x * 0.012 + i * 5, y * 0.02, 3);
-        B.set(x, y, n > 0.58 ? PT.mix(c, top[2], (n - 0.58) * 2.2) : c);
-      }
+    const W = SW * HD, H = SH * HD, B = PT.buf(W, H);
+    const pals = [[0x005a5a, 0x007878, 0x109090, 0x40b0a8], [0x080820, 0x101840, 0x283070, 0x5060a8], [0x301040, 0x702858, 0xc05050, 0xf0a060]];
+    const P = pals[i % 3];
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      let v = i === 0 ? 0.45 + (U.fbm(x * 0.006, y * 0.01, 3) - 0.5) * 0.5 : i === 1 ? 0.2 + y / H * 0.3 + (U.fbm(x * 0.01, y * 0.01, 3) - 0.5) * 0.4 : 1 - y / H * 0.9;
+      const f = U.clamp(v, 0, 0.999) * P.length;
+      let k = Math.floor(f);
+      if (f - k > PT.bayer(x >> 1, y >> 1)) k = Math.min(P.length - 1, k + 1);
+      B.set(x, y, P[k]);
     }
-    for (let k = 0; k < 260; k++) { const x = U.hash2(k, 11 + i) * W, y = U.hash2(k, 12 + i) * H; B.rect(x, y, 1, 1, 0xffffff, 0.3 + U.hash2(k, 13) * 0.7); }
-    for (let k = 0; k < 12; k++) { const x = U.hash2(k, 21 + i) * W, y = U.hash2(k, 22 + i) * H * 0.7; B.rect(x - 2, y, 5, 1, 0xffffff, 0.8); B.rect(x, y - 2, 1, 5, 0xffffff, 0.8); }
-    // the planet with its ring
-    const px = W * (i === 1 ? 0.28 : 0.72), py = H * 0.46, pr = 90;
-    const ring = (a0, a1) => { for (let a = a0; a < a1; a += 0.003) for (let k = 0; k < 5; k++) { const rr2 = 1.65 + k * 0.07; B.rect(px + Math.cos(a) * pr * rr2, py + Math.sin(a) * pr * 0.3 * rr2, 2, 2, [0xe8d8ff, 0xc8b0f0, 0xa890d8, 0xd8c8ff, 0x9a80c8][k], 0.75); } };
-    ring(Math.PI, Math.PI * 2);
-    B.ball(px, py, pr, pr, i === 2 ? [0xd86a3a, 0xffb07a, 0x6a2a1a] : i === 1 ? [0x3ab8a8, 0x9af8e8, 0x1a4a5a] : [0x8a5ad8, 0xc8a8ff, 0x3a2a7a]);
-    for (let y = -pr + 6; y < pr; y += 11) { const hw = Math.sqrt(Math.max(0, pr * pr - y * y)) * 0.96; B.rect(px - hw, py + y, hw * 2, 3, 0xffffff, 0.07); }
-    ring(0, Math.PI);
-    B.ball(px - pr * 2.1, py - pr * 0.9, 18, 18, [0xa8a0c0, 0xe0d8f0, 0x5a5270]);
+    if (i === 1) for (let k = 0; k < 200; k++) B.rect(Math.floor(U.hash2(k, 5) * W / 2) * 2, Math.floor(U.hash2(k, 6) * H / 2) * 2, 2, 2, 0xffffff);
+    if (i === 2) { B.disc(W * 0.5, H * 0.72, 60, 0xffe080); for (let y = 0; y < 60; y += 8) B.rect(W * 0.5 - 70, H * 0.72 + y - 20, 140, 3, P[1]); }
+    // the ZORB logo, big and faint, in the middle
+    const lx = W / 2, ly = H * 0.42;
+    for (const [dx, c] of [[-26, 0xe5394a], [0, 0x2f6fe0], [26, 0xf5b82a]]) B.round(lx + dx - 10, ly - 22, 20, 44, 6, c, 0.22);
     WALLS[i] = B.toCanvas();
     return WALLS[i];
   }
@@ -277,16 +293,23 @@
     ctx.globalAlpha = 0.08; rr(ctx, x - 1, y + 1, w + 2, h + 3, r + 1, '#000000');
     ctx.globalAlpha = 1;
   }
+  // a chunky old bevelled button
+  function bevel(ctx, x, y, w, h, face, down) {
+    x = Math.round(x); y = Math.round(y);
+    X.rect(ctx, x - 1, y - 1, w + 2, h + 2, '#000000');
+    X.rect(ctx, x, y, w, h, face);
+    const lo = PT.css(PT.mul(PT.hex(face), 0.55)), hi = PT.css(PT.mix(PT.hex(face), 0xffffff, 0.6));
+    X.rect(ctx, x, y, w, 1, down ? lo : hi); X.rect(ctx, x, y, 1, h, down ? lo : hi);
+    X.rect(ctx, x, y + h - 1, w, 1, down ? hi : lo); X.rect(ctx, x + w - 1, y, 1, h, down ? hi : lo);
+  }
   function button(ctx, x, y, w, h, label, o) {
     o = o || {};
     const on = o.enabled !== false;
     const over = on && hot(x, y, w, h);
     const down = over && PD.input.mouse.left;
-    const col = !on ? '#c8cad6' : (o.col || T.blue);
-    if (!o.flat) shadow(ctx, x, y + (down ? 1 : 0), w, h, 3);
-    rr(ctx, x, y + (down ? 1 : 0), w, h, 3, over ? PT.css(PT.mix(col, 0xffffff, 0.15)) : col);
-    ctx.globalAlpha = 0.25; rr(ctx, x + 1, y + 1 + (down ? 1 : 0), w - 2, Math.max(1, Math.floor(h / 2) - 1), 2, '#ffffff'); ctx.globalAlpha = 1;
-    F.draw(ctx, label, x + w / 2, y + Math.floor((h - 7) / 2) + (down ? 1 : 0), on ? (o.ink || '#ffffff') : '#8a8ea0', { center: true, shadow: false });
+    const col = !on ? '#b8b8b8' : (o.col || T.blue);
+    bevel(ctx, x, y, w, h, over ? PT.css(PT.mix(PT.hex(col), 0xffffff, 0.12)) : col, down);
+    F.draw(ctx, label, x + w / 2 + (down ? 1 : 0), y + Math.floor((h - 7) / 2) + (down ? 1 : 0), on ? (o.ink || '#ffffff') : '#7a7a7a', { center: true, shadow: false });
     return on && clicked(x, y, w, h);
   }
   function wrap(str, n) {
@@ -339,10 +362,6 @@
     g.wipeTo(SX + SW / 2, SY + SH / 2, '#0e1424', () => { PD.home.leaveDesk(g); }, 'bars');
   }
 
-  const DOCK = [
-    { id: 'abay', name: 'ABAY' }, { id: 'bank', name: 'CHUM BANK' }, { id: 'map', name: 'STAR MAP' },
-    { id: 'mail', name: 'MAIL' }, { id: 'setup', name: 'SETTINGS' }, { id: 'power', name: 'SHUT THE LID' }
-  ];
   function openApp(g, id, from) {
     if (id === 'power') { close(g); return; }
     if (id === 'map') {
@@ -360,12 +379,63 @@
   }
   function closeApp() { if (!S.app) return; S.closing = 1; A.sfx.tone(700, { type: 'sine', to: 420, dur: 0.1, vol: 0.05 }); }
 
+  /* ================================================================ LESSONS
+     Mr Chum shows you how the machine works, once each, when it matters:
+     what the computer is, how to sell, how to buy, what happens to what you
+     bought, and (his favourite) how to pay him. */
+  function lessons(g) {
+    if (S.boot < BOOT + 0.4 || (PD.talk && PD.talk.active()) || S.closing) return;
+    const seen = g.save.seen || (g.save.seen = {});
+    const C = (text, next, face) => ({ who: 'chum', face: face || 'smug', text, next: next || null });
+    const say = (key, nodes) => { seen[key] = 1; g.saveGame && g.saveGame(); PD.talk.start(g, { start: 'a', nodes }); };
+    const top = TOPS[S.shop.top];
+    if (!seen.pc1) return say('pc1', {
+      a: C('AH. THE COMPUTER. IT IS OLDER THAN YOUR EXCUSES.', 'b'),
+      b: C('CLICK ABAY. THE LITTLE SHOPPING BAG, TOP LEFT. THAT IS WHERE ROCKS BECOME MONEY.')
+    });
+    if (S.app === 'abay' && S.k >= 1 && !seen.pcSell && g.vaultTotal() > 0) {
+      if (top === 'SELL') return say('pcSell', {
+        a: C('THIS IS SELL. EVERY ROCK YOU DUG UP IS ON THE LIST, WITH WHAT IT IS WORTH TODAY.', 'b'),
+        b: C('HOT MEANS THE PRICE IS UP. SELL THOSE. LOW MEANS IT IS DOWN. SELL THOSE TOO. I AM NOT FUSSY.', 'c'),
+        c: C('PRESS THE BIG GREEN SELL IT ALL BUTTON. GO ON. I AM WATCHING.')
+      });
+      if (!seen.pcSellHint) return say('pcSellHint', { a: C('ROCKS FIRST. CLICK SELL, AT THE BOTTOM OF THE LIST ON THE LEFT.') });
+    }
+    if (S.app === 'abay' && S.k >= 1 && !seen.pcBuy && (g.save.totalEarned || 0) > 0 && !(g.tutActive && g.tutActive())) return say('pcBuy', {
+      a: C('MONEY. LOOK AT IT. NOW SPEND A LITTLE, SO YOU CAN MAKE A LOT. FOR ME.', 'b'),
+      b: C('BUILD IS THINGS FOR YOUR MOON. STYLE IS HATS. SHIP IS YOUR SAUCER. GEAR IS YOUR DRILL AND YOUR LUNGS.', 'c'),
+      c: { who: 'chum', face: 'smug', text: 'QUESTIONS?', choices: [
+        { t: 'WHAT SHOULD I BUY FIRST?', next: 'd' },
+        { t: 'CAN I JUST PAY YOU?', next: 'e' },
+        { t: 'HOW DO I BUY?', next: 'f' }
+      ] },
+      d: C('A BIGGER DRILL, IN GEAR. OR AN AUTO MINER IN BUILD: IT DIGS WHILE YOU SLEEP. NOT A HAT.', 'f'),
+      e: C('YES. CHUM BANK. MY FAVOURITE ICON. BUT A MINER NOW MEANS MORE MONEY LATER. THINK.', 'f'),
+      f: C('CLICK A CARD TO SEE IT. PRESS BUY IT NOW. ANYTHING DEAR ASKS TWICE. I DID THAT. YOU ARE WELCOME.')
+    });
+    if (S.lesson) {
+      const k = S.lesson; S.lesson = null;
+      if (k === 'build' && !seen.pcBuilt) return say('pcBuilt', {
+        a: C('IT IS ON YOUR MOON NOW. IN A BOX. BOXES DO NOT MAKE MONEY.', 'b'),
+        b: C('GO OUTSIDE AND PRESS B. PICK IT, WALK IT TO A GOOD SPOT, PRESS CONFIRM.')
+      });
+      if (k === 'cosm' && !seen.pcWore) return say('pcWore', { a: C('YOU LOOK RIDICULOUS. IT SUITS YOU. EVERYONE WILL SEE IT OUTSIDE.', null, 'happy') });
+      if (k === 'ship' && !seen.pcShip) return say('pcShip', { a: C('SAUCER BITS. SOME PLANETS WILL NOT LET YOU NEAR WITHOUT THE RIGHT ONE. THE STAR MAP SAYS WHICH.') });
+      if (k === 'gear' && !seen.pcGear) return say('pcGear', { a: C('BETTER GEAR. DIG FASTER. SELL FASTER. PAY ME FASTER. EVERYONE WINS. MOSTLY ME.') });
+    }
+    if (S.app === 'bank' && S.k >= 1 && !seen.pcBank) return say('pcBank', {
+      a: C('MY FAVOURITE PROGRAM. YOU PUT MONEY IN, IT COMES TO ME.', 'b'),
+      b: C('PRESS PAY. ANY AMOUNT. THE BAR FILLS UP. WHEN IT IS FULL YOU ARE FREE. TO GET RICH. TRY.')
+    });
+  }
+
   /* ================================================================= UPDATE */
   function update(dt, g) {
     const IN = PD.input, m = IN.mouse;
     S.t += dt;
     S.lock = Math.max(0, S.lock - dt);
-    S.boot = Math.min(3, S.boot + dt);
+    S.boot = Math.min(BOOT + 1, S.boot + dt);
+    lessons(g);
     S.press = Math.max(0, S.press - dt * 4);
     S.typeT = Math.max(0, S.typeT - dt);
     S.shop.confirm = Math.max(0, S.shop.confirm - dt);
@@ -384,7 +454,7 @@
     if (PD.touch && PD.touch.enabled) { S.cx = tx; S.cy = ty; }
     else { S.cx = U.damp(S.cx, tx, 0.55, dt); S.cy = U.damp(S.cy, ty, 0.55, dt); }
     S.fire = false; S.used = false;
-    if (S.lock <= 0 && S.boot > 1.1 && m.leftPressed && m.inside) {
+    if (S.lock <= 0 && S.boot > BOOT && m.leftPressed && m.inside) {
       S.fire = true; S.fx = tx; S.fy = ty; S.cx = tx; S.cy = ty;
       S.press = 1; S.typeT = 0.15; S.tapHand ^= 1;
       if (KEYS.length) for (let k = 0; k < 2; k++) S.keys.push({ i: (Math.random() * KEYS.length) | 0, t: 0.14 });
@@ -403,24 +473,31 @@
   function draw(ctx, g, t) {
     ctx.drawImage(paintBack(), 0, 0, VW, VH);
     drawRoomLife(ctx, g, t);
-    // the lid, its shadow on the cardboard, then the glass inside it
-    ctx.globalAlpha = 0.35; X.blob(ctx, 240, 206, 210, 8, '#000000'); ctx.globalAlpha = 1;
+    ctx.globalAlpha = 0.4; X.blob(ctx, 240, 212, 220, 8, '#000000'); ctx.globalAlpha = 1;
     ctx.drawImage(paintLid(), LX, LY, LW, LH);
-    // brand on the bottom bezel, webcam on the top
-    F.draw(ctx, 'ZORBBOOK PRO', 240, LY + LH - 8, '#5a6078', { center: true, shadow: false });
-    X.rect(ctx, 239, LY + 4, 3, 3, '#0a0a10'); X.rect(ctx, 240, LY + 5, 1, 1, S.boot < 1.2 || Math.sin(t * 2) > 0 ? '#3aff6a' : '#1a5a2a');
-    // a sticky note stuck to the bezel
-    ctx.save(); ctx.translate(LX - 20, LY + 40); ctx.rotate(-0.14);
+    // the badge and the power light
+    F.draw(ctx, 'ZORBTRON 486', 240, SY + SH + 9, '#d8d0b0', { center: true, shadow: false });
+    X.rect(ctx, LX + LW - 36, SY + SH + 12, 4, 2, S.boot < 0.3 || Math.sin(t * 9) > -0.9 ? '#3aff6a' : '#1a5a2a');
+    PT.glow(ctx, LX + LW - 34, SY + SH + 13, 6, '#3aff6a', 0.35);
+    // a sticky note stuck on the side of the monitor
+    ctx.save(); ctx.translate(LX - 14, LY + 44); ctx.rotate(-0.14);
     X.rect(ctx, 0, 0, 26, 22, '#ffe86a'); X.rect(ctx, 0, 0, 26, 3, '#ffd83a');
     F.draw(ctx, 'OWE', 2, 5, '#6a4a1a', { shadow: false }); F.draw(ctx, 'CHUM', 2, 13, '#c83a3a', { shadow: false });
     ctx.restore();
     drawScreen(ctx, g, t);
-    ctx.drawImage(paintDeck(), 0, 206, VW, VH - 206);
-    // keys that are down right now
-    for (const k of S.keys) { const K = KEYS[k.i]; if (!K) continue; ctx.globalAlpha = 0.6; X.poly(ctx, K.pts, '#7ef9ff'); ctx.globalAlpha = 1; }
-    // the glow of the screen on the keys
-    PT.glow(ctx, 240, 214, 190, S.app === 'abay' ? '#ffffff' : '#7ab8ff', 0.12);
+    // the glow of the tube on everything in front of it
+    PT.glow(ctx, 240, 120, 250, S.boot < BOOT ? '#7aff9a' : '#7ad8d8', 0.06);
+    ctx.drawImage(paintDeck(), 0, DECK_Y, VW, VH - DECK_Y);
+    for (const k of S.keys) { const K = KEYS[k.i]; if (!K) continue; ctx.globalAlpha = 0.35; X.poly(ctx, K.pts, '#5a5240'); ctx.globalAlpha = 1; }
+    drawMouse(ctx, t);
     drawHands(ctx, g, t);
+  }
+  function mousePos() { return [436 + (S.cx - (SX + SW / 2)) * 0.06, 244 + (S.cy - (SY + SH / 2)) * 0.05]; }
+  function drawMouse(ctx, t) {
+    const [x, y] = mousePos(), d = S.press > 0.5 ? 1 : 0;
+    ctx.globalAlpha = 0.35; X.blob(ctx, x + 2, y + 10, 10, 3, '#000000'); ctx.globalAlpha = 1;
+    X.blob(ctx, x, y, 9, 12, '#14100a'); X.blob(ctx, x, y, 8, 11, '#e8e0c8'); X.blob(ctx, x - 2, y - 3, 4, 5, '#fff8e8');
+    X.rect(ctx, x - 7, y - 6 + d, 14, 1, '#a89e80'); X.rect(ctx, x, y - 10, 1, 5, '#a89e80');
   }
 
   function drawRoomLife(ctx, g, t) {
@@ -449,15 +526,13 @@
     ctx.save();
     ctx.beginPath(); ctx.rect(SX, SY, SW, SH); ctx.clip();
     X.rect(ctx, SX, SY, SW, SH, '#000000');
-    if (S.boot < 1.1) drawBoot(ctx, t);
+    if (S.boot < BOOT) drawBoot(ctx, t);
     else {
-      const wp = paintWall(S.wall);
-      const drift = Math.sin(t * 0.05) * 4;
-      ctx.drawImage(wp, SX - 4 + drift, SY, SW + 8, SH);
+      ctx.drawImage(paintWall(S.wall), SX, SY, SW, SH);
+      drawIcons(ctx, g, t);
       drawWidgets(ctx, g, t);
       if (S.app) drawWindow(ctx, g, t);
-      drawDock(ctx, g, t);
-      drawMenuBar(ctx, g, t);
+      drawTaskbar(ctx, g, t);
       drawToasts(ctx, g, t);
       for (const c of S.coins) {
         const w = Math.max(1, Math.round(Math.abs(Math.cos(c.r)) * 4));
@@ -465,149 +540,167 @@
       }
       drawCursor(ctx, g, t);
     }
-    // the glass: a faint reflection across the top-left
-    ctx.globalAlpha = 0.05;
-    X.poly(ctx, [[SX, SY], [SX + 150, SY], [SX + 60, SY + SH], [SX, SY + SH]], '#ffffff');
-    ctx.globalAlpha = 1;
+    drawTube(ctx, t);
     ctx.restore();
   }
-
-  function drawBoot(ctx, t) {
-    const q = S.boot / 1.1;
-    X.rect(ctx, SX, SY, SW, SH, '#05070e');
-    const s = 1 + Math.sin(q * Math.PI) * 0.1;
-    ctx.globalAlpha = Math.min(1, q * 3);
-    F.draw(ctx, 'ZORB', SX + SW / 2, SY + SH / 2 - 22, '#7ef9ff', { center: true, scale: 3, shadow: false });
-    F.draw(ctx, 'O S', SX + SW / 2, SY + SH / 2 + 4, '#aab0d0', { center: true, shadow: false });
+  /* The tube: scanlines, a dark bloom at the edges, a glare, round corners,
+     and the faint roll of the refresh. */
+  function drawTube(ctx, t) {
+    ctx.globalAlpha = 0.13;
+    for (let y = SY; y < SY + SH; y += 2) X.rect(ctx, SX, y, SW, 1, '#000000');
+    ctx.globalAlpha = 0.05;
+    const roll = SY + ((t * 40) % (SH + 40)) - 20;
+    X.rect(ctx, SX, roll, SW, 14, '#ffffff');
     ctx.globalAlpha = 1;
-    X.rect(ctx, SX + SW / 2 - 40, SY + SH / 2 + 22, 80, 3, '#1a2238');
-    X.rect(ctx, SX + SW / 2 - 40, SY + SH / 2 + 22, Math.round(80 * Math.min(1, q * 1.1) * s / s), 3, '#7ef9ff');
+    const vg = ctx.createRadialGradient(SX + SW / 2, SY + SH / 2, SW * 0.42, SX + SW / 2, SY + SH / 2, SW * 0.6);
+    vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,0.32)');
+    ctx.fillStyle = vg; ctx.fillRect(SX, SY, SW, SH);
+    ctx.globalAlpha = 0.07;
+    X.blob(ctx, SX + 70, SY + 34, 60, 22, '#ffffff');
+    ctx.globalAlpha = 1;
+    const r = 9;
+    for (let i = 0; i < r; i++) {
+      const inset = r - Math.floor(Math.sqrt(r * r - (r - i - 0.5) * (r - i - 0.5)));
+      for (const [x, y] of [[SX, SY + i], [SX + SW - inset, SY + i], [SX, SY + SH - 1 - i], [SX + SW - inset, SY + SH - 1 - i]]) X.rect(ctx, x, y, inset, 1, '#0a0c0a');
+    }
   }
 
-  function drawMenuBar(ctx, g, t) {
-    ctx.globalAlpha = 0.82; X.rect(ctx, SX, SY, SW, TOP, '#0a0e1a'); ctx.globalAlpha = 1;
-    X.rect(ctx, SX, SY + TOP, SW, 1, '#2a3050');
-    F.draw(ctx, 'Z', SX + 5, SY + 2, T.accent, { shadow: false });
-    F.draw(ctx, S.app ? appName(S.app) : 'ZORB OS', SX + 15, SY + 2, '#ffffff', { shadow: false });
-    // the right side: money, wifi, battery, clock
-    const d = new Date();
-    const hh = d.getHours(), mm = d.getMinutes();
-    const clock = (hh % 12 || 12) + ':' + (mm < 10 ? '0' : '') + mm;
-    let x = SX + SW - 4;
-    F.draw(ctx, clock, x, SY + 2, '#ffffff', { right: true, shadow: false }); x -= F.width(clock, 1) + 6;
-    // battery, draining in a way that is never explained
-    const bat = 0.2 + 0.7 * ((Math.sin(t * 0.03) + 1) / 2);
-    X.rect(ctx, x - 13, SY + 3, 12, 6, '#8a90a8'); X.rect(ctx, x - 12, SY + 4, 10, 4, '#0a0e1a'); X.rect(ctx, x - 1, SY + 5, 1, 2, '#8a90a8');
-    X.rect(ctx, x - 12, SY + 4, Math.round(10 * bat), 4, bat < 0.3 ? T.red : '#8affa0');
-    x -= 18;
-    for (let i = 0; i < 3; i++) X.rect(ctx, x - 10 + i * 3, SY + 8 - i * 2, 2, 1 + i * 2, i < 2 ? '#ffffff' : '#5a6078');
-    x -= 16;
-    const cash = '$' + U.fmt(g.save.credits);
-    F.draw(ctx, cash, x, SY + 2, '#8affa0', { right: true, shadow: false });
+  /* Boot: the BIOS counts its memory, finds your rocks, then the logo. */
+  const BIOS = ['ZORBTRON BIOS V4.86  (C) NOBODY', '', 'MEMORY TEST: 640K OK', 'DETECTING DRIVES... A: ROCK', 'DETECTING DEBT...... $$$$$$$', 'LOADING ZORB OS 95 ...'];
+  function drawBoot(ctx, t) {
+    X.rect(ctx, SX, SY, SW, SH, '#000000');
+    if (S.boot < 1.7) {
+      const n = Math.floor(S.boot / 0.25);
+      BIOS.slice(0, n).forEach((l, i) => F.draw(ctx, l, SX + 14, SY + 14 + i * 11, i === 0 ? '#ffffff' : '#a8a8a8', { shadow: false }));
+      if (Math.sin(t * 12) > 0) X.rect(ctx, SX + 14, SY + 16 + Math.min(n, BIOS.length) * 11, 6, 2, '#a8a8a8');
+      return;
+    }
+    const q = U.clamp((S.boot - 1.7) / 0.6, 0, 1);
+    X.rect(ctx, SX, SY, SW, SH, '#005a5a');
+    for (const [dx, c] of [[-26, '#e5394a'], [0, '#2f6fe0'], [26, '#f5b82a']]) X.rect(ctx, SX + SW / 2 + dx - 9, SY + 50, 18, 40 * Math.min(1, q * 2), c);
+    F.draw(ctx, 'ZORB OS 95', SX + SW / 2, SY + 104, '#ffffff', { center: true, scale: 2, shadow: '#003a3a' });
+    X.rect(ctx, SX + SW / 2 - 50, SY + 130, 100, 8, '#000000'); bevel(ctx, SX + SW / 2 - 50, SY + 130, 100, 8, '#c0c0c0', true);
+    for (let k = 0; k < Math.floor(q * 12); k++) X.rect(ctx, SX + SW / 2 - 48 + k * 8, SY + 132, 6, 4, '#000080');
   }
+
+  const DOCK = [
+    { id: 'abay', name: 'ABAY' }, { id: 'bank', name: 'CHUM BANK' }, { id: 'map', name: 'STAR MAP' },
+    { id: 'mail', name: 'MAIL' }, { id: 'setup', name: 'SETUP' }, { id: 'power', name: 'SHUT DOWN' }
+  ];
   function appName(id) { const d = DOCK.find(o => o.id === id); return d ? d.name : id.toUpperCase(); }
 
-  /* The desktop: a widget with what you owe, and one with what you are worth. */
-  function drawWidgets(ctx, g, t) {
-    const x = SX + 8, y = SY + TOP + 8;
-    ctx.globalAlpha = 0.55; rr(ctx, x, y, 110, 50, 5, '#0a0e1a'); ctx.globalAlpha = 1;
-    F.draw(ctx, 'NET WORTH', x + 6, y + 5, '#8a90b8', { shadow: false });
-    F.draw(ctx, '$' + U.fmt(PD.story && PD.story.netWorth ? PD.story.netWorth(g) : g.save.credits), x + 6, y + 15, '#ffffff', { scale: 2, shadow: false });
-    // a little line chart, always going up, because that is what charts do
-    let px = x + 6, py = y + 44;
-    for (let i = 0; i < 20; i++) {
-      const nx = x + 6 + i * 5, ny = y + 44 - i * 0.6 - Math.abs(Math.sin(i * 1.7 + 3)) * 5;
-      X.line(ctx, px, py, nx, ny, '#8affa0'); px = nx; py = ny;
+  // icons on the desktop, two columns of three
+  function drawIcons(ctx, g, t) {
+    for (let i = 0; i < DOCK.length; i++) {
+      const d = DOCK[i];
+      const x = SX + 10 + (i % 2) * 48, y = SY + 8 + Math.floor(i / 2) * 44;
+      const over = !S.app && hot(x - 4, y - 2, 40, 40);
+      const bn = S.bounce[d.id] ? Math.abs(Math.sin(S.bounce[d.id] * 9)) * S.bounce[d.id] * 4 : 0;
+      ctx.drawImage(paintIcon(d.id), x + 4, y - bn, 24, 24);
+      if (over) { ctx.globalAlpha = 0.35; X.rect(ctx, x + 4, y, 24, 24, '#000080'); ctx.globalAlpha = 1; }
+      const lw = F.width(d.name, 1) + 4;
+      X.rect(ctx, x + 16 - lw / 2, y + 27, lw, 9, over ? '#000080' : 'rgba(0,0,0,0)');
+      F.draw(ctx, d.name, x + 16, y + 28, '#ffffff', { center: true, shadow: over ? false : '#002a2a' });
+      if (d.id === 'mail') { X.rect(ctx, x + 24, y - 2, 9, 8, '#e5394a'); F.draw(ctx, String(mailbox(g).length), x + 29, y - 1, '#ffffff', { center: true, shadow: false }); }
+      if (!S.app && !S.start && clicked(x - 4, y - 2, 40, 40)) openApp(g, d.id, [x + 16, y + 12]);
     }
+    if (!S.app) {
+      const tip = g.tutActive && g.tutActive() ? 'CLICK ABAY AND SELL YOUR ROCKS' : 'CLICK AN ICON';
+      F.draw(ctx, tip, SX + SW / 2 + 40, SY + SH - TB - 12 + Math.round(Math.sin(t * 3)), '#ffffff', { center: true, shadow: '#002a2a' });
+    }
+  }
+  // what you owe and what you are worth, as two little windows on the right
+  function miniWin(ctx, x, y, w, h, title) {
+    bevel(ctx, x, y, w, h, '#c0c0c0');
+    X.rect(ctx, x + 2, y + 2, w - 4, 9, '#000080');
+    F.draw(ctx, title, x + 4, y + 3, '#ffffff', { shadow: false });
+    X.rect(ctx, x + 3, y + 13, w - 6, h - 16, '#ffffff'); X.rect(ctx, x + 3, y + 13, w - 6, 1, '#808080');
+  }
+  function drawWidgets(ctx, g, t) {
+    const x = SX + SW - 124, y = SY + 8;
+    miniWin(ctx, x, y, 116, 42, 'NET WORTH');
+    F.draw(ctx, '$' + U.fmt(PD.story && PD.story.netWorth ? PD.story.netWorth(g) : g.save.credits), x + 8, y + 19, '#006a2a', { scale: 2, shadow: false });
     const debt = g.save.debt || 0;
     if (debt > 0) {
-      const y2 = y + 56;
-      ctx.globalAlpha = 0.55; rr(ctx, x, y2, 110, 34, 5, '#2a0a14'); ctx.globalAlpha = 1;
-      F.draw(ctx, 'YOU OWE MR CHUM', x + 6, y2 + 5, '#ff9aa8', { shadow: false });
-      F.draw(ctx, '$' + U.fmt(debt), x + 6, y2 + 16, '#ff5a6a', { scale: 2, shadow: false });
-    }
-    // a hint of what to do
-    if (!S.app) {
-      const tip = g.tutActive && g.tutActive() ? 'OPEN ABAY AND SELL YOUR ROCKS' : 'CLICK AN APP BELOW';
-      F.draw(ctx, tip, SX + SW / 2, SY + SH - DOCK_H - 14 + Math.round(Math.sin(t * 3)), '#c8d0f0', { center: true, shadow: '#0a0e1a' });
+      miniWin(ctx, x, y + 48, 116, 42, 'YOU OWE MR CHUM');
+      F.draw(ctx, '$' + U.fmt(debt), x + 8, y + 67, '#c01a2a', { scale: 2, shadow: false });
     }
   }
-
-  function drawDock(ctx, g, t) {
-    const n = DOCK.length, base = 22, gap = 6;
-    const hide = S.app ? S.k : 0;
-    const dy = Math.round(hide * (DOCK_H + 6));
-    const w0 = n * base + (n - 1) * gap + 12;
-    const x0 = SX + (SW - w0) / 2, y0 = SY + SH - DOCK_H + 2 + dy;
-    ctx.globalAlpha = 0.45; rr(ctx, x0, y0, w0, DOCK_H - 4, 6, '#c8d0f0'); ctx.globalAlpha = 0.25; rr(ctx, x0, y0, w0, 2, 1, '#ffffff'); ctx.globalAlpha = 1;
-    S.hoverDock = -1;
-    for (let i = 0; i < n; i++) {
-      const d = DOCK[i];
-      const cx = x0 + 6 + i * (base + gap) + base / 2;
-      const prox = Math.max(0, 1 - Math.abs(S.cx - cx) / 40) * (S.cy > y0 - 12 ? 1 : 0);
-      const s = 1 + prox * 0.35;
-      const bnc = S.bounce[d.id] ? Math.abs(Math.sin(S.bounce[d.id] * 9)) * S.bounce[d.id] * 8 : 0;
-      const sz = Math.round(base * s), ix = Math.round(cx - sz / 2), iy = Math.round(y0 + DOCK_H - 7 - sz - bnc);
-      ctx.drawImage(paintIcon(d.id), ix, iy, sz, sz);
-      if (d.id === 'mail') { X.blob(ctx, ix + sz - 3, iy + 3, 4, 4, T.red); F.draw(ctx, String(mailbox(g).length), ix + sz - 3, iy + 1, '#ffffff', { center: true, shadow: false }); }
-      if (S.app === d.id) X.rect(ctx, cx - 1, y0 + DOCK_H - 6, 2, 2, '#ffffff');
-      if (!S.app && hot(ix, iy, sz, sz + 4)) {
-        S.hoverDock = i;
-        const lw = F.width(d.name, 1) + 8;
-        ctx.globalAlpha = 0.85; rr(ctx, cx - lw / 2, iy - 13, lw, 10, 3, '#0a0e1a'); ctx.globalAlpha = 1;
-        F.draw(ctx, d.name, cx, iy - 11, '#ffffff', { center: true, shadow: false });
-      }
-      if (!S.app && clicked(ix, iy, sz, sz + 4)) openApp(g, d.id, [cx, iy]);
+  function drawTaskbar(ctx, g, t) {
+    const y = SY + SH - TB;
+    X.rect(ctx, SX, y, SW, TB, '#c0c0c0'); X.rect(ctx, SX, y, SW, 1, '#ffffff');
+    const sd = S.start;
+    bevel(ctx, SX + 2, y + 2, 38, TB - 4, '#c0c0c0', sd);
+    for (const [dx, c] of [[0, '#e5394a'], [3, '#2f6fe0'], [6, '#f5b82a']]) X.rect(ctx, SX + 5 + dx, y + 4, 2, 6, c);
+    F.draw(ctx, 'ZORB', SX + 15, y + 4, '#000000', { shadow: false });
+    if (clicked(SX + 2, y + 2, 38, TB - 4)) { S.start = !S.start; A.sfx.tone(1200, { type: 'square', dur: 0.02, vol: 0.03 }); }
+    if (S.app) { bevel(ctx, SX + 44, y + 2, 90, TB - 4, '#c0c0c0', true); F.draw(ctx, appName(S.app), SX + 50, y + 4, '#000000', { shadow: false }); }
+    // the tray
+    const d = new Date(), hh = d.getHours(), mm = d.getMinutes();
+    const clock = (hh % 12 || 12) + ':' + (mm < 10 ? '0' : '') + mm;
+    const cash = '$' + U.fmt(g.save.credits);
+    const tw = F.width(clock, 1) + F.width(cash, 1) + 16;
+    bevel(ctx, SX + SW - tw - 3, y + 2, tw, TB - 4, '#c0c0c0', true);
+    F.draw(ctx, cash, SX + SW - tw + 2, y + 4, '#006a2a', { shadow: false });
+    F.draw(ctx, clock, SX + SW - 6, y + 4, '#000000', { right: true, shadow: false });
+    // the start menu
+    if (S.start) {
+      const mh = DOCK.length * 12 + 6, mx = SX + 2, my = y - mh;
+      bevel(ctx, mx, my, 90, mh, '#c0c0c0');
+      X.rect(ctx, mx + 2, my + 2, 10, mh - 4, '#000080');
+      DOCK.forEach((dd, i) => {
+        const iy = my + 3 + i * 12, over = hot(mx + 13, iy, 75, 12);
+        if (over) X.rect(ctx, mx + 13, iy, 75, 12, '#000080');
+        F.draw(ctx, dd.name, mx + 16, iy + 2, over ? '#ffffff' : '#000000', { shadow: false });
+        if (clicked(mx + 13, iy, 75, 12)) { S.start = false; openApp(g, dd.id, [mx + 40, iy]); }
+      });
+      if (S.fire && !S.used) S.start = false;
     }
   }
-
+  // notices: old yellow balloons over the tray
   function drawToasts(ctx, g, t) {
     for (let i = 0; i < S.toasts.length; i++) {
       const o = S.toasts[i];
-      const k = Math.min(1, o.t * 5) * (o.t > 3.6 ? Math.max(0, (4 - o.t) / 0.4) : 1);
-      const w = 150, h = 22;
-      const x = SX + SW - 4 - w + Math.round((1 - k) * (w + 10)), y = SY + TOP + 4 + i * (h + 3);
-      ctx.globalAlpha = 0.92; shadow(ctx, x, y, w, h, 4); rr(ctx, x, y, w, h, 4, '#1a2036'); ctx.globalAlpha = 1;
-      X.rect(ctx, x + 3, y + 4, 2, h - 8, o.col);
-      F.draw(ctx, o.title, x + 9, y + 3, o.col, { shadow: false });
-      F.draw(ctx, clip(o.text, 23), x + 9, y + 12, '#e0e4f4', { shadow: false });
+      const k = Math.min(1, o.t * 6) * (o.t > 3.6 ? Math.max(0, (4 - o.t) / 0.4) : 1);
+      if (k <= 0) continue;
+      const w = 156, h = 24, x = SX + SW - w - 6, y = SY + SH - TB - 8 - (i + 1) * (h + 4) + Math.round((1 - k) * 8);
+      X.rect(ctx, x - 1, y - 1, w + 2, h + 2, '#000000'); X.rect(ctx, x, y, w, h, '#ffffe1');
+      X.poly(ctx, [[x + w - 30, y + h], [x + w - 20, y + h], [x + w - 16, y + h + 6]], '#ffffe1');
+      X.rect(ctx, x + 4, y + 4, 3, h - 8, o.col);
+      F.draw(ctx, o.title, x + 10, y + 3, '#000000', { shadow: false });
+      F.draw(ctx, clip(o.text, 23), x + 10, y + 13, '#404040', { shadow: false });
     }
   }
-
   function drawCursor(ctx, g, t) {
     const x = Math.round(S.cx), y = Math.round(S.cy);
-    const pts = [[0, 0], [0, 10], [3, 7], [5, 11], [7, 10], [5, 6], [9, 6]];
-    ctx.globalAlpha = 0.35; X.poly(ctx, pts.map(p => [x + p[0] + 1, y + p[1] + 1]), '#000000'); ctx.globalAlpha = 1;
-    X.poly(ctx, pts.map(p => [x + p[0] - 0.5, y + p[1] - 0.5]), '#0a0a10');
-    X.poly(ctx, [[1, 2], [1, 8], [3, 6], [5, 9], [6, 8.6], [4.4, 5.2], [7, 5.2]].map(p => [x + p[0] - 0.2, y + p[1]]), '#ffffff');
-    if (S.press > 0) { ctx.globalAlpha = S.press * 0.6; X.frame(ctx, x - 4 - (1 - S.press) * 6, y - 4 - (1 - S.press) * 6, 8 + (1 - S.press) * 12, 8 + (1 - S.press) * 12, '#7ef9ff'); ctx.globalAlpha = 1; }
+    const pts = [[0, 0], [0, 11], [3, 8], [5, 12], [7, 11], [5, 7], [9, 7]];
+    X.poly(ctx, pts.map(p => [x + p[0] - 0.5, y + p[1] - 0.5]), '#000000');
+    X.poly(ctx, [[1, 2], [1, 9], [3, 7], [5, 10], [6, 9.6], [4.4, 6.2], [7, 6.2]].map(p => [x + p[0] - 0.2, y + p[1]]), '#ffffff');
   }
 
-  /* The window: it grows out of the icon that opened it. */
+  /* A window, the old way: grey bevels, a blue title bar, a square X. */
   function drawWindow(ctx, g, t) {
-    const wx = SX + 6, wy = SY + TOP + 3, ww = SW - 12, wh = SH - TOP - 6;
+    const wx = SX + 4, wy = SY + 3, ww = SW - 8, wh = SH - TB - 6;
     const e = S.k >= 1 ? 1 : 1 - Math.pow(1 - S.k, 3);
     if (e < 0.999) {
+      // the old zoom: outlines stepping out from the icon
       const fx = S.from[0], fy = S.from[1];
-      const x = U.lerp(fx - 8, wx, e), y = U.lerp(fy - 8, wy, e), w = U.lerp(16, ww, e), h = U.lerp(16, wh, e);
-      ctx.globalAlpha = 0.5 + e * 0.5; rr(ctx, x, y, w, h, 5, S.app === 'bank' ? '#101a3a' : '#f4f5fa'); ctx.globalAlpha = 1;
-      if (e < 0.75) return;
+      for (let k = 0; k < 3; k++) {
+        const q = U.clamp(e - k * 0.15, 0, 1);
+        X.frame(ctx, U.lerp(fx - 8, wx, q), U.lerp(fy - 8, wy, q), U.lerp(16, ww, q), U.lerp(16, wh, q), '#000000');
+      }
+      if (e < 0.7) return;
     }
-    shadow(ctx, wx, wy, ww, wh, 5);
-    const dark = S.app === 'bank' || S.app === 'setup';
-    rr(ctx, wx, wy, ww, wh, 5, dark ? '#0e1630' : T.page);
-    // the title bar
-    rr(ctx, wx, wy, ww, 12, 5, dark ? '#1a2448' : '#e2e4ee'); X.rect(ctx, wx, wy + 8, ww, 4, dark ? '#1a2448' : '#e2e4ee');
-    X.rect(ctx, wx, wy + 12, ww, 1, dark ? '#2a3460' : '#c8cad8');
-    const dots = [['#ff5f57', 'close'], ['#febc2e', 'min'], ['#28c840', 'max']];
-    for (let i = 0; i < 3; i++) {
-      const dx = wx + 7 + i * 9, dy = wy + 6;
-      X.blob(ctx, dx, dy, 3, 3, dots[i][0]);
-      if (hot(wx + 3, wy + 2, 30, 9)) X.rect(ctx, dx - 1, dy - 0.5, 2, 1, '#5a1a1a');
-    }
-    if (clicked(wx + 2, wy + 1, 30, 10)) { closeApp(); return; }
-    F.draw(ctx, appTitle(g), wx + ww / 2, wy + 3, dark ? '#c8d0f0' : '#4a4e68', { center: true, shadow: false });
-    const bx = wx + 1, by = wy + 13, bw = ww - 2, bh = wh - 14;
+    bevel(ctx, wx, wy, ww, wh, '#c0c0c0');
+    for (let i = 0; i < ww - 6; i++) X.rect(ctx, wx + 3 + i, wy + 3, 1, 11, PT.css(PT.mix(0x000080, 0x1084d0, i / ww)));
+    F.draw(ctx, appTitle(g), wx + 7, wy + 5, '#ffffff', { shadow: false });
+    const cxb = wx + ww - 15;
+    bevel(ctx, cxb, wy + 4, 11, 9, '#c0c0c0', hot(cxb, wy + 4, 11, 9) && PD.input.mouse.left);
+    F.draw(ctx, 'X', cxb + 6, wy + 5, '#000000', { center: true, shadow: false });
+    bevel(ctx, cxb - 13, wy + 4, 11, 9, '#c0c0c0'); X.rect(ctx, cxb - 10, wy + 10, 5, 1, '#000000');
+    if (clicked(cxb, wy + 4, 11, 9)) { closeApp(); return; }
+    const bx = wx + 3, by = wy + 16, bw = ww - 6, bh = wh - 19;
+    X.rect(ctx, bx - 1, by - 1, bw + 2, bh + 2, '#808080');
     ctx.save();
     ctx.beginPath(); ctx.rect(bx, by, bw, bh); ctx.clip();
     if (S.app === 'abay') drawAbay(ctx, g, t, bx, by, bw, bh);
@@ -812,7 +905,7 @@
     const py = by + bh - 32;
     for (const l of wrap(e.name, 17).slice(0, 2)) { F.draw(ctx, l, dx + 6, ly, T.ink, { shadow: false }); ly += 9; }
     stars(ctx, dx + 6, ly, e.stars); F.draw(ctx, clip(e.seller, 7), dx + 38, ly, T.faint, { shadow: false }); ly += 9;
-    const room = Math.max(1, Math.floor((py - 12 - (e.deal ? 9 : 0) - ly) / 8));
+    const room = Math.max(0, Math.floor((py - 12 - (e.deal ? 9 : 0) - ly) / 8));
     const dl = wrap(e.desc, 17);
     for (const l of dl.slice(0, room)) { F.draw(ctx, l, dx + 6, ly, T.dim, { shadow: false }); ly += 8; }
     F.draw(ctx, clip(e.fx, 18), dx + 6, py - 10 - (e.deal ? 9 : 0), T.blue, { shadow: false });
@@ -848,7 +941,7 @@
     burst(x, y, 16);
     A.sfx.buy && A.sfx.buy();
     A.sfx.tone(660, { type: 'triangle', to: 1320, dur: 0.2, vol: 0.07 });
-    S.lastBuy = e.name;
+    S.lastBuy = e.name; S.lesson = e.kind;
     if (e.kind === 'build') toast('ORDER DELIVERED', e.name + ' - PRESS B ON THE MOON', T.green);
     else if (e.kind === 'cosm') toast('ORDER DELIVERED', 'YOU ARE WEARING IT. LOOK.', T.green);
     else toast('INSTALLED', e.name + ' ON YOUR ' + (e.kind === 'ship' ? 'SAUCER' : 'SUIT'), T.green);
@@ -1096,11 +1189,11 @@
     const cv = handArt(P);
     // left hand over the keys, tapping when you click
     const tapL = S.typeT > 0 && S.tapHand ? 3 : 0;
-    ctx.save(); ctx.translate(126, 240 + tapL + Math.sin(t * 2.4) * 0.8); ctx.rotate(0.35);
+    ctx.save(); ctx.translate(150, 246 + tapL + Math.sin(t * 2.4) * 0.8); ctx.rotate(0.35);
     ctx.drawImage(cv, -16, -10, 32, 40);
     ctx.restore();
     // right hand on the trackpad, moving with the pointer
-    const hx = 240 + (S.cx - (SX + SW / 2)) * 0.1, hy = 252 + (S.cy - (SY + SH / 2)) * 0.05 + (S.press > 0.5 ? 2 : 0);
+    const mp = mousePos(), hx = mp[0] + 2, hy = mp[1] + 4 + (S.press > 0.5 ? 2 : 0);
     ctx.save(); ctx.translate(hx, hy); ctx.rotate(-0.2);
     ctx.drawImage(cv, -16, -10, 32, 40);
     ctx.restore();
