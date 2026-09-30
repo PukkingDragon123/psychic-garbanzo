@@ -182,5 +182,5 @@
     return px;
   }
 
-  PD.font = { draw, width, GW, GH, GAP, lineHeight: s => (GH + 3) * (s || 1) };
+  PD.font = { draw, width, GW, GH, GAP, mask: (ch, d) => maskOf(String(ch).toUpperCase(), d), lineHeight: s => (GH + 3) * (s || 1) };
 })(window.PD);
