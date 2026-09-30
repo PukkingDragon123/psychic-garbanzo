@@ -182,27 +182,22 @@
     const bh = 70, by = VH - bh - 6 + Math.round((1 - e) * 30);
     // a dim over the world so the words are the thing
     ctx.globalAlpha = 0.35 * Math.min(1, T.pop * 2);
-    X.rect(ctx, 0, 0, VW, VH, '#05030c');
+    X.rect(ctx, 0, 0, VW, VH, '#1c0e06');
     ctx.globalAlpha = 1;
-    // the box: dark glass, a lit rim in the speaker's colour
-    X.plate(ctx, 6, by - 2, VW - 12, bh + 4, '#000000', null, null, 8);
-    X.plate(ctx, 8, by, VW - 16, bh, '#140f24', W.col, '#05030a', 7);
-    X.rect(ctx, 14, by + 2, VW - 28, 1, 'rgba(255,255,255,0.12)');
-    // the face
-    const px = 14, py = by + 6, pw = 60, ph = bh - 12;
-    X.plate(ctx, px, py, pw, ph, '#0a0716', W.col, '#05030a', 5);
-    ctx.save(); ctx.beginPath(); ctx.rect(px + 2, py + 2, pw - 4, ph - 4); ctx.clip();
+    // the box: a parchment card, the face in a slot, the name on a ribbon
+    const KT = PD.kit, K = KT.K;
+    KT.panel(ctx, 8, by, VW - 16, bh, { seed: 21 });
+    const px = 15, py = by + 7, pw = 60, ph = bh - 14;
+    KT.slot(ctx, px - 1, py - 1, pw + 2, ph + 2, {});
+    ctx.save(); ctx.beginPath(); ctx.rect(px + 1, py + 1, pw - 2, ph - 2); ctx.clip();
     const grd = ctx.createRadialGradient(px + pw / 2, py + ph / 2, 2, px + pw / 2, py + ph / 2, 44);
-    grd.addColorStop(0, W.col); grd.addColorStop(1, '#0a0716');
+    grd.addColorStop(0, W.col); grd.addColorStop(1, '#3a2213');
     ctx.fillStyle = grd; ctx.fillRect(px, py, pw, ph);
     const talking = T.chars < (T.text || '').length;
     W.draw(ctx, px, py, pw, ph, t, n.face || 'idle', talking, g);
     ctx.restore();
-    // the name plate
     const nm = n.name || W.name;
-    const nw = F.width(nm, 1) + 10;
-    X.plate(ctx, 82, by - 7, nw, 12, W.col, null, null, 3);
-    F.draw(ctx, nm, 87, by - 5, '#ffffff', { shadow: '#000000' });
+    KT.ribbon(ctx, 84 + (F.width(nm, 1) + 20) / 2, by - 8, nm, {});
     // the words
     const shown = (T.text || '').slice(0, Math.floor(T.chars));
     const rows = wrap(shown, VW - 110);
@@ -210,7 +205,7 @@
     const rr = sc === 2 ? wrap(shown, (VW - 110) / 2) : rows;
     if (rr.length > 2 && sc === 2) sc = 1;
     const out = sc === 2 ? rr : rows;
-    out.slice(0, 5).forEach((r, i) => F.draw(ctx, r, 84, by + 10 + i * (sc === 2 ? 17 : 11), W.text || '#ffffff', { scale: sc, shadow: '#000000' }));
+    out.slice(0, 5).forEach((r, i) => F.draw(ctx, r, 84, by + 11 + i * (sc === 2 ? 17 : 11), K.text, { scale: sc, shadow: false }));
     const done = T.chars >= (T.text || '').length;
     // the replies
     if (done && T.opts.length) {
@@ -219,19 +214,19 @@
         const k = Math.min(1, Math.max(0, (T.t - 0.05 * i) * 8));
         const bx = b.x + Math.round((1 - k) * 40);
         ctx.globalAlpha = k;
-        X.plate(ctx, bx - 1, b.y - 1, b.w + 2, b.h + 2, '#000000', null, null, 4);
-        X.plate(ctx, bx, b.y, b.w, b.h, on ? '#2e2458' : '#17122a', on ? '#ffd34d' : '#3a3060', '#05030a', 4);
+        KT.btn(ctx, bx, b.y, b.w, b.h, '', { col: on ? 'green' : 'tan', hot: on });
         const lab = typeof c.t === 'function' ? c.t(g) : c.t;
-        F.draw(ctx, lab, bx + 16, b.y + 5, on ? '#ffffff' : '#b8b0d8', { shadow: false });
+        F.draw(ctx, lab, bx + 16, b.y + 4 - (on ? 1 : 0), '#ffffff', { shadow: on ? K.greenDk : K.ink });
         if (on) {
           const bob = Math.round(Math.sin(t * 9) * 1.5);
-          X.poly(ctx, [[bx + 5 + bob, b.y + 4], [bx + 10 + bob, b.y + 8], [bx + 5 + bob, b.y + 12]], '#ffd34d');
+          X.poly(ctx, [[bx + 5 + bob, b.y + 3], [bx + 10 + bob, b.y + 7], [bx + 5 + bob, b.y + 11]], '#ffffff');
         }
         ctx.globalAlpha = 1;
       });
     } else if (done) {
       const bob = Math.round(Math.abs(Math.sin(t * 5)) * 2);
-      X.poly(ctx, [[VW - 26, by + bh - 14 + bob], [VW - 16, by + bh - 14 + bob], [VW - 21, by + bh - 8 + bob]], W.col);
+      X.poly(ctx, [[VW - 27, by + bh - 15 + bob], [VW - 15, by + bh - 15 + bob], [VW - 21, by + bh - 8 + bob]], K.ink);
+      X.poly(ctx, [[VW - 25, by + bh - 14 + bob], [VW - 17, by + bh - 14 + bob], [VW - 21, by + bh - 10 + bob]], K.green);
     }
   }
 

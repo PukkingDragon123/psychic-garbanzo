@@ -652,20 +652,23 @@
       ctx.globalAlpha = 1;
     } else if (this.invuln > 0 && Math.sin(this.invuln * 40) < -0.2) return;
 
-    // holstered pistol on the far side when the drill is out
-    if (!drilling) {
-      ctx.save();
-      ctx.translate(px | 0, py | 0);
-      const ga = this.gunAim === undefined ? this.aim : this.gunAim;
-      ctx.rotate(ga + (flip ? Math.PI : 0));
-      ctx.scale(1, flip ? -1 : 1);
-      const gf = gun.frames[this.gunCool > 0.05 ? 1 : 0];
-      ctx.drawImage(gf, -2, -10);
-      ctx.restore();
-    }
+    // gun, body, tool and hands, inked round the outside as one cartoon cel
+    PD.paint.inked(ctx, px - 52, py - 52, 104, 104, c => {
+      // holstered pistol on the far side when the drill is out
+      if (!drilling) {
+        c.save();
+        c.translate(px | 0, py | 0);
+        const ga = this.gunAim === undefined ? this.aim : this.gunAim;
+        c.rotate(ga + (flip ? Math.PI : 0));
+        c.scale(1, flip ? -1 : 1);
+        const gf = gun.frames[this.gunCool > 0.05 ? 1 : 0];
+        c.drawImage(gf, -2, -10);
+        c.restore();
+      }
 
-    // the body, the tool in its grip and the hands over it, in one pass
-    PD.rig.draw(ctx, r, body, skin.P, B);
+      // the body, the tool in its grip and the hands over it, in one pass
+      PD.rig.draw(c, r, body, skin.P, B);
+    });
 
     if (drilling) {
       // hot sparks and grit off the bit

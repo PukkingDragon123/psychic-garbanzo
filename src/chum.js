@@ -410,7 +410,7 @@
     X.plate(ctx, bx, by, w, h, '#cdf6ff', '#ffffff', '#6fc8e0', 3);
     const tip = U.clamp(x, bx + 6, bx + w - 6);
     X.poly(ctx, [[tip - 3, by + h - 2], [tip + 3, by + h - 2], [tip, by + h + 5]], '#cdf6ff');
-    rows.forEach((r, i) => F.draw(ctx, r, bx + w / 2, by + 2 + i * 10, '#0a3446', { center: true }));
+    rows.forEach((r, i) => F.draw(ctx, r, bx + w / 2, by + 2 + i * 10, '#0a3446', { center: true, shadow: false }));
     ctx.globalAlpha = 1;
   }
 
@@ -807,7 +807,7 @@
     }
     if (o.pop < 1) return { bx, by, dw, dh };
     o.rows.forEach((r, i) => F.draw(ctx, r, bx + dw / 2, by + pad + i * lh, o.ink,
-      { center: true, scale: sc }));
+      { center: true, scale: sc, shadow: false }));
     if (o.foot) F.draw(ctx, o.foot, bx + dw - 6, by + dh - 11, o.foot2 || o.dark, { right: true });
     return { bx, by, dw, dh };
   }
@@ -821,12 +821,11 @@
     const dw = Math.max(24, Math.round((VW - 44) * e));
     const dh = Math.max(8, Math.round(h * e));
     const bx = Math.round((VW - dw) / 2), by = Math.round(VH - 12 - dh);
-    X.plate(ctx, bx - 2, by - 2, dw + 4, dh + 4, '#1a1020', null, null, 7);
-    X.plate(ctx, bx, by, dw, dh, 'rgba(10,6,22,0.94)', '#5b3f96', '#000000', 6);
+    PD.kit.panel(ctx, bx, by - 2, dw, dh + 4, { flat: pop < 1, seed: 9 });
     if (pop >= 1) {
-      rows.forEach((r, i) => F.draw(ctx, r, VW / 2, by + 8 + i * lh, '#e8dcff',
-        { center: true, scale: sc, shadow: '#000000' }));
-      if (foot) F.draw(ctx, foot, bx + dw - 6, by + dh - 11, '#8a7ab0', { right: true, shadow: '#000000' });
+      rows.forEach((r, i) => F.draw(ctx, r, VW / 2, by + 8 + i * lh, PD.kit.K.text,
+        { center: true, scale: sc, shadow: false }));
+      if (foot) F.draw(ctx, foot, bx + dw - 8, by + dh - 11, PD.kit.K.dim, { right: true, shadow: false });
     }
     return { bx, by, dw, dh };
   }

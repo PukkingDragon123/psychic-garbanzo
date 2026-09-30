@@ -435,26 +435,26 @@
     const pulse = 0.5 + 0.5 * Math.sin(g.time * 3.4);
     const warn = TS.warnT > 0 ? TS.warn : null;
     const sub = warn || st.sub;
-    const w = Math.max(F.width(st.text, 2), F.width(sub, 1)) + 44;
-    const h = 32;
-    const x = Math.round((VW - w) / 2), y = 8 + (TS.flash > 0 ? Math.round(TS.flash * 4) : 0);
-    PD.pxd.plate(ctx, x - 2, y - 2, w + 4, h + 4, '#0d0918', null, null, 5);
-    PD.pxd.plate(ctx, x, y, w, h, '#1a1430', '#2e2450', '#0a0614', 4);
-    PD.pxd.rect(ctx, x + 4, y, w - 8, 2, TS.flash > 0 ? '#8affa0' : '#ffd34d');
-    ctx.globalAlpha = 0.14 + pulse * 0.1;
-    PD.pxd.rect(ctx, x, y, w, h, '#ffd34d');
+    const w = Math.max(F.width(st.text, 2), F.width(sub, 1)) + 52;
+    const h = 34;
+    const x = Math.round((VW - w) / 2), y = 10 + (TS.flash > 0 ? Math.round(TS.flash * 4) : 0);
+    const KT = PD.kit, K = KT.K;
+    KT.panel(ctx, x, y + 4, w, h, { seed: 13 });
+    KT.ribbon(ctx, x + w / 2, y - 2, 'TUTORIAL ' + (TS.step + 1) + '/' + TUT.length, { col: TS.flash > 0 ? 'green' : 'gold' });
+    ctx.globalAlpha = 0.1 + pulse * 0.08;
+    KT.rr(ctx, x + 3, y + 7, w - 6, h - 6, 3, '#ffe07a');
     ctx.globalAlpha = 1;
     // the key glyphs on the left of it
     for (let i = 0; i < st.key.length; i++) {
-      PD.glyph.draw(ctx, st.key[i], x + 5 + i * 15, y + 9, '#ffd34d', '#c2932a');
+      KT.slot(ctx, x + 5 + i * 15, y + 12, 15, 16, {});
+      PD.glyph.draw(ctx, st.key[i], x + 6 + i * 15, y + 13, K.brown, K.parchHi);
     }
-    const tx = x + 8 + st.key.length * 15;
-    F.draw(ctx, st.text, tx, y + 5, '#ffe9a8', { scale: 2, shadow: '#0a0614' });
-    F.draw(ctx, sub, tx, y + 22, warn ? '#ff5a4d' : '#8a84b0', { shadow: false });
+    const tx = x + 8 + st.key.length * 15 + 4;
+    F.draw(ctx, st.text, tx, y + 11, K.text, { scale: 2, shadow: false });
+    F.draw(ctx, sub, tx, y + 27, warn ? K.redLo : K.dim, { shadow: false });
     // and how far through it you are
     for (let i = 0; i < TUT.length; i++) {
-      PD.pxd.rect(ctx, x + w - 8 - (TUT.length - i) * 6, y + h - 6, 4, 3,
-        i < TS.step ? '#8affa0' : (i === TS.step ? '#ffd34d' : '#3a3152'));
+      KT.rr(ctx, x + w - 8 - (TUT.length - i) * 6, y + h - 4, 4, 3, 1, i < TS.step ? K.green : (i === TS.step ? K.gold : K.parchDk));
     }
   }
 

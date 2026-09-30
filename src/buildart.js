@@ -56,26 +56,121 @@
     B.block(cx - 18, gy - 14, 36, 14, [0xb8b0c8, 0xe0d8f0, 0x7a7290], 4, 4);
     body(B, cx, gy - 14, C);
   }
+  /* The pool toys, painted like shiny inflatables: every shape is lit per
+     pixel off a five-tone ramp, with welded seams, a valve, a glint and a
+     ring of water where it sits. */
+  const VINYL = {
+    blue: [0x1c2a58, 0x2f4f8e, 0x4f7cc4, 0x86b2ec, 0xcfe6ff],
+    belly: [0x7d8aa6, 0xaab6cc, 0xd6dfec, 0xeef3fa, 0xffffff],
+    yellow: [0x8a560a, 0xc88c1a, 0xf2bf2c, 0xffe06a, 0xfff6c4],
+    orange: [0x7a2408, 0xc2521a, 0xff8428, 0xffb262, 0xffe2b8],
+    pink: [0x6e1640, 0xb03466, 0xe45c96, 0xff96be, 0xffd6e6],
+    dough: [0x5e3212, 0x9c5c26, 0xd49048, 0xefbd78, 0xffe6b6],
+    icing: [0x8a2456, 0xc8487e, 0xf27aae, 0xffaed0, 0xffe4f0]
+  };
+  function ripple(B, cx, gy, rx) {
+    B.ellipse(cx, gy - 1, rx + 6, 3.2, 0x2a78b8, 0.35);
+    B.ellipse(cx, gy - 1.5, rx + 3, 2.2, 0xbfeaff, 0.35);
+    for (let i = 0; i < 6; i++) B.rect(cx - rx - 4 + i * (rx * 2 + 8) / 5, gy - 2 - (i % 2), 3, 1, 0xffffff, 0.55);
+  }
+  function seam(B, pts, a) { for (let i = 0; i + 1 < pts.length; i++) B.line(pts[i][0], pts[i][1], pts[i + 1][0], pts[i + 1][1], 0xffffff, 1, a || 0.35); }
+  function valve(B, x, y, P) { B.orb(x, y, 2.6, 2, [P[0], P[1], P[3], P[4], 0xffffff], { spec: false }); B.disc(x, y, 1, P[0]); }
+  function cartoonEye(B, x, y, r, look) {
+    B.ellipse(x, y, r + 0.8, r * 1.15 + 0.8, 0x1a1024);
+    B.ellipse(x, y, r, r * 1.15, 0xffffff);
+    B.ellipse(x + (look || 0.4) * r * 0.35, y + r * 0.1, r * 0.58, r * 0.72, 0x1a1024);
+    B.disc(x + (look || 0.4) * r * 0.35 - r * 0.2, y - r * 0.28, Math.max(0.8, r * 0.26), 0xffffff);
+  }
   function floatie(B, cx, gy, kind) {
+    const V = VINYL;
     if (kind === 'shark') {
-      B.ellipse(cx, gy - 8, 22, 9, 0x5a7ab0); B.ellipse(cx, gy - 10, 20, 7, 0x8ab0e8); B.ellipse(cx - 4, gy - 11, 10, 3, 0xc8e0ff);
-      B.poly([[cx - 2, gy - 16], [cx + 8, gy - 16], [cx + 2, gy - 32]], 0x6a8ac8);
-      B.poly([[cx + 18, gy - 10], [cx + 28, gy - 20], [cx + 26, gy - 4]], 0x6a8ac8);
-      B.disc(cx - 14, gy - 12, 2, 0x101018); B.rect(cx - 18, gy - 7, 8, 1, 0xffffff);
-      for (let i = 0; i < 4; i++) B.poly([[cx - 18 + i * 2, gy - 7], [cx - 17 + i * 2, gy - 7], [cx - 17.5 + i * 2, gy - 5]], 0xffffff);
+      ripple(B, cx, gy, 26);
+      // tail, flicked up behind
+      B.poly([[cx + 20, gy - 12], [cx + 36, gy - 30], [cx + 32, gy - 12], [cx + 38, gy - 2], [cx + 22, gy - 6]], V.blue[1]);
+      B.poly([[cx + 21, gy - 12], [cx + 34, gy - 28], [cx + 30, gy - 13]], V.blue[2]);
+      B.line(cx + 23, gy - 13, cx + 33, gy - 26, V.blue[3], 1, 0.7);
+      // dorsal fin: lit face and shadow face
+      B.poly([[cx - 4, gy - 20], [cx + 10, gy - 20], [cx + 6, gy - 40], [cx + 2, gy - 38]], V.blue[1]);
+      B.poly([[cx - 4, gy - 20], [cx + 4, gy - 20], [cx + 4, gy - 38], [cx + 2, gy - 38]], V.blue[3]);
+      B.line(cx + 3, gy - 22, cx + 4, gy - 36, V.blue[4], 1, 0.6);
+      // the body and its white belly
+      B.orb(cx, gy - 13, 27, 11.5, V.blue);
+      B.orb(cx - 3, gy - 8, 23, 7, V.belly, { clip: (x, y) => y > gy - 11, spec: false });
+      seam(B, [[cx - 24, gy - 11], [cx - 10, gy - 10], [cx + 10, gy - 10], [cx + 24, gy - 12]], 0.5);
+      // flipper
+      B.poly([[cx - 6, gy - 8], [cx + 4, gy - 8], [cx - 2, gy + 1], [cx - 9, gy - 1]], V.blue[1]);
+      B.poly([[cx - 6, gy - 8], [cx - 1, gy - 8], [cx - 5, gy - 1], [cx - 9, gy - 1]], V.blue[2]);
+      // gills
+      for (let k = 0; k < 3; k++) B.line(cx - 10 + k * 3, gy - 18, cx - 11 + k * 3, gy - 12, V.blue[0], 1, 0.8);
+      // the grin, with teeth
+      const mouth = [[cx - 26, gy - 12], [cx - 22, gy - 9], [cx - 16, gy - 8], [cx - 12, gy - 10]];
+      for (let i = 0; i + 1 < mouth.length; i++) B.line(mouth[i][0], mouth[i][1], mouth[i + 1][0], mouth[i + 1][1], 0x1a1024, 1);
+      for (let k = 0; k < 4; k++) B.poly([[cx - 23 + k * 3, gy - 9], [cx - 21 + k * 3, gy - 9], [cx - 22 + k * 3, gy - 7]], 0xffffff);
+      cartoonEye(B, cx - 17, gy - 17, 3.4, -0.4);
+      B.line(cx - 21, gy - 22, cx - 14, gy - 21, V.blue[0], 1);     // a cheeky brow
+      B.ellipse(cx - 12, gy - 12, 2.4, 1.3, 0xff8aa8, 0.6);
+      valve(B, cx + 12, gy - 21, V.belly);
     } else if (kind === 'duck') {
-      B.ellipse(cx, gy - 8, 18, 8, 0xe8b820); B.ellipse(cx, gy - 10, 16, 6, 0xffd34d);
-      B.ball(cx + 12, gy - 20, 8, 8, [0xffd34d, 0xfff0a0, 0xc89a1e]);
-      B.poly([[cx + 18, gy - 20], [cx + 26, gy - 18], [cx + 18, gy - 16]], 0xff8a2a);
-      B.disc(cx + 13, gy - 22, 1.4, 0x101018);
+      ripple(B, cx, gy, 24);
+      // the ring the duck is made of
+      B.torus(cx - 2, gy - 9, 16, 6.5, 0.42, V.yellow);
+      // tail feathers, flicked up at the back
+      B.poly([[cx - 20, gy - 12], [cx - 30, gy - 24], [cx - 24, gy - 12]], V.yellow[2]);
+      B.poly([[cx - 22, gy - 12], [cx - 30, gy - 24], [cx - 27, gy - 13]], V.yellow[3]);
+      // wing, painted on the side of the ring
+      B.orb(cx - 8, gy - 6, 7, 3.2, V.yellow, { spec: false });
+      for (let k = 0; k < 3; k++) B.line(cx - 13 + k * 3, gy - 6, cx - 11 + k * 3, gy - 4, V.yellow[1], 1, 0.8);
+      // neck and head
+      B.tube(cx + 12, gy - 10, cx + 16, gy - 20, cx + 14, gy - 28, 5, 4.5, V.yellow, { spec: false });
+      B.orb(cx + 15, gy - 33, 9.5, 8.5, V.yellow);
+      // the bill: upper and lower, with a nostril
+      B.orb(cx + 25, gy - 31, 6.5, 2.6, V.orange, { spec: false });
+      B.orb(cx + 24, gy - 28, 5.5, 2, [V.orange[0], V.orange[0], V.orange[1], V.orange[2], V.orange[3]], { spec: false });
+      B.rect(cx + 27, gy - 33, 1, 1, V.orange[0]);
+      B.line(cx + 19, gy - 30, cx + 30, gy - 30, V.orange[0], 1, 0.8);
+      cartoonEye(B, cx + 17, gy - 36, 3.2, 0.5);
+      B.ellipse(cx + 13, gy - 29, 2.4, 1.4, 0xff8a6a, 0.6);
+      // a tuft on top
+      B.line(cx + 14, gy - 41, cx + 12, gy - 45, V.yellow[1], 1); B.line(cx + 15, gy - 41, cx + 17, gy - 46, V.yellow[1], 1);
+      valve(B, cx - 14, gy - 13, V.yellow);
     } else if (kind === 'donut') {
-      B.ellipse(cx, gy - 8, 20, 9, 0xe87aa8); B.ellipse(cx, gy - 10, 18, 7, 0xff9ac8); B.ellipse(cx, gy - 9, 7, 3, null);
-      for (let i = 0; i < 8; i++) B.rect(cx - 14 + i * 4, gy - 13 + (i % 2), 2, 1, [0xffffff, 0x7ef9ff, 0xffd34d][i % 3]);
+      ripple(B, cx, gy, 26);
+      B.torus(cx, gy - 9, 18, 7.5, 0.46, V.dough, { top: V.icing, topAt: -0.1 });
+      // drips of icing hanging off the front edge
+      for (const [dx, len] of [[-14, 3], [-7, 5], [1, 3.5], [8, 6], [14, 3]]) {
+        B.ellipse(cx + dx, gy - 5 + len * 0.3, 1.7, len * 0.55, V.icing[2]);
+        B.disc(cx + dx, gy - 5 + len * 0.6, 1.6, V.icing[2]);
+        B.rect(cx + dx - 1, gy - 6, 1, len * 0.5, V.icing[3]);
+      }
+      // sprinkles, only where there is icing to stick them to
+      const SPR = [0xffffff, 0x7ef9ff, 0xffd34d, 0x8affa0, 0xb08aff, 0xff5a4d];
+      for (let k = 0; k < 26; k++) {
+        const ang = k * 2.39996, rr = 18 + (U.hash2(k, 3) - 0.5) * 8;
+        const x = cx + Math.cos(ang) * rr, y = gy - 9 + Math.sin(ang) * rr * 0.46 - 5;
+        const c = B.get(x, y), c2 = B.get(x + 1, y + 1);
+        if (c < 0 || c2 < 0 || !V.icing.includes(c)) continue;
+        if (k % 2) B.rect(x, y, 2, 1, SPR[k % SPR.length]); else B.rect(x, y, 1, 2, SPR[k % SPR.length]);
+      }
+      valve(B, cx + 20, gy - 7, V.dough);
     } else {
-      B.ellipse(cx, gy - 8, 16, 8, 0xe85a8a); B.ellipse(cx, gy - 10, 14, 6, 0xff8ab0);
-      B.line(cx + 10, gy - 12, cx + 14, gy - 34, 0xff8ab0, 3);
-      B.ball(cx + 16, gy - 36, 5, 4, [0xff8ab0, 0xffc0d8, 0xc85a8a]);
-      B.poly([[cx + 20, gy - 36], [cx + 26, gy - 32], [cx + 20, gy - 33]], 0x3a2a3a);
+      ripple(B, cx, gy, 22);
+      B.torus(cx - 3, gy - 9, 15, 6, 0.42, V.pink);
+      // tail feathers, three of them
+      for (let k = 0; k < 3; k++) B.poly([[cx - 18, gy - 11 + k], [cx - 30 + k * 2, gy - 22 + k * 3], [cx - 22, gy - 10 + k]], k === 1 ? V.pink[3] : V.pink[2]);
+      // wing, feathered
+      B.orb(cx - 8, gy - 6, 8, 3.4, V.pink, { spec: false });
+      for (let k = 0; k < 4; k++) B.line(cx - 14 + k * 3, gy - 5, cx - 12 + k * 3, gy - 3, V.pink[1], 1, 0.85);
+      // the long S of the neck
+      B.tube(cx + 9, gy - 11, cx + 24, gy - 28, cx + 12, gy - 40, 3.6, 3, V.pink, { spec: false });
+      B.tube(cx + 12, gy - 40, cx + 6, gy - 46, cx + 12, gy - 50, 3, 2.8, V.pink, { spec: false });
+      B.orb(cx + 14, gy - 51, 6.2, 5.4, V.pink);
+      // the bent bill: pale, then black at the tip
+      B.poly([[cx + 18, gy - 53], [cx + 26, gy - 51], [cx + 27, gy - 46], [cx + 22, gy - 48], [cx + 18, gy - 49]], 0xfff0e0);
+      B.poly([[cx + 23, gy - 52], [cx + 26, gy - 51], [cx + 27, gy - 45], [cx + 24, gy - 47]], 0x1a1024);
+      cartoonEye(B, cx + 15, gy - 53, 1.9, 0.7);
+      B.ellipse(cx + 12, gy - 48, 1.8, 1, 0xff5a8a, 0.7);
+      seam(B, [[cx + 12, gy - 16], [cx + 18, gy - 26], [cx + 14, gy - 38]], 0.3);
+      valve(B, cx - 16, gy - 13, V.pink);
     }
   }
   /* A mountain painted a pixel at a time: a jagged skyline, a ridge that
@@ -282,7 +377,7 @@
     for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) {
       if (B.alpha(x + i, y + j) < 128) continue;
       const n = U.hash2(x + i, y + j);
-      if (n > 0.86) B.set(x + i, y + j, C[1], 0.7); else if (n < 0.1) B.set(x + i, y + j, C[2], 0.6);
+      if (n > 0.94) B.set(x + i, y + j, C[1], 0.55); else if (n < 0.04) B.set(x + i, y + j, C[2], 0.45);
     }
   }
   const LACQ = [0xd8303e, 0xff7a86, 0x7a1422];
@@ -312,11 +407,18 @@
     B.round(cx - 10, gy - 40, 20, 22, 2, 0x1a0a2a); for (const x of [-5, 3]) { B.rect(cx + x, gy - 36, 3, 6, 0xff3a4a); B.rect(cx + x + 1, gy - 35, 1, 4, 0xffd0d0); }
   }, (ctx, t) => { const x = Math.sin(t * 3) * 6; X.rect(ctx, -6 + x, -38, 3, 3, '#7dff9a'); X.rect(ctx, -2 - x, -42, 2, 2, '#ff5a8a'); X.rect(ctx, -7, -44 + ((t * 20) % 12), 14, 1, '#1a3a6a'); PT.glow(ctx, -1, -39, 16, '#a86aff', 0.3); PT.glow(ctx, 0, -48, 14, '#ff5aa8', 0.25); });
   inItem('beanbag', 'BEAN BAG', 600, 26, 18, 'YOU SIT IN IT AND IT EATS YOU. LOVELY.', (B, cx, gy) => {
-    B.ellipse(cx, gy - 2, 26, 4, 0x2a1020, 0.5);
-    B.ball(cx, gy - 15, 27, 16, [0xe8583a, 0xff9a7a, 0x9a2a1a], true);
-    B.ball(cx + 4, gy - 25, 16, 8, [0xd8482a, 0xff8a6a, 0x9a2a1a]);
-    B.line(cx - 22, gy - 12, cx - 4, gy - 28, 0x9a2a1a, 1, 0.8); B.line(cx + 22, gy - 10, cx + 8, gy - 30, 0x9a2a1a, 1, 0.8);
-    fuzz(B, cx - 27, gy - 32, 54, 30, [0, 0xffb09a, 0xa83a2a]);
+    const R = [0x5a1410, 0x9a2a1a, 0xd84a2e, 0xff8a66, 0xffc8b0];
+    B.ellipse(cx, gy - 1, 28, 4, 0x2a1020, 0.5);
+    B.orb(cx, gy - 13, 28, 13, R, { spec: false });
+    B.orb(cx + 3, gy - 22, 18, 9, R, { spec: false, clip: (x, y) => y < gy - 16 });
+    // the dent where you sit, and the creases running into it
+    B.ellipse(cx + 4, gy - 22, 10, 4, R[1]); B.ellipse(cx + 5, gy - 21, 8, 2.6, R[0], 0.6);
+    for (const [a, b, c2, d] of [[-22, -10, -8, -20], [22, -9, 12, -20], [-12, -3, -4, -16], [14, -3, 8, -16]]) B.line(cx + a, gy + b, cx + c2, gy + d, R[1], 1, 0.9);
+    // a stitched seam and the little brand tag
+    for (let k = 0; k < 12; k++) B.rect(cx - 24 + k * 4, gy - 8 + Math.sin(k * 0.5) * 0.5, 2, 1, R[4], 0.7);
+    B.round(cx + 18, gy - 12, 6, 5, 1, 0xf0e8d0); B.rect(cx + 19, gy - 10, 4, 1, 0x3a6ac8);
+    B.ellipse(cx - 12, gy - 19, 5, 2, 0xffffff, 0.35);
+    fuzz(B, cx - 28, gy - 32, 56, 30, [0, 0xffb09a, 0xa83a2a]);
   });
   inItem('lavalamp', 'LAVA LAMP', 700, 12, 30, 'THE BLOBS GO UP. THE BLOBS COME DOWN.', (B, cx, gy) => {
     B.poly([[cx - 9, gy], [cx + 9, gy], [cx + 5, gy - 12], [cx - 5, gy - 12]], 0xa87a2a); B.poly([[cx - 8, gy], [cx - 2, gy], [cx - 1, gy - 12], [cx - 4, gy - 12]], 0xffe07a, 0.6); B.rect(cx - 9, gy - 3, 18, 2, 0x6a4a1a);
@@ -352,22 +454,37 @@
     B.poly([[cx + 10, gy - 102], [cx + 22, gy - 102], [cx + 20, gy - 110], [cx + 12, gy - 110]], 0xc86a3a); for (let k = 0; k < 5; k++) B.ellipse(cx + 16 + (k - 2) * 4, gy - 114 - (k % 2) * 3, 3, 5, k % 2 ? LEAF[0] : LEAF[1]);
   });
   inItem('rug', 'FLUFFY RUG', 500, 50, 4, 'FLUFFY. THE RAT HAS ALREADY CLAIMED IT.', (B, cx, gy) => {
-    B.ellipse(cx, gy - 3, 50, 6, 0xb84a7a); B.ellipse(cx, gy - 3.5, 47, 5, 0xe87aa8); B.ellipse(cx, gy - 3.5, 36, 3.6, 0xffd8e8); B.ellipse(cx, gy - 3.5, 26, 2.6, 0xe87aa8); B.ellipse(cx, gy - 3.5, 14, 1.6, 0xffd34d);
+    // a braided rag rug: rings of plaited colour, a fringe of tassels
+    const RING = [0xb84a7a, 0xffd34d, 0xe87aa8, 0x7ec8e8, 0xffd8e8, 0xe87aa8, 0xffd34d];
+    B.ellipse(cx, gy - 2, 52, 6.5, 0x5a1a3a);
+    RING.forEach((c, i) => { const k = 1 - i / RING.length; B.ellipse(cx, gy - 3.2 + i * 0.1, 50 * k, 5.6 * k, c); });
+    for (let i = 0; i < RING.length; i++) {
+      const k = 1 - i / RING.length;
+      for (let a = 0; a < 40; a++) { const ang = a / 40 * Math.PI * 2; if ((a + i) % 2) B.set(cx + Math.cos(ang) * 50 * k, gy - 3.2 + Math.sin(ang) * 5.6 * k, 0xffffff, 0.35); }
+    }
+    for (let k = 0; k < 14; k++) { B.rect(cx - 52 + k * 8, gy + 1, 2, 3, 0xffc0d8); B.rect(cx - 52 + k * 8, gy + 3, 2, 1, 0xb84a7a); }
     fuzz(B, cx - 50, gy - 9, 100, 10, [0, 0xffffff, 0xb84a7a]);
-    for (let k = 0; k < 14; k++) { B.rect(cx - 52 + k * 8, gy - 1, 2, 3, 0xffc0d8); B.rect(cx - 52 + k * 8, gy + 1, 2, 1, 0xe87aa8); }
   });
   inItem('teddy', 'GIANT TEDDY', 1400, 26, 36, 'BIGGER THAN YOU. HUGS BACK IF YOU ASK NICELY.', (B, cx, gy) => {
-    const T = [0xc8905a, 0xecb880, 0x8a5a34];
-    for (const s of [-1, 1]) { B.ball(cx + s * 14, gy - 8, 9, 8, T); B.ellipse(cx + s * 15, gy - 7, 5, 5, 0xf0c8a0); }
-    B.ball(cx, gy - 26, 22, 20, T, true);
-    B.ellipse(cx, gy - 24, 12, 11, 0xf0d0a8); B.line(cx, gy - 34, cx, gy - 14, 0xc8905a, 1, 0.6);
-    for (const s of [-1, 1]) B.ball(cx + s * 21, gy - 30, 7, 10, T);
-    B.ball(cx, gy - 58, 17, 15, T, true);
-    for (const s of [-1, 1]) { B.disc(cx + s * 13, gy - 71, 7, T[2]); B.disc(cx + s * 13, gy - 71, 6, T[0]); B.disc(cx + s * 13, gy - 71, 3.2, 0xe8a0a0); }
-    B.ellipse(cx, gy - 52, 8, 6, 0xf0d0a8);
-    for (const s of [-1, 1]) { B.disc(cx + s * 6, gy - 61, 2.6, 0x1a1024); B.disc(cx + s * 6 - 0.8, gy - 62, 0.8, 0xffffff); B.ellipse(cx + s * 11, gy - 55, 2.6, 1.4, 0xff9ab8, 0.7); }
-    B.ellipse(cx, gy - 55, 2.6, 2, 0x3a1a1a); B.line(cx, gy - 53, cx, gy - 50, 0x3a1a1a, 1); B.line(cx - 3, gy - 49, cx + 3, gy - 49, 0x3a1a1a, 1);
-    B.poly([[cx - 10, gy - 46], [cx - 2, gy - 42], [cx - 10, gy - 38]], 0xd83a4a); B.poly([[cx + 10, gy - 46], [cx + 2, gy - 42], [cx + 10, gy - 38]], 0xd83a4a); B.disc(cx, gy - 42, 2.4, 0xff5a6a);
+    const T = [0x4e2c14, 0x8a5a34, 0xc8905a, 0xecb880, 0xfbe0b8], M = [0x8a5a34, 0xc8905a, 0xf0d0a8, 0xfbe6c8, 0xffffff];
+    B.ellipse(cx, gy - 1, 26, 3, 0x2a1020, 0.4);
+    for (const s of [-1, 1]) { B.orb(cx + s * 14, gy - 8, 9.5, 8, T, { spec: false }); B.orb(cx + s * 15, gy - 7, 5, 5, M, { spec: false }); }
+    B.orb(cx, gy - 27, 22, 20, T, { spec: false });
+    B.orb(cx, gy - 25, 12.5, 11.5, M, { spec: false });
+    // a patch sewn on the tummy, with its stitches
+    B.round(cx + 2, gy - 28, 8, 8, 1, 0x7aa8d8); for (let k = 0; k < 4; k++) { B.rect(cx + 2 + k * 2, gy - 29, 1, 2, 0x3a2a1a); B.rect(cx + 2 + k * 2, gy - 21, 1, 2, 0x3a2a1a); }
+    for (const s of [-1, 1]) B.orb(cx + s * 21, gy - 31, 7.5, 10, T, { spec: false });
+    B.orb(cx, gy - 58, 17.5, 15.5, T, { spec: false });
+    for (const s of [-1, 1]) { B.orb(cx + s * 13, gy - 71, 7, 7, T, { spec: false }); B.orb(cx + s * 13, gy - 70.5, 3.6, 3.4, [0xa85a5a, 0xd88080, 0xe8a0a0, 0xf8c0c0, 0xffe0e0], { spec: false }); }
+    B.orb(cx, gy - 52, 8.5, 6.5, M, { spec: false });
+    cartoonEye(B, cx - 6, gy - 61, 2.6, 0.2); cartoonEye(B, cx + 6, gy - 61, 2.6, -0.2);
+    for (const s of [-1, 1]) B.ellipse(cx + s * 11, gy - 55, 2.8, 1.5, 0xff9ab8, 0.7);
+    B.orb(cx, gy - 55, 3, 2.2, [0x0a0408, 0x1a0a0a, 0x3a1a1a, 0x6a3a3a, 0xffffff], { spec: false }); B.rect(cx - 1, gy - 56, 1, 1, 0xffffff);
+    B.line(cx, gy - 53, cx, gy - 50, 0x3a1a1a, 1); B.line(cx - 3, gy - 49, cx, gy - 50, 0x3a1a1a, 1); B.line(cx + 3, gy - 49, cx, gy - 50, 0x3a1a1a, 1);
+    // the bow tie, shaded
+    const RD = [0x5a0a14, 0x9a1a28, 0xd83a4a, 0xff7a86, 0xffc0c8];
+    B.poly([[cx - 11, gy - 46], [cx - 2, gy - 42], [cx - 11, gy - 37]], RD[2]); B.poly([[cx - 11, gy - 46], [cx - 6, gy - 44], [cx - 11, gy - 42]], RD[3]);
+    B.poly([[cx + 11, gy - 46], [cx + 2, gy - 42], [cx + 11, gy - 37]], RD[1]); B.orb(cx, gy - 42, 2.8, 2.6, RD, { spec: false });
     fuzz(B, cx - 30, gy - 80, 60, 80, [0, 0xf8d0a0, 0x8a5a34]);
   });
   inItem('toybot', 'TOY ROBOT', 1800, 16, 24, 'WINDS UP. WALKS INTO THE WALL. WINDS UP.', (B, cx, gy) => {
@@ -382,13 +499,19 @@
     B.line(cx, gy - 48, cx, gy - 54, CHROME[2], 1); B.ball(cx, gy - 56, 2.6, 2.6, [0xff3a4a, 0xffa0a8, 0x8a1020], true);
   }, (ctx, t) => { X.blob(ctx, 0, -28, 1.2, 1.2, Math.sin(t * 6) > 0 ? '#ff4a4a' : '#5a1a1a'); X.rect(ctx, 7, -14 + Math.sin(t * 8) * 2, 2, 1, '#e8c86a'); });
   inItem('rubberduck', 'RUBBER DUCK (HUGE)', 900, 22, 24, 'IT SQUEAKS. NOBODY KNOWS HOW. IT HAS NO SQUEAKER.', (B, cx, gy) => {
-    B.ellipse(cx, gy - 2, 22, 3, 0x3a2a10, 0.4);
-    B.ball(cx - 2, gy - 14, 21, 13, [0xffd34d, 0xfff4b0, 0xc8901e], true);
-    B.poly([[cx - 22, gy - 16], [cx - 30, gy - 26], [cx - 18, gy - 22]], 0xffd34d);
-    B.ball(cx - 4, gy - 16, 10, 6, [0xf0c030, 0xfff0a0, 0xc8901e]);
-    B.ball(cx + 10, gy - 34, 12, 11, [0xffd34d, 0xfff4b0, 0xc8901e], true);
-    B.poly([[cx + 17, gy - 34], [cx + 31, gy - 32], [cx + 27, gy - 29], [cx + 17, gy - 29]], 0xff8a2a); B.line(cx + 18, gy - 31, cx + 29, gy - 31, 0xc85a1a, 1);
-    B.disc(cx + 13, gy - 38, 2.6, 0x1a1024); B.disc(cx + 12, gy - 39, 1, 0xffffff); B.ellipse(cx + 8, gy - 32, 3, 1.8, 0xff9a6a, 0.6);
+    const Y = [0x8a560a, 0xc88c1a, 0xf2bf2c, 0xffe06a, 0xfff6c4], O = [0x7a2408, 0xc2521a, 0xff8428, 0xffb262, 0xffe2b8];
+    B.ellipse(cx, gy - 1, 24, 3, 0x3a2a10, 0.4);
+    B.poly([[cx - 20, gy - 14], [cx - 32, gy - 28], [cx - 26, gy - 12]], Y[2]); B.poly([[cx - 22, gy - 14], [cx - 32, gy - 28], [cx - 29, gy - 15]], Y[3]);
+    B.orb(cx - 2, gy - 13, 22, 12.5, Y);
+    B.orb(cx - 5, gy - 14, 10, 5.5, Y, { spec: false });
+    for (let k = 0; k < 3; k++) B.line(cx - 12 + k * 4, gy - 13, cx - 9 + k * 4, gy - 10, Y[1], 1, 0.8);
+    B.orb(cx + 10, gy - 33, 12.5, 11.5, Y);
+    B.orb(cx + 24, gy - 32, 8, 3, O, { spec: false });
+    B.orb(cx + 23, gy - 28.5, 6.5, 2.2, [O[0], O[0], O[1], O[2], O[3]], { spec: false });
+    B.line(cx + 17, gy - 30, cx + 31, gy - 30, O[0], 1, 0.8);
+    cartoonEye(B, cx + 13, gy - 37, 3.4, 0.5);
+    B.ellipse(cx + 7, gy - 29, 3.2, 1.8, 0xff8a6a, 0.6);
+    B.line(cx + 8, gy - 45, cx + 6, gy - 49, Y[1], 1); B.line(cx + 10, gy - 45, cx + 12, gy - 50, Y[1], 1);
   });
   inItem('disco', 'DISCO BALL', 2200, 20, 40, 'EVERY NIGHT IS A PARTY IF YOU ARE BRAVE.', (B, cx, gy) => {
     B.block(cx - 16, gy - 12, 32, 12, [0x2a2a38, 0x4a4a5a, 0x14141e], 2); B.disc(cx - 7, gy - 6, 4, 0x0a0a10); B.disc(cx + 7, gy - 6, 4, 0x0a0a10); B.disc(cx - 7, gy - 6, 1.5, CHROME[0]); B.disc(cx + 7, gy - 6, 1.5, CHROME[0]);
@@ -496,7 +619,7 @@
     live(ctx, t) { for (let k = 0; k < 6; k++) { const q = (t * 0.8 + k / 6) % 1; ctx.globalAlpha = 1 - q; X.blob(ctx, -18 + k * 7, -12 - q * 18, 1.5 + q * 3, 1.5 + q * 2, '#ffffff'); } ctx.globalAlpha = 1; } });
   [['floatshark', 'SHARK FLOATIE', 'shark', 3000, 'HE WOULD BE FLATTERED. HE WOULD ALSO BE FURIOUS.'], ['floatduck', 'DUCK FLOATIE', 'duck', 1800, 'QUACK, IN SPACE.'],
    ['floatdonut', 'DONUT FLOATIE', 'donut', 1600, 'NOT EDIBLE. BRENDA HAS CHECKED.'], ['floatflamingo', 'FLAMINGO FLOATIE', 'flamingo', 2200, 'STANDS ON ONE LEG. FLOATS ON NO LEGS.']].forEach(([id, nm, k, pr, d]) => add({
-    id, name: nm, cat: 'FUN', price: pr, w: 30, h: 36, floatie: 1, fun: 1, desc: d + ' GOES IN WATER.',
+    id, name: nm, cat: 'FUN', price: pr, w: 36, h: 40, floatie: 1, fun: 1, desc: d + ' GOES IN WATER.',
     paint(B, cx, gy) { floatie(B, cx, gy, k); } }));
   add({ id: 'trampoline', name: 'TRAMPOLINE', cat: 'FUN', price: 5000, w: 44, h: 16, bounce: 1, fun: 1, desc: 'JUMP ON IT. GO VERY HIGH. LOW GRAVITY HELPS.',
     paint(B, cx, gy) { for (let k = 0; k < 4; k++) B.line(cx - 40 + k * 26, gy, cx - 36 + k * 24, gy - 16, METAL[2], 3); B.ellipse(cx, gy - 18, 44, 6, 0x3a3a4a); B.ellipse(cx, gy - 18, 38, 4, 0x1a1a24); B.ellipse(cx, gy - 18, 44, 6, 0x3a6ad8, 0.4); } });
@@ -659,8 +782,14 @@
     const W = (b.w + 40) * HD, H = (b.h + 50) * HD;
     const B = PT.buf(W, H), cx = W / 2, gy = H - 10 * HD;
     b.paint(B, cx, gy);
+    const soft = b.cat === 'FURNITURE' || b.floatie;
+    // the things you own get the full storybook finish: form shadow on the
+    // lower right, a light rim top left and a fat two-ring ink line
+    if (soft) B.shadeEdge(0.28, 3);
     B.rim(0xffffff, 0, -1, 0.35);
+    if (soft) B.rim(0xffffff, -1, 0, 0.18);
     B.outline(INK);
+    if (soft) B.outline(0x05030a);
     const cv = B.toCanvas();
     cv.ox = W / 2 / HD; cv.oy = (H - 10 * HD) / HD;
     return (ARTC[id] = cv);

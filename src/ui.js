@@ -20,53 +20,11 @@
 
   /* ------------------------------------------------------------- primitives */
   function panel(ctx, x, y, w, h, title) {
-    ctx.fillStyle = 'rgba(6,3,14,0.55)';
-    ctx.fillRect(x + 3, y + 3, w, h);
-    ctx.fillStyle = COL.panel;
-    ctx.fillRect(x, y, w, h);
-    ctx.fillStyle = COL.panelHi;
-    ctx.fillRect(x, y, w, 2);
-    ctx.strokeStyle = COL.line;
-    ctx.lineWidth = 1;
-    ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
-    // corner rivets
-    ctx.fillStyle = COL.lineHi;
-    ctx.fillRect(x + 2, y + 2, 2, 2); ctx.fillRect(x + w - 4, y + 2, 2, 2);
-    ctx.fillRect(x + 2, y + h - 4, 2, 2); ctx.fillRect(x + w - 4, y + h - 4, 2, 2);
-    if (title) {
-      const tw = F.width(title, 1) + 10;
-      ctx.fillStyle = COL.line;
-      ctx.fillRect(x + 8, y - 5, tw, 11);
-      ctx.fillStyle = COL.panelHi;
-      ctx.fillRect(x + 8, y - 5, tw, 2);
-      F.draw(ctx, title, x + 13, y - 2, COL.text);
-    }
+    PD.kit.panel(ctx, x, y, w, h, { title });
   }
 
   function bar(ctx, x, y, w, h, frac, color, opts) {
-    opts = opts || {};
-    frac = U.clamp(frac, 0, 1);
-    ctx.fillStyle = '#0d0720';
-    ctx.fillRect(x - 1, y - 1, w + 2, h + 2);
-    ctx.fillStyle = '#2a1c4a';
-    ctx.fillRect(x, y, w, h);
-    const fw = Math.round(w * frac);
-    if (fw > 0) {
-      ctx.fillStyle = color;
-      ctx.fillRect(x, y, fw, h);
-      ctx.fillStyle = 'rgba(255,255,255,0.35)';
-      ctx.fillRect(x, y, fw, 1);
-    }
-    if (opts.ghost !== undefined && opts.ghost > frac) {
-      ctx.fillStyle = 'rgba(255,255,255,0.18)';
-      const gw = Math.round(w * U.clamp(opts.ghost, 0, 1));
-      ctx.fillRect(x + fw, y, gw - fw, h);
-    }
-    // notch ticks
-    ctx.fillStyle = 'rgba(10,6,22,0.5)';
-    for (let i = 1; i < 4; i++) ctx.fillRect(x + Math.round(w * i / 4), y, 1, h);
-    if (opts.label) F.draw(ctx, opts.label, x + 2, y + (h - 7) / 2 | 0, opts.labelColor || '#ffffff', { scale: 1 });
-    if (opts.right) F.draw(ctx, opts.right, x + w - 2, y + (h - 7) / 2 | 0, opts.labelColor || '#ffffff', { right: true });
+    PD.kit.bar(ctx, x, y, w, h, frac, color, opts);
   }
 
   let hoverId = null, lastHover = null;
@@ -78,16 +36,9 @@
     const hot = enabled && m.inside && m.x >= x && m.x < x + w && m.y >= y && m.y < y + h;
     if (hot) hoverId = (opts.id || label);
 
-    const base = !enabled ? '#241a3c' : (hot ? COL.lineHi : (opts.accent || COL.line));
-    ctx.fillStyle = 'rgba(6,3,14,0.5)';
-    ctx.fillRect(x + 2, y + 2, w, h);
-    ctx.fillStyle = base;
-    ctx.fillRect(x, y, w, h);
-    ctx.fillStyle = hot ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.18)';
-    ctx.fillRect(x, y, w, 1);
-    ctx.strokeStyle = enabled ? '#0d0720' : '#1a1030';
-    ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
-    F.draw(ctx, label, x + w / 2, y + (h - 7) / 2 | 0, enabled ? '#ffffff' : '#6a5d90', { center: true, scale: opts.scale || 1 });
+    const ac = opts.accent;
+    const col = !ac ? 'green' : ac === COL.lineHi ? 'gold' : /^#2[0-9a-f]1/i.test(ac) || ac === '#2a1c4a' ? 'tan' : ac === '#2f7a4a' ? 'green' : 'blue';
+    PD.kit.btn(ctx, x, y, w, h, label, { hot, down: hot && m.left, col, disabled: !enabled, scale: opts.scale || 1 });
 
     const clicked = hot && m.leftPressed;
     if (clicked) A.sfx.click();
@@ -126,128 +77,52 @@
   }
 
   function vitals(ctx, g) {
+    const KT = PD.kit, K = KT.K;
     const p = g.player;
     const maxO2 = p.stat('oxygen'), maxHull = p.stat('hull'), cap = p.capacity();
     const o2f = U.clamp(p.o2 / maxO2, 0, 1);
     const t = g.time;
-    const PW = 172, PH = 62;
-
-    // a square of cardboard, taped to the inside of the helmet
-    X.rect(ctx, 0, 0, PW, PH - 8, 'rgba(44,30,18,0.86)');
-    X.rect(ctx, 0, PH - 8, PW - 8, 8, 'rgba(44,30,18,0.86)');
-    X.rect(ctx, PW - 8, PH - 8, 4, 4, 'rgba(44,30,18,0.86)');
-    X.rect(ctx, PW, 0, 1, PH - 8, '#6b4a2e');
-    X.rect(ctx, 0, PH, PW - 8, 1, '#6b4a2e');
-    X.rect(ctx, PW - 8, PH - 4, 4, 1, '#6b4a2e');
-    X.rect(ctx, PW - 4, PH - 8, 1, 4, '#6b4a2e');
-    X.rect(ctx, PW - 8, PH - 4, 1, 4, '#6b4a2e');
-    X.rect(ctx, PW - 4, PH - 8, 4, 1, '#6b4a2e');
-    // the grain of the cardboard, and the fibres coming off the cut edge
-    for (let gy = 2; gy < PH - 10; gy += 3) {
-      if (U.hash2(gy, 5) > 0.55) X.rect(ctx, 2, gy, PW - 6, 1, 'rgba(88,60,34,0.35)');
-    }
-    for (let gx = 4; gx < PW - 10; gx += 2) {
-      if (U.hash2(gx, 9) > 0.7) X.rect(ctx, gx, PH - 9, 2, 1 + ((U.hash2(gx, 11) * 3) | 0), 'rgba(120,84,48,0.5)');
-    }
-    // masking tape, applied by someone with three fingers
-    X.rect(ctx, PW - 22, -3, 22, 9, 'rgba(226,208,132,0.8)');
-    X.rect(ctx, PW - 22, -3, 22, 1, 'rgba(246,232,168,0.8)');
-    for (let i = 0; i < 4; i++) X.rect(ctx, PW - 20 + i * 6, -3, 2, 9, 'rgba(206,188,112,0.5)');
-    X.rect(ctx, -4, 30, 8, 16, 'rgba(226,208,132,0.8)');
-    X.rect(ctx, -4, 30, 8, 1, 'rgba(246,232,168,0.8)');
-
-    // --- air: a glass tank that empties
-    const tx = 5, ty = 4, tw = 14, th = 44;
     const low = o2f < 0.25;
-    ctx.fillStyle = '#0d0720'; ctx.fillRect(tx - 1, ty - 1, tw + 2, th + 2);
-    ctx.fillStyle = '#161033'; ctx.fillRect(tx, ty, tw, th);
-    const fh = Math.round(th * o2f);
-    ctx.fillStyle = low ? (Math.sin(t * 14) > 0 ? '#ff6b8a' : '#58e8ff') : '#58e8ff';
-    ctx.fillRect(tx, ty + th - fh, tw, fh);
-    if (fh > 2) {
-      ctx.fillStyle = '#d6fbff';
-      ctx.fillRect(tx, ty + th - fh + Math.sin(t * 4) * 1.2, tw, 1);
-      for (let i = 0; i < 3; i++) {
-        const by = ty + th - ((t * 14 + i * 17) % Math.max(4, fh));
-        if (by > ty + th - fh) { ctx.fillStyle = 'rgba(255,255,255,0.5)'; ctx.fillRect(tx + 3 + i * 4, by, 1, 1); }
-      }
-    }
-    ctx.strokeStyle = '#7ef9ff'; ctx.strokeRect(tx + 0.5, ty + 0.5, tw - 1, th - 1);
-    ctx.fillStyle = 'rgba(255,255,255,0.22)'; ctx.fillRect(tx + 2, ty + 2, 3, th - 4);
-    for (let i = 1; i < 4; i++) { ctx.fillStyle = '#0d0720'; ctx.fillRect(tx, ty + (th / 4) * i, 4, 1); }
-    F.draw(ctx, 'AIR', tx + tw / 2, ty + th + 4, low ? '#ff6b8a' : '#e2d084', { center: true, shadow: '#2c1c10' });
 
-    const CX = 26;                                  // right-hand column
-    F.draw(ctx, String(Math.ceil(p.o2)), CX, 4, low ? '#ff6b8a' : '#7ef9ff', { scale: 2, shadow: false });
-    F.draw(ctx, 'BREATHS', CX + 42, 10, '#a8845e', { shadow: false });
-
-    // --- hull: hex chips that shatter
+    // the status card: three meters on parchment, pinned top left
+    KT.panel(ctx, 4, 6, 170, 52, { seed: 31 });
+    const LX = 12, BX = 30, BW = 100;
+    // hull: a heart and a red bar
     const cf = U.clamp(p.hull / maxHull, 0, 1);
-    F.draw(ctx, 'ME', CX, 24, '#e2d084', { shadow: false });
-    for (let i = 0; i < 6; i++) {
-      const x = CX + 34 + i * 15, y = 27;
-      const f = U.clamp(cf * 6 - i, 0, 1);
-      hexChip(ctx, x, y, 6.5, '#2c1c10', '#6b4a2e');
-      if (f > 0) {
-        ctx.save();
-        ctx.beginPath(); ctx.rect(x - 7, y + 7 - 14 * f, 14, 14 * f); ctx.clip();
-        hexChip(ctx, x, y, 6.5, f < 0.35 ? '#ff8a3d' : '#ff5a4d', null);
-        ctx.restore();
-        hexChip(ctx, x, y, 6.5, null, '#ffb0a0');
-      } else {
-        X.line(ctx, x - 4, y - 3, x + 3, y + 4, '#6b4a2e', 1);
-      }
-    }
-
-    // --- hold: a filling tube
-    const hx = CX + 28, hy = 42, hw = 66, hh = 9;
+    KT.heart(ctx, LX + 1, 13, cf);
+    KT.bar(ctx, BX, 13, BW, 7, cf, cf < 0.3 && Math.sin(t * 12) > 0 ? '#ff8a72' : K.red);
+    F.draw(ctx, Math.ceil(p.hull) + '/' + Math.ceil(maxHull), BX + BW + 5, 13, K.redLo, { shadow: false });
+    // air: a bubble and a blue bar
+    X.disc(ctx, LX + 4, 29, 4.5, K.ink);
+    X.disc(ctx, LX + 4, 29, 3.5, low ? K.red : K.blue);
+    X.rect(ctx, LX + 2, 27, 2, 1, '#ffffff');
+    KT.bar(ctx, BX, 26, BW, 7, o2f, low ? (Math.sin(t * 14) > 0 ? K.red : K.blue) : K.blue);
+    F.draw(ctx, String(Math.ceil(p.o2)), BX + BW + 5, 26, low ? K.redLo : K.blueLo, { shadow: false });
+    // hold: a sack and an orange bar
     const load = U.clamp(p.cargoKg / cap, 0, 1);
-    F.draw(ctx, 'SACK', CX, 43, '#e2d084', { shadow: false });
-    ctx.fillStyle = '#1a1108'; ctx.fillRect(hx - 1, hy - 1, hw + 2, hh + 2);
-    ctx.fillStyle = '#33240f'; ctx.fillRect(hx, hy, hw, hh);
-    const segs = 10, sw = hw / segs;
-    for (let i = 0; i < segs; i++) {
-      const f = U.clamp(load * segs - i, 0, 1);
-      if (f <= 0) continue;
-      ctx.fillStyle = p.cargoFull() ? (Math.sin(t * 12) > 0 ? '#ff6b8a' : '#ffb03d') : '#ffb03d';
-      ctx.fillRect(hx + i * sw + 1, hy + 1, Math.max(1, (sw - 2) * f), hh - 2);
-      ctx.fillStyle = 'rgba(255,255,255,0.3)';
-      ctx.fillRect(hx + i * sw + 1, hy + 1, Math.max(1, (sw - 2) * f), 1);
-    }
-    F.draw(ctx, Math.round(p.cargoKg) + '/' + Math.round(cap), hx + hw + 4, hy + 2, p.cargoFull() ? '#ff6b8a' : '#ffb03d', { shadow: false });
+    Gd().draw(ctx, 'ore', LX - 3, 36, K.tan, K.ink);
+    KT.bar(ctx, BX, 39, BW, 7, load, p.cargoFull() && Math.sin(t * 12) > 0 ? K.red : '#f09a2a');
+    F.draw(ctx, Math.round(p.cargoKg) + '/' + Math.round(cap), BX + BW + 5, 39, p.cargoFull() ? K.redLo : K.brown, { shadow: false });
 
-    // --- manifest: top three ores, then the load's worth
+    // --- manifest: top three ores in slots, then the load's worth
     const entries = Object.keys(p.cargo).sort((a, b) => D.MAT[b].cr - D.MAT[a].cr).slice(0, 3);
-    let my = PH + 6;
+    let my = 66;
     for (const k of entries) {
       const m = D.MAT[k];
-      X.rect(ctx, 0, my - 2, 106, 13, 'rgba(44,30,18,0.72)');
-      PD.art.oreChip(ctx, +k, 2, my - 3, 14);
-      F.draw(ctx, m.name.toUpperCase().slice(0, 10), 18, my + 1, COL.text, { shadow: false });
-      F.draw(ctx, String(p.cargo[k]), 102, my + 1, COL.gold, { right: true, shadow: false });
-      my += 13;
+      KT.slot(ctx, 5, my - 3, 104, 14, {});
+      PD.art.oreChip(ctx, +k, 7, my - 3, 14);
+      F.draw(ctx, m.name.toUpperCase().slice(0, 10), 23, my + 1, K.text, { shadow: false });
+      F.draw(ctx, String(p.cargo[k]), 104, my + 1, K.brown, { right: true, shadow: false });
+      my += 15;
     }
-    if (p.cargoValue() > 0) {
-      X.rect(ctx, 0, my - 1, 106, 16, 'rgba(44,30,18,0.72)');
-      Gd().draw(ctx, 'coin', 3, my, COL.gold, '#b8860b');
-      F.draw(ctx, U.fmt(p.cargoValue()), 19, my + 1, COL.gold, { scale: 2, shadow: false });
-    }
+    if (p.cargoValue() > 0) KT.tag(ctx, 5, my - 1, 'WORTH $' + U.fmt(p.cargoValue()), 'gold');
 
-    // top right: credits + galaxy
-    X.rect(ctx, VW - 130, 0, 130, 26, 'rgba(44,30,18,0.86)');
-    X.rect(ctx, VW - 122, 26, 122, 8, 'rgba(44,30,18,0.86)');
-    X.rect(ctx, VW - 126, 26, 4, 4, 'rgba(44,30,18,0.86)');
-    X.rect(ctx, VW - 130, 0, 1, 26, '#6b4a2e');
-    X.rect(ctx, VW - 122, 30, 122, 1, '#6b4a2e');
-    X.rect(ctx, VW - 130, -3, 18, 8, 'rgba(226,208,132,0.8)');
-    F.draw(ctx, '$' + U.fmt(g.save.credits), VW - 8, 4, COL.gold, { right: true, scale: 2 });
-    F.draw(ctx, 'GALAXY ATE ' + g.save.dominion.toFixed(1) + '%', VW - 8, 22, '#d8b48a', { right: true });
-    // and what the brain in the jar is owed, ticking up as you break rock
-    X.rect(ctx, VW - 78, 34, 78, 13, 'rgba(20,42,32,0.86)');
-    X.rect(ctx, VW - 78, 34, 78, 1, '#2fbf7a');
-    X.rect(ctx, VW - 78, 46, 78, 1, '#0e3a2c');
-    Gd().draw(ctx, 'star', VW - 76, 34, '#4cff9a', '#1e9e5c');
-    F.draw(ctx, U.fmt(g.save.thots) + ' THOTS', VW - 6, 37, '#8affd0', { right: true, shadow: false });
+    // top right: credits, the galaxy, and what the brain is owed
+    KT.panel(ctx, VW - 132, 6, 128, 34, { seed: 41 });
+    Gd().draw(ctx, 'coin', VW - 124, 12, K.gold, '#b07a16');
+    F.draw(ctx, '$' + U.fmt(g.save.credits), VW - 12, 11, K.goldHi, { right: true, scale: 2, shadow: K.ink });
+    F.draw(ctx, 'GALAXY ATE ' + g.save.dominion.toFixed(1) + '%', VW - 12, 28, K.dim, { right: true, shadow: false });
+    KT.tag(ctx, VW - 4, 44, U.fmt(g.save.thots) + ' THOTS', 'green', { right: true });
   }
   const meters = vitals;
 
@@ -257,37 +132,39 @@
     const p = g.player;
     meters(ctx, g);
 
-    // world + depth
-    F.draw(ctx, g.world.body.name, 6, VH - 26, COL.text);
-    Gd().draw(ctx, 'depth', 6, VH - 16, COL.dim, '#2a1c4a');
-    F.draw(ctx, g.world.depthMeters(p.y) + 'M', 22, VH - 16, COL.text, { scale: 2 });
+    const KT = PD.kit, K = KT.K;
+    // world + depth, on a little card bottom left
+    KT.panel(ctx, 4, VH - 40, 100, 36, { seed: 51 });
+    F.draw(ctx, g.world.body.name, 11, VH - 34, K.text, { shadow: false });
+    Gd().draw(ctx, 'depth', 9, VH - 25, K.brown, K.parchLo);
+    F.draw(ctx, g.world.depthMeters(p.y) + 'M', 27, VH - 24, K.goldHi, { scale: 2, shadow: K.ink });
 
-    // one compact action strip: weapon, dash, scan, wire
+    // one compact action strip: weapon, dash, scan, wire, each in a slot
     const wg = { pistol: 'gun', scatter: 'scatter', lance: 'lance' }[p.weapon];
     const sy = VH - 86;
-    ctx.fillStyle = 'rgba(44,30,18,0.78)';
-    ctx.fillRect(0, sy - 4, 150, 16);
-    X.rect(ctx, 0, sy + 12, 150, 1, '#6b4a2e');
-    Gd().draw(ctx, wg, 4, sy - 2, '#ffffff', '#7ef9ff');
-    if (p.weapons().length > 1) F.draw(ctx, 'Q', 20, sy + 1, COL.dim, { shadow: false });
+    KT.panel(ctx, 4, sy - 8, 150, 26, { seed: 61, flat: true });
+    KT.slot(ctx, 9, sy - 4, 18, 18, { sel: true });
+    Gd().draw(ctx, wg, 11, sy - 2, '#ffffff', K.ink);
+    if (p.weapons().length > 1) F.draw(ctx, 'Q', 30, sy + 2, K.dim, { shadow: false });
     const pip = (x, glyph, frac, col) => {
-      Gd().draw(ctx, glyph, x, sy - 2, frac >= 1 ? col : COL.dim, '#2a1c4a');
-      ctx.fillStyle = '#2a1c4a'; ctx.fillRect(x, sy + 10, 12, 2);
-      ctx.fillStyle = frac >= 1 ? col : '#9c8ec4'; ctx.fillRect(x, sy + 10, Math.round(12 * U.clamp(frac, 0, 1)), 2);
+      KT.slot(ctx, x - 2, sy - 4, 17, 18, {});
+      Gd().draw(ctx, glyph, x, sy - 3, frac >= 1 ? col : '#b09470', K.ink);
+      KT.rr(ctx, x, sy + 10, 13, 2, 0.5, '#8a6a4a');
+      KT.rr(ctx, x, sy + 10, Math.round(13 * U.clamp(frac, 0, 1)), 2, 0.5, frac >= 1 ? col : '#c9a877');
     };
-    pip(34, 'dash', 1 - p.dashCool / Math.max(0.1, p.stat('dash')), COL.gold);
-    pip(52, 'scan', 1 - p.scanCool / 4, COL.good);
+    pip(40, 'dash', 1 - p.dashCool / Math.max(0.1, p.stat('dash')), K.gold);
+    pip(58, 'scan', 1 - p.scanCool / 4, K.green);
     // the wire is the one that matters, so it gets a real bar
     const tf = U.clamp(p.tetherFrac || 0, 0, 1);
-    const tcol = tf > 0.9 ? '#ff5a4d' : (tf > 0.7 ? COL.gold : COL.o2);
-    Gd().draw(ctx, 'belt', 74, sy - 2, tcol, '#2a1c4a');
-    bar(ctx, 90, sy + 1, 54, 7, tf, tcol, {});
+    const tcol = tf > 0.9 ? K.red : (tf > 0.7 ? K.gold : K.blue);
+    Gd().draw(ctx, 'belt', 78, sy - 2, tcol, K.ink);
+    KT.bar(ctx, 95, sy + 1, 52, 7, tf, tcol, {});
 
     // core integrity
     if (g.world.coreHp < g.world.coreMax) {
       const cw = 128, cx = 214;
-      F.draw(ctx, 'PLANET GUTS', 150, 40, COL.core);
-      bar(ctx, cx, 38, cw, 9, g.world.coreHp / g.world.coreMax, COL.core, { right: Math.ceil(g.world.coreHp / g.world.coreMax * 100) + '%' });
+      PD.kit.ribbon(ctx, 178, 36, 'PLANET GUTS', { col: 'red' });
+      PD.kit.bar(ctx, cx, 38, cw, 9, g.world.coreHp / g.world.coreMax, '#f08a2a', { right: Math.ceil(g.world.coreHp / g.world.coreMax * 100) + '%' });
     }
     if (p.recall > 0.1) {
       Gd().draw(ctx, 'hole', VW / 2 - 48, VH - 40, COL.o2, '#2b9fc4');
@@ -347,7 +224,7 @@
     const w = g.world;
     const MW = 92, MH = 92;
     // the touch keys own the right edge, so the map slides over for them
-    const x0 = VW - MW - (PD.touch && PD.touch.enabled ? 56 : 8), y0 = 58;
+    const x0 = VW - MW - (PD.touch && PD.touch.enabled ? 56 : 8), y0 = 68;
     const sc = Math.min(MW / w.w, MH / w.h);
     const ox = x0 + (MW - w.w * sc) / 2, oy = y0 + (MH - w.h * sc) / 2;
 
@@ -371,14 +248,9 @@
     }
 
     // the map is a scrap of paper he tapes to the inside of the glass
-    ctx.fillStyle = 'rgba(44,30,18,0.86)';
-    ctx.fillRect(x0 - 4, y0 - 4, MW + 8, MH + 8);
-    ctx.strokeStyle = '#6b4a2e'; ctx.strokeRect(x0 - 3.5, y0 - 3.5, MW + 7, MH + 7);
-    X.rect(ctx, x0 - 8, y0 - 7, 18, 7, 'rgba(226,208,132,0.8)');
-    X.rect(ctx, x0 + MW - 10, y0 + MH, 18, 7, 'rgba(226,208,132,0.8)');
-    // the caption clears the strip of tape at the bottom corner; at y0+MH+6 the
-    // tape sat straight across the middle of the word
-    F.draw(ctx, 'WHERE I DUG', x0 + MW / 2, y0 + MH + 10, '#a8845e', { center: true, shadow: false });
+    PD.kit.panel(ctx, x0 - 6, y0 - 6, MW + 12, MH + 12, { seed: 71, flat: true });
+    PD.kit.rr(ctx, x0 - 1, y0 - 1, MW + 2, MH + 2, 2, '#2a1a10');
+    PD.kit.ribbon(ctx, x0 + MW / 2, y0 + MH + 3, 'WHERE I DUG', {});
     ctx.imageSmoothingEnabled = false;
     ctx.drawImage(mmCv, 0, 0, w.w, w.h, ox, oy, w.w * sc, w.h * sc);
 
@@ -395,7 +267,6 @@
     const px = ox + g.player.x / 10 * sc, py = oy + g.player.y / 10 * sc;
     ctx.fillStyle = Math.sin(g.time * 10) > 0 ? '#ffffff' : '#ff5fa8';
     ctx.fillRect(px - 1, py - 1, 3, 3);
-    PD.glyph.draw(ctx, 'scan', x0 + MW / 2 - 7, y0 + MH + 3, COL.dim, COL.line);
   }
 
   /* ------------------------------------------------------------------- shop */
@@ -884,20 +755,18 @@
      up and grows a gold chevron, so you can see where you are from the far
      side of a room. */
   function menuPlate(ctx, x, y, w, it, on, t) {
+    const KT = PD.kit, K = KT.K;
     const slide = on ? 6 + Math.sin(t * 3) * 1 : 0;
     const px = Math.round(x + slide), h = 30;
-    X.plate(ctx, px + 3, y + 5, w, h, 'rgba(4,2,12,0.55)', null, null, 4);
-    X.plate(ctx, px, y, w, h, on ? it.col : '#17122c', on ? it.hi : '#3a3060', '#0a0618', 4);
     if (on) {
-      X.rect(ctx, px, y, w, 1, it.hi);
-      ctx.globalAlpha = 0.18 + 0.1 * Math.sin(t * 5);
-      X.rect(ctx, px, y + 1, w, h - 2, it.hi);
-      ctx.globalAlpha = 1;
-      for (let i = 0; i < 4; i++) X.rect(ctx, px - 8 - i * 2, y + 11 + i, 2, 8 - i * 2, COL.gold);
-    }
-    PD.glyph.draw(ctx, it.gl, px + 7, y + 7, on ? '#ffffff' : '#8e86a8', on ? it.hi : '#3a3060');
-    F.draw(ctx, it.label, px + 28, y + 4, on ? '#ffffff' : '#9a92b4', { scale: 2 });
-    F.draw(ctx, it.sub, px + 28, y + 20, on ? it.hi : '#4e4670', { shadow: false });
+      KT.btn(ctx, px, y, w, h, '', { col: 'green', hot: true });
+      for (let i = 0; i < 4; i++) X.rect(ctx, px - 8 - i * 2, y + 11 + i, 2, 8 - i * 2, K.goldHi);
+    } else KT.panel(ctx, px, y, w, h, { seed: y, flat: true });
+    const dy = on ? -1 : 0;
+    KT.slot(ctx, px + 5, y + 5 + dy, 19, 19, { sel: on });
+    PD.glyph.draw(ctx, it.gl, px + 7, y + 7 + dy, on ? K.green : K.brown, on ? K.greenDk : K.parchLo);
+    F.draw(ctx, it.label, px + 30, y + 4 + dy, on ? '#ffffff' : K.text, { scale: 2, shadow: on ? K.greenDk : false });
+    F.draw(ctx, it.sub, px + 30, y + 20 + dy, on ? K.goldHi : K.dim, { shadow: on ? K.greenDk : false });
   }
 
   /* ------------------------------------------------------------- the settings
@@ -916,18 +785,19 @@
   ];
 
   function optRow(ctx, x, y, w, o, on, t) {
+    const KT = PD.kit, K = KT.K;
     const v = o.get();
-    X.plate(ctx, x, y, w, 24, on ? '#241d46' : '#161130', on ? '#6b5ab0' : '#2e2650', '#0a0618', 3);
-    if (on) for (let i = 0; i < 3; i++) X.rect(ctx, x - 7 - i * 2, y + 8 + i, 2, 8 - i * 2, COL.gold);
-    F.draw(ctx, o.name, x + 8, y + 4, on ? '#ffffff' : '#9a92b4');
-    F.draw(ctx, o.note, x + 8, y + 14, on ? '#7ec8ff' : '#4e4670', { shadow: false });
+    KT.panel(ctx, x, y, w, 24, { seed: y + 3, flat: true, fill: on ? '#fff3d6' : undefined });
+    if (on) for (let i = 0; i < 3; i++) X.rect(ctx, x - 7 - i * 2, y + 8 + i, 2, 8 - i * 2, K.goldHi);
+    F.draw(ctx, o.name, x + 8, y + 5, K.text, { shadow: false });
+    F.draw(ctx, o.note, x + 8, y + 14, K.dim, { shadow: false });
     // a fat physical switch, thrown left or right
-    const sw = x + w - 40;
-    X.plate(ctx, sw, y + 7, 32, 11, '#0d0920', '#3a3060', '#000000', 3);
-    X.plate(ctx, v ? sw + 16 : sw + 1, y + 8, 15, 9, v ? '#2f9a6a' : '#5a2438',
-      v ? '#8dff5a' : '#ff6a8a', '#0a0618', 2);
-    F.draw(ctx, v ? 'ON' : 'OFF', v ? sw + 4 : sw + 20, y + 9, v ? '#8dff5a' : '#ff9ab0', { shadow: false });
-    if (on && Math.abs(Math.sin(t * 4)) > 0.5) X.rect(ctx, x, y + 23, w, 1, COL.gold);
+    const sw = x + w - 42;
+    KT.rr(ctx, sw, y + 6, 34, 13, 4, K.ink);
+    KT.rr(ctx, sw + 1, y + 7, 32, 11, 3.5, v ? K.greenLo : '#7a3a2a');
+    KT.btn(ctx, v ? sw + 17 : sw + 1, y + 6, 16, 12, '', { col: v ? 'green' : 'red' });
+    F.draw(ctx, v ? 'ON' : 'OFF', v ? sw + 4 : sw + 19, y + 9, '#ffffff', { shadow: K.ink });
+    if (on && Math.abs(Math.sin(t * 4)) > 0.5) KT.rr(ctx, x + 4, y + 25, w - 8, 1, 0.5, K.goldHi);
   }
 
   /* ------------------------------------------------------------- the credits
@@ -1194,15 +1064,16 @@
 
   /* ------------------------------------------------------------------ pause */
   function pause(ctx, g) {
-    ctx.fillStyle = 'rgba(8,4,18,0.7)';
+    const KT = PD.kit, K = KT.K;
+    ctx.fillStyle = 'rgba(28,14,6,0.62)';
     ctx.fillRect(0, 0, VW, VH);
     const m = PD.input.mouse;
     const BY = VH - 40;                       // the row of buttons, down out of the way
     const keys = [
-      { g: 'play', x: VW / 2 - 78, col: '#2f7a4a', id: 'resume' },
-      { g: A.state.sfx ? 'check' : 'cross', x: VW / 2 - 26, col: '#3f6ea8', id: 'sfx' },
-      { g: 'star', x: VW / 2 + 26, col: A.state.music ? '#6b3fb5' : '#2a1c4a', id: 'music' },
-      { g: 'home', x: VW / 2 + 78, col: '#8a2f4a', id: 'ship' }
+      { g: 'play', x: VW / 2 - 78, col: 'green', id: 'resume', label: 'PLAY' },
+      { g: A.state.sfx ? 'check' : 'cross', x: VW / 2 - 26, col: 'blue', id: 'sfx', label: 'SFX' },
+      { g: 'star', x: VW / 2 + 26, col: A.state.music ? 'purple' : 'grey', id: 'music', label: 'MUSIC' },
+      { g: 'home', x: VW / 2 + 78, col: 'red', id: 'ship', label: 'HOME' }
     ];
     /* WHAT THE KEYS DO. It used to be four hexagons and nothing else, and the
        only place the controls were written down was a line in a readme
@@ -1220,23 +1091,24 @@
     ];
     const cw = 200, ch = CTRL.length * 13 + 22;
     const cx0 = Math.round((VW - cw) / 2), cy0 = 22;
-    PD.pxd.plate(ctx, cx0 - 2, cy0 - 2, cw + 4, ch + 4, '#0d0918', null, null, 5);
-    PD.pxd.plate(ctx, cx0, cy0, cw, ch, '#16122a', '#2a2448', '#0a0614', 4);
-    PD.pxd.rect(ctx, cx0 + 4, cy0, cw - 8, 2, '#ffd34d');
-    F.draw(ctx, 'CONTROLS', cx0 + cw / 2, cy0 + 5, '#ffd34d', { center: true, shadow: '#0a0614' });
+    KT.panel(ctx, cx0 - 10, cy0 - 2, cw + 20, ch + 8, { seed: 81 });
+    KT.ribbon(ctx, cx0 + cw / 2, cy0 - 9, 'PAUSED', { scale: 1, min: 90 });
     for (let i = 0; i < CTRL.length; i++) {
       const yy = cy0 + 17 + i * 13;
-      PD.glyph.draw(ctx, CTRL[i][0], cx0 + 5, yy - 3, '#8a84b0', '#4a4470');
-      F.draw(ctx, CTRL[i][1], cx0 + 22, yy, '#e8e2f4', { shadow: false });
-      F.draw(ctx, CTRL[i][2], cx0 + cw - 6, yy, '#8a84b0', { right: true, shadow: false });
+      if (i % 2 === 0) KT.rr(ctx, cx0 - 4, yy - 3, cw + 8, 13, 2, 'rgba(160,112,60,0.14)');
+      PD.glyph.draw(ctx, CTRL[i][0], cx0 + 1, yy - 3, K.brown, K.parchLo);
+      F.draw(ctx, CTRL[i][1], cx0 + 18, yy, K.text, { shadow: false });
+      F.draw(ctx, CTRL[i][2], cx0 + cw, yy, K.greenLo, { right: true, shadow: false });
     }
 
     const r = { resume: false, ship: false };
     for (const k of keys) {
       const hot = m.inside && U.dist(m.x, m.y, k.x, BY) < 20;
-      PD.glyph.hex(ctx, k.x, BY, 20 + (hot ? 2 : 0), k.col, hot ? '#ffffff' : COL.lineHi, 1.5);
-      if (k.g === 'play') { ctx.save(); ctx.translate(k.x + 2, BY); ctx.rotate(-Math.PI / 2); PD.glyph.draw(ctx, 'play', -7, -7, '#ffffff', k.col); ctx.restore(); }
-      else PD.glyph.draw(ctx, k.g, k.x - 7, BY - 7, '#ffffff', k.col);
+      KT.btn(ctx, k.x - 22, BY - 18, 44, 34, '', { col: k.col, hot, down: hot && m.left });
+      const ly = BY - 14 - (hot ? 1 : 0);
+      if (k.g === 'play') { ctx.save(); ctx.translate(k.x + 2, ly + 7); ctx.rotate(-Math.PI / 2); PD.glyph.draw(ctx, 'play', -7, -7, '#ffffff', K.ink); ctx.restore(); }
+      else PD.glyph.draw(ctx, k.g, k.x - 7, ly, '#ffffff', K.ink);
+      F.draw(ctx, k.label, k.x, ly + 16, '#ffffff', { center: true, shadow: K.ink });
       if (hot && m.leftPressed) {
         A.sfx.click();
         if (k.id === 'resume') r.resume = true;
@@ -1299,13 +1171,13 @@
     const w = F.width(label, 1) + 30, h = 18, x = 8, y = 6;
     const m = PD.input.mouse;
     const over = m.inside && m.x >= x && m.x < x + w && m.y >= y && m.y < y + h;
-    X.plate(ctx, x, y, w, h, over ? '#3a3060' : '#241f36', '#5b3f96', '#0a0614', 4);
+    const KT = PD.kit;
+    KT.btn(ctx, x, y, w, h, '', { col: 'tan', hot: over, down: over && m.left });
     // a little arrow, so it reads as "out" without reading the word
-    const ax = x + 9;
-    for (let i = 0; i < 4; i++) X.rect(ctx, ax + i, y + 9 - i, 1, 1 + i * 2, over ? '#ffe9a8' : '#c9bce8');
-    X.rect(ctx, ax + 4, y + 8, 5, 3, over ? '#ffe9a8' : '#c9bce8');
-    F.draw(ctx, label, x + 20, y + 6, over ? '#ffffff' : '#c9bce8', { shadow: '#0a0614' });
-    if (over && Math.abs(Math.sin(t * 4)) > 0.4) X.rect(ctx, x, y + h - 1, w, 1, '#ffd34d');
+    const ax = x + 9, ly = over ? -1 : 0;
+    for (let i = 0; i < 4; i++) X.rect(ctx, ax + i, y + 8 - i + ly, 1, 1 + i * 2, '#ffffff');
+    X.rect(ctx, ax + 4, y + 7 + ly, 5, 3, '#ffffff');
+    F.draw(ctx, label, x + 20, y + 5 + ly, '#ffffff', { shadow: KT.K.ink });
     return over && m.leftPressed;
   }
 

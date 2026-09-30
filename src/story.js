@@ -363,33 +363,29 @@
   function netWorth(g) { return g.save.credits + (g.vaultValue ? g.vaultValue() : 0); }
   function drawGoal(ctx, g, t) {
     if (!g.save.seenIntro) return;
+    const KT = PD.kit, K = KT.K;
     const debt = g.save.debt || 0;
-    const w = 150, x = VW - w - 8, y = 8;
-    X.plate(ctx, x, y, w, 34, 'rgba(10,6,26,0.82)', '#5a4a8a', '#0a0614', 4);
+    const w = 150, x = VW - w - 8, y = 12;
+    // a quest card pinned to the corner
+    KT.panel(ctx, x, y, w, 36, { seed: 7 });
     if (debt > 0) {
-      F.draw(ctx, 'GOAL: PAY MR CHUM BACK', x + 6, y + 4, '#ffd34d', { shadow: false });
-      F.draw(ctx, 'OWED $' + U.fmt(debt), x + 6, y + 14, '#ff8a9a', { shadow: false });
-      F.draw(ctx, '$' + U.fmt(g.save.credits), x + w - 6, y + 14, '#8affa0', { right: true, shadow: false });
-      const f = 1 - debt / PD.chum.DEBT0;
-      X.rect(ctx, x + 6, y + 25, w - 12, 4, '#2a1c33');
-      X.rect(ctx, x + 6, y + 25, Math.round((w - 12) * f), 4, '#ff5fa8');
-      X.rect(ctx, x + 6, y + 25, Math.round((w - 12) * f), 1, '#ffb0d8');
+      KT.ribbon(ctx, x + w / 2, y - 6, 'PAY MR CHUM BACK', { min: 0 });
+      F.draw(ctx, 'OWED $' + U.fmt(debt), x + 7, y + 12, K.redLo, { shadow: false });
+      F.draw(ctx, '$' + U.fmt(g.save.credits), x + w - 7, y + 12, K.greenLo, { right: true, shadow: false });
+      KT.bar(ctx, x + 7, y + 23, w - 14, 6, 1 - debt / PD.chum.DEBT0, K.red);
     } else {
       const nw = netWorth(g);
-      F.draw(ctx, g.save.won ? 'YOU ARE RICH. KEEP GOING.' : 'GOAL: GET RICH', x + 6, y + 4, '#8affa0', { shadow: false });
-      F.draw(ctx, '$' + U.fmt(nw) + ' / $' + U.fmt(RICH), x + 6, y + 14, '#ffd34d', { shadow: false });
-      const f = Math.min(1, nw / RICH);
-      X.rect(ctx, x + 6, y + 25, w - 12, 4, '#1c2a1c');
-      X.rect(ctx, x + 6, y + 25, Math.round((w - 12) * f), 4, '#7dff9a');
+      KT.ribbon(ctx, x + w / 2, y - 6, g.save.won ? 'YOU ARE RICH' : 'GET RICH', { col: 'gold' });
+      F.draw(ctx, '$' + U.fmt(nw) + ' / $' + U.fmt(RICH), x + 7, y + 12, K.text, { shadow: false });
+      KT.bar(ctx, x + 7, y + 23, w - 14, 6, Math.min(1, nw / RICH), K.green);
     }
     // PAY: a little button on the goal, for paying him from anywhere
     if (debt > 0) {
       const b = PAYBTN, m = PD.input.mouse, hot = m.inside && m.x > b.x && m.x < b.x + b.w && m.y > b.y && m.y < b.y + b.h;
-      X.plate(ctx, b.x, b.y, b.w, b.h, hot ? '#6a2a4a' : '#3a1a2a', '#ff5fa8', '#0a0614', 3);
-      F.draw(ctx, 'PAY', b.x + b.w / 2, b.y + 3, '#ffffff', { center: true, shadow: false });
+      KT.btn(ctx, b.x, b.y, b.w, b.h, 'PAY', { hot, col: 'gold' });
     }
   }
-  const PAYBTN = { x: VW - 158 - 32, y: 8, w: 28, h: 13 };
+  const PAYBTN = { x: VW - 158 - 34, y: 12, w: 30, h: 15 };
   // the PAY button, and P on the keyboard, open the conversation
   function checkPay(g) {
     const IN = PD.input, m = IN.mouse;

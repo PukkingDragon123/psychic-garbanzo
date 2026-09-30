@@ -238,7 +238,7 @@
     if (!g.save.seen.build && PD.talk) {
       g.save.seen.build = 1;
       PD.talk.start(g, { start: 'a', nodes: {
-        a: { who: 'zorb', text: 'HELLO. I AM THE BUILD HOLOGRAM. I CAME FREE WITH THE MOON.', next: 'b' },
+        a: { who: 'zorb', text: 'HELLO. I AM THE BUILD BOOK. I CAME FREE WITH THE MOON.', next: 'b' },
         b: { who: 'zorb', text: 'EVERYTHING YOU BUY ON ABAY TURNS UP IN HERE. PICK IT, PUT IT DOWN, PRESS CONFIRM.', choices: [
           { t: 'WHAT SHOULD I BUILD?', next: 'c' }, { t: 'GOT IT.', next: null }] },
         c: { who: 'zorb', text: 'MINERS DIG WHILE YOU ARE OUT. FACTORIES SELL FOR YOU. FUN THINGS BRING TOURISTS, AND TOURISTS PAY.', next: 'd' },
@@ -406,80 +406,63 @@
     BOX.set(cv, b);
     return b;
   }
-  // draw a preview spinning like a hologram on a projector
-  function spinPreview(ctx, b, x, y, size, t, full) {
-    const cv = previewArt(b);
-    if (!cv) return;
-    const w = cv.width / HD, h = cv.height / HD, bx = boxOf(cv);
-    const k = Math.min(3, size / bx.w, size * 1.1 / bx.h);
-    const spin = Math.cos(t * 1.4 + b.price * 0.001);
-    const sx = Math.max(0.12, Math.abs(spin));
-    const flip = spin < 0;
-    ctx.save();
-    ctx.translate(Math.round(x), Math.round(y));
-    ctx.scale((flip ? -1 : 1) * sx * k, k);
-    ctx.globalAlpha *= full ? 0.55 : 0.9;
-    ctx.drawImage(holoOf(cv), -bx.cx, -bx.bot, w, h);
-    if (full) { ctx.globalAlpha = 0.8; ctx.drawImage(cv, -bx.cx, -bx.bot, w, h); }
-    ctx.restore();
-    ctx.globalAlpha = 1;
-  }
-
+  /* The build menu used to be a hologram. It is a storybook now: parchment
+     cards on a ring, green buttons, inventory slots. The old names stay so
+     the rest of the file does not care. */
+  const KT = () => PD.kit;
   function holoPanel(ctx, x, y, w, h, t, a) {
-    ctx.globalAlpha = (a === undefined ? 1 : a) * 0.18;
-    X.rect(ctx, x, y, w, h, '#38e8ff');
-    ctx.globalAlpha = (a === undefined ? 1 : a) * 0.9;
-    X.rect(ctx, x, y, w, 1, '#aef8ff'); X.rect(ctx, x, y + h - 1, w, 1, '#38e8ff');
-    // corner brackets
-    for (const [cx, cy, dx, dy] of [[x, y, 1, 1], [x + w - 1, y, -1, 1], [x, y + h - 1, 1, -1], [x + w - 1, y + h - 1, -1, -1]]) {
-      X.rect(ctx, cx, cy, 6 * dx || 1, 1, '#ffffff'); X.rect(ctx, cx, cy, 1, 6 * dy || 1, '#ffffff');
-    }
-    ctx.globalAlpha = (a === undefined ? 1 : a) * 0.08;
-    for (let yy = y + ((t * 30) % 3); yy < y + h; yy += 3) X.rect(ctx, x, yy, w, 1, '#aef8ff');
+    ctx.globalAlpha = a === undefined ? 1 : Math.min(1, a);
+    KT().panel(ctx, x, y, w, h, { seed: 3 });
     ctx.globalAlpha = 1;
   }
   function holoText(ctx, s, x, y, col, opts) {
-    const glitch = Math.random() < 0.02 ? Math.round(U.rand(-2, 2)) : 0;
-    F.draw(ctx, s, x + glitch, y, col || '#aef8ff', Object.assign({ shadow: '#003a4a' }, opts || {}));
+    const o = Object.assign({ shadow: '#3a2213' }, opts || {});
+    F.draw(ctx, s, x, y, col || '#ffffff', o);
   }
+  const HUE = { '#8affa0': 'green', '#ffd34d': 'gold', '#ff5a8a': 'red', '#38e8ff': 'blue' };
   function holoButton(ctx, b, label, t, on, col) {
     const m = PD.input.mouse;
-    const hot = hit(b, m);
-    ctx.globalAlpha = on ? 0.9 : 0.4;
-    X.plate(ctx, b.x, b.y, b.w, b.h, hot ? '#1a6a7a' : '#0c3a48', col || '#38e8ff', '#021a22', 4);
-    ctx.globalAlpha = 1;
-    holoText(ctx, label, b.x + b.w / 2, b.y + b.h / 2 - 3, on ? '#ffffff' : '#5a9aa8', { center: true });
+    const hot = on && hit(b, m);
+    KT().btn(ctx, b.x, b.y, b.w, b.h, label, { hot, down: hot && m.left, col: HUE[col] || 'green', disabled: !on });
+  }
+  // the picture on a card: the real painted thing, breathing a little
+  function cardArt(ctx, b, x, y, size, t, sel, maxH) {
+    const cv = previewArt(b);
+    if (!cv) return;
+    const w = cv.width / HD, h = cv.height / HD, bx = boxOf(cv);
+    const k = Math.min(3, size / bx.w, (maxH || size * 1.05) / bx.h);
+    const q = sel ? Math.sin(t * 3) * 0.03 : 0;
+    ctx.save();
+    ctx.translate(Math.round(x), Math.round(y));
+    ctx.scale(k * (1 - q), k * (1 + q));
+    ctx.drawImage(cv, -bx.cx, -bx.bot, w, h);
+    ctx.restore();
   }
 
   function drawUI(ctx, g, t) {
+    const K = KT().K;
     const cats = catsFor(M.scene);
     const list = itemsIn(g, cats[M.cat]);
     const e = M.k >= 1 ? 1 : 1 + 2.7 * Math.pow(M.k - 1, 3) + 1.7 * Math.pow(M.k - 1, 2);
-    // the world goes dark and blue, so the hologram is the brightest thing
-    ctx.globalAlpha = (M.mode === 'menu' ? 0.62 : 0.14) * M.k; X.rect(ctx, 0, 0, VW, VH, '#03121e'); ctx.globalAlpha = 1;
+    // the world dims warm, like lamplight going down
+    ctx.globalAlpha = (M.mode === 'menu' ? 0.55 : 0.12) * M.k; X.rect(ctx, 0, 0, VW, VH, '#1c0e06'); ctx.globalAlpha = 1;
     if (M.mode === 'menu') {
-      // a perspective grid on the floor of the hologram
-      ctx.globalAlpha = 0.16 * M.k;
-      for (let i = -8; i <= 8; i++) X.line(ctx, 240 + i * 12, 170, 240 + i * 40, 232, '#38e8ff');
-      for (let j = 0; j < 5; j++) { const y = 172 + j * j * 3 + ((t * 8) % 3); X.rect(ctx, 60, Math.round(y), 360, 1, '#38e8ff'); }
-      // the projector at the bottom and the cone of light it throws
-      ctx.globalAlpha = 0.1 * M.k;
-      X.poly(ctx, [[226, 270], [254, 270], [410, 64], [70, 64]], '#38e8ff');
-      ctx.globalAlpha = 1;
-      X.plate(ctx, 212, 262, 56, 10, '#1a2a3a', '#4a6a8a', '#0a1018', 4);
-      PT.glow(ctx, 240, 262, 34, '#38e8ff', 0.5 + Math.sin(t * 5) * 0.1);
-      // the tabs
-      holoPanel(ctx, 14, 12, 420, 30, t, M.k);
-      const tw = Math.floor(416 / cats.length);
+      // a soft pool of light behind the ring
+      PT.glow(ctx, 240, CY, 150, '#ffd9a0', 0.12 * M.k);
+      // the tabs, on a strip of parchment
+      holoPanel(ctx, 14, 10, 420, 34, t, M.k);
+      const tw = Math.floor(410 / cats.length);
+      const m = PD.input.mouse;
       for (let i = 0; i < cats.length; i++) {
-        const tx = 20 + i * tw, on = i === M.cat;
-        if (on) { ctx.globalAlpha = 0.3 + Math.sin(t * 4) * 0.05; X.rect(ctx, tx, 16, tw - 4, 22, '#38e8ff'); ctx.globalAlpha = 1; X.rect(ctx, tx, 37, tw - 4, 1, '#ffffff'); }
+        const tx = 19 + i * tw, on = i === M.cat;
+        const hot = hit({ x: tx, y: 15, w: tw - 4, h: 24 }, m);
+        KT().btn(ctx, tx, on ? 14 : 16, tw - 4, on ? 25 : 23, '', { col: on ? 'green' : 'tan', hot });
         const n = itemsIn(g, cats[i]).reduce((s, b) => s + (owned(g, b.id) > 0 ? 1 : 0), 0);
         const all = itemsIn(g, cats[i]).length;
-        holoText(ctx, cats[i], tx + (tw - 4) / 2, 19, on ? '#ffffff' : '#6ab8c8', { center: true });
-        holoText(ctx, n + '/' + all, tx + (tw - 4) / 2, 28, on ? '#ffd34d' : '#3a7a88', { center: true });
+        F.draw(ctx, cats[i], tx + (tw - 4) / 2, on ? 17 : 19, '#ffffff', { center: true, shadow: on ? K.greenDk : K.ink });
+        F.draw(ctx, n + '/' + all, tx + (tw - 4) / 2, on ? 27 : 29, on ? K.goldHi : '#fff1d0', { center: true, shadow: on ? K.greenDk : K.ink });
       }
-      holoButton(ctx, BTN.close, 'X', t, true, '#ff5a8a');
+      KT().close(ctx, BTN.close.x + 6, BTN.close.y + 4, hit(BTN.close, m));
       // the ring of cards, back ones first
       ctx.save();
       ctx.translate(240, CY); ctx.scale(1, e); ctx.translate(-240, -CY);
@@ -488,74 +471,79 @@
         const b = list[i], p = cardPos(i);
         const w = Math.round(CW * p.s), h = Math.round(CH * p.s), sel = i === M.sel;
         const have = owned(g, b.id);
-        const alpha = U.clamp((p.z + 0.2) * 1.4, 0, 1) * (sel ? 1 : 0.62 + 0.3 * p.z);
         const bob = sel ? Math.sin(t * 3) * 2 : 0;
         const cx = Math.round(p.x), cy = Math.round(p.y + bob);
-        // a solid back so the cards behind do not show through
-        ctx.globalAlpha = alpha * 0.85; X.rect(ctx, cx - w / 2, cy - h / 2, w, h, '#062230');
-        ctx.globalAlpha = alpha;
-        holoPanel(ctx, cx - w / 2, cy - h / 2, w, h, t, alpha);
-        if (sel) { ctx.globalAlpha = 0.6 + Math.sin(t * 6) * 0.25; X.frame(ctx, cx - w / 2 - 2, cy - h / 2 - 2, w + 4, h + 4, '#ffd34d'); ctx.globalAlpha = alpha; }
-        // the projector pad under the picture, and the picture spinning on it
-        const py = cy + h * 0.24;
-        X.blob(ctx, cx, py, w * 0.34, 3 * p.s, 'rgba(56,232,255,0.55)');
-        if (sel) { ctx.globalAlpha = 0.18; X.poly(ctx, [[cx - w * 0.34, py], [cx + w * 0.34, py], [cx + w * 0.22, cy - h / 2 + 12], [cx - w * 0.22, cy - h / 2 + 12]], '#38e8ff'); }
-        ctx.globalAlpha = alpha;
-        spinPreview(ctx, b, cx, py, 62 * p.s, t + i * 0.7, sel && have > 0);
-        ctx.globalAlpha = alpha;
+        const x0 = cx - w / 2, y0 = cy - h / 2;
+        ctx.globalAlpha = U.clamp((p.z + 0.4) * 2, 0, 1);
+        if (sel) { ctx.globalAlpha = 0.5 + Math.sin(t * 5) * 0.2; KT().rr(ctx, x0 - 3, y0 - 3, w + 6, h + 6, 7, K.goldHi); ctx.globalAlpha = 1; }
+        KT().panel(ctx, x0, y0, w, h, { flat: p.s < 0.75, seed: i * 17 });
+        // the picture sits in an inventory slot
+        const sx = x0 + 5, sy = y0 + 5 + (p.s > 0.86 || sel ? 9 : 0), sw = w - 10, sh = Math.round(h * 0.56);
+        KT().slot(ctx, sx, sy, sw, sh, { sel, fill: have ? '#e9d7a8' : '#dcc596' });
+        ctx.save(); ctx.beginPath(); ctx.rect(sx + 1, sy + 1, sw - 2, sh - 2); ctx.clip();
+        X.blob(ctx, cx, sy + sh - 5, sw * 0.32, 2.5 * p.s, 'rgba(90,56,26,0.3)');
+        cardArt(ctx, b, cx, sy + sh - 5, Math.min(sw - 8, 64 * p.s), t + i * 0.7, sel, sh - 9);
+        ctx.restore();
         const maxc = Math.max(3, Math.floor((w - 6) / 6));
-        if (sel || p.s > 0.86) holoText(ctx, b.name.length > maxc ? b.name.slice(0, maxc - 1) + '.' : b.name, cx, cy - h / 2 + 4, have ? '#ffffff' : '#6ab8c8', { center: true });
-        if (p.s > 0.7) holoText(ctx, have ? 'x' + have : '$' + U.fmt(b.price), cx, cy + h / 2 - 11, have ? '#8affa0' : '#ffd34d', { center: true });
-        if (!have) { X.plate(ctx, cx + w / 2 - 13, cy - h / 2 + 14, 9, 8, '#3a2a0a', '#ffd34d', null, 2); X.rect(ctx, cx + w / 2 - 11, cy - h / 2 + 11, 5, 4, '#ffd34d'); }
+        if (sel || p.s > 0.86) F.draw(ctx, b.name.length > maxc ? b.name.slice(0, maxc - 1) + '.' : b.name, cx, y0 + 6, K.text, { center: true, shadow: false });
+        if (p.s > 0.6) {
+          if (have) KT().tag(ctx, cx, y0 + h - 17, 'x' + have, 'green', { center: true });
+          else KT().tag(ctx, cx, y0 + h - 17, '$' + U.fmt(b.price), 'gold', { center: true });
+        }
+        // the ones further round sit in shadow
+        if (!sel && p.z < 0.98) { ctx.globalAlpha = U.clamp((1 - p.z) * 0.55, 0, 0.6); KT().rr(ctx, x0, y0, w, h, 5, '#2a1406'); }
+        ctx.globalAlpha = 1;
       }
       ctx.restore();
       ctx.globalAlpha = 1;
-      // where you are in the list
+      // where you are in the list: little beads on a string
       if (list.length > 1) {
         const n = list.length, dw = Math.min(6, Math.floor(300 / n)), x0 = 240 - (n * dw) / 2;
-        for (let i = 0; i < n; i++) X.rect(ctx, Math.round(x0 + i * dw), 171, Math.max(2, dw - 2), 2, i === M.sel ? '#ffd34d' : (owned(g, list[i].id) ? '#38e8ff' : '#1a4a5a'));
+        X.rect(ctx, x0 - 2, 172, n * dw + 2, 1, 'rgba(255,230,190,0.35)');
+        for (let i = 0; i < n; i++) KT().rr(ctx, Math.round(x0 + i * dw), 170.5, Math.max(2, dw - 2), 4, 1.5, i === M.sel ? K.goldHi : (owned(g, list[i].id) ? K.greenHi : '#8a6a4a'));
         holoButton(ctx, { x: 18, y: CY - 12, w: 18, h: 24 }, '<', t, true);
         holoButton(ctx, { x: 444, y: CY - 12, w: 18, h: 24 }, '>', t, true);
       }
       // what the front card is
       const b = list[M.sel];
-      holoPanel(ctx, 14, 178, 452, 52, t, M.k);
+      holoPanel(ctx, 14, 182, 452, 50, t, M.k);
       if (b) {
         const have = owned(g, b.id);
-        holoText(ctx, b.name, 22, 183, '#ffffff', { scale: 2 });
-        holoText(ctx, b.desc.length > 72 ? b.desc.slice(0, 71) + '.' : b.desc, 22, 202, '#aef8ff');
-        holoText(ctx, fxLine(b), 22, 214, '#ffd34d');
-        holoText(ctx, have ? 'YOU HAVE ' + have : 'ON ABAY: $' + U.fmt(b.price), 458, 186, have ? '#8affa0' : '#ff9a6a', { right: true });
+        KT().ribbon(ctx, 22 + (F.width(b.name, 1) + 20) / 2, 176, b.name, {});
+        F.draw(ctx, b.desc.length > 72 ? b.desc.slice(0, 71) + '.' : b.desc, 22, 195, K.text, { shadow: false });
+        F.draw(ctx, fxLine(b), 22, 207, K.brown, { shadow: false });
+        if (have) KT().tag(ctx, 458, 186, 'YOU HAVE ' + have, 'green', { right: true });
+        else KT().tag(ctx, 458, 186, 'ON ABAY $' + U.fmt(b.price), 'gold', { right: true });
         const up = b.where === 'up';
-        holoButton(ctx, BTN.place, have ? (up ? 'UPGRADE (E)' : 'PLACE IT (E)') : 'BUY ON ABAY', t, have > 0, have ? '#8affa0' : '#ffd34d');
-      } else holoText(ctx, 'NOTHING IN HERE YET', 240, 200, '#6ab8c8', { center: true });
-      holoButton(ctx, BTN.move, 'MOVE (M)', t, true);
-      holoText(ctx, 'LEFT RIGHT: PICK', 464, 238, '#3a8a9a', { right: true });
-      holoText(ctx, 'UP DOWN: TAB  B: CLOSE', 464, 248, '#3a8a9a', { right: true });
+        holoButton(ctx, BTN.place, have ? (up ? 'UPGRADE (E)' : 'PLACE IT (E)') : 'BUY ON ABAY', t, true, have ? '#8affa0' : '#ffd34d');
+      } else F.draw(ctx, 'NOTHING IN HERE YET', 240, 200, K.dim, { center: true, shadow: false });
+      holoButton(ctx, BTN.move, 'MOVE (M)', t, true, '#38e8ff');
+      F.draw(ctx, 'LEFT RIGHT: PICK', 464, 240, '#fff1d0', { right: true, shadow: K.ink });
+      F.draw(ctx, 'UP DOWN: TAB  B: CLOSE', 464, 250, '#fff1d0', { right: true, shadow: K.ink });
     } else {
       // placing, or picking up: the controls along the bottom
       holoPanel(ctx, 14, 222, 452, 46, t, 1);
-      holoButton(ctx, BTN.left, '<', t, true); holoButton(ctx, BTN.right, '>', t, true);
+      holoButton(ctx, BTN.left, '<', t, true, '#38e8ff'); holoButton(ctx, BTN.right, '>', t, true, '#38e8ff');
       if (M.mode === 'place') {
         const b = BA.BY[M.item];
-        holoText(ctx, b.name, 22, 227, '#ffffff');
-        holoText(ctx, M.valid ? 'FITS HERE. CONFIRM TO BUILD IT.' : M.why, 22 + F.width(b.name, 1) + 10, 227, M.valid ? '#8affa0' : '#ff8a9a');
-        holoButton(ctx, BTN.confirm, 'CONFIRM', t, M.valid, M.valid ? '#8affa0' : '#ff5a8a');
+        F.draw(ctx, b.name, 22, 228, K.text, { shadow: false });
+        F.draw(ctx, M.valid ? 'FITS HERE. CONFIRM TO BUILD IT.' : M.why, 22 + F.width(b.name, 1) + 10, 228, M.valid ? K.greenLo : K.redLo, { shadow: false });
+        holoButton(ctx, BTN.confirm, 'CONFIRM', t, M.valid, '#8affa0');
         holoButton(ctx, BTN.cancel, 'CANCEL', t, true, '#ff5a8a');
-        holoText(ctx, 'x' + owned(g, M.item) + ' LEFT', 460, 249, '#ffd34d', { right: true });
-        holoText(ctx, 'LEFT RIGHT: MOVE', 22, 249, '#3a8a9a');
+        KT().tag(ctx, 460, 246, 'x' + owned(g, M.item) + ' LEFT', 'gold', { right: true });
+        F.draw(ctx, 'LEFT RIGHT: MOVE', 22, 249, K.dim, { shadow: false });
       } else {
-        holoText(ctx, M.pick ? BA.BY[M.pick.id].name : 'POINT AT SOMETHING', 22, 227, '#ffffff');
-        holoText(ctx, 'PICK IT UP: BACK IN THE BOX', 460, 227, '#aef8ff', { right: true });
+        F.draw(ctx, M.pick ? BA.BY[M.pick.id].name : 'POINT AT SOMETHING', 22, 228, K.text, { shadow: false });
+        F.draw(ctx, 'PICK IT UP: BACK IN THE BOX', 460, 228, K.dim, { right: true, shadow: false });
         holoButton(ctx, BTN.confirm, 'PICK UP', t, !!M.pick, '#ffd34d');
-        holoButton(ctx, BTN.cancel, 'DONE', t, true, '#38e8ff');
+        holoButton(ctx, BTN.cancel, 'DONE', t, true, '#8affa0');
       }
     }
     if (M.msgT > 0) {
       const w = F.width(M.msg, 1) + 16;
       ctx.globalAlpha = Math.min(1, M.msgT * 2);
-      holoPanel(ctx, 240 - w / 2, 56, w, 14, t, 1);
-      holoText(ctx, M.msg, 240, 60, '#ffffff', { center: true });
+      holoPanel(ctx, 240 - w / 2, 54, w, 18, t, 1);
+      F.draw(ctx, M.msg, 240, 60, '#4a2b17', { center: true, shadow: false });
       ctx.globalAlpha = 1;
     }
   }
@@ -578,18 +566,14 @@
     if (g.tutActive && g.tutActive()) return;
     const b = OPENBTN;
     const m = PD.input.mouse, hot = hitButton(m.x, m.y) && m.inside;
-    ctx.globalAlpha = 0.85;
-    X.plate(ctx, b.x, b.y, b.w, b.h, hot ? '#1a6a7a' : '#0c3a48', '#38e8ff', '#021a22', 4);
-    ctx.globalAlpha = 1;
-    PT.glow(ctx, b.x + 10, b.y + 10, 10, '#38e8ff', 0.3 + Math.sin(t * 3) * 0.1);
-    holoText(ctx, 'B BUILD', b.x + b.w / 2 + 2, b.y + 7, '#ffffff', { center: true });
+    KT().btn(ctx, b.x, b.y, b.w, b.h, 'B BUILD', { hot, down: hot && m.left, col: 'green' });
     if (M.away && M.away.t > 0) {
       M.away.t -= g.dt;
       const s = 'WHILE YOU WERE AWAY: +' + M.away.ore + ' ORE, +$' + U.fmt(M.away.cash);
       const w = F.width(s, 1) + 16;
       ctx.globalAlpha = Math.min(1, M.away.t);
-      holoPanel(ctx, 240 - w / 2, 30, w, 14, t, 1);
-      holoText(ctx, s, 240, 34, '#ffffff', { center: true });
+      holoPanel(ctx, 240 - w / 2, 28, w, 18, t, 1);
+      F.draw(ctx, s, 240, 34, '#4a2b17', { center: true, shadow: false });
       ctx.globalAlpha = 1;
     }
   }
@@ -940,8 +924,8 @@
     const s = lines[RIDE.kind] || '';
     if (s) {
       const w = F.width(s, 1) + 16;
-      holoPanel(ctx, 240 - w / 2, VH - 26, w, 14, t, 1);
-      holoText(ctx, s, 240, VH - 22, '#ffffff', { center: true });
+      holoPanel(ctx, 240 - w / 2, VH - 30, w, 18, t, 1);
+      F.draw(ctx, s, 240, VH - 24, '#4a2b17', { center: true, shadow: false });
     }
     X.rect(ctx, 0, 0, VW, 8, '#000000'); X.rect(ctx, 0, VH - 6, VW, 6, '#000000');
   }

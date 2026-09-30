@@ -170,6 +170,108 @@
     }
     return this;
   };
+  /* HAND SHADING. The three brushes the soft things are painted with: a lit
+     egg, a lit tube and a lit ring. Each pixel works out which way it faces,
+     lights itself from the top left, and picks a tone out of a five-step
+     ramp [deepest, shadow, base, light, highlight] with an ordered dither
+     between steps, then gets a bounce of reflected light on the shadow edge
+     and a hard specular glint. It is how you shade by hand, done per pixel. */
+  function tone(P, v, x, y) {
+    const n = P.length, f = Math.max(0, Math.min(0.9999, v)) * n;
+    let k = Math.floor(f);
+    if (f - k > bayer(x, y) * 0.85 + 0.08) k = Math.min(n - 1, k + 1);
+    return P[k];
+  }
+  const LX = -0.55, LY = -0.62, LZ = 0.56;          // the light, top left and in front
+  function lit(nx, ny, nz, o) {
+    let d = nx * LX + ny * LY + nz * LZ;
+    d = 0.1 + 0.84 * Math.max(0, (d + 0.3) / 1.3);
+    // the bounce: light coming back up off the floor into the shadow edge
+    const rim = Math.max(0, (nx * 0.5 + ny * 0.8) - 0.55) * (o && o.bounce !== undefined ? o.bounce : 0.9);
+    return Math.min(1, d * 0.92 + rim * 0.35);
+  }
+  B.orb = function (cx, cy, rx, ry, P, o) {
+    o = o || {};
+    const x0 = Math.floor(cx - rx - 1), x1 = Math.ceil(cx + rx + 1), y0 = Math.floor(cy - ry - 1), y1 = Math.ceil(cy + ry + 1);
+    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+      const nx = (x + 0.5 - cx) / rx, ny = (y + 0.5 - cy) / ry, r2 = nx * nx + ny * ny;
+      if (r2 > 1) continue;
+      if (o.clip && !o.clip(x, y)) continue;
+      const nz = Math.sqrt(1 - r2);
+      this.set(x, y, tone(P, lit(nx, ny, nz, o), x, y));
+    }
+    if (o.spec !== false) {
+      const sx = cx - rx * 0.42, sy = cy - ry * 0.48;
+      this.ellipse(sx, sy, Math.max(1, rx * 0.16), Math.max(1, ry * 0.11), 0xffffff, 0.9);
+      this.ellipse(sx + rx * 0.22, sy - ry * 0.02, Math.max(0.8, rx * 0.05), Math.max(0.8, ry * 0.05), 0xffffff, 0.8);
+    }
+    return this;
+  };
+  // a tube along a quadratic curve a -> c (via b), radius r0 at a to r1 at c
+  B.tube = function (ax, ay, bx, by, qx, qy, r0, r1, P, o) {
+    o = o || {};
+    const N = Math.max(8, Math.ceil(Math.hypot(qx - ax, qy - ay) * 1.5));
+    const pts = [];
+    for (let i = 0; i <= N; i++) {
+      const t = i / N, u = 1 - t;
+      pts.push([u * u * ax + 2 * u * t * bx + t * t * qx, u * u * ay + 2 * u * t * by + t * t * qy, r0 + (r1 - r0) * t]);
+    }
+    let X0 = 1e9, Y0 = 1e9, X1 = -1e9, Y1 = -1e9;
+    for (const p of pts) { X0 = Math.min(X0, p[0] - p[2]); Y0 = Math.min(Y0, p[1] - p[2]); X1 = Math.max(X1, p[0] + p[2]); Y1 = Math.max(Y1, p[1] + p[2]); }
+    for (let y = Math.floor(Y0) - 1; y <= Math.ceil(Y1) + 1; y++) for (let x = Math.floor(X0) - 1; x <= Math.ceil(X1) + 1; x++) {
+      let best = 1e9, bi = 0;
+      for (let i = 0; i < pts.length; i++) { const d = Math.hypot(x + 0.5 - pts[i][0], y + 0.5 - pts[i][1]) - pts[i][2]; if (d < best) { best = d; bi = i; } }
+      if (best > 0) continue;
+      const p = pts[bi], r = p[2];
+      const nx = (x + 0.5 - p[0]) / r, ny = (y + 0.5 - p[1]) / r, r2 = Math.min(1, nx * nx + ny * ny);
+      this.set(x, y, tone(P, lit(nx, ny, Math.sqrt(1 - r2), o), x, y));
+    }
+    if (o.spec !== false) for (let i = 2; i < pts.length - 2; i += 2) { const p = pts[i]; this.set(p[0] - p[2] * 0.45, p[1] - p[2] * 0.5, 0xffffff, 0.7); }
+    return this;
+  };
+  // a ring lying flat, seen from a little above: ring radius R, tube radius
+  // r, sq = the sine of the view angle. o.top: a ramp for the upper surface
+  // (icing on a donut). Returns nothing useful; paints the visible surface.
+  B.torus = function (cx, cy, R, r, sq, P, o) {
+    o = o || {};
+    const ca = Math.sqrt(1 - sq * sq);
+    const X0 = Math.floor(cx - R - r - 1), X1 = Math.ceil(cx + R + r + 1);
+    const Y0 = Math.floor(cy - (R + r) * sq - r * ca - 1), Y1 = Math.ceil(cy + (R + r) * sq + r * ca + 1);
+    for (let y = Y0; y <= Y1; y++) for (let x = X0; x <= X1; x++) {
+      const X = x + 0.5 - cx, up = cy - (y + 0.5);
+      let n = null;
+      for (let h = r; h >= -r; h -= 0.35) {
+        const Z = (up - h * ca) / sq;
+        const d = Math.hypot(X, Z), q = Math.hypot(d - R, h);
+        if (q <= r) { const k = (d - R) / r / (d || 1); n = [X * k, Z * k, h / r]; break; }
+      }
+      if (!n) continue;
+      const nzs = -n[1] * ca + n[2] * sq, nys = -(n[1] * sq + n[2] * ca);
+      const L = Math.hypot(n[0], nys, nzs) || 1;
+      const pal = o.top && n[2] > (o.topAt === undefined ? 0.15 : o.topAt) ? o.top : P;
+      this.set(x, y, tone(pal, lit(n[0] / L, nys / L, Math.max(0, nzs / L), o), x, y));
+    }
+    if (o.spec !== false) {
+      this.ellipse(cx - R * 0.62, cy + R * sq * 0.55 - r * ca * 0.75, Math.max(1, r * 0.34), Math.max(1, r * 0.2), 0xffffff, 0.9);
+      this.ellipse(cx - R * 0.2, cy + R * sq * 0.92 - r * ca * 0.7, Math.max(1, r * 0.16), Math.max(0.8, r * 0.12), 0xffffff, 0.75);
+    }
+    return this;
+  };
+  /* The shadow side of the silhouette: painted pixels whose neighbour down
+     and right is empty get darkened, so a flat colour turns into a form. */
+  B.shadeEdge = function (k, depth) {
+    depth = depth || 2;
+    const W = this.w, H = this.h, d = this.d, hit = [];
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      if (this.alpha(x, y) < 128) continue;
+      for (let s = 1; s <= depth; s++) if (this.alpha(x + s, y + s) < 128) { hit.push(x, y, s); break; }
+    }
+    for (let i = 0; i < hit.length; i += 3) {
+      const j = (hit[i + 1] * W + hit[i]) * 4, f = 1 - k * (1 - (hit[i + 2] - 1) / depth);
+      d[j] *= f; d[j + 1] *= f; d[j + 2] *= f;
+    }
+    return this;
+  };
   /* Light the edges that face the light: any painted pixel whose neighbour
      at (dx, dy) is empty gets `c`. */
   B.rim = function (c, dx, dy, a) {
@@ -237,5 +339,51 @@
     ctx.restore();
   }
 
-  PD.paint = { buf: (w, h) => new Buf(w, h), Buf, hex, mul, mix, css, ramp, bayer, glow, rgba, sprite };
+  /* THE CARTOON LINE. Whatever fn draws inside the box (x, y, w, h, in the
+     context's own units) is drawn off to the side first, then stamped back
+     with a fat ink silhouette round the outside of it, so a character made of
+     a body sprite, live limbs, a hat and a cape gets ONE continuous outline,
+     the way a cel is inked. Works under any transform the context has. */
+  const INKC = { a: null, b: null };
+  function inked(ctx, x, y, w, h, fn, col) {
+    const m = ctx.getTransform();
+    const sc = Math.sqrt(Math.abs(m.a * m.d - m.b * m.c)) || 1;
+    // the box in device pixels, with room for the line
+    const pts = [[x, y], [x + w, y], [x, y + h], [x + w, y + h]].map(([px, py]) => [m.a * px + m.c * py + m.e, m.b * px + m.d * py + m.f]);
+    const th = Math.max(1, Math.round(sc * 0.5));
+    const X0 = Math.floor(Math.min(...pts.map(p => p[0]))) - th - 1, Y0 = Math.floor(Math.min(...pts.map(p => p[1]))) - th - 1;
+    const X1 = Math.ceil(Math.max(...pts.map(p => p[0]))) + th + 1, Y1 = Math.ceil(Math.max(...pts.map(p => p[1]))) + th + 1;
+    const W = X1 - X0, H = Y1 - Y0;
+    if (W <= 0 || H <= 0 || W > 2000 || H > 2000) { fn(ctx); return; }
+    if (!INKC.a) { INKC.a = document.createElement('canvas'); INKC.b = document.createElement('canvas'); }
+    const A = INKC.a, Bc = INKC.b;
+    if (A.width < W || A.height < H) { A.width = Bc.width = Math.max(A.width, W); A.height = Bc.height = Math.max(A.height, H); }
+    const qa = A.getContext('2d'), qb = Bc.getContext('2d');
+    qa.setTransform(1, 0, 0, 1, 0, 0); qa.clearRect(0, 0, W, H);
+    qa.imageSmoothingEnabled = false;
+    qa.setTransform(m.a, m.b, m.c, m.d, m.e - X0, m.f - Y0);
+    qa.globalAlpha = ctx.globalAlpha;
+    fn(qa);
+    qa.setTransform(1, 0, 0, 1, 0, 0); qa.globalAlpha = 1;
+    // the silhouette, in ink
+    qb.setTransform(1, 0, 0, 1, 0, 0); qb.clearRect(0, 0, W, H);
+    qb.globalCompositeOperation = 'source-over';
+    qb.drawImage(A, 0, 0, W, H, 0, 0, W, H);
+    qb.globalCompositeOperation = 'source-in';
+    qb.fillStyle = col || '#0b0612'; qb.fillRect(0, 0, W, H);
+    qb.globalCompositeOperation = 'source-over';
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.imageSmoothingEnabled = false;
+    for (let dy = -th; dy <= th; dy++) for (let dx = -th; dx <= th; dx++) {
+      if (!dx && !dy) continue;
+      if (Math.abs(dx) === th && Math.abs(dy) === th && th > 1) continue;
+      ctx.drawImage(Bc, 0, 0, W, H, X0 + dx, Y0 + dy, W, H);
+    }
+    ctx.globalAlpha = 1;
+    ctx.drawImage(A, 0, 0, W, H, X0, Y0, W, H);
+    ctx.restore();
+  }
+
+  PD.paint = { buf: (w, h) => new Buf(w, h), Buf, hex, mul, mix, css, ramp, bayer, glow, rgba, sprite, inked };
 })(window.PD);

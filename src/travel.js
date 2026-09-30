@@ -63,7 +63,7 @@
   /* ============================================================== PAINTING */
   const ART = {};
   function once(key, fn) { return ART[key] || (ART[key] = fn()); }
-  function finish(B) { B.rim(0xffffff, -1, -1, 0.35); B.outline(INK); return B.toCanvas(); }
+  function finish(B) { B.rim(0xffffff, -1, -1, 0.35); B.outline(INK); B.outline(0x05030a); return B.toCanvas(); }
 
   function paintRock(d, seed, pal) {
     const N = Math.round(d * HD) + 6, B = PT.buf(N, N), c = N / 2, r = d * HD / 2;

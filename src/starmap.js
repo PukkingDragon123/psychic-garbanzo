@@ -132,15 +132,9 @@
     X.orbit(ctx, x, y, r, r * 0.34, col, dash ? 5 : 2, alpha);
   }
 
-  function panel(ctx, x, y, w, h, col) {
-    ctx.fillStyle = 'rgba(6,4,18,0.88)';
-    ctx.fillRect(x, y, w, h);
-    ctx.strokeStyle = col;
-    ctx.lineWidth = 1;
-    ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
-    ctx.fillStyle = col;
-    ctx.fillRect(x, y, 10, 1); ctx.fillRect(x, y, 1, 10);
-    ctx.fillRect(x + w - 10, y + h - 1, 10, 1); ctx.fillRect(x + w - 1, y + h - 10, 1, 10);
+  const K = PD.kit.K;
+  function panel(ctx, x, y, w, h) {
+    PD.kit.panel(ctx, x, y, w, h, { seed: x + y });
   }
 
   function draw(ctx, g, t) {
@@ -152,18 +146,14 @@
     else drawSystem(ctx, g, t);
 
     // header
-    ctx.fillStyle = 'rgba(6,4,18,0.9)';
-    ctx.fillRect(0, 0, VW, 16);
-    ctx.fillStyle = '#7ef9ff'; ctx.fillRect(0, 16, VW, 1);
-    PD.glyph.draw(ctx, 'planet', 3, 2, '#ffffff', '#7ef9ff');
-    F.draw(ctx, S.view === 'galaxy' ? 'GALAXY CHART' : D.ZONES[S.zone].name, 20, 5, '#7ef9ff', { shadow: false });
-    F.draw(ctx, '$' + U.fmt(g.save.credits), VW - 6, 4, '#ffd34d', { right: true, shadow: false });
+    PD.kit.ribbon(ctx, VW / 2, 6, S.view === 'galaxy' ? 'GALAXY CHART' : D.ZONES[S.zone].name, { min: 120 });
+    PD.kit.tag(ctx, VW - 6, 8, '$' + U.fmt(g.save.credits), 'gold', { right: true });
 
     if (S.msgT > 0) {
       const w = F.width(S.msg, 1) + 16;
       ctx.globalAlpha = Math.min(1, S.msgT);
-      panel(ctx, VW / 2 - w / 2, 22, w, 16, '#ffb03d');
-      F.draw(ctx, S.msg, VW / 2, 27, '#ffd34d', { center: true, shadow: false });
+      panel(ctx, VW / 2 - w / 2, 26, w, 18);
+      F.draw(ctx, S.msg, VW / 2, 32, K.text, { center: true, shadow: false });
       ctx.globalAlpha = 1;
     }
     /* The way out, as a button as well as a key: there is no escape key on a
@@ -220,16 +210,16 @@
     const z = D.ZONES[S.selZone];
     const open = zoneOpen(g, S.selZone);
     panel(ctx, 8, VH - 44, VW - 16, 38, open ? '#7ef9ff' : '#ff8a3d');
-    F.draw(ctx, z.name, 16, VH - 38, z.star, { shadow: false });
-    F.draw(ctx, z.sub, 16, VH - 28, '#9c8ec4', { shadow: false });
+    F.draw(ctx, z.name, 16, VH - 38, z.star, { shadow: K.ink });
+    F.draw(ctx, z.sub, 16, VH - 28, K.dim, { shadow: false });
     let done = 0;
     for (const b of z.bodies) if (g.save.destroyed[b]) done++;
-    F.draw(ctx, 'WORLDS ' + done + '/' + z.bodies.length, 16, VH - 18, '#f2e9ff', { shadow: false });
+    F.draw(ctx, 'WORLDS ' + done + '/' + z.bodies.length, 16, VH - 18, K.text, { shadow: false });
     if (open) {
-      F.draw(ctx, 'E  ENTER SECTOR', VW - 16, VH - 26, '#39ffa6', { right: true, shadow: false });
+      F.draw(ctx, 'E  ENTER SECTOR', VW - 16, VH - 26, K.greenLo, { right: true, shadow: false });
     } else {
-      F.draw(ctx, 'OUT OF RANGE', VW - 16, VH - 32, '#ff8a3d', { right: true, shadow: false });
-      F.draw(ctx, 'UPGRADE THE OBSERVATORY TO LV ' + (S.selZone + 1), VW - 16, VH - 20, '#9c8ec4', { right: true, shadow: false });
+      F.draw(ctx, 'OUT OF RANGE', VW - 16, VH - 32, K.redLo, { right: true, shadow: false });
+      F.draw(ctx, 'UPGRADE THE OBSERVATORY TO LV ' + (S.selZone + 1), VW - 16, VH - 20, K.dim, { right: true, shadow: false });
     }
   }
 
@@ -285,31 +275,28 @@
     const b = D.BODIES[S.selBody];
     const open = bodyOpen(g, S.selBody);
     panel(ctx, 8, VH - 72, VW - 16, 66, open ? '#7ef9ff' : '#5a4d80');
-    F.draw(ctx, b.name.toUpperCase(), 16, VH - 66, '#f2e9ff', { shadow: false, scale: 2 });
-    F.draw(ctx, b.kind.toUpperCase(), VW - 16, VH - 64, '#7ef9ff', { right: true, shadow: false });
-    F.draw(ctx, b.blurb, 16, VH - 52, '#9c8ec4', { shadow: false });
-    F.draw(ctx, (D.LORE[S.selBody] || '').toUpperCase().slice(0, 62), 16, VH - 42, '#7d6aa8', { shadow: false });
-    F.draw(ctx, 'DEPTH ' + b.radius * 10 + 'M', 16, VH - 36, '#7ef9ff', { shadow: false });
-    F.draw(ctx, 'GRAV ' + b.gravity, 106, VH - 36, '#7ef9ff', { shadow: false });
-    F.draw(ctx, 'CORE ' + U.fmt(b.coreHp), 166, VH - 36, '#ff6b8a', { shadow: false });
-    F.draw(ctx, 'BOUNTY $' + U.fmt(b.reward), 246, VH - 36, '#ffd34d', { shadow: false });
+    PD.kit.ribbon(ctx, 16 + (F.width(b.name, 1) + 20) / 2, VH - 80, b.name.toUpperCase(), {});
+    F.draw(ctx, b.kind.toUpperCase(), VW - 16, VH - 64, K.blueLo, { right: true, shadow: false });
+    F.draw(ctx, b.blurb, 16, VH - 62, K.dim, { shadow: false });
+    F.draw(ctx, (D.LORE[S.selBody] || '').toUpperCase().slice(0, 72), 16, VH - 51, K.dim, { shadow: false });
+    F.draw(ctx, 'DEPTH ' + b.radius * 10 + 'M', 16, VH - 39, K.blueLo, { shadow: false });
+    F.draw(ctx, 'GRAV ' + b.gravity, 106, VH - 39, K.blueLo, { shadow: false });
+    F.draw(ctx, 'CORE ' + U.fmt(b.coreHp), 166, VH - 39, K.redLo, { shadow: false });
+    F.draw(ctx, 'BOUNTY $' + U.fmt(b.reward), 246, VH - 39, '#a86a10', { shadow: false });
     let ox = 16;
-    F.draw(ctx, 'ORE', ox, VH - 22, '#9c8ec4', { shadow: false });
+    F.draw(ctx, 'ORE', ox, VH - 22, K.dim, { shadow: false });
     ox += 24;
     for (const pair of b.ores.slice(0, 8)) { PD.art.oreChip(ctx, pair[0], ox, VH - 26, 14); ox += 15; }
-    if (g.save.destroyed[S.selBody]) F.draw(ctx, 'ALREADY DESTROYED', ox + 10, VH - 22, '#ff6b8a', { shadow: false });
+    if (g.save.destroyed[S.selBody]) F.draw(ctx, 'ALREADY DESTROYED', ox + 10, VH - 22, K.redLo, { shadow: false });
     const nd = open && PD.travel.need ? PD.travel.need(g, S.selBody) : null;
     if (nd) {
-      F.draw(ctx, 'NEEDS A ' + nd[1], VW - 14, VH - 30, Math.sin(t * 5) > 0 ? '#ff6b8a' : '#ffd34d', { right: true, shadow: false });
-      F.draw(ctx, nd[2] + '. ABAY SELLS ONE.', VW - 14, VH - 20, '#9c8ec4', { right: true, shadow: false });
+      F.draw(ctx, 'NEEDS A ' + nd[1], VW - 14, VH - 30, Math.sin(t * 5) > 0 ? K.redLo : '#a86a10', { right: true, shadow: false });
+      F.draw(ctx, nd[2] + '. ABAY SELLS ONE.', VW - 14, VH - 20, K.dim, { right: true, shadow: false });
     } else if (open) {
       const bw = 110, bx = VW - bw - 12, by = VH - 30;
-      ctx.fillStyle = Math.sin(t * 4) > 0 ? '#39ffa6' : '#2ad48a';
-      ctx.fillRect(bx, by, bw, 20);
-      ctx.strokeStyle = '#d6ffe9'; ctx.strokeRect(bx + 0.5, by + 0.5, bw - 1, 19);
-      F.draw(ctx, 'E    DROP', bx + bw / 2, by + 7, '#05170e', { center: true, shadow: false });
+      PD.kit.btn(ctx, bx, by - 2, bw, 22, 'E    DROP', { col: 'green', hot: Math.sin(t * 4) > 0 });
     } else {
-      F.draw(ctx, S.selBody > g.save.unlocked ? 'LOCKED - FINISH THE LAST WORLD' : 'NEEDS A DRIVE', VW - 14, VH - 22, '#ff6b8a', { right: true, shadow: false });
+      F.draw(ctx, S.selBody > g.save.unlocked ? 'LOCKED - FINISH THE LAST WORLD' : 'NEEDS A DRIVE', VW - 14, VH - 22, K.redLo, { right: true, shadow: false });
     }
   }
 

@@ -249,6 +249,8 @@
       d.paint(B, f);
       B.rim(0xffffff, -1, -1, 0.3);
       B.outline(INK);
+      // and a second, blacker ring outside it: the fat cartoon line
+      B.outline(0x05030a);
       frames.push(B.toCanvas());
     }
     PD.art.sprites[name] = { frames, w: d.w, h: d.h, hd: HD, ox: d.ox, oy: d.oy };

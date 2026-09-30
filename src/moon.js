@@ -1110,14 +1110,17 @@
         const dx = out ? wdist(pet.x, P.x) : pet.x - P.x;
         PD.cosm.drawPet(ctx, g, t, x + dx, gy + (groundY(pet.x) - P.y) + (out ? dx * dx / (2 * R) : 0), walking);
       }
-      PD.cosm.drawBehind(ctx, g, x, y - 31 * sq, P.face, t, sq, P);
     }
-    PD.rig.draw(ctx, r, {
-      x, y, flip: P.face < 0, spr: skin.alienCore, frame,
-      drilling: false, twoHand: false, grip: null, aim: P.face < 0 ? Math.PI : 0,
-      ground: !air, vx: P.vx, vy: P.vy, squash: sq
-    }, skin.P, PD.art.BIZ);
-    if (PD.cosm) PD.cosm.drawOnPlayer(ctx, g, x + P.face, y - 31 * sq + (P.land > 0 ? P.land * 6 : 0), P.face, t, sq, P);
+    // you, your cape and your hat, inked as one cartoon cel
+    PD.paint.inked(ctx, x - 40, y - 62, 80, 96, c => {
+      if (PD.cosm) PD.cosm.drawBehind(c, g, x, y - 31 * sq, P.face, t, sq, P);
+      PD.rig.draw(c, r, {
+        x, y, flip: P.face < 0, spr: skin.alienCore, frame,
+        drilling: false, twoHand: false, grip: null, aim: P.face < 0 ? Math.PI : 0,
+        ground: !air, vx: P.vx, vy: P.vy, squash: sq
+      }, skin.P, PD.art.BIZ);
+      if (PD.cosm) PD.cosm.drawOnPlayer(c, g, x + P.face, y - 31 * sq + (P.land > 0 ? P.land * 6 : 0), P.face, t, sq, P);
+    });
     if (walking && !air && U.chance(0.2)) dustAt(P.x - P.face * 5, P.y, 1, 10);
     if (P.sweep > 0) {
       const k = P.sweep / 0.5;
@@ -1153,15 +1156,14 @@
     const lift = s.lift || ({ door: 118, ufo: 84, pc: 84, brain: 90, exit: 76, bed: 64, rat: 44, trash: 66, board: 150 }[s.id] || 100);
     const sp = worldToScreen(s.x, groundY(s.x));
     const x = U.clamp(Math.round(sp.x), 60, VW - 60);
-    const y = U.clamp(Math.round(sp.y - lift + Math.sin(t * 5) * 2), 24, VH - 70);
-    const w = Math.max(F.width(s.name, 1), F.width(s.sub, 1)) + 18;
-    X.plate(ctx, x - w / 2 + 2, y + 2, w, 26, 'rgba(6,3,14,0.5)', null, null, 4);
-    X.plate(ctx, x - w / 2, y, w, 26, '#3a2a5a', '#6a5aa0', '#1a1030', 4);
-    F.draw(ctx, s.name, x, y + 4, '#ffe9a8', { center: true, shadow: '#1a1030' });
-    F.draw(ctx, s.sub, x, y + 14, '#b8a8e0', { center: true, shadow: false });
+    const y = U.clamp(Math.round(sp.y - lift + Math.sin(t * 5) * 2), 32, VH - 70);
+    const KT = PD.kit, K = KT.K;
+    const w = Math.max(F.width(s.name, 1) + 22, F.width(s.sub, 1) + 16);
+    KT.panel(ctx, x - w / 2, y + 2, w, 24, { seed: 11 });
+    KT.ribbon(ctx, x, y - 4, s.name, { min: 0 });
+    F.draw(ctx, s.sub, x, y + 14, K.text, { center: true, shadow: false });
     const kb = Math.round(Math.abs(Math.sin(t * 5)) * 2);
-    X.plate(ctx, x - 7, y - 14 - kb, 14, 13, '#e8dfc4', '#ffffff', '#a89b78', 3);
-    F.draw(ctx, 'E', x, y - 11 - kb, '#241f16', { center: true, shadow: false });
+    KT.key(ctx, x, y - 21 - kb, 'E');
   }
 
   function drawOverlay(ctx, g, t) {
@@ -1181,8 +1183,8 @@
     if (UI.msgT > 0) {
       const w = F.width(UI.msg, 1) + 16;
       ctx.globalAlpha = Math.min(1, UI.msgT);
-      X.plate(ctx, VW / 2 - w / 2, VH - 44, w, 15, '#3a2a5a', '#6a5aa0', '#1a1030', 4);
-      F.draw(ctx, UI.msg, VW / 2, VH - 40, '#ffe9a8', { center: true, shadow: '#1a1030' });
+      PD.kit.panel(ctx, VW / 2 - w / 2, VH - 48, w, 19, { seed: 5 });
+      F.draw(ctx, UI.msg, VW / 2, VH - 42, PD.kit.K.text, { center: true, shadow: false });
       ctx.globalAlpha = 1;
     }
     if (PD.build && S.scene === 'out') PD.build.overlay(ctx, g, t);
