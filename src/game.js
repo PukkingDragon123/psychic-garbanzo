@@ -117,6 +117,8 @@
       base.artifacts = +s.artifacts || 0;
       base.pet = s.pet ? 1 : 0;
       base.thots = Math.max(0, +s.thots || 0);
+      base.sp = Math.max(0, +s.sp || 0); base.spFrac = Math.max(0, +s.spFrac || 0);
+      if (s.unl && typeof s.unl === 'object') { base.unl = {}; for (const k in s.unl) if (s.unl[k] && PD.unlock && PD.unlock.BY[k]) base.unl[k] = 1; }
       base.thotFrac = Math.max(0, +s.thotFrac || 0);
       if (s.neur) for (const k in s.neur) if (D.NEUR[k]) base.neur[k] = U.clamp(+s.neur[k] || 0, 0, D.NEUR[k].max);
       /* These were written every save and never read back, so a reload lost

@@ -423,9 +423,14 @@
       if (k === 'ship' && !seen.pcShip) return say('pcShip', { a: C('SAUCER BITS. SOME PLANETS WILL NOT LET YOU NEAR WITHOUT THE RIGHT ONE. THE STAR MAP SAYS WHICH.') });
       if (k === 'gear' && !seen.pcGear) return say('pcGear', { a: C('BETTER GEAR. DIG FASTER. SELL FASTER. PAY ME FASTER. EVERYONE WINS. MOSTLY ME.') });
     }
+    if (S.app === 'abay' && S.sawLocked && !seen.pcLock) return say('pcLock', {
+      a: C('LOCKED. THE GOOD STUFF ALWAYS IS. YOU UNLOCK IT IN THE BRAIN IN THE JAR, WITH BRAIN POINTS.', 'b'),
+      b: C('ONE POINT FOR EVERY $100 YOU HAND OVER. PAY ME, OR FEED THE BRAIN. I SUGGEST PAYING ME.')
+    });
     if (S.app === 'bank' && S.k >= 1 && !seen.pcBank) return say('pcBank', {
       a: C('MY FAVOURITE PROGRAM. YOU PUT MONEY IN, IT COMES TO ME.', 'b'),
-      b: C('PRESS PAY. ANY AMOUNT. THE BAR FILLS UP. WHEN IT IS FULL YOU ARE FREE. TO GET RICH. TRY.')
+      b: C('PRESS PAY. ANY AMOUNT. THE BAR FILLS UP. WHEN IT IS FULL YOU ARE FREE. TO GET RICH. TRY.', 'c'),
+      c: C('AND FOR EVERY $100 YOU GIVE ME, THE BRAIN GIVES YOU A POINT. I KNOW. I AM TOO GENEROUS.')
     });
   }
 
@@ -729,6 +734,12 @@
 
   /* Every shelf is turned into the same kind of entry, so one grid shows them. */
   function entry(g, kind, id) {
+    const e = entry0(g, kind, id);
+    const node = PD.unlock && PD.unlock.isLocked(g, kind, id) ? PD.unlock.nodeFor(kind, id) : null;
+    if (node && !e.sold && !e.have) { e.locked = node; e.badge = 'LOCKED'; }
+    return e;
+  }
+  function entry0(g, kind, id) {
     if (kind === 'build') {
       const b = PD.buildart.BY[id];
       const have = PD.build.owned(g, id);
@@ -789,9 +800,10 @@
       // a different handful every hour: things you do not have yet
       const hour = Math.floor(Date.now() / 3.6e6);
       const pool = [];
-      for (const b of PD.buildart.LIST) if (!PD.build.owned(g, b.id) && b.where !== 'up') pool.push(['build', b.id]);
-      for (const c of PD.cosm.LIST) if (!PD.cosm.owns(g, c.id)) pool.push(['cosm', c.id]);
-      for (const it of D.SHIP) if (g.shipLvl(it.id) < it.max) pool.push(['ship', it.id]);
+      const L = (k, id) => PD.unlock && PD.unlock.isLocked(g, k, id);
+      for (const b of PD.buildart.LIST) if (!PD.build.owned(g, b.id) && b.where !== 'up' && !L('build', b.id)) pool.push(['build', b.id]);
+      for (const c of PD.cosm.LIST) if (!PD.cosm.owns(g, c.id) && !L('cosm', c.id)) pool.push(['cosm', c.id]);
+      for (const it of D.SHIP) if (g.shipLvl(it.id) < it.max && !L('ship', it.id)) pool.push(['ship', it.id]);
       const pick = [];
       for (let i = 0; i < 12 && pool.length; i++) { const k = Math.floor(U.hash2(hour, i * 7 + 3) * pool.length); pick.push(pool.splice(k, 1)[0]); }
       pick.sort((a, b) => entry(g, a[0], a[1]).price - entry(g, b[0], b[1]).price);
@@ -881,7 +893,8 @@
       // the photo
       rr(ctx, x + 2, y + 2 - lift, cardW - 4, 32, 2, e.kind === 'cosm' ? '#f0f2fa' : e.kind === 'build' ? '#eef4fa' : '#f4f0fa');
       picture(ctx, g, e, x + cardW / 2, y + 18 - lift, 28, t, over || sel);
-      if (e.badge) { const bw2 = F.width(e.badge, 1) + 4; X.rect(ctx, x + 2, y + 2 - lift, bw2, 8, e.on ? T.blue : T.green); F.draw(ctx, e.badge, x + 4, y + 3 - lift, '#ffffff', { shadow: false }); }
+      if (e.locked) { ctx.globalAlpha = 0.55; X.rect(ctx, x + 2, y + 2 - lift, cardW - 4, 32, '#20243a'); ctx.globalAlpha = 1; PD.glyph.draw(ctx, 'lock', x + cardW / 2 - 7, y + 11 - lift, '#ffd34d', '#8a6a1a'); }
+      if (e.badge) { const bw2 = F.width(e.badge, 1) + 4; X.rect(ctx, x + 2, y + 2 - lift, bw2, 8, e.locked ? '#5a4a8a' : (e.on ? T.blue : T.green)); F.draw(ctx, e.badge, x + 4, y + 3 - lift, '#ffffff', { shadow: false }); }
       if (e.deal) { X.rect(ctx, x + cardW - 26, y + 2 - lift, 24, 8, T.red); F.draw(ctx, '-25%', x + cardW - 14, y + 3 - lift, '#ffffff', { center: true, shadow: false }); }
       F.draw(ctx, clip(e.name, Math.floor((cardW - 4) / 6)), x + 3, y + 36 - lift, T.ink, { shadow: false });
       const afford = g.save.credits >= e.price;
@@ -920,6 +933,12 @@
       return;
     }
     if (e.sold) { button(ctx, dx + 5, btY, btW, 13, e.kind === 'build' ? 'BUILT' : 'MAXED OUT', { enabled: false }); return; }
+    if (e.locked) {
+      S.sawLocked = 1;
+      F.draw(ctx, 'NEEDS ' + e.locked.name, dx + 6, btY - 10, '#5a4a8a', { shadow: false });
+      if (button(ctx, dx + 5, btY, btW, 13, 'UNLOCK IN BRAIN', { col: '#5a4a8a' })) toast('LOCKED', 'THE BRAIN IN THE JAR UNLOCKS IT. ' + e.locked.cost + ' PTS.', '#c8a8ff');
+      return;
+    }
     const confirming = sh.confirm > 0 && sh.confirmId === e.id;
     const afford = g.save.credits >= e.price;
     if (button(ctx, dx + 5, btY, btW, 13, !afford ? 'NOT ENOUGH $' : (confirming ? 'SURE? CLICK AGAIN' : 'BUY IT NOW'), { col: confirming ? T.green : T.ylw, ink: confirming ? '#ffffff' : '#3a2a0a', enabled: afford })) {

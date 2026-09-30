@@ -15188,15 +15188,18 @@ window.PD = window.PD || {};
 })(window.PD);
 
 /* ===== src/mind.js ===== */
-/* THE BRAIN IN THE JAR.
+/* THE BRAIN. It used to be a brain in a jar of acid. It has since bought
+   itself a body: BRAINBOT, a big sci-fi robot with the brain under a glass
+   dome for a head, a reactor in its chest, claws, and two glowing eyes that
+   follow whatever you are pointing at.
 
-   A brain in a bucket of acid, wired to a keyboard, sitting in the corner of a
-   very small rock house. It knows everything. It does not want money -- money
-   is for Abay. It wants THOTS, which come out of hitting rocks, and it grows
-   them into you as neurons: rings of nodes around the stem, wired outward, one
-   dendrite at a time.
+   Two trees, on two tabs:
+     BODY     the old neuron lattice, paid for in THOTS (from hitting rocks)
+     UNLOCKS  what ABAY is allowed to sell you, paid for in BRAIN POINTS:
+              one point for every $100 you hand over, to Mr Chum or to the
+              brain itself (the FEED buttons)
 
-   Opened by standing next to the jar and pressing E. ESC closes it. */
+   Opened by standing next to it and pressing E. ESC closes it. */
 (function (PD) {
   'use strict';
   const U = PD.util;
@@ -15205,71 +15208,95 @@ window.PD = window.PD || {};
   const A = PD.audio;
   const G = PD.glyph;
   const X = PD.pxd;
+  const PT = PD.paint;
 
-  const VW = 480, VH = 270;
-  const CX = 240, CY = 132;                      // the stem, on screen
-  const RING = [0, 44, 82, 112];                 // how far out each ring sits
-  const RY = 0.62;                               // the lattice is wider than tall
-
+  const VW = 480, VH = 270, HD = 2;
+  const CX = 318, CY = 124;                      // the neuron lattice's centre
+  const RING = [0, 38, 70, 98];
+  const RY = 0.66;
   const ICON = {
     dig: 'drill', air: 'o2', sack: 'cargo', tough: 'hull', nose: 'scan',
     deep: 'depth', pockets: 'hand', boots: 'speed', haggle: 'sell',
     rich: 'coin', brawn: 'gun', know: 'crew'
   };
+  const HOLO = '#7ef9ff', HOLOD = '#1a6a88';
 
   const S = {
-    backHit: 0,
-    t: 0, sel: 'dig', hover: null, flash: 0, pulses: [], bub: [],
-    line: '', lineT: 0, shake: 0, grew: null, growT: 0
+    backHit: 0, tab: 1,
+    t: 0, sel: 'dig', usel: null, hover: null, flash: 0, pulses: [], bub: [],
+    line: '', lineT: 0, shake: 0, grew: null, growT: 0, zap: 0
   };
-  for (let i = 0; i < 46; i++) {
-    S.bub.push({ x: U.hash2(i, 3), y: U.hash2(i, 7), r: U.hash2(i, 11) > 0.7 ? 2 : 1, sp: 7 + U.hash2(i, 13) * 20 });
-  }
+  for (let i = 0; i < 30; i++) S.bub.push({ x: U.hash2(i, 3), y: U.hash2(i, 7), r: U.hash2(i, 11) > 0.7 ? 2 : 1, sp: 6 + U.hash2(i, 13) * 14 });
 
-  /* Node positions: an angle on a ring, snapped so the wires between them run
-     at clean pixel slopes. */
   function pos(n) {
     if (n.ring === 0) return { x: CX, y: CY };
     const a = (n.a - 90) * Math.PI / 180;
     return { x: Math.round(CX + Math.cos(a) * RING[n.ring]), y: Math.round(CY + Math.sin(a) * RING[n.ring] * RY) };
   }
+  function say(m) { S.line = m; S.lineT = 3.4; }
 
-  function say(m) { S.line = m; S.lineT = 3.2; }
+  /* ------------------------------------------------------ the unlock tree */
+  const ROW0 = 44, ROWH = 22, COL0 = 278, COLW = 54;
+  function uPos(n) {
+    const bi = PD.unlock.BRANCHES.findIndex(b => b.id === n.branch);
+    return { x: COL0 + (n.tier - 1) * COLW, y: ROW0 + bi * ROWH };
+  }
 
   function open(g) {
     g.state = 'mind';
     PD.chum.call(g, 'brain');
-    S.t = 0; S.sel = 'dig'; S.pulses.length = 0; S.flash = 0;
-    S.line = ''; S.lineT = 0;
+    S.t = 0; S.pulses.length = 0; S.flash = 0; S.line = ''; S.lineT = 0;
+    if (!S.usel && PD.unlock) S.usel = PD.unlock.NODES[0].id;
     A.sfx.tone(120, { type: 'sine', to: 380, dur: 0.55, vol: 0.1 });
     A.sfx.tone(380, { type: 'triangle', to: 700, dur: 0.4, vol: 0.05, delay: 0.28 });
+    setTimeout(() => say(S.tab === 1 ? 'I AM BRAINBOT. EVERY $100 YOU GIVE IS A POINT. SPEND THEM.' : 'THOTS IN. SMARTER YOU OUT.'), 400);
   }
-
   function close(g) {
     if (PD.fx.wipeActive()) return;
-    g.wipeTo(CX, CY, '#12503a', () => {
-      g.state = 'home';
-      PD.home.P.lock = 0.3;
-    }, 'static', 0.7);
+    g.wipeTo(240, 135, '#0a1a2a', () => { g.state = 'home'; PD.home.P.lock = 0.3; }, 'static', 0.7);
   }
 
   function buy(g, n) {
     const lvl = g.brain(n.id);
-    if (!g.brainWired(n)) { A.sfx.deny(); S.shake = 0.3; say('NOT PLUGGED IN. WIRE IT TO A NEIGHBOUR.'); return; }
+    if (!g.brainWired(n)) { A.sfx.deny(); S.shake = 0.3; say('NOT PLUGGED IN. WIRE IT TO A NEIGHBOUR FIRST.'); return; }
     if (lvl >= n.max) { A.sfx.deny(); say('THAT ONE IS FULL. YOUR HEAD IS SMALL.'); return; }
     const c = g.brainCost(n.id);
     if (g.save.thots < c) { A.sfx.deny(); S.shake = 0.3; say('NOT ENOUGH THOTS. GO AND HIT A ROCK.'); return; }
     if (!g.brainBuy(n.id)) { A.sfx.deny(); return; }
     if (g.player) { g.player.o2 = Math.min(g.player.o2, g.player.stat('oxygen')); g.player.hull = Math.min(g.player.hull, g.player.stat('hull')); }
-    // the pulse runs out from whichever neighbour is already lit
     const from = n.links.length ? D.NEUR[n.links.find(l => g.brain(l) > 0) || n.links[0]] : null;
     S.pulses.push({ a: from ? pos(from) : { x: CX, y: CY + 40 }, b: pos(n), t: 0 });
-    S.grew = n.id; S.growT = 1;
+    S.grew = n.id; S.growT = 1; S.zap = 0.6;
     say(U.pick(D.BRAIN_LINES));
     A.sfx.tone(200, { type: 'sine', to: 1100, dur: 0.32, vol: 0.11 });
     A.sfx.tone(1100, { type: 'triangle', to: 1700, dur: 0.22, vol: 0.07, delay: 0.22 });
-    PD.fx.flash(0.18, '#4cff9a');
   }
+  function unlockNode(g, n) {
+    const st = PD.unlock.canUnlock(g, n);
+    if (st === 'done') { say('ALREADY UNLOCKED. GO AND BUY IT ON ABAY.'); return; }
+    if (st === 'needs') { A.sfx.deny(); S.shake = 0.3; say('UNLOCK ' + PD.unlock.BY[n.needs].name + ' FIRST.'); return; }
+    if (st === 'poor') { A.sfx.deny(); S.shake = 0.3; say('NEEDS ' + n.cost + ' POINTS. $' + U.fmt(n.cost * 100) + ' OF GIVING.'); return; }
+    PD.unlock.unlock(g, n.id);
+    const p = uPos(n), from = n.needs ? uPos(PD.unlock.BY[n.needs]) : { x: 180, y: 124 };
+    S.pulses.push({ a: from, b: p, t: 0 });
+    S.grew = n.id; S.growT = 1; S.zap = 0.8; S.flash = 0.6;
+    say(U.pick(['UNLOCKED. ABAY HAS IT IN STOCK NOW.', 'NEW STUFF. GO AND SPEND MONEY.', 'THE WAREHOUSE DOORS OPEN. SLOWLY. LOUDLY.']));
+    A.sfx.tone(300, { type: 'square', to: 1200, dur: 0.3, vol: 0.08 });
+    A.sfx.fanfare && A.sfx.fanfare();
+  }
+  function feed(g, amt) {
+    const n = PD.unlock.feed(g, amt);
+    if (!n) { A.sfx.deny(); say('YOU DO NOT HAVE $' + U.fmt(amt) + '. I CHECKED.'); return; }
+    S.zap = 0.5; S.flash = 0.3;
+    say('+' + n + ' POINT' + (n > 1 ? 'S' : '') + '. DELICIOUS MONEY.');
+    A.sfx.tone(600, { type: 'triangle', to: 1300, dur: 0.18, vol: 0.07 });
+  }
+
+  /* ---------------------------------------------------------------- update */
+  const TABS = [{ x: 160, w: 100, name: 'BODY' }, { x: 264, w: 120, name: 'UNLOCKS' }];
+  const FEEDS = [[100, 'FEED $100'], [1000, '$1K'], [10000, '$10K']];
+  function feedBtn(i) { return { x: 160 + i * 60 + (i ? 26 : 0), y: 192, w: i ? 52 : 80, h: 12 }; }
+  function inRect(m, r) { return m.inside && m.x >= r.x && m.x < r.x + r.w && m.y >= r.y && m.y < r.y + r.h; }
 
   function update(dt, g) {
     S.t += dt;
@@ -15277,135 +15304,216 @@ window.PD = window.PD || {};
     S.flash = Math.max(0, S.flash - dt * 3);
     S.shake = Math.max(0, S.shake - dt * 3);
     S.growT = Math.max(0, S.growT - dt * 1.6);
+    S.zap = Math.max(0, S.zap - dt);
     for (let i = S.pulses.length - 1; i >= 0; i--) { S.pulses[i].t += dt * 2.1; if (S.pulses[i].t > 1.4) S.pulses.splice(i, 1); }
-
-    const IN = PD.input;
+    const IN = PD.input, m = IN.mouse;
     if (IN.hit('esc') || IN.hit('KeyQ') || S.backHit) { S.backHit = 0; close(g); return; }
-
-    const m = IN.mouse;
-    const inBack = m.inside && m.x < 96 && m.y < 26;      // the button eats its own click
+    const inBack = m.inside && m.x < 96 && m.y < 26;
+    // tabs
+    if (IN.hit('Tab') || IN.hit('Digit1') || IN.hit('Digit2')) { S.tab = IN.hit('Digit1') ? 0 : IN.hit('Digit2') ? 1 : 1 - S.tab; A.sfx.click(); }
+    for (let i = 0; i < 2; i++) if (m.leftPressed && inRect(m, { x: TABS[i].x, y: 6, w: TABS[i].w, h: 16 })) { S.tab = i; A.sfx.click(); return; }
     S.hover = null;
-    for (const n of D.NEURONS) {
-      const p = pos(n);
-      if (U.dist(m.x, m.y, p.x, p.y) < 13) S.hover = n.id;
+    if (S.tab === 0) {
+      for (const n of D.NEURONS) { const p = pos(n); if (U.dist(m.x, m.y, p.x, p.y) < 12) S.hover = n.id; }
+      const l = D.NEURONS;
+      if (IN.hit('right')) { S.sel = l[(l.findIndex(n => n.id === S.sel) + 1) % l.length].id; A.sfx.click(); }
+      if (IN.hit('left')) { S.sel = l[(l.findIndex(n => n.id === S.sel) + l.length - 1) % l.length].id; A.sfx.click(); }
+      if (S.hover && m.leftPressed && !inBack) { if (S.sel === S.hover) buy(g, D.NEUR[S.hover]); else { S.sel = S.hover; A.sfx.click(); } }
+      if (IN.hit('KeyE') || IN.hit('space') || IN.hit('enter')) buy(g, D.NEUR[S.sel]);
+      return;
     }
-    // the keyboard he cannot use: arrows walk the lattice, E plugs it in
-    if (IN.hit('right') || IN.hit('Tab')) { const l = D.NEURONS; S.sel = l[(l.findIndex(n => n.id === S.sel) + 1) % l.length].id; A.sfx.click(); }
-    if (IN.hit('left')) { const l = D.NEURONS; S.sel = l[(l.findIndex(n => n.id === S.sel) + l.length - 1) % l.length].id; A.sfx.click(); }
-    if (S.hover && m.leftPressed && !inBack) {
-      if (S.sel === S.hover) buy(g, D.NEUR[S.hover]);
-      else { S.sel = S.hover; A.sfx.click(); }
-    }
-    if (IN.hit('KeyE') || IN.hit('space') || IN.hit('enter')) buy(g, D.NEUR[S.sel]);
-  }
-
-  /* ------------------------------------------------------------------- draw */
-  function drawJar(ctx, t) {
-    // the tank, filling the screen: straight glass, acid, a bevelled rim
-    X.rect(ctx, 0, 0, VW, VH, '#0b1a16');
-    const L = 14, R = VW - 14, TOP = 14, BOT = VH - 14;
-    X.rect(ctx, L, TOP, R - L, BOT - TOP, '#12503a');
-    X.rect(ctx, L + 4, TOP + 4, R - L - 8, BOT - TOP - 8, '#1e9e5c');
-    X.rect(ctx, L + 8, TOP + 8, R - L - 16, BOT - TOP - 16, '#177f4c');
-    // bands of settled acid
-    for (let i = 0; i < 7; i++) {
-      ctx.globalAlpha = 0.12;
-      X.dither(ctx, L + 8, TOP + 12 + i * 30, R - L - 16, 14, '#4cff9a', i % 2);
-    }
-    ctx.globalAlpha = 1;
-    // bubbles, in whole-pixel steps
-    for (const b of S.bub) {
-      const y = BOT - 12 - ((b.y * (BOT - TOP - 30) + t * b.sp) % (BOT - TOP - 30));
-      const x = L + 14 + b.x * (R - L - 28) + Math.sin(t * 2 + b.y * 30) * 3;
-      ctx.globalAlpha = 0.5;
-      X.rect(ctx, x, y, b.r * 2, b.r * 2, '#a8ffd0');
-      ctx.globalAlpha = 1;
-    }
-    // glass: highlight down one side, hard rim top and bottom
-    X.rect(ctx, L + 4, TOP + 12, 3, BOT - TOP - 40, '#cdeeff');
-    X.rect(ctx, R - 8, TOP + 24, 2, BOT - TOP - 60, '#7ec0e0');
-    X.rect(ctx, L, TOP - 8, R - L, 9, '#5e6688');
-    X.rect(ctx, L, TOP - 8, R - L, 3, '#9aa3c4');
-    X.rect(ctx, L, BOT, R - L, 10, '#5e6688');
-    X.rect(ctx, L, BOT, R - L, 2, '#9aa3c4');
-    for (let x = L + 6; x < R - 6; x += 22) { X.rect(ctx, x, TOP - 6, 8, 4, '#39405e'); X.rect(ctx, x, BOT + 3, 8, 4, '#39405e'); }
-  }
-
-  /* A BRAIN, filling most of the tank, so the neurons sit ON it rather than
-     floating in the acid beside it. Built out of ridges: rows of bevelled
-     bars, shorter towards the top and bottom, with a hard crease down the
-     middle and a shadow under every fold. No curves, no smoothing. */
-  function drawBrain(ctx, t) {
-    const wob = Math.round(Math.sin(t * 1.3) * 2);
-    const cx = CX, cy = CY + 6 + wob;
-    const RW = 172, RH = 104;                     // half-width, half-height
-    const C1 = '#d64f8a', C2 = '#ff9ecb', C3 = '#8a2a56', C4 = '#5e1638';
-
-    /* The silhouette. The half-width is quantised to eight-pixel steps, so the
-       outline comes out as a stack of facets rather than a smooth curve. */
-    const halfW = (y) => {
-      const f = Math.abs(y) / RH;
-      let w = RW * (1 - f * f * 0.66);
-      if (y < -RH * 0.6) w *= 0.9;                // flatter across the top
-      if (y > RH * 0.62) w *= 0.78;               // tucked under at the base
-      return Math.round(w / 8) * 8;
+    const U2 = PD.unlock;
+    for (const n of U2.NODES) { const p = uPos(n); if (m.x > p.x - 23 && m.x < p.x + 23 && Math.abs(m.y - p.y) < 9) S.hover = n.id; }
+    const cur = U2.BY[S.usel] || U2.NODES[0];
+    const moveTo = (bd, td) => {
+      const bi = U2.BRANCHES.findIndex(b => b.id === cur.branch);
+      if (td) { const row = U2.NODES.filter(n => n.branch === cur.branch); const i = row.indexOf(cur) + td; if (row[i]) S.usel = row[i].id; }
+      if (bd) {
+        for (let k = 1; k < U2.BRANCHES.length; k++) {
+          const b = U2.BRANCHES[(bi + bd * k + U2.BRANCHES.length * 2) % U2.BRANCHES.length];
+          const row = U2.NODES.filter(n => n.branch === b.id);
+          if (row.length) { S.usel = (row.find(n => n.tier === cur.tier) || row[row.length - 1]).id; break; }
+        }
+      }
+      A.sfx.click();
     };
-    for (let y = -RH; y <= RH; y += 4) {
-      const w = halfW(y);
-      X.rect(ctx, cx - w, cy + y, w * 2, 4, C1);
-      X.rect(ctx, cx - w, cy + y, 3, 4, C3);
-      X.rect(ctx, cx + w - 3, cy + y, 3, 4, C4);
+    if (IN.hit('right')) moveTo(0, 1);
+    if (IN.hit('left')) moveTo(0, -1);
+    if (IN.hit('down')) moveTo(1, 0);
+    if (IN.hit('up')) moveTo(-1, 0);
+    if (S.hover && m.leftPressed && !inBack) { if (S.usel === S.hover) unlockNode(g, U2.BY[S.hover]); else { S.usel = S.hover; A.sfx.click(); } }
+    for (let i = 0; i < FEEDS.length; i++) if (m.leftPressed && inRect(m, feedBtn(i))) feed(g, FEEDS[i][0]);
+    if (IN.hit('KeyF')) feed(g, 100);
+    if (IN.hit('KeyE') || IN.hit('space') || IN.hit('enter')) unlockNode(g, U2.BY[S.usel]);
+  }
+
+  /* ------------------------------------------------------------ painting */
+  let BG = null, BOT = null;
+  const METAL = [0x7a86a8, 0xc8d4ee, 0x3e4866, 0x262c44];
+  function paintBG() {
+    if (BG) return BG;
+    const W = VW * HD, H = VH * HD, B = PT.buf(W, H);
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const q = y / H;
+      let c = PT.mix(0x060a1e, 0x10183a, q);
+      const n = U.fbm(x * 0.004, y * 0.006, 3);
+      if (n > 0.56) c = PT.mix(c, 0x1a2a5a, (n - 0.56) * 3);
+      B.set(x, y, c);
     }
-    // a lit rim along the top of the mass
-    for (let y = -RH; y < -RH * 0.2; y += 4) {
-      const w = halfW(y), w2 = halfW(y + 4);
-      if (w2 > w) X.rect(ctx, cx - w2, cy + y + 2, (w2 - w) + 3, 3, C2);
-      if (w2 > w) X.rect(ctx, cx + w - 3, cy + y + 2, (w2 - w) + 3, 3, C2);
+    // a hex grid, faint
+    for (let y = 0; y < H; y += 26) for (let x = (y / 26 % 2) * 15; x < W; x += 30) { B.rect(x, y, 10, 1, 0x1e3a6a, 0.5); B.rect(x - 4, y + 7, 1, 8, 0x1e3a6a, 0.4); }
+    // circuit traces
+    for (let k = 0; k < 18; k++) {
+      let x = U.hash2(k, 1) * W, y = U.hash2(k, 2) * H;
+      for (let s = 0; s < 6; s++) {
+        const hz = s % 2 === 0, len = 20 + U.hash2(k, s + 5) * 90;
+        const nx = hz ? x + (U.hash2(k, s) > 0.5 ? len : -len) : x, ny = hz ? y : y + (U.hash2(k, s + 9) > 0.5 ? len : -len);
+        B.line(x, y, nx, ny, 0x16305a, 2); x = nx; y = ny;
+      }
+      B.disc(x, y, 3, 0x2a5a9a);
     }
-    /* The folds: fat bevelled bars in two fans either side of the crease, each
-       with a lit top and a hard shadow under it. */
-    for (let side = -1; side <= 1; side += 2) {
-      for (let i = 0; i < 7; i++) {
-        const fy = (i / 6) * 1.72 - 0.86;
-        const y = Math.round(cy + fy * (RH - 12)) - 7;
-        // halfW works in offsets from the centre, not screen rows
-        const room = halfW(y + 7 - cy) - 10;
-        const inset = 4 + ((i * 11) % 26);
-        const w = room - inset;
-        if (w < 18) continue;
-        const x = side < 0 ? cx - 6 - w : cx + 6;
-        const h = 15;
-        X.rect(ctx, x, y, w, h, C1);
-        X.rect(ctx, x + 3, y, w - 6, 3, C2);               // lit top of the fold
-        X.rect(ctx, x + 4, y + 3, w - 8, 2, '#ffc4de');
-        X.rect(ctx, x, y + h - 3, w, 3, C3);               // shadow under it
-        X.rect(ctx, side < 0 ? x : x + w - 3, y + 2, 3, h - 4, C3);
-        // a nick out of the end, so no two folds end the same way
-        if (i % 2) X.rect(ctx, side < 0 ? x : x + w - 6, y + 4, 6, 6, C3);
+    // the floor: a lit grating
+    for (let y = H - 50; y < H; y++) for (let x = 0; x < W; x++) B.set(x, y, (x % 16 < 2 || y % 10 < 2) ? 0x0a1224 : PT.mix(0x1a2440, 0x0e1428, (y - H + 50) / 50));
+    B.rect(0, H - 50, W, 2, 0x3a5a9a);
+    BG = B.toCanvas();
+    return BG;
+  }
+  // the robot, anchored at its feet, facing you
+  function paintBot() {
+    if (BOT) return BOT;
+    const W = 150 * HD, H = 250 * HD, B = PT.buf(W, H), c = W / 2;
+    // pedestal
+    B.ellipse(c, H - 16, 120, 14, 0x0e1a34);
+    B.block(c - 90, H - 60, 180, 44, [0x4a5678, 0x7a88aa, 0x262c44], 8, 10);
+    for (let k = 0; k < 7; k++) B.rect(c - 80 + k * 24, H - 42, 14, 4, 0x1a2a4a);
+    // legs, short and piston-y
+    for (const s of [-1, 1]) { B.round(c + s * 40 - 16, H - 110, 32, 56, 8, METAL[2]); B.round(c + s * 40 - 12, H - 108, 24, 50, 6, METAL[0]); B.rect(c + s * 40 - 12, H - 100, 24, 3, METAL[3]); B.rect(c + s * 40 - 12, H - 86, 24, 3, METAL[3]); }
+    // the torso
+    const ty = H - 230;
+    B.poly([[c - 78, ty], [c + 78, ty], [c + 62, ty + 128], [c - 62, ty + 128]], METAL[3]);
+    B.poly([[c - 74, ty + 3], [c + 74, ty + 3], [c + 59, ty + 124], [c - 59, ty + 124]], METAL[0]);
+    B.poly([[c - 74, ty + 3], [c - 40, ty + 3], [c - 30, ty + 124], [c - 59, ty + 124]], METAL[1], 0.45);
+    B.poly([[c + 50, ty + 3], [c + 74, ty + 3], [c + 59, ty + 124], [c + 44, ty + 124]], METAL[2], 0.6);
+    // the chest plate, with the reactor socket in it
+    B.round(c - 44, ty + 18, 88, 72, 12, METAL[2]); B.round(c - 40, ty + 22, 80, 64, 10, 0x1a2240);
+    B.disc(c, ty + 54, 24, METAL[3]); B.disc(c, ty + 54, 20, 0x0a1a2a);
+    for (let k = 0; k < 8; k++) { const a = k / 8 * Math.PI * 2; B.rect(c + Math.cos(a) * 22 - 1, ty + 54 + Math.sin(a) * 22 - 1, 3, 3, METAL[1]); }
+    for (const [x, y] of [[c - 66, ty + 12], [c + 62, ty + 12], [c - 56, ty + 112], [c + 52, ty + 112]]) B.disc(x, y, 3, METAL[1]);
+    B.rect(c - 30, ty + 100, 60, 4, 0xffb03a); B.rect(c - 30, ty + 108, 60, 4, 0x1a2240);
+    // arms
+    for (const s of [-1, 1]) {
+      B.ball(c + s * 86, ty + 16, 22, 20, METAL, true);
+      B.line(c + s * 90, ty + 30, c + s * 110, ty + 90, METAL[3], 20); B.line(c + s * 90, ty + 30, c + s * 110, ty + 90, METAL[0], 14);
+      B.ball(c + s * 110, ty + 92, 12, 12, METAL);
+      B.line(c + s * 110, ty + 96, c + s * 100, ty + 150, METAL[3], 16); B.line(c + s * 110, ty + 96, c + s * 100, ty + 150, METAL[0], 10);
+      // the claw
+      B.poly([[c + s * 90, ty + 150], [c + s * 112, ty + 150], [c + s * 116, ty + 176], [c + s * 104, ty + 166]], METAL[1]);
+      B.poly([[c + s * 90, ty + 150], [c + s * 98, ty + 170], [c + s * 88, ty + 180], [c + s * 84, ty + 160]], METAL[0]);
+    }
+    // neck and the collar the dome sits in
+    B.rect(c - 20, ty - 20, 40, 22, METAL[3]); for (let k = 0; k < 4; k++) B.rect(c - 18, ty - 18 + k * 5, 36, 2, METAL[0]);
+    B.ellipse(c, ty - 22, 86, 18, METAL[3]); B.ellipse(c, ty - 24, 82, 14, METAL[0]); B.ellipse(c, ty - 27, 76, 8, METAL[1], 0.4);
+    // the visor band with the eye sockets (the eyes are drawn live)
+    B.ellipse(c, ty - 14, 58, 9, 0x05080e);
+    // the brain, in the dome
+    const bx = c, by = ty - 104, rx = 64, ry = 56;
+    for (let y = Math.floor(by - ry); y <= by + ry; y++) for (let x = Math.floor(bx - rx); x <= bx + rx; x++) {
+      const dx = (x - bx) / rx, dy = (y - by) / ry;
+      if (dx * dx + dy * dy > 1) continue;
+      const n = U.fbm(x * 0.045, y * 0.045, 3);
+      const ridge = Math.abs(Math.sin(x * 0.16 + n * 10 + Math.sin(y * 0.09) * 2.4));
+      let v = 0.55 - dx * 0.25 - dy * 0.3 - (dx * dx + dy * dy) * 0.25;
+      if (ridge < 0.24) v -= 0.4;
+      else if (ridge > 0.85) v += 0.15;
+      if (Math.abs(x - bx) < 2.5 && dy < 0.7) v = 0.02;
+      const P = [0x6a1a44, 0xb03a70, 0xe06aa0, 0xff9ecb, 0xffd8ea];
+      const f = U.clamp(v, 0, 0.999) * P.length;
+      let k = Math.floor(f); if (f - k > PT.bayer(x, y)) k = Math.min(P.length - 1, k + 1);
+      B.set(x, y, P[k]);
+    }
+    // wires from the brain down into the collar
+    for (const s of [-1, 0, 1]) B.line(bx + s * 24, by + ry - 6, bx + s * 34, ty - 30, 0x2a8ab8, 3);
+    // the glass dome over it
+    const dx0 = c, dy0 = ty - 96, drx = 80, dry = 88;
+    B.ellipse(dx0, dy0, drx, dry, 0x7ef9ff, 0.14);
+    for (let a = Math.PI * 1.05; a < Math.PI * 1.9; a += 0.01) B.rect(dx0 + Math.cos(a) * (drx - 8), dy0 + Math.sin(a) * (dry - 8), 3, 3, 0xffffff, 0.5);
+    for (let a = 0; a < Math.PI * 2; a += 0.005) B.rect(dx0 + Math.cos(a) * drx, dy0 + Math.sin(a) * dry, 2, 2, 0xaef8ff, 0.7);
+    // the antenna
+    B.rect(c - 2, dy0 - dry - 24, 4, 26, METAL[2]); B.ball(c, dy0 - dry - 28, 7, 7, [0xff5a6a, 0xffb0b8, 0x8a1a2a], true);
+    B.rim(0xffffff, -1, -1, 0.25);
+    B.outline(0x04060e);
+    BOT = B.toCanvas();
+    BOT.eyeY = (ty - 14) / HD; BOT.coreY = (ty + 54) / HD; BOT.domeY = dy0 / HD; BOT.antY = (dy0 - dry - 28) / HD;
+    return BOT;
+  }
+
+  /* ------------------------------------------------------------ drawing */
+  function holo(ctx, x, y, w, h, col, a) {
+    ctx.globalAlpha = (a === undefined ? 1 : a) * 0.16; X.rect(ctx, x, y, w, h, col || HOLO);
+    ctx.globalAlpha = (a === undefined ? 1 : a) * 0.9;
+    X.rect(ctx, x, y, w, 1, col || HOLO); X.rect(ctx, x, y + h - 1, w, 1, HOLOD);
+    for (const [cx, cy, dx, dy] of [[x, y, 1, 1], [x + w - 1, y, -1, 1], [x, y + h - 1, 1, -1], [x + w - 1, y + h - 1, -1, -1]]) { X.rect(ctx, dx > 0 ? cx : cx - 4, cy, 5, 1, '#ffffff'); X.rect(ctx, cx, dy > 0 ? cy : cy - 4, 1, 5, '#ffffff'); }
+    ctx.globalAlpha = 1;
+  }
+  function hexChip(ctx, x, y, w, h, fill, edge, glow) {
+    const pts = [[x - w / 2 + 4, y - h / 2], [x + w / 2 - 4, y - h / 2], [x + w / 2, y], [x + w / 2 - 4, y + h / 2], [x - w / 2 + 4, y + h / 2], [x - w / 2, y]];
+    if (glow) PT.glow(ctx, x, y, w * 0.8, edge, 0.35);
+    X.poly(ctx, pts.map(p => [p[0] - 1, p[1] - 1]), edge);
+    X.poly(ctx, pts.map(p => [p[0] - 1, p[1]]), fill);
+  }
+
+  function drawBot(ctx, g, t) {
+    const cv = paintBot();
+    const bx = 8, by = VH - 250 - 4 + Math.round(Math.sin(t * 1.5) * 1.5);
+    ctx.drawImage(cv, bx, by, 150, 250);
+    const c = bx + 75;
+    // bubbles in the dome, a glow round the brain
+    PT.glow(ctx, c, by + cv.domeY + 8, 70, '#ff7ad8', 0.18 + Math.sin(t * 2) * 0.05 + S.flash * 0.3);
+    for (const b of S.bub) {
+      const yy = by + cv.domeY + 38 - ((b.y * 80 + t * b.sp) % 80), xx = c - 34 + b.x * 68 + Math.sin(t * 2 + b.y * 20) * 2;
+      ctx.globalAlpha = 0.5; X.rect(ctx, xx, yy, b.r, b.r, '#d8faff'); ctx.globalAlpha = 1;
+    }
+    // the reactor in its chest
+    const pulse = 0.6 + Math.sin(t * 4) * 0.25 + S.zap;
+    PT.glow(ctx, c, by + cv.coreY, 26, '#7ef9ff', 0.5 * pulse);
+    X.blob(ctx, c, by + cv.coreY, 8, 8, '#2ad8ff'); X.blob(ctx, c, by + cv.coreY, 5, 5, '#c8faff');
+    // the eyes: they look at whatever you are pointing at
+    const m = PD.input.mouse;
+    const lx = U.clamp((m.x - c) * 0.02, -4, 4), ly = U.clamp((m.y - (by + cv.eyeY)) * 0.02, -1, 1.5);
+    const blink = Math.sin(t * 0.8) > 0.97;
+    for (const s of [-1, 1]) {
+      const ex = c + s * 16 + lx, ey = by + cv.eyeY + ly;
+      PT.glow(ctx, ex, ey, 10, '#7ef9ff', 0.6);
+      if (blink) X.rect(ctx, ex - 5, ey, 10, 1, '#7ef9ff');
+      else { X.blob(ctx, ex, ey, 5, 3.2, '#2ad8ff'); X.blob(ctx, ex, ey, 2.5, 1.8, '#ffffff'); }
+    }
+    // collar lights
+    for (let k = 0; k < 7; k++) { const on = Math.floor(t * 6 + k) % 7 === 0; X.rect(ctx, c - 30 + k * 10, by + cv.eyeY - 13, 3, 2, on ? '#ffd34d' : '#5a4a2a'); }
+    // the antenna sparks, and zaps when something is bought
+    const ay = by + cv.antY;
+    PT.glow(ctx, c, ay, 10, '#ff5a6a', 0.5 + Math.sin(t * 6) * 0.3);
+    if (S.zap > 0 || Math.sin(t * 1.3) > 0.98) {
+      for (let k = 0; k < 3; k++) {
+        let x = c, y = ay;
+        const tx = c + (k - 1) * 40 + U.rand(-10, 10), ty = ay + U.rand(20, 60);
+        for (let s = 0; s < 5; s++) { const nx = U.lerp(x, tx, 0.3) + U.rand(-6, 6), ny = U.lerp(y, ty, 0.3); X.line(ctx, x, y, nx, ny, '#c8faff'); x = nx; y = ny; }
       }
     }
-    // the crease
-    X.rect(ctx, cx - 4, cy - RH + 6, 9, RH * 2 - 12, C4);
-    X.rect(ctx, cx - 1, cy - RH + 8, 3, RH * 2 - 16, C3);
-    // the stem, running down out of the bottom of the picture
-    X.rect(ctx, cx - 12, cy + RH - 10, 25, 60, C3);
-    X.rect(ctx, cx - 7, cy + RH - 8, 9, 58, C1);
-    X.rect(ctx, cx - 18, cy + RH + 14, 37, 10, C4);
-    // one eye, grown on the side of it, which is watching you
-    const ex = cx + Math.round(RW * 0.56), ey = cy - RH + 30;
-    const blink = Math.sin(t * 0.6) > 0.96;
-    X.plate(ctx, ex - 13, ey - (blink ? 2 : 11), 26, blink ? 4 : 22, '#ffffff', '#ffffff', '#c4b0c0', 5);
-    if (!blink) {
-      const look = Math.round(Math.sin(t * 0.9) * 4);
-      X.oct(ctx, ex + look, ey, 7, '#151233', null);
-      X.rect(ctx, ex + look - 4, ey - 4, 3, 3, '#ffffff');
+    // what it is saying
+    if (S.lineT > 0) {
+      const lines = wrap(S.line, 22);
+      const w = 22 * 6 + 12, h = lines.length * 9 + 8, x = 12, y = 30;
+      ctx.globalAlpha = Math.min(1, S.lineT * 2);
+      holo(ctx, x, y, w, h, '#ff9ad8');
+      lines.forEach((l, i) => F.draw(ctx, l, x + 6, y + 4 + i * 9, '#ffd8ee', { shadow: false }));
+      ctx.globalAlpha = 1;
     }
-    // and a few veins, because it is alive and it wants you to know
-    for (let i = 0; i < 5; i++) {
-      const vy = cy - RH + 20 + i * 42;
-      X.curve(ctx, cx - RW + 10, vy, cx - RW * 0.4, vy + 14, cx - 20, vy + 4, '#b03a70', 1, 8);
-      X.curve(ctx, cx + RW - 10, vy + 20, cx + RW * 0.4, vy + 30, cx + 20, vy + 22, '#b03a70', 1, 8);
-    }
+  }
+  function wrap(str, n) {
+    const out = []; let line = '';
+    for (const w of String(str).split(' ')) { if ((line + ' ' + w).trim().length > n) { out.push(line); line = w; } else line = (line + ' ' + w).trim(); }
+    if (line) out.push(line);
+    return out;
   }
 
   function nodeState(g, n) {
@@ -15415,102 +15523,138 @@ window.PD = window.PD || {};
     return g.save.thots >= g.brainCost(n.id) ? 'ready' : 'poor';
   }
 
-  function draw(ctx, g, t) {
-    drawJar(ctx, t);
-    const sh = S.shake > 0 ? Math.round(Math.sin(t * 70) * S.shake * 8) : 0;
-    ctx.save();
-    ctx.translate(sh, 0);
-    drawBrain(ctx, t);
-
-    // the dendrites first, so the nodes sit on top of them
+  function drawBody(ctx, g, t) {
+    holo(ctx, 164, 26, 308, 172, HOLO, 0.6);
     for (const n of D.NEURONS) {
       const p = pos(n);
       for (const l of n.links) {
         const q = pos(D.NEUR[l]);
         const live = g.brain(n.id) > 0 && g.brain(l) > 0;
-        const half = !live && (g.brain(l) > 0 || g.brain(n.id) > 0);
-        X.line(ctx, q.x, q.y, p.x, p.y, live ? '#8affd0' : (half ? '#3f8f6e' : '#1d5c46'), live ? 2 : 1);
-        if (live) {
-          // a signal crawling along a wire that is plugged in at both ends
-          const f = ((t * 0.5 + (p.x + q.x) * 0.01) % 1);
-          X.rect(ctx, U.lerp(q.x, p.x, f), U.lerp(q.y, p.y, f), 3, 3, '#eafff4');
-        }
+        X.line(ctx, q.x, q.y, p.x, q.y, live ? '#7ef9ff' : '#1e4a6a', live ? 2 : 1);
+        X.line(ctx, p.x, q.y, p.x, p.y, live ? '#7ef9ff' : '#1e4a6a', live ? 2 : 1);
+        if (live) { const f = ((t * 0.6 + (p.x + q.x) * 0.01) % 1); const mx = f < 0.5 ? U.lerp(q.x, p.x, f * 2) : p.x, my = f < 0.5 ? q.y : U.lerp(q.y, p.y, (f - 0.5) * 2); X.rect(ctx, mx - 1, my - 1, 3, 3, '#ffffff'); }
       }
     }
-    // the pulse from a fresh purchase
-    for (const p of S.pulses) {
-      const f = U.clamp(p.t, 0, 1);
-      X.line(ctx, p.a.x, p.a.y, U.lerp(p.a.x, p.b.x, f), U.lerp(p.a.y, p.b.y, f), '#ffffff', 3);
-      X.ring(ctx, U.lerp(p.a.x, p.b.x, f), U.lerp(p.a.y, p.b.y, f), 4 + f * 8, '#eafff4', 1);
-    }
-
+    for (const p of S.pulses) { const f = U.clamp(p.t, 0, 1); X.line(ctx, p.a.x, p.a.y, U.lerp(p.a.x, p.b.x, f), U.lerp(p.a.y, p.b.y, f), '#ffffff', 3); }
     for (const n of D.NEURONS) {
-      const p = pos(n);
-      const lvl = g.brain(n.id);
-      const st = nodeState(g, n);
-      const on = lvl > 0;
-      const sel = S.sel === n.id;
+      const p = pos(n), lvl = g.brain(n.id), st = nodeState(g, n), on = lvl > 0, sel = S.sel === n.id;
       const grow = S.grew === n.id ? S.growT : 0;
-      const r = 11 + (sel ? 1 : 0) + Math.round(grow * 5);
-      const face = st === 'dead' ? '#243a4a' : (on ? '#186b4e' : '#1b3a44');
-      const edge = st === 'ready' ? '#ffd34d' : (on ? '#8affd0' : '#5f8f9e');
-      X.oct(ctx, p.x + 1, p.y + 2, r + 1, 'rgba(4,10,14,0.6)', null);
-      X.oct(ctx, p.x, p.y, r, face, edge, sel ? 2 : 1);
-      if (on) X.oct(ctx, p.x, p.y, r - 4, '#2fbf7a', null);
-      G.draw(ctx, ICON[n.id] || 'hex', p.x - 7, p.y - 7,
-        st === 'dead' ? '#4a6a7a' : (on ? '#eafff4' : '#a8d8e0'), on ? '#8affd0' : '#5f8f9e');
-      // the level, as pips round the rim
-      for (let i = 0; i < n.max; i++) {
-        const a = -Math.PI / 2 + (i / n.max) * Math.PI * 2;
-        const px = Math.round(p.x + Math.cos(a) * (r + 4)), py = Math.round(p.y + Math.sin(a) * (r + 4));
-        X.rect(ctx, px - 1, py - 1, 2, 2, i < lvl ? '#ffd34d' : '#1d5c46');
-      }
-      if (sel) {
-        const k = Math.round(Math.abs(Math.sin(t * 4)) * 2);
-        X.rect(ctx, p.x - 2, p.y - r - 8 - k, 4, 4, '#ffd34d');
-      }
+      const w = 28 + grow * 8, h = 18 + grow * 4;
+      const edge = st === 'ready' ? '#ffd34d' : on ? '#7ef9ff' : st === 'dead' ? '#2a3a5a' : '#4a7a9a';
+      hexChip(ctx, p.x, p.y, w, h, on ? '#0e4a5a' : '#0a1a2e', edge, sel || st === 'ready');
+      G.draw(ctx, ICON[n.id] || 'star', p.x - 7, p.y - 7, st === 'dead' ? '#3a5a6a' : on ? '#eafff4' : '#9ad8e8', on ? '#7ef9ff' : '#4a7a9a');
+      for (let i = 0; i < n.max; i++) X.rect(ctx, p.x - n.max * 1.5 + i * 3, p.y + h / 2 + 2, 2, 2, i < lvl ? '#ffd34d' : '#1e3a5a');
+      if (sel) { const k = Math.round(Math.abs(Math.sin(t * 4)) * 2); X.frame(ctx, p.x - w / 2 - 3 - k, p.y - h / 2 - 3 - k, w + 6 + k * 2, h + 6 + k * 2, '#ffd34d'); }
     }
+    // the chosen one
+    const n = D.NEUR[S.sel], lvl = g.brain(n.id), st = nodeState(g, n), cost = g.brainCost(n.id);
+    holo(ctx, 164, 206, 308, 56, HOLO);
+    F.draw(ctx, n.name, 172, 212, '#ffffff', { scale: 2, shadow: false });
+    F.draw(ctx, n.blurb, 172, 230, '#9ad8e8', { shadow: false });
+    F.draw(ctx, 'NEXT: ' + n.show(Math.min(n.max, lvl + 1)) + '   ' + lvl + '/' + n.max, 172, 241, '#7ef9ff', { shadow: false });
+    const lab = st === 'full' ? 'FULL' : st === 'dead' ? 'NOT WIRED' : (st === 'ready' ? 'E: GROW  ' : 'NEED ') + cost + ' THOTS';
+    F.draw(ctx, lab, 464, 252, st === 'ready' ? '#ffd34d' : '#ff9ad8', { right: true, shadow: false });
+  }
+
+  function thumb(ctx, kind, id, x, y, s, t) {
+    if (kind === 'build') {
+      const b = PD.buildart.BY[id];
+      const cv = b.where === 'up' ? (b.up === 'house' ? PD.home.API.artHouse(b.tier) : PD.home.API.artBed(b.tier)) : PD.buildart.art(id);
+      if (!cv) return;
+      const w = cv.width / HD, h = cv.height / HD, k = Math.min(s / w, s / h) * 1.3;
+      ctx.drawImage(cv, x - w * k / 2, y - h * k / 2, w * k, h * k);
+    } else if (kind === 'cosm') PD.cosm.icon(ctx, id, x, y, s, t);
+    else { X.blob(ctx, x, y, s * 0.4, s * 0.4, '#ff5a6a'); F.draw(ctx, D.SHIPX[id].name.slice(0, 2), x, y - 3, '#ffffff', { center: true, shadow: false }); }
+  }
+  function itemName(kind, id) {
+    if (kind === 'build') return PD.buildart.BY[id].name;
+    if (kind === 'cosm') return PD.cosm.BY[id].name;
+    return D.SHIPX[id].name;
+  }
+
+  function drawUnlocks(ctx, g, t) {
+    const U2 = PD.unlock;
+    holo(ctx, 164, 26, 308, 160, HOLO, 0.6);
+    // the root, and the traces out to each branch
+    const root = { x: 180, y: 110 };
+    hexChip(ctx, root.x, root.y, 26, 18, '#0e4a5a', '#7ef9ff', true);
+    F.draw(ctx, 'CORE', root.x, root.y - 3, '#ffffff', { center: true, shadow: false });
+    U2.BRANCHES.forEach((b, i) => {
+      const y = ROW0 + i * ROWH;
+      X.line(ctx, root.x + 12, root.y, 198, root.y, '#1e4a6a');
+      X.line(ctx, 198, root.y, 198, y, '#1e4a6a');
+      X.line(ctx, 198, y, COL0 - 24, y, '#1e4a6a');
+      F.draw(ctx, b.name, 202, y - 8, b.col, { shadow: false });
+      const row = U2.NODES.filter(n => n.branch === b.id);
+      for (let k = 1; k < row.length; k++) {
+        const a = uPos(row[k - 1]), c = uPos(row[k]);
+        const live = U2.has(g, row[k - 1].id) && U2.has(g, row[k].id);
+        X.line(ctx, a.x + 23, a.y, c.x - 23, c.y, live ? b.col : '#1e4a6a', live ? 2 : 1);
+      }
+    });
+    for (const p of S.pulses) { const f = U.clamp(p.t, 0, 1); X.line(ctx, p.a.x, p.a.y, U.lerp(p.a.x, p.b.x, f), U.lerp(p.a.y, p.b.y, f), '#ffffff', 3); }
+    for (const n of U2.NODES) {
+      const p = uPos(n), st = U2.canUnlock(g, n), sel = S.usel === n.id, grow = S.grew === n.id ? S.growT : 0;
+      const edge = st === 'done' ? n.col : st === 'ready' ? '#ffd34d' : st === 'poor' ? '#4a7a9a' : '#243a5a';
+      hexChip(ctx, p.x, p.y, 46 + grow * 6, 16 + grow * 3, st === 'done' ? '#123a4a' : '#0a1a2e', edge, sel || st === 'ready');
+      if (st === 'done') F.draw(ctx, U2.ROMAN[n.tier], p.x, p.y - 3, '#ffffff', { center: true, shadow: false });
+      else if (st === 'needs') G.draw(ctx, 'lock', p.x - 7, p.y - 7, '#3a5a7a', '#243a5a');
+      else F.draw(ctx, n.cost + 'P', p.x, p.y - 3, st === 'ready' ? '#ffd34d' : '#6a9ab8', { center: true, shadow: false });
+      if (sel) { const k = Math.round(Math.abs(Math.sin(t * 4)) * 2); X.frame(ctx, p.x - 26 - k, p.y - 11 - k, 52 + k * 2, 22 + k * 2, '#ffd34d'); }
+    }
+    // feed the brain
+    for (let i = 0; i < FEEDS.length; i++) {
+      const r = feedBtn(i), over = inRect(PD.input.mouse, r);
+      hexChip(ctx, r.x + r.w / 2, r.y + r.h / 2, r.w, r.h, over ? '#1a5a3a' : '#0e2a24', '#8affa0', over);
+      F.draw(ctx, FEEDS[i][1], r.x + r.w / 2, r.y + 3, '#caffd8', { center: true, shadow: false });
+    }
+    F.draw(ctx, '$100 = 1 POINT', 468, 195, '#6a9ab8', { right: true, shadow: false });
+    // the chosen node
+    const n = U2.BY[S.usel] || U2.NODES[0], st = U2.canUnlock(g, n);
+    holo(ctx, 164, 206, 308, 56, n.col);
+    F.draw(ctx, n.name, 172, 211, '#ffffff', { scale: 2, shadow: false });
+    F.draw(ctx, n.items.length + ' THINGS ON ABAY', 172, 228, n.col, { shadow: false });
+    const shown = n.items.slice(0, 7);
+    shown.forEach(([k, id], i) => thumb(ctx, k, id, 180 + i * 22, 248, 18, t));
+    if (shown.length) F.draw(ctx, itemName(shown[0][0], shown[0][1]) + (n.items.length > 1 ? ' AND MORE' : ''), 336, 228, '#9ad8e8', { shadow: false });
+    const lab = st === 'done' ? 'UNLOCKED' : st === 'needs' ? 'NEEDS ' + U2.BY[n.needs].name : (st === 'ready' ? 'E: UNLOCK  ' : 'NEED ') + n.cost + ' POINTS';
+    F.draw(ctx, lab, 464, 252, st === 'ready' ? '#ffd34d' : st === 'done' ? '#8affa0' : '#ff9ad8', { right: true, shadow: false });
+  }
+
+  function draw(ctx, g, t) {
+    ctx.drawImage(paintBG(), 0, 0, VW, VH);
+    const sh = S.shake > 0 ? Math.round(Math.sin(t * 70) * S.shake * 8) : 0;
+    ctx.save(); ctx.translate(sh, 0);
+    drawBot(ctx, g, t);
+    // the tabs and what you have to spend
+    for (let i = 0; i < 2; i++) {
+      const T = TABS[i], on = S.tab === i;
+      hexChip(ctx, T.x + T.w / 2, 14, T.w, 16, on ? '#123a4a' : '#0a1424', on ? '#7ef9ff' : '#2a4a6a', on);
+      F.draw(ctx, i === 0 ? 'BODY ' + U.fmt(g.save.thots) + ' THOTS' : 'UNLOCKS ' + U.fmt((g.save.sp || 0)) + ' PTS', T.x + T.w / 2, 11, on ? '#ffffff' : '#6a9ab8', { center: true, shadow: false });
+    }
+    F.draw(ctx, 'TAB: SWITCH', 470, 11, '#3a6a8a', { right: true, shadow: false });
+    if (S.tab === 0) drawBody(ctx, g, t); else drawUnlocks(ctx, g, t);
     ctx.restore();
-
-    /* ------------------------------------------------------------ the panels
-       Two, and no more. A chip with the number on it, and one slim bar naming
-       what is selected. The brain only speaks when it has been prodded. */
-    X.plate(ctx, 18, 20, 86, 18, '#241f36', '#4a4260', '#120e1c', 4);
-    G.draw(ctx, 'star', 22, 22, '#4cff9a', '#1e9e5c');
-    F.draw(ctx, U.fmt(g.save.thots), 42, 25, '#8affd0');
-
-    const n = D.NEUR[S.sel];
-    const lvl = g.brain(n.id);
-    const st = nodeState(g, n);
-    const cost = g.brainCost(n.id);
-    X.plate(ctx, 18, VH - 36, VW - 36, 24, '#241f36', '#4a4260', '#120e1c', 4);
-    F.draw(ctx, n.name, 26, VH - 29, '#ffe9a8');
-    F.draw(ctx, n.show(Math.min(n.max, lvl + 1)), 26, VH - 20, '#8affd0', { shadow: false });
-    F.draw(ctx, lvl + '/' + n.max, VW - 96, VH - 29, '#c9bce8', { right: true });
-    if (st === 'full') F.draw(ctx, 'FULL', VW - 26, VH - 25, '#ffd34d', { right: true });
-    else if (st === 'dead') F.draw(ctx, 'LOCKED', VW - 26, VH - 25, '#ff8ad8', { right: true });
-    else {
-      const can = st === 'ready';
-      G.draw(ctx, 'star', VW - 84, VH - 31, can ? '#4cff9a' : '#5a6a62', '#1e9e5c');
-      F.draw(ctx, String(cost), VW - 64, VH - 29, can ? '#ffd34d' : '#8a5a5a');
-      F.draw(ctx, can ? 'E' : '--', VW - 26, VH - 30, can ? '#8affa0' : '#8a5a5a', { right: true, scale: 2 });
-    }
-
-    // whatever it is currently saying, and only when it has something to say
-    if (S.lineT > 0) {
-      const w = F.width(S.line, 1) + 16;
-      const bx = U.clamp(CX + 96, 20, VW - w - 20), by = 22;
-      ctx.globalAlpha = Math.min(1, S.lineT * 1.6);
-      X.plate(ctx, bx, by, w, 18, '#3a1f36', '#6a3f5c', '#1a0e18', 4);
-      F.draw(ctx, S.line, bx + 8, by + 5, '#ffb0d6', { shadow: false });
-      X.rect(ctx, bx + 10, by + 18, 6, 4, '#3a1f36');
-      ctx.globalAlpha = 1;
-    }
-    // the way out, for anyone without an escape key
+    // scanlines over the whole hologram
+    ctx.globalAlpha = 0.07;
+    for (let y = (Math.floor(t * 20) % 3); y < VH; y += 3) X.rect(ctx, 160, y, VW - 160, 1, '#7ef9ff');
+    ctx.globalAlpha = 1;
+    if (S.flash > 0) { ctx.globalAlpha = S.flash * 0.25; X.rect(ctx, 0, 0, VW, VH, '#7ef9ff'); ctx.globalAlpha = 1; }
     if (PD.ui.backBtn(ctx, 'THE ROOM', t)) S.backHit = 1;
   }
 
-  PD.mind = { open, close, update, draw, S };
+  // a small BRAINBOT for the corner of the cave, feet at (x, y)
+  function drawMini(ctx, x, y, t) {
+    const cv = paintBot(), k = 0.32, w = 150 * k, h = 250 * k, by = y - h + Math.round(Math.sin(t * 1.5));
+    ctx.drawImage(cv, Math.round(x - w / 2), Math.round(by), w, h);
+    PT.glow(ctx, x, by + cv.domeY * k, 22, '#ff7ad8', 0.25);
+    PT.glow(ctx, x, by + cv.coreY * k, 8, '#7ef9ff', 0.5 + Math.sin(t * 4) * 0.2);
+    const blink = Math.sin(t * 0.8) > 0.97;
+    for (const s of [-1, 1]) X.rect(ctx, x + s * 5 - 1, by + cv.eyeY * k - (blink ? 0 : 1), 3, blink ? 1 : 2, '#aef8ff');
+    X.rect(ctx, x - 1, by + cv.antY * k - 1, 2, 2, Math.sin(t * 6) > 0 ? '#ff5a6a' : '#6a1a2a');
+  }
+
+  PD.mind = { open, close, update, draw, drawMini, S };
 })(window.PD);
 
 /* ===== src/mall.js ===== */
@@ -16741,7 +16885,7 @@ window.PD = window.PD || {};
   /* Inside. */
   const IN_SPOTS = [
     { id: 'pc', x: 70, r: 28, name: 'THE LAPTOP', sub: 'ABAY IS ON IT' },
-    { id: 'brain', x: 150, r: 26, name: 'THE BRAIN IN THE JAR', sub: 'IT KNOWS THINGS. BUY SOME' },
+    { id: 'brain', x: 150, r: 26, name: 'BRAINBOT', sub: 'SKILLS AND UNLOCKS' },
     { id: 'bed', x: 224, r: 28, name: 'THE BED', sub: 'IT IS A BOX. SLEEP ON IT' },
     { id: 'exit', x: 300, r: 20, name: 'THE WAY OUT', sub: 'BACK OUTSIDE' }
   ];
@@ -17225,10 +17369,12 @@ window.PD = window.PD || {};
     if (CUT()) return [];
     if (S.scene === 'in') {
       const out = g.save.pet ? IN_SPOTS.slice() : IN_SPOTS.concat([RAT_SPOT]);
+      if (g.save.pet) out.push(ratSpot());
       if (PD.build) for (const s of PD.build.spots(g, 'in')) out.push(s);
       return out;
     }
     const out = OUT_SPOTS.slice();
+    if (g.save.pet) out.push(ratSpot());
     for (let i = 0; i < TRASH.length; i++) {
       if (cleaned(g, i)) continue;
       out.push({ id: 'trash', i, x: TRASH[i].x, r: 16, name: TRASH_NAMES[TRASH[i].k], sub: 'CLEAN IT UP' });
@@ -17237,6 +17383,7 @@ window.PD = window.PD || {};
     if (PD.build) for (const s of PD.build.spots(g, 'out')) out.push(s);
     return out;
   }
+  function ratSpot() { const h = PD.rat.held(rat); return { id: 'rat', x: h ? P.x : rat.x, r: h ? 30 : 16, name: 'BRENDA', sub: h ? 'THROW HIM' : 'PICK HIM UP' }; }
   function nearest(g) {
     let best = null, bd = 1e9;
     for (const s of spots(g)) {
@@ -17257,7 +17404,7 @@ window.PD = window.PD || {};
     if (s.id === 'pc') { P.lock = 1; g.wipeTo(fx2, fy2, '#1b2430', () => { g.state = 'desk'; PD.desk.enter(g); }, 'bars'); return; }
     if (s.id === 'brain') { P.lock = 1; g.wipeTo(fx2, fy2, '#12503a', () => { PD.mind.open(g); }, 'static', 0.7); return; }
     if (s.id === 'bed') { sleep(g); return; }
-    if (s.id === 'rat') { feedRat(g); return; }
+    if (s.id === 'rat') { if (g.save.pet) PD.rat.toggleHold(g, rat, { P }); else feedRat(g); return; }
     if (s.id === 'trash') { sweep(g, s.i); return; }
     if (s.id === 'board') { if (PD.story) PD.story.talkChum(g, 'board'); return; }
     if (PD.build && PD.build.use(g, s)) return;
@@ -17470,13 +17617,8 @@ window.PD = window.PD || {};
       if (U.chance(dt * 1.4)) { rat.chew = 0.3; A.sfx.tone(240, { type: 'square', dur: 0.03, vol: 0.02 }); }
       return;
     }
-    const want = P.x - P.face * 26;
-    const d = want - rat.x;
-    if (Math.abs(d) > 14) { rat.vx = U.damp(rat.vx, U.clamp(d * 2.6, -130, 130), 0.14, dt); rat.face = Math.sign(rat.vx) || rat.face; }
-    else rat.vx = U.damp(rat.vx, 0, 0.3, dt);
-    rat.x += rat.vx * dt;
-    if (S.scene === 'in') rat.x = U.clamp(rat.x, 10, IN_W - 10);
-    rat.hop = Math.abs(rat.vx) > 12 ? (rat.hop + dt * 9) : U.damp(rat.hop, 0, 0.2, dt);
+    PD.rat.update(dt, g, rat, { P, dist: S.scene === 'out' ? wdist : (a, b) => a - b, scene: S.scene, IN_W });
+    if (S.scene === 'out') rat.x = wrap(rat.x);
     rat.y = groundY(rat.x);
   }
 
@@ -17689,9 +17831,9 @@ window.PD = window.PD || {};
     X.rect(ctx, lx - 20 + (t * 10) % 18, FLOOR - 33, 3, 1, '#9dffb0');
     // the jar, bubbling
     const jx = IN_SPOTS[1].x - cam;
-    ctx.globalAlpha = 0.3; PT.glow(ctx, jx, FLOOR - 30, 40, '#4cff9a', 0.4); ctx.globalAlpha = 1;
-    X.blob(ctx, jx, FLOOR + 2, 26, 4, '#1a2a20');
-    AH.blit(ctx, AH.S.brainjar, Math.floor(t * 2.4) % 3, jx, FLOOR + 2);
+    ctx.globalAlpha = 0.3; PT.glow(ctx, jx, FLOOR - 40, 44, '#7ef9ff', 0.4); ctx.globalAlpha = 1;
+    X.blob(ctx, jx, FLOOR + 2, 26, 4, '#0a1424');
+    PD.mind.drawMini(ctx, jx, FLOOR + 3, t);
     // a candle in a jar, and a drip off the roof
     X.rect(ctx, 256 - cam, FLOOR - 10, 6, 10, 'rgba(200,230,255,0.4)'); X.rect(ctx, 258 - cam, FLOOR - 8, 2, 6, '#f0e8d0');
     X.blob(ctx, 259 - cam, FLOOR - 11 - Math.abs(Math.sin(t * 9)) * 0.8, 1.2, 2, '#ffb040');
@@ -17708,17 +17850,7 @@ window.PD = window.PD || {};
     ctx.fillStyle = vg; ctx.fillRect(0, 0, VW, VH);
   }
 
-  function drawRatHere(ctx, g, t) {
-    const spr = g.save.pet ? AH.S.ratFed : AH.S.rat;
-    const bounce = g.save.pet ? Math.abs(Math.sin(rat.hop)) * 9 : 0;
-    const sq = 1 + Math.cos(rat.hop * 2) * 0.14 * (bounce > 0.5 ? 1 : 0);
-    const f = rat.chew > 0 ? 1 : (Math.sin(t * 3) > 0 ? 0 : 1);
-    ctx.save();
-    ctx.translate(0, Math.round(-bounce));
-    ctx.scale((rat.face < 0 ? -1 : 1) / sq, sq);
-    ctx.drawImage(spr.frames[f], -spr.ox, -spr.oy, spr.w, spr.h);
-    ctx.restore();
-  }
+  function drawRatHere(ctx, g, t) { PD.rat.draw(ctx, g, rat, t, !!g.save.pet); }
 
   /* YOU. The rig, the squash, the hat. */
   function drawPlayerAt(ctx, g, x, gy, t) {
@@ -18850,6 +18982,379 @@ window.PD = window.PD || {};
   }
 
   PD.cosm = { LIST: L, COLOURS, BY, SLOTS, SLOT_NAME, st, owns, wearing, buy, wear, art, icon, drawOnPlayer, drawBehind, petStep, drawPet, OFF, PET };
+})(window.PD);
+
+/* ===== src/unlock.js ===== */
+/* UNLOCK: the skill tree that decides what ABAY will sell you.
+
+   Everything cheap is on the shelves from the start. Everything else sits
+   behind a node in the brain's UNLOCK tree, one branch per department and
+   four tiers down each: INDUSTRY, FUN, NATURE, DECOR, HOME, STYLE and SHIP.
+
+   Nodes cost BRAIN POINTS. You get one for every $100 you hand over: paying
+   Mr Chum counts, and so does feeding money straight into the brain.
+
+   Save: g.save.sp (points), g.save.spFrac (dollars towards the next one),
+         g.save.unl = { nodeId: 1 } */
+(function (PD) {
+  'use strict';
+  const D = PD.data;
+  const BA = PD.buildart;
+  const PER = 100;                                   // dollars for one point
+  const COST = [0, 10, 40, 150, 600];                // points for each tier
+  const ROMAN = ['', 'I', 'II', 'III', 'IV'];
+
+  const BRANCHES = [
+    { id: 'INDUSTRY', name: 'INDUSTRY', col: '#ffb03a' },
+    { id: 'FUN', name: 'FUN', col: '#ff7ad8' },
+    { id: 'NATURE', name: 'NATURE', col: '#8affa0' },
+    { id: 'DECOR', name: 'DECOR', col: '#c8a8ff' },
+    { id: 'HOME', name: 'HOME', col: '#ffd34d' },
+    { id: 'STYLE', name: 'STYLE', col: '#7ef9ff' },
+    { id: 'SHIP', name: 'SAUCER', col: '#ff5a6a' }
+  ];
+  const SHIP_TIER = { armour: 0, magnet: 0, radar: 0, laser: 1, bubble: 1, ice: 2, turbo: 2, heat: 3 };
+
+  function tierByPrice(p, style) {
+    const T = style ? [2000, 15000, 60000, 300000] : [3000, 20000, 100000, 500000];
+    for (let i = 0; i < T.length; i++) if (p <= T[i]) return i;
+    return 4;
+  }
+  /* Where any shop item sits: [branch, tier]. */
+  function place(kind, id) {
+    if (kind === 'build') {
+      const b = BA.BY[id];
+      if (!b) return null;
+      const br = b.cat === 'FURNITURE' ? 'HOME' : b.cat;
+      return [br, b.where === 'up' ? Math.min(4, b.tier) : tierByPrice(b.price)];
+    }
+    if (kind === 'cosm') {
+      const c = PD.cosm && PD.cosm.BY[id];
+      return c ? ['STYLE', tierByPrice(c.price, true)] : null;
+    }
+    if (kind === 'ship') return ['SHIP', SHIP_TIER[id] || 0];
+    return null;
+  }
+
+  // the nodes, built from whatever tiers actually have something in them
+  const NODES = [], BY = {}, ITEMS = {};
+  function addItem(kind, id) {
+    const p = place(kind, id);
+    if (!p || p[1] === 0) return;
+    const key = p[0] + p[1];
+    (ITEMS[key] = ITEMS[key] || []).push([kind, id]);
+  }
+  for (const b of BA.LIST) addItem('build', b.id);
+  if (PD.cosm) { for (const c of PD.cosm.LIST) addItem('cosm', c.id); for (const c of PD.cosm.COLOURS) addItem('cosm', c.id); }
+  for (const it of D.SHIP) addItem('ship', it.id);
+  for (const br of BRANCHES) {
+    let prev = null;
+    for (let t = 1; t <= 4; t++) {
+      const key = br.id + t;
+      if (!ITEMS[key]) continue;
+      const n = { id: key, branch: br.id, tier: t, name: br.name + ' ' + ROMAN[t], cost: COST[t], needs: prev, items: ITEMS[key], col: br.col };
+      NODES.push(n); BY[key] = n; prev = key;
+    }
+  }
+
+  function st(g) {
+    const s = g.save;
+    if (!s.unl) s.unl = {};
+    if (s.sp === undefined) s.sp = 0;
+    if (s.spFrac === undefined) s.spFrac = 0;
+    return s;
+  }
+  function has(g, nodeId) { return !!st(g).unl[nodeId]; }
+  function isLocked(g, kind, id) {
+    const p = place(kind, id);
+    if (!p || p[1] === 0) return false;
+    return !has(g, p[0] + p[1]);
+  }
+  function nodeFor(kind, id) { const p = place(kind, id); return p && p[1] > 0 ? BY[p[0] + p[1]] : null; }
+  function canUnlock(g, n) {
+    if (has(g, n.id)) return 'done';
+    if (n.needs && !has(g, n.needs)) return 'needs';
+    return st(g).sp >= n.cost ? 'ready' : 'poor';
+  }
+  function unlock(g, nodeId) {
+    const n = BY[nodeId];
+    if (!n || canUnlock(g, n) !== 'ready') return false;
+    const s = st(g);
+    s.sp -= n.cost;
+    s.unl[n.id] = 1;
+    g.saveGame && g.saveGame();
+    return true;
+  }
+  /* Money handed over turns into points: every $100 is one. */
+  function give(g, dollars) {
+    const s = st(g);
+    s.spFrac += Math.max(0, dollars);
+    const n = Math.floor(s.spFrac / PER);
+    s.spFrac -= n * PER;
+    s.sp += n;
+    return n;
+  }
+  // feed the brain directly: spend money, get points
+  function feed(g, dollars) {
+    dollars = Math.min(dollars, g.save.credits);
+    dollars = Math.floor(dollars / PER) * PER;
+    if (dollars <= 0) return 0;
+    g.save.credits -= dollars;
+    const n = give(g, dollars);
+    g.saveGame && g.saveGame();
+    return n;
+  }
+
+  PD.unlock = { BRANCHES, NODES, BY, PER, COST, ROMAN, place, has, isLocked, nodeFor, canUnlock, unlock, give, feed, st };
+})(window.PD);
+
+/* ===== src/rat.js ===== */
+/* BRENDA. The rat who lives in your cave, repainted small and very round.
+
+   Once you have given up your cheese she is yours, and she does not stay
+   still: she waddles after you, curls into a ball and ROLLS to catch up,
+   hops when you jump, does tricks when she is bored, begs, spins, and falls
+   asleep if you stand about for too long. Press E by her to PICK HER UP and
+   carry her over your head; press it again and she is thrown, squealing, and
+   rolls off when she lands.
+
+   She speaks Chinese. The bubble has the words and, under it, what they mean.
+
+   Works on the moon's own rat object; moon.js hands it over each frame. */
+(function (PD) {
+  'use strict';
+  const U = PD.util;
+  const X = PD.pxd;
+  const F = PD.font;
+  const A = PD.audio;
+  const PT = PD.paint;
+  const HD = 2;
+  const INK = 0x1a1024;
+  const FUR = [0xbcb2cc, 0xebe4f6, 0x867b9c];
+  const PINK = 0xff9ab8, PINKD = 0xd8668a, CREAM = 0xfff4ea;
+  const W = 30, H = 26, OX = 15, OY = 24;           // logical sprite, feet at OX, OY
+
+  const LINES = {
+    hello: [['\u4f60\u597d!', 'HELLO!'], ['\u5431\u5431!', 'SQUEAK!'], ['\u55e8!', 'HI!']],
+    idle: [['\u5976\u916a!', 'CHEESE!'], ['\u6211\u997f\u4e86', 'I AM HUNGRY'], ['\u6211\u662f\u6700\u80d6\u7684', 'I AM THE FATTEST'], ['\u4f60\u6b20\u94b1\u4e86', 'YOU OWE MONEY'], ['\u52a0\u6cb9!', 'YOU CAN DO IT!'], ['\u966a\u6211\u73a9!', 'PLAY WITH ME!'], ['\u597d\u65e0\u804a', 'SO BORED']],
+    held: [['\u597d\u9ad8!', 'SO HIGH!'], ['\u62b1\u62b1!', 'HUG!'], ['\u653e\u6211\u4e0b\u6765!', 'PUT ME DOWN!'], ['\u6211\u4f1a\u98de!', 'I CAN FLY!']],
+    thrown: [['\u54c7!', 'WAAH!'], ['\u518d\u6765!', 'AGAIN!'], ['\u597d\u73a9!', 'FUN!']],
+    roll: [['\u6eda\u6eda\u6eda~', 'ROLL ROLL ROLL'], ['\u7b49\u7b49\u6211!', 'WAIT FOR ME!']],
+    sleep: [['\u665a\u5b89', 'GOOD NIGHT']],
+    beg: [['\u7ed9\u6211\u5976\u916a', 'GIVE ME CHEESE'], ['\u6211\u5f88\u53ef\u7231', 'I AM VERY CUTE']]
+  };
+
+  /* ------------------------------------------------------------ painting */
+  const ART = {};
+  function eye(B, x, y, closed, happy) {
+    if (happy) { B.line(x - 2.5, y + 1, x, y - 1.5, INK, 1.5); B.line(x, y - 1.5, x + 2.5, y + 1, INK, 1.5); return; }
+    if (closed) { B.line(x - 2.5, y, x + 2.5, y, INK, 1.5); return; }
+    B.ellipse(x, y, 3, 3.4, INK);
+    B.disc(x - 1, y - 1.3, 1.2, 0xffffff); B.disc(x + 1.2, y + 1.2, 0.6, 0xffffff);
+  }
+  function paint(f) {
+    const B = PT.buf(W * HD, H * HD);
+    const cx = OX * HD, gy = OY * HD;
+    const sleep = f === 6, held = f === 5, happy = f === 7, blink = f === 4;
+    const sq = f === 1 ? 2 : sleep ? 4 : 0;
+    // the tail, a pink curl out of the back
+    for (let i = 0; i <= 24; i++) {
+      const q = i / 24, a = q * 4.2;
+      B.disc(cx - 18 - Math.sin(a) * 7 - q * 4, gy - 10 - q * 12 + Math.cos(a) * 4, 1.8 - q * 0.8, PINK);
+    }
+    // feet
+    const fa = f === 2 ? 3 : f === 3 ? -3 : 0;
+    const fy = held ? gy + 3 : gy - 1;
+    if (!sleep) for (const [x, d] of [[cx - 8, fa], [cx + 6, -fa]]) B.ellipse(x + d, fy, 4, 2.5, PINK);
+    // the body: nearly a ball
+    B.ball(cx - 2, gy - 15 + sq, 17, 14 - sq, FUR);
+    B.ellipse(cx + 1, gy - 10 + sq, 10, 7 - sq * 0.5, CREAM);
+    // the head, big, and a bit forward
+    const hx = cx + 7, hy = gy - 24 + sq * 1.5;
+    for (const [x, y] of [[hx - 8, hy - 9], [hx + 7, hy - 10]]) { B.disc(x, y, 7, FUR[2]); B.disc(x, y, 6, FUR[0]); B.disc(x + 0.5, y + 0.5, 3.8, PINK); }
+    B.ball(hx, hy, 13, 11, FUR);
+    B.ellipse(hx + 3, hy + 4, 7, 5, CREAM);
+    // face
+    eye(B, hx - 3, hy - 1, blink || sleep, happy);
+    eye(B, hx + 7, hy - 1, blink || sleep, happy);
+    B.ellipse(hx + 3, hy + 3, 2.2, 1.6, PINKD);
+    B.disc(hx + 2.4, hy + 2.5, 0.8, 0xffffff);
+    if (happy) { B.ellipse(hx + 3, hy + 6.5, 2, 2, 0x8a2a4a); B.ellipse(hx + 3, hy + 7.4, 1.2, 1, PINK); }
+    else B.line(hx + 1.5, hy + 5.5, hx + 4.5, hy + 5.5, PINKD, 1);
+    for (const x of [hx - 6, hx + 11]) B.ellipse(x, hy + 3.5, 2.6, 1.6, PINK, 0.6);
+    for (let k = 0; k < 3; k++) { B.line(hx + 12, hy + 2 + k * 1.5, hx + 18, hy + 1 + k * 2.5, 0x7a7090, 1, 0.8); B.line(hx - 6, hy + 2 + k * 1.5, hx - 12, hy + 1 + k * 2.5, 0x7a7090, 1, 0.8); }
+    // little paws: tucked in front, or up in the air when you hold her
+    if (held) { B.ellipse(cx - 6, gy - 32, 3, 2.5, PINK); B.ellipse(cx + 18, gy - 33, 3, 2.5, PINK); }
+    else if (!sleep) { B.ellipse(cx + 2, gy - 9, 2.6, 2, PINK); B.ellipse(cx + 8, gy - 9, 2.6, 2, PINK); }
+    B.rim(0xffffff, -1, -1, 0.35);
+    B.outline(INK);
+    return B.toCanvas();
+  }
+  function paintBall() {
+    const N = 26 * HD, B = PT.buf(N, N), c = N / 2;
+    B.disc(c - 4, c - 18, 6, PINK); B.disc(c + 8, c - 18, 6, PINK);
+    B.ball(c, c, 20, 20, FUR);
+    B.ellipse(c + 6, c + 8, 9, 6, CREAM);
+    for (let i = 0; i < 14; i++) { const a = i / 14 * 3; B.disc(c + Math.cos(a + 2) * 17, c + Math.sin(a + 2) * 17, 1.6, PINK); }
+    eye(B, c + 4, c - 4, true); eye(B, c + 12, c - 4, true);
+    B.ellipse(c + 9, c + 1, 2, 1.5, PINKD);
+    B.rim(0xffffff, -1, -1, 0.35);
+    B.outline(INK);
+    return B.toCanvas();
+  }
+  function art(f) { return ART[f] || (ART[f] = f === 'ball' ? paintBall() : paint(f)); }
+
+  /* ------------------------------------------------------------- talking */
+  function say(R, kind) {
+    const l = U.pick(LINES[kind] || LINES.idle);
+    R.zh = l[0]; R.en = l[1]; R.lineT = 2.4;
+    A.sfx.tone(1500 + Math.random() * 500, { type: 'square', to: 2400, dur: 0.05, vol: 0.03 });
+    A.sfx.tone(1900, { type: 'square', to: 1300, dur: 0.05, vol: 0.03, delay: 0.07 });
+  }
+  function squeak() { A.sfx.tone(1800 + Math.random() * 600, { type: 'square', to: 2600, dur: 0.04, vol: 0.025 }); }
+
+  /* --------------------------------------------------------------- update
+     E: { P, dist(a, b), scene, IN_W } */
+  function update(dt, g, R, E) {
+    R.t = (R.t || 0) + dt;
+    R.mode = R.mode || 'walk';
+    R.h = R.h || 0; R.vh = R.vh || 0; R.mt = (R.mt || 0) + dt;
+    R.lineT = Math.max(0, (R.lineT || 0) - dt);
+    R.squash = U.damp(R.squash || 0, 0, 0.2, dt);
+    R.idleT = (R.idleT || 0) + dt;
+    const P = E.P;
+    if (!R.hi) { R.hi = 1; say(R, 'hello'); }
+    if (Math.abs(P.vx) > 10) R.stillT = 0; else R.stillT = (R.stillT || 0) + dt;
+
+    if (R.mode === 'held') {
+      R.x = P.x + P.face * 1; R.face = P.face; R.h = 46 + Math.sin(R.t * 8) * 1.5; R.vx = 0;
+      if (R.lineT <= 0 && U.chance(dt * 0.5)) say(R, 'held');
+      if (U.chance(dt * 2)) squeak();
+      return;
+    }
+    if (R.mode === 'air') {
+      R.vh -= 560 * dt; R.h += R.vh * dt; R.x += R.vx * dt; R.spin = (R.spin || 0) + dt * 12;
+      if (R.h <= 0) {
+        R.h = 0; R.squash = 1; A.sfx.tone(300, { type: 'sine', to: 120, dur: 0.1, vol: 0.06 });
+        if (Math.abs(R.vx) > 50) { R.mode = 'roll'; R.mt = 0; say(R, 'roll'); } else { R.mode = 'walk'; R.mt = 0; }
+      }
+      clampX(R, E);
+      return;
+    }
+    const want = P.x - P.face * 24;
+    const d = E.dist(want, R.x);
+    // she sleeps if you stand about
+    if (R.mode === 'sleep') { if (R.stillT < 0.5 || Math.abs(d) > 40) { R.mode = 'walk'; squeak(); } return; }
+    if (R.stillT > 12 && Math.abs(d) < 30 && R.mode === 'walk') { R.mode = 'sleep'; say(R, 'sleep'); return; }
+    // too far behind: roll to catch up
+    if (Math.abs(d) > 70 && R.mode === 'walk') { R.mode = 'roll'; R.mt = 0; if (U.chance(0.4)) say(R, 'roll'); }
+    // you jumped: so does she
+    if (P.vy < -120 && R.h <= 0 && Math.abs(d) < 60) { R.vh = 170; R.h = 0.1; R.mode = 'hop'; R.mt = 0; }
+    if (R.mode === 'roll') {
+      const tv = U.clamp(d * 3.2, -210, 210);
+      R.vx = U.damp(R.vx || 0, Math.abs(d) < 20 ? 0 : tv, 0.1, dt);
+      R.rollA = (R.rollA || 0) + R.vx * dt / 12;
+      if ((Math.abs(d) < 22 && Math.abs(R.vx) < 20) || R.mt > 5) { R.mode = 'walk'; R.mt = 0; R.squash = 0.6; }
+    } else if (R.mode === 'hop') {
+      R.vh -= 560 * dt; R.h += R.vh * dt;
+      R.vx = U.damp(R.vx || 0, U.clamp(d * 2, -80, 80), 0.1, dt);
+      if (R.h <= 0) { R.h = 0; R.vh = 0; R.squash = 0.8; R.hops = (R.hops || 0) - 1; if (R.hops > 0) R.vh = 150, R.h = 0.1; else { R.mode = 'walk'; R.mt = 0; } }
+    } else if (R.mode === 'spin') {
+      R.vx = 0; if (Math.floor(R.mt * 8) !== R.lastSpin) { R.lastSpin = Math.floor(R.mt * 8); R.face = -R.face; }
+      if (R.mt > 1.1) { R.mode = 'walk'; R.mt = 0; }
+    } else if (R.mode === 'beg') {
+      R.vx = 0; R.face = P.x > R.x ? 1 : -1;
+      if (R.mt > 1.8) { R.mode = 'walk'; R.mt = 0; }
+    } else if (R.mode === 'dash') {
+      R.rollA = (R.rollA || 0) + R.vx * dt / 12;
+      if (R.mt > 0.9) { R.vx = -R.vx; R.mt = 0; R.dashes = (R.dashes || 0) - 1; if (R.dashes <= 0) R.mode = 'walk'; }
+    } else {
+      // walking after you
+      if (Math.abs(d) > 12) { R.vx = U.damp(R.vx || 0, U.clamp(d * 3, -75, 75), 0.14, dt); R.idleT = 0; }
+      else R.vx = U.damp(R.vx || 0, 0, 0.3, dt);
+      R.hop = Math.abs(R.vx) > 10 ? (R.hop || 0) + dt * 12 : 0;
+      // bored: a trick
+      if (R.idleT > 3 + (R.tr || 2)) {
+        R.idleT = 0; R.tr = U.rand(1, 4); R.mt = 0;
+        const k = U.pick(['hop', 'spin', 'beg', 'dash', 'talk', 'hop']);
+        if (k === 'hop') { R.mode = 'hop'; R.hops = 2; R.vh = 160; R.h = 0.1; }
+        else if (k === 'spin') { R.mode = 'spin'; say(R, 'idle'); }
+        else if (k === 'beg') { R.mode = 'beg'; say(R, 'beg'); }
+        else if (k === 'dash') { R.mode = 'dash'; R.dashes = 2; R.vx = (U.chance(0.5) ? 1 : -1) * 90; say(R, 'roll'); }
+        else say(R, 'idle');
+      }
+    }
+    if (Math.abs(R.vx) > 4 && R.mode !== 'spin') R.face = R.vx > 0 ? 1 : -1;
+    R.x += (R.vx || 0) * dt;
+    clampX(R, E);
+  }
+  function clampX(R, E) { if (E.scene === 'in') R.x = U.clamp(R.x, 10, E.IN_W - 10); }
+
+  function toggleHold(g, R, E) {
+    if (R.mode === 'held') {
+      R.mode = 'air'; R.vh = 190; R.vx = E.P.face * 130; R.h = 46; R.mt = 0;
+      say(R, 'thrown');
+      A.sfx.tone(500, { type: 'triangle', to: 1400, dur: 0.25, vol: 0.07 });
+    } else {
+      R.mode = 'held'; R.mt = 0;
+      say(R, 'held');
+      A.sfx.tone(900, { type: 'triangle', to: 1600, dur: 0.12, vol: 0.06 });
+    }
+  }
+  function held(R) { return R.mode === 'held'; }
+
+  /* ----------------------------------------------------------------- draw
+     At the rat's feet on the ground. */
+  function draw(ctx, g, R, t, pet) {
+    const mode = pet ? (R.mode || 'walk') : 'cheese';
+    ctx.save();
+    ctx.translate(0, -Math.round(R.h || 0));
+    const sq = 1 + (R.squash || 0) * 0.25;
+    if (mode === 'roll' || mode === 'dash' || (mode === 'air' && Math.abs(R.vx || 0) > 50)) {
+      const cv = art('ball');
+      ctx.translate(0, -12);
+      ctx.rotate(mode === 'air' ? (R.spin || 0) : (R.rollA || 0));
+      ctx.drawImage(cv, -13, -13, 26, 26);
+    } else {
+      let f = 0;
+      if (mode === 'held') f = 5;
+      else if (mode === 'sleep') f = 6;
+      else if (mode === 'beg' || mode === 'hop' || R.lineT > 1.6) f = 7;
+      else if (Math.abs(R.vx || 0) > 10) f = 2 + (Math.floor((R.hop || 0) * 0.8) % 2);
+      else if (mode === 'cheese') f = Math.sin(t * 9) > 0.3 ? 1 : 0;
+      else f = Math.sin(t * 0.7 + 1) > 0.97 ? 4 : (Math.sin(t * 3) > 0 ? 0 : 1);
+      const bob = f >= 2 && f <= 3 ? -Math.abs(Math.sin((R.hop || 0) * 1.6)) * 2 : 0;
+      ctx.translate(0, bob);
+      ctx.scale(((R.face || 1) < 0 ? -1 : 1) * sq, 1 / sq);
+      if (mode === 'held') ctx.rotate(Math.sin(t * 9) * 0.12);
+      ctx.drawImage(art(f), -OX, -OY, W, H);
+    }
+    ctx.restore();
+    // Zzz
+    if (mode === 'sleep') for (let k = 0; k < 3; k++) { const q = (t * 0.5 + k / 3) % 1; ctx.globalAlpha = 1 - q; F.draw(ctx, 'Z', 8 + q * 8, -22 - q * 14, '#c8d0ff', { shadow: '#1a1024' }); ctx.globalAlpha = 1; }
+    // what she is saying
+    if (pet && R.lineT > 0 && R.zh) bubble(ctx, R.zh, R.en, 0, -Math.round(R.h || 0) - 30, Math.min(1, R.lineT * 3));
+  }
+  const ZH = '8px "WenQuanYi Zen Hei","Noto Sans CJK SC","Noto Sans SC","PingFang SC","Microsoft YaHei","Hiragino Sans GB",sans-serif';
+  function bubble(ctx, zh, en, x, y, a) {
+    ctx.save();
+    ctx.globalAlpha = a;
+    ctx.font = ZH;
+    const zw = Math.ceil(ctx.measureText(zh).width), ew = F.width(en, 1);
+    const w = Math.max(zw, ew) + 10, h = 23;
+    const bx = Math.round(x - w / 2), by = Math.round(y - h);
+    X.rect(ctx, bx - 1, by - 1, w + 2, h + 2, '#1a1024');
+    X.rect(ctx, bx, by, w, h, '#ffffff');
+    X.poly(ctx, [[x - 3, by + h], [x + 3, by + h], [x - 1, by + h + 5]], '#ffffff');
+    X.rect(ctx, x - 4, by + h, 1, 2, '#1a1024');
+    ctx.fillStyle = '#d8366a';
+    ctx.textBaseline = 'top';
+    ctx.fillText(zh, bx + (w - zw) / 2, by + 2);
+    F.draw(ctx, en, bx + (w - ew) / 2, by + 13, '#6a6280', { shadow: false });
+    ctx.restore();
+  }
+
+  PD.rat = { update, draw, toggleHold, held, art, LINES };
 })(window.PD);
 
 /* ===== src/build.js ===== */
@@ -20359,9 +20864,14 @@ window.PD = window.PD || {};
       if (k === 'ship' && !seen.pcShip) return say('pcShip', { a: C('SAUCER BITS. SOME PLANETS WILL NOT LET YOU NEAR WITHOUT THE RIGHT ONE. THE STAR MAP SAYS WHICH.') });
       if (k === 'gear' && !seen.pcGear) return say('pcGear', { a: C('BETTER GEAR. DIG FASTER. SELL FASTER. PAY ME FASTER. EVERYONE WINS. MOSTLY ME.') });
     }
+    if (S.app === 'abay' && S.sawLocked && !seen.pcLock) return say('pcLock', {
+      a: C('LOCKED. THE GOOD STUFF ALWAYS IS. YOU UNLOCK IT IN THE BRAIN IN THE JAR, WITH BRAIN POINTS.', 'b'),
+      b: C('ONE POINT FOR EVERY $100 YOU HAND OVER. PAY ME, OR FEED THE BRAIN. I SUGGEST PAYING ME.')
+    });
     if (S.app === 'bank' && S.k >= 1 && !seen.pcBank) return say('pcBank', {
       a: C('MY FAVOURITE PROGRAM. YOU PUT MONEY IN, IT COMES TO ME.', 'b'),
-      b: C('PRESS PAY. ANY AMOUNT. THE BAR FILLS UP. WHEN IT IS FULL YOU ARE FREE. TO GET RICH. TRY.')
+      b: C('PRESS PAY. ANY AMOUNT. THE BAR FILLS UP. WHEN IT IS FULL YOU ARE FREE. TO GET RICH. TRY.', 'c'),
+      c: C('AND FOR EVERY $100 YOU GIVE ME, THE BRAIN GIVES YOU A POINT. I KNOW. I AM TOO GENEROUS.')
     });
   }
 
@@ -20665,6 +21175,12 @@ window.PD = window.PD || {};
 
   /* Every shelf is turned into the same kind of entry, so one grid shows them. */
   function entry(g, kind, id) {
+    const e = entry0(g, kind, id);
+    const node = PD.unlock && PD.unlock.isLocked(g, kind, id) ? PD.unlock.nodeFor(kind, id) : null;
+    if (node && !e.sold && !e.have) { e.locked = node; e.badge = 'LOCKED'; }
+    return e;
+  }
+  function entry0(g, kind, id) {
     if (kind === 'build') {
       const b = PD.buildart.BY[id];
       const have = PD.build.owned(g, id);
@@ -20725,9 +21241,10 @@ window.PD = window.PD || {};
       // a different handful every hour: things you do not have yet
       const hour = Math.floor(Date.now() / 3.6e6);
       const pool = [];
-      for (const b of PD.buildart.LIST) if (!PD.build.owned(g, b.id) && b.where !== 'up') pool.push(['build', b.id]);
-      for (const c of PD.cosm.LIST) if (!PD.cosm.owns(g, c.id)) pool.push(['cosm', c.id]);
-      for (const it of D.SHIP) if (g.shipLvl(it.id) < it.max) pool.push(['ship', it.id]);
+      const L = (k, id) => PD.unlock && PD.unlock.isLocked(g, k, id);
+      for (const b of PD.buildart.LIST) if (!PD.build.owned(g, b.id) && b.where !== 'up' && !L('build', b.id)) pool.push(['build', b.id]);
+      for (const c of PD.cosm.LIST) if (!PD.cosm.owns(g, c.id) && !L('cosm', c.id)) pool.push(['cosm', c.id]);
+      for (const it of D.SHIP) if (g.shipLvl(it.id) < it.max && !L('ship', it.id)) pool.push(['ship', it.id]);
       const pick = [];
       for (let i = 0; i < 12 && pool.length; i++) { const k = Math.floor(U.hash2(hour, i * 7 + 3) * pool.length); pick.push(pool.splice(k, 1)[0]); }
       pick.sort((a, b) => entry(g, a[0], a[1]).price - entry(g, b[0], b[1]).price);
@@ -20817,7 +21334,8 @@ window.PD = window.PD || {};
       // the photo
       rr(ctx, x + 2, y + 2 - lift, cardW - 4, 32, 2, e.kind === 'cosm' ? '#f0f2fa' : e.kind === 'build' ? '#eef4fa' : '#f4f0fa');
       picture(ctx, g, e, x + cardW / 2, y + 18 - lift, 28, t, over || sel);
-      if (e.badge) { const bw2 = F.width(e.badge, 1) + 4; X.rect(ctx, x + 2, y + 2 - lift, bw2, 8, e.on ? T.blue : T.green); F.draw(ctx, e.badge, x + 4, y + 3 - lift, '#ffffff', { shadow: false }); }
+      if (e.locked) { ctx.globalAlpha = 0.55; X.rect(ctx, x + 2, y + 2 - lift, cardW - 4, 32, '#20243a'); ctx.globalAlpha = 1; PD.glyph.draw(ctx, 'lock', x + cardW / 2 - 7, y + 11 - lift, '#ffd34d', '#8a6a1a'); }
+      if (e.badge) { const bw2 = F.width(e.badge, 1) + 4; X.rect(ctx, x + 2, y + 2 - lift, bw2, 8, e.locked ? '#5a4a8a' : (e.on ? T.blue : T.green)); F.draw(ctx, e.badge, x + 4, y + 3 - lift, '#ffffff', { shadow: false }); }
       if (e.deal) { X.rect(ctx, x + cardW - 26, y + 2 - lift, 24, 8, T.red); F.draw(ctx, '-25%', x + cardW - 14, y + 3 - lift, '#ffffff', { center: true, shadow: false }); }
       F.draw(ctx, clip(e.name, Math.floor((cardW - 4) / 6)), x + 3, y + 36 - lift, T.ink, { shadow: false });
       const afford = g.save.credits >= e.price;
@@ -20856,6 +21374,12 @@ window.PD = window.PD || {};
       return;
     }
     if (e.sold) { button(ctx, dx + 5, btY, btW, 13, e.kind === 'build' ? 'BUILT' : 'MAXED OUT', { enabled: false }); return; }
+    if (e.locked) {
+      S.sawLocked = 1;
+      F.draw(ctx, 'NEEDS ' + e.locked.name, dx + 6, btY - 10, '#5a4a8a', { shadow: false });
+      if (button(ctx, dx + 5, btY, btW, 13, 'UNLOCK IN BRAIN', { col: '#5a4a8a' })) toast('LOCKED', 'THE BRAIN IN THE JAR UNLOCKS IT. ' + e.locked.cost + ' PTS.', '#c8a8ff');
+      return;
+    }
     const confirming = sh.confirm > 0 && sh.confirmId === e.id;
     const afford = g.save.credits >= e.price;
     if (button(ctx, dx + 5, btY, btW, 13, !afford ? 'NOT ENOUGH $' : (confirming ? 'SURE? CLICK AGAIN' : 'BUY IT NOW'), { col: confirming ? T.green : T.ylw, ink: confirming ? '#ffffff' : '#3a2a0a', enabled: afford })) {
@@ -22353,6 +22877,9 @@ window.PD = window.PD || {};
     g.save.credits -= amount;
     g.save.debt -= amount;
     g.save.paid = (g.save.paid || 0) + amount;
+    // every $100 handed over is a point for the brain's unlock tree
+    const pts = PD.unlock ? PD.unlock.give(g, amount) : 0;
+    if (pts > 0 && PD.desk && PD.desk.toast && g.state === 'desk') PD.desk.toast('BRAIN', '+' + pts + ' BRAIN POINTS. SPEND THEM IN THE JAR.', '#8affd0');
     A.sfx.sell();
     for (let i = 0; i < 6; i++) setTimeout(() => A.sfx.coin && A.sfx.coin(i), i * 60);
     const f0 = before / PD.chum.DEBT0, f1 = g.save.debt / PD.chum.DEBT0;
@@ -22965,6 +23492,8 @@ window.PD = window.PD || {};
       base.artifacts = +s.artifacts || 0;
       base.pet = s.pet ? 1 : 0;
       base.thots = Math.max(0, +s.thots || 0);
+      base.sp = Math.max(0, +s.sp || 0); base.spFrac = Math.max(0, +s.spFrac || 0);
+      if (s.unl && typeof s.unl === 'object') { base.unl = {}; for (const k in s.unl) if (s.unl[k] && PD.unlock && PD.unlock.BY[k]) base.unl[k] = 1; }
       base.thotFrac = Math.max(0, +s.thotFrac || 0);
       if (s.neur) for (const k in s.neur) if (D.NEUR[k]) base.neur[k] = U.clamp(+s.neur[k] || 0, 0, D.NEUR[k].max);
       /* These were written every save and never read back, so a reload lost

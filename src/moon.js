@@ -98,7 +98,7 @@
   /* Inside. */
   const IN_SPOTS = [
     { id: 'pc', x: 70, r: 28, name: 'THE LAPTOP', sub: 'ABAY IS ON IT' },
-    { id: 'brain', x: 150, r: 26, name: 'THE BRAIN IN THE JAR', sub: 'IT KNOWS THINGS. BUY SOME' },
+    { id: 'brain', x: 150, r: 26, name: 'BRAINBOT', sub: 'SKILLS AND UNLOCKS' },
     { id: 'bed', x: 224, r: 28, name: 'THE BED', sub: 'IT IS A BOX. SLEEP ON IT' },
     { id: 'exit', x: 300, r: 20, name: 'THE WAY OUT', sub: 'BACK OUTSIDE' }
   ];
@@ -582,10 +582,12 @@
     if (CUT()) return [];
     if (S.scene === 'in') {
       const out = g.save.pet ? IN_SPOTS.slice() : IN_SPOTS.concat([RAT_SPOT]);
+      if (g.save.pet) out.push(ratSpot());
       if (PD.build) for (const s of PD.build.spots(g, 'in')) out.push(s);
       return out;
     }
     const out = OUT_SPOTS.slice();
+    if (g.save.pet) out.push(ratSpot());
     for (let i = 0; i < TRASH.length; i++) {
       if (cleaned(g, i)) continue;
       out.push({ id: 'trash', i, x: TRASH[i].x, r: 16, name: TRASH_NAMES[TRASH[i].k], sub: 'CLEAN IT UP' });
@@ -594,6 +596,7 @@
     if (PD.build) for (const s of PD.build.spots(g, 'out')) out.push(s);
     return out;
   }
+  function ratSpot() { const h = PD.rat.held(rat); return { id: 'rat', x: h ? P.x : rat.x, r: h ? 30 : 16, name: 'BRENDA', sub: h ? 'THROW HIM' : 'PICK HIM UP' }; }
   function nearest(g) {
     let best = null, bd = 1e9;
     for (const s of spots(g)) {
@@ -614,7 +617,7 @@
     if (s.id === 'pc') { P.lock = 1; g.wipeTo(fx2, fy2, '#1b2430', () => { g.state = 'desk'; PD.desk.enter(g); }, 'bars'); return; }
     if (s.id === 'brain') { P.lock = 1; g.wipeTo(fx2, fy2, '#12503a', () => { PD.mind.open(g); }, 'static', 0.7); return; }
     if (s.id === 'bed') { sleep(g); return; }
-    if (s.id === 'rat') { feedRat(g); return; }
+    if (s.id === 'rat') { if (g.save.pet) PD.rat.toggleHold(g, rat, { P }); else feedRat(g); return; }
     if (s.id === 'trash') { sweep(g, s.i); return; }
     if (s.id === 'board') { if (PD.story) PD.story.talkChum(g, 'board'); return; }
     if (PD.build && PD.build.use(g, s)) return;
@@ -827,13 +830,8 @@
       if (U.chance(dt * 1.4)) { rat.chew = 0.3; A.sfx.tone(240, { type: 'square', dur: 0.03, vol: 0.02 }); }
       return;
     }
-    const want = P.x - P.face * 26;
-    const d = want - rat.x;
-    if (Math.abs(d) > 14) { rat.vx = U.damp(rat.vx, U.clamp(d * 2.6, -130, 130), 0.14, dt); rat.face = Math.sign(rat.vx) || rat.face; }
-    else rat.vx = U.damp(rat.vx, 0, 0.3, dt);
-    rat.x += rat.vx * dt;
-    if (S.scene === 'in') rat.x = U.clamp(rat.x, 10, IN_W - 10);
-    rat.hop = Math.abs(rat.vx) > 12 ? (rat.hop + dt * 9) : U.damp(rat.hop, 0, 0.2, dt);
+    PD.rat.update(dt, g, rat, { P, dist: S.scene === 'out' ? wdist : (a, b) => a - b, scene: S.scene, IN_W });
+    if (S.scene === 'out') rat.x = wrap(rat.x);
     rat.y = groundY(rat.x);
   }
 
@@ -1046,9 +1044,9 @@
     X.rect(ctx, lx - 20 + (t * 10) % 18, FLOOR - 33, 3, 1, '#9dffb0');
     // the jar, bubbling
     const jx = IN_SPOTS[1].x - cam;
-    ctx.globalAlpha = 0.3; PT.glow(ctx, jx, FLOOR - 30, 40, '#4cff9a', 0.4); ctx.globalAlpha = 1;
-    X.blob(ctx, jx, FLOOR + 2, 26, 4, '#1a2a20');
-    AH.blit(ctx, AH.S.brainjar, Math.floor(t * 2.4) % 3, jx, FLOOR + 2);
+    ctx.globalAlpha = 0.3; PT.glow(ctx, jx, FLOOR - 40, 44, '#7ef9ff', 0.4); ctx.globalAlpha = 1;
+    X.blob(ctx, jx, FLOOR + 2, 26, 4, '#0a1424');
+    PD.mind.drawMini(ctx, jx, FLOOR + 3, t);
     // a candle in a jar, and a drip off the roof
     X.rect(ctx, 256 - cam, FLOOR - 10, 6, 10, 'rgba(200,230,255,0.4)'); X.rect(ctx, 258 - cam, FLOOR - 8, 2, 6, '#f0e8d0');
     X.blob(ctx, 259 - cam, FLOOR - 11 - Math.abs(Math.sin(t * 9)) * 0.8, 1.2, 2, '#ffb040');
@@ -1065,17 +1063,7 @@
     ctx.fillStyle = vg; ctx.fillRect(0, 0, VW, VH);
   }
 
-  function drawRatHere(ctx, g, t) {
-    const spr = g.save.pet ? AH.S.ratFed : AH.S.rat;
-    const bounce = g.save.pet ? Math.abs(Math.sin(rat.hop)) * 9 : 0;
-    const sq = 1 + Math.cos(rat.hop * 2) * 0.14 * (bounce > 0.5 ? 1 : 0);
-    const f = rat.chew > 0 ? 1 : (Math.sin(t * 3) > 0 ? 0 : 1);
-    ctx.save();
-    ctx.translate(0, Math.round(-bounce));
-    ctx.scale((rat.face < 0 ? -1 : 1) / sq, sq);
-    ctx.drawImage(spr.frames[f], -spr.ox, -spr.oy, spr.w, spr.h);
-    ctx.restore();
-  }
+  function drawRatHere(ctx, g, t) { PD.rat.draw(ctx, g, rat, t, !!g.save.pet); }
 
   /* YOU. The rig, the squash, the hat. */
   function drawPlayerAt(ctx, g, x, gy, t) {

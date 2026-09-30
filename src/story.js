@@ -410,6 +410,9 @@
     g.save.credits -= amount;
     g.save.debt -= amount;
     g.save.paid = (g.save.paid || 0) + amount;
+    // every $100 handed over is a point for the brain's unlock tree
+    const pts = PD.unlock ? PD.unlock.give(g, amount) : 0;
+    if (pts > 0 && PD.desk && PD.desk.toast && g.state === 'desk') PD.desk.toast('BRAIN', '+' + pts + ' BRAIN POINTS. SPEND THEM IN THE JAR.', '#8affd0');
     A.sfx.sell();
     for (let i = 0; i < 6; i++) setTimeout(() => A.sfx.coin && A.sfx.coin(i), i * 60);
     const f0 = before / PD.chum.DEBT0, f1 = g.save.debt / PD.chum.DEBT0;
