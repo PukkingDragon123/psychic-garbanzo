@@ -266,7 +266,9 @@
     // the shark notices things before you do
     if (load > 0.5) PD.chum.call(g, 'sack');
     if (this.o2 < this.stat('oxygen') * 0.3) PD.chum.call(g, 'air');
-    const thrust = this.stat('thruster') * (1 - load * 0.42);
+    // no air: every push is weaker, until there is nothing left to push with
+    const choke = this.o2 <= 0 ? 1 - Math.min(0.65, (this.suffocating || 0) / PD.peril.GRACE * 0.65) : 1;
+    const thrust = this.stat('thruster') * (1 - load * 0.42) * choke * (g.blackout ? 0 : 1);
     const grav = w.gravityAt(this.y);
 
     this.vx += ix * thrust * dt;
@@ -546,13 +548,13 @@
     this.o2 -= drain * dt;
 
     if (this.o2 <= 0) {
+      /* Holding your breath. The hull is left alone now: the clock is
+         PD.peril.GRACE seconds, the heart is pounding, and when it runs
+         out you black out (see peril.js). */
       this.o2 = 0;
       this.suffocating += dt;
-      this.hull -= 7 * dt;
       this.alarmT -= dt;
-      if (this.alarmT <= 0) { A.sfx.alarm(); this.alarmT = 0.7; }
-      FX.flash(0.06, '#3a0d1a');
-      if (this.hull <= 0) { this.hull = 0; g.onPlayerDown(); }
+      if (this.alarmT <= 0) { A.sfx.alarm(); this.alarmT = 1.1; }
     } else if (this.o2 < this.stat('oxygen') * 0.25) {
       this.alarmT -= dt;
       if (this.alarmT <= 0) { A.sfx.alarm(); this.alarmT = 1.4; }

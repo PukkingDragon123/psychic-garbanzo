@@ -198,7 +198,7 @@
       if (r2 > 1) continue;
       if (o.clip && !o.clip(x, y)) continue;
       const nz = Math.sqrt(1 - r2);
-      this.set(x, y, tone(P, lit(nx, ny, nz, o), x, y));
+      this.set(x, y, tone(P, lit(nx, ny, nz, o), x, y), o.alpha);
     }
     if (o.spec !== false) {
       const sx = cx - rx * 0.42, sy = cy - ry * 0.48;
@@ -224,7 +224,7 @@
       if (best > 0) continue;
       const p = pts[bi], r = p[2];
       const nx = (x + 0.5 - p[0]) / r, ny = (y + 0.5 - p[1]) / r, r2 = Math.min(1, nx * nx + ny * ny);
-      this.set(x, y, tone(P, lit(nx, ny, Math.sqrt(1 - r2), o), x, y));
+      this.set(x, y, tone(P, lit(nx, ny, Math.sqrt(1 - r2), o), x, y), o.alpha);
     }
     if (o.spec !== false) for (let i = 2; i < pts.length - 2; i += 2) { const p = pts[i]; this.set(p[0] - p[2] * 0.45, p[1] - p[2] * 0.5, 0xffffff, 0.7); }
     return this;

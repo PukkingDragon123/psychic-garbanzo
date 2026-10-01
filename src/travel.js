@@ -143,46 +143,87 @@
     for (let k = 0; k < 14; k++) B.disc(cx - 40 + U.hash2(k, 3) * 160, cy - 40 + U.hash2(k, 4) * 30, 2 + U.hash2(k, 5) * 4, 0x7a7ac8);
     return finish(B);
   }
-  // the swarm: each has two frames, wings up and wings down
+  /* THE SWARM. Four alien species, painted like creatures rather than
+     sprites: lit per pixel, veined wings you can see through, compound eyes,
+     mandibles. Two frames each: wings up, wings down. They face left, at you. */
+  const FOE_NAME = { bee: 'VESPID RAIDER', moth: 'GLOOM WRAITH', shark: 'STAR RAY', boss: 'BROOD WARDEN' };
+  function fr5(base, dk, lt) {
+    dk = dk === undefined ? 0x0c0614 : dk; lt = lt === undefined ? 0xfff2d8 : lt;
+    return [PT.mix(base, dk, 0.74), PT.mix(base, dk, 0.44), base, PT.mix(base, lt, 0.3), PT.mix(base, lt, 0.62)];
+  }
+  function veinWing(B, root, tip, back, col, vein, a) {
+    B.poly([root, tip, back], col, a);
+    for (let k = 1; k <= 3; k++) { const q = k / 4; B.line(root[0], root[1], tip[0] + (back[0] - tip[0]) * q, tip[1] + (back[1] - tip[1]) * q, vein, 1, 0.55); }
+    B.line(root[0], root[1], tip[0], tip[1], vein, 1, 0.8);
+  }
   function paintFoe(kind, f) {
     const W = 40 * HD, H = 34 * HD, B = PT.buf(W, H), c = W / 2, m = H / 2;
     if (kind === 'bee') {
-      const wy = f ? -14 : -4;
-      for (const s of [-1, 1]) B.ellipse(c + s * 6 + 4, m + wy, 10, 7, 0xd8f0ff, 0.75);
-      B.ball(c + 4, m, 20, 13, [0xffc83a, 0xfff0a0, 0xb8801a]);
-      for (let k = 0; k < 3; k++) B.rect(c - 2 + k * 9, m - 12, 4, 25, 0x2a1a0a);
-      B.ball(c - 16, m - 2, 10, 10, [0x3a3a4a, 0x6a6a7a, 0x1a1a2a]);
-      B.disc(c - 20, m - 5, 4, 0xff3a4a); B.disc(c - 21, m - 6, 1.5, 0xffffff);
-      B.poly([[c + 22, m - 3], [c + 34, m], [c + 22, m + 3]], 0x2a1a0a);
-      B.line(c - 20, m - 11, c - 26, m - 20, 0x2a1a0a, 2);
+      // VESPID RAIDER: armoured wasp-folk, red compound eyes, a hooked sting
+      const CH = fr5(0x2e4a2a), Y = fr5(0xd8a02a, 0x1a0a04), up = f ? -1 : 1;
+      veinWing(B, [c - 2, m - 6], [c + 8, m - 6 - 24 * up], [c + 22, m - 6 - 12 * up], 0xcfe8ff, 0x8aa8c8, 0.55);
+      veinWing(B, [c, m - 6], [c + 18, m - 6 - 18 * up], [c + 26, m - 4 - 6 * up], 0xe8f4ff, 0x8aa8c8, 0.5);
+      for (let k = 0; k < 3; k++) { B.line(c - 6 + k * 5, m + 6, c - 10 + k * 4, m + 15, 0x1a1a10, 1); B.line(c - 10 + k * 4, m + 15, c - 13 + k * 4, m + 18, 0x1a1a10, 1); }
+      B.orb(c + 15, m + 2, 15, 10, Y, { spec: false });
+      for (let k = 0; k < 4; k++) for (let y = -10; y <= 10; y++) { const x = c + 6 + k * 6 + y * 0.15; for (let w = 0; w < 2.5; w++) if (B.alpha(x + w, m + 2 + y) > 128) B.set(x + w, m + 2 + y, 0x1a120a); }
+      B.tube(c + 28, m + 4, c + 36, m + 10, c + 32, m + 16, 2.2, 0.6, fr5(0x2a1a0a), { spec: false });
+      B.orb(c - 2, m - 2, 10, 9, CH);
+      B.round(c - 8, m - 9, 12, 6, 2, 0x6a6e78); B.rect(c - 7, m - 9, 10, 1, 0xb8bcc8); B.set(c - 6, m - 7, 0x2a2a30); B.set(c + 1, m - 7, 0x2a2a30);
+      B.orb(c - 16, m - 3, 8, 7.5, CH, { spec: false });
+      B.orb(c - 19, m - 5, 4.8, 5.2, [0x3a0606, 0x8a1010, 0xd82a1a, 0xff6a4a, 0xffc0a0]);
+      for (let y = -4; y <= 4; y += 2) for (let x = -4; x <= 4; x += 2) if (B.alpha(c - 19 + x, m - 5 + y) > 128) B.set(c - 19 + x + (y & 2 ? 1 : 0), m - 5 + y, 0x3a0606, 0.6);
+      const mo = f ? 2 : 0;
+      B.tube(c - 22, m + 1, c - 28, m + 2 - mo, c - 27, m + 6, 1.4, 0.6, fr5(0x5a3a1a), { spec: false });
+      B.tube(c - 20, m + 2, c - 25, m + 5 + mo, c - 23, m + 8, 1.4, 0.6, fr5(0x5a3a1a), { spec: false });
+      B.line(c - 18, m - 10, c - 26, m - 20, 0x1a1a10, 1); B.line(c - 26, m - 20, c - 30, m - 19, 0x1a1a10, 1);
     } else if (kind === 'moth') {
+      // GLOOM WRAITH: a moth the size of a car, with an owl's face on each wing
+      const DUST = fr5(0x6a4a5a, 0x0a0410, 0xf0d8e0), FUR = fr5(0x8a7a8a);
       const sp = f ? 0.7 : 1;
-      for (const s of [-1, 1]) {
-        B.poly([[c + 2, m], [c + 10, m + s * 30 * sp], [c + 26, m + s * 22 * sp], [c + 16, m + s * 4]], 0xc83aa8);
-        B.poly([[c + 4, m], [c + 12, m + s * 22 * sp], [c + 22, m + s * 16 * sp], [c + 14, m + s * 3]], 0xff7ad8);
-        B.disc(c + 14, m + s * 14 * sp, 3, 0xffd34d);
+      for (const s2 of [-1, 1]) {
+        B.poly([[c + 2, m], [c + 4, m + s2 * 32 * sp], [c + 28, m + s2 * 26 * sp], [c + 20, m + s2 * 4]], DUST[1]);
+        B.poly([[c + 4, m], [c + 6, m + s2 * 28 * sp], [c + 24, m + s2 * 22 * sp], [c + 18, m + s2 * 4]], DUST[2]);
+        for (let k = 0; k < 4; k++) B.line(c + 4, m + s2 * 2, c + 8 + k * 6, m + s2 * (28 - k * 3) * sp, DUST[0], 1, 0.6);
+        // the eyespot
+        const ex = c + 14, ey = m + s2 * 16 * sp;
+        B.ellipse(ex, ey, 6, 5 * sp, 0x1a0a14); B.ellipse(ex, ey, 4.6, 3.8 * sp, 0xe8b02a); B.ellipse(ex, ey, 3, 2.6 * sp, 0x1a0a14); B.disc(ex - 1, ey - 1 * s2 * sp, 1, 0xffffff);
+        B.poly([[c + 22, m + s2 * 2], [c + 30, m + s2 * 14 * sp], [c + 36, m + s2 * 8 * sp]], DUST[1]);
       }
-      B.ball(c, m, 14, 8, [0x5a2a8a, 0x9a5ac8, 0x2a1050]);
-      B.ball(c - 12, m, 8, 8, [0x5a2a8a, 0x9a5ac8, 0x2a1050]);
-      B.disc(c - 15, m - 3, 3, 0x8affa0); B.disc(c - 15, m + 3, 3, 0x8affa0);
-      B.line(c - 16, m - 6, c - 26, m - 16, 0x9a5ac8, 1); B.line(c - 16, m + 6, c - 26, m + 16, 0x9a5ac8, 1);
+      B.orb(c + 8, m, 12, 5.5, FUR, { spec: false });
+      for (let k = 0; k < 4; k++) B.line(c + 2 + k * 5, m - 5, c + 2 + k * 5, m + 5, FUR[1], 1, 0.6);
+      B.orb(c - 6, m, 8, 7, FUR, { spec: false });
+      for (let k = 0; k < 30; k++) { const x = c - 13 + U.hash2(k, 1) * 14, y = m - 7 + U.hash2(k, 2) * 14; if (B.alpha(x, y) > 128) B.set(x, y, k % 2 ? FUR[4] : FUR[0], 0.7); }
+      B.orb(c - 15, m, 5, 5, fr5(0x4a3a4a), { spec: false });
+      B.disc(c - 18, m - 2.5, 1.6, 0x8aff7a); B.disc(c - 18, m + 2.5, 1.6, 0x8aff7a);
+      for (const s2 of [-1, 1]) { B.line(c - 18, m + s2 * 4, c - 28, m + s2 * 16, FUR[3], 1); for (let k = 1; k < 5; k++) { const x = c - 18 - k * 2.5, y = m + s2 * (4 + k * 3); B.line(x, y, x + 2, y + s2 * 2, FUR[3], 1, 0.7); B.line(x, y, x - 2, y + s2 * 1, FUR[3], 1, 0.7); } }
     } else if (kind === 'boss') {
-      B.ball(c + 6, m, 30, 24, [0x2a9a6a, 0x6ad8a8, 0x1a4a3a], true);
-      B.poly([[c + 6, m - 24], [c + 32, m - 30], [c + 26, m - 6]], 0x3a6ad8); B.poly([[c + 6, m + 24], [c + 32, m + 30], [c + 26, m + 6]], 0x3a6ad8);
-      B.rect(c - 4, m - 2, 36, 4, 0x1a4a3a);
-      B.ball(c - 20, m, 14, 14, [0x3a6ad8, 0x7aaaff, 0x1a2a6a]);
-      B.disc(c - 26, m - 6, 4, 0xffd34d); B.disc(c - 26, m + 6, 4, 0xffd34d); B.disc(c - 27, m - 7, 1.5, 0xffffff); B.disc(c - 27, m + 5, 1.5, 0xffffff);
-      const mj = f ? 4 : 0;
-      B.poly([[c - 30, m - 6], [c - 40, m - 10 - mj], [c - 34, m - 2]], 0xd8dce8); B.poly([[c - 30, m + 6], [c - 40, m + 10 + mj], [c - 34, m + 2]], 0xd8dce8);
+      // BROOD WARDEN: the queen's guard, armour plates, four eyes, a sac of eggs
+      const CH = fr5(0x1e4a4a, 0x04080c, 0xd8fff0), SAC = fr5(0xd86a2a, 0x2a0a04, 0xfff0c0);
+      B.orb(c + 18, m, 16, 14, SAC, { alpha: 0.85 });
+      for (let k = 0; k < 9; k++) B.disc(c + 10 + U.hash2(k, 7) * 16, m - 8 + U.hash2(k, 8) * 16, 2, 0xffe0a0, 0.7);
+      B.orb(c + 2, m, 18, 16, CH);
+      for (let k = 0; k < 4; k++) { const x = c - 8 + k * 7; B.line(x, m - 15, x + 2, m + 14, CH[0], 1); B.line(x + 1, m - 15, x + 3, m - 10, CH[4], 1, 0.7); }
+      for (let k = 0; k < 5; k++) B.poly([[c - 6 + k * 5, m - 14], [c - 3 + k * 5, m - 14], [c - 6 + k * 5, m - 22 - (k % 2) * 4]], CH[3]);
+      B.orb(c - 16, m, 10, 10, CH, { spec: false });
+      for (const [ex, ey] of [[-20, -5], [-21, 0], [-20, 5], [-15, -6]]) { B.disc(c + ex, m + ey, 2, 0x0a0606); B.disc(c + ex, m + ey, 1.4, 0xffd23a); B.set(c + ex - 0.5, m + ey - 0.5, 0xffffff); }
+      const mj = f ? 5 : 1;
+      for (const s2 of [-1, 1]) {
+        B.tube(c - 22, m + s2 * 5, c - 34, m + s2 * (8 + mj), c - 38, m + s2 * (2 + mj * 0.3), 3, 1, fr5(0xd8d0b0), { spec: false });
+        for (let k = 0; k < 3; k++) B.set(c - 28 - k * 3, m + s2 * (5 + mj * 0.5 - k * 0.5), 0xffffff);
+      }
     } else if (kind === 'shark') {
-      B.poly([[c - 34, m], [c - 12, m - 12], [c + 24, m - 8], [c + 34, m - 2], [c + 34, m + 4], [c + 24, m + 10], [c - 12, m + 12]], 0x7a8aa8);
-      B.poly([[c - 34, m], [c - 12, m - 12], [c + 24, m - 8], [c + 34, m - 2]], 0xa8b8d8);
-      B.poly([[c - 2, m - 10], [c + 12, m - 10], [c + 4, m - 28]], 0x5a6a88);
-      B.poly([[c + 26, m], [c + 38, m - 12 - (f ? 4 : 0)], [c + 34, m], [c + 38, m + 12 + (f ? 4 : 0)]], 0x5a6a88);
-      B.rect(c - 10, m + 2, 30, 3, 0xe5394a);
-      B.disc(c - 22, m - 3, 2.5, INK);
-      for (let k = 0; k < 4; k++) B.poly([[c - 30 + k * 4, m + 4], [c - 27 + k * 4, m + 4], [c - 28.5 + k * 4, m + 8]], 0xffffff);
+      // STAR RAY: a manta that swims in vacuum, spotted with its own light
+      const TOP = fr5(0x24305a, 0x04060e, 0xc8d8ff), up = f ? -6 : 6;
+      B.tube(c + 18, m, c + 30, m + 4, c + 38, m - 2, 2, 0.5, TOP, { spec: false });
+      B.poly([[c - 22, m], [c - 2, m - 30 - up], [c + 20, m - 2], [c - 2, m + 30 + up]], TOP[1]);
+      B.poly([[c - 20, m], [c - 2, m - 26 - up], [c + 16, m - 2], [c - 2, m + 4]], TOP[2]);
+      B.orb(c - 6, m, 13, 7, TOP);
+      for (let k = 0; k < 18; k++) { const x = c - 16 + U.hash2(k, 3) * 30, y = m - 24 + U.hash2(k, 4) * 48; if (B.alpha(x, y) > 128) { B.disc(x, y, 1, 0x7af6ff); } }
+      B.line(c - 20, m, c + 18, m - 2, 0xe8f0ff, 1, 0.4);
+      for (const s2 of [-1, 1]) B.tube(c - 18, m + s2 * 4, c - 26, m + s2 * 6, c - 28, m + s2 * 2, 2, 0.8, TOP, { spec: false });
+      B.disc(c - 17, m - 4, 1.4, 0x0a0a14); B.set(c - 17.5, m - 4.5, 0xffffff);
     }
+    B.rim(0xfff0dc, -1, -1, 0.25);
     return finish(B);
   }
   function art(kind, v) {
@@ -552,7 +593,9 @@
       S.foes.push({ kind, hp, max: hp, slot: [300 + c * 26, 62 + r * 44 + (c % 2) * 6], x: VW + 60, y: -40, t: -n * 0.12 - (c % 2) * 0.4, path: n % 3, st: 'enter', f: 0, fire: U.rand(1, 4), hitT: 0, dv: null });
       n++;
     }
-    banner('WAVE ' + (w + 1), w === F2.waves - 1 ? 'THE BIG ONES' : 'HERE THEY COME', '#ff7ac4');
+    // name what is coming at you
+    const here = [...new Set(S.foes.map(e => e.kind))].map(k => FOE_NAME[k] + 'S');
+    banner('WAVE ' + (w + 1) + (w === F2.waves - 1 ? ': THE BIG ONES' : ''), here.slice(0, 2).join(' + '), '#ff7ac4');
   }
   function fight(dt, g) {
     const F2 = S.fight, IN = PD.input;
@@ -1007,5 +1050,5 @@
 
   function touchMode() { return S.phase === 'run' || S.phase === 'fight' || S.phase === 'alert' ? 'travel' : 'ui'; }
 
-  PD.travel = { enter, enterReturn, update, draw, touchMode, S, track, need, NEEDS, LANES };
+  PD.travel = { FOE_NAME, art, enter, enterReturn, update, draw, touchMode, S, track, need, NEEDS, LANES };
 })(window.PD);

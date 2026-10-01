@@ -55,24 +55,24 @@
 
   /* ------------------------------------------------------------------ enemies */
   const ENEMY = {
-    crawler:  { name: 'Rock Grub',    hp: 16,  dmg: 7,   speed: 22, w: 12, h: 9,  cr: 14,  kind: 'crawl' },
-    floater:  { name: 'Void Jelly',   hp: 12,  dmg: 9,   speed: 16, w: 11, h: 13, cr: 20,  kind: 'float' },
-    spitter:  { name: 'Spitworm',     hp: 26,  dmg: 7,   speed: 12, w: 13, h: 11, cr: 38,  kind: 'spit',   tele: 0.55 },
-    gnasher:  { name: 'Gnasher',      hp: 54,  dmg: 17,  speed: 44, w: 15, h: 12, cr: 90,  kind: 'charge', tele: 0.45 },
-    mite:     { name: 'Cave Mite',    hp: 6,   dmg: 4,   speed: 60, w: 7,  h: 6,  cr: 9,   kind: 'swarm' },
-    shellback:{ name: 'Shellback',    hp: 140, dmg: 20,  speed: 14, w: 20, h: 14, cr: 260, kind: 'crawl',  armor: 0.6 },
-    wyrm:     { name: 'Magma Wyrm',   hp: 120, dmg: 26,  speed: 30, w: 22, h: 14, cr: 420, kind: 'charge', tele: 0.6, fire: 1 },
-    lurker:   { name: 'Deep Lurker',  hp: 110, dmg: 22,  speed: 26, w: 19, h: 16, cr: 240, kind: 'spit',   tele: 0.7 },
-    guardian: { name: 'Core Warden',  hp: 380, dmg: 28,  speed: 22, w: 26, h: 24, cr: 1100, kind: 'boss', tele: 0.8 },
+    crawler:  { name: 'Stone Maggot',    hp: 16,  dmg: 7,   speed: 22, w: 12, h: 9,  cr: 14,  kind: 'crawl' },
+    floater:  { name: 'Void Medusa',   hp: 12,  dmg: 9,   speed: 16, w: 11, h: 13, cr: 20,  kind: 'float' },
+    spitter:  { name: 'Bile Lamprey',     hp: 26,  dmg: 7,   speed: 12, w: 13, h: 11, cr: 38,  kind: 'spit',   tele: 0.55 },
+    gnasher:  { name: 'Nexar Stalker',      hp: 54,  dmg: 17,  speed: 44, w: 15, h: 12, cr: 90,  kind: 'charge', tele: 0.45 },
+    mite:     { name: 'Rust Tick',    hp: 6,   dmg: 4,   speed: 60, w: 7,  h: 6,  cr: 9,   kind: 'swarm' },
+    shellback:{ name: 'Bulwark Isopod',    hp: 140, dmg: 20,  speed: 14, w: 20, h: 14, cr: 260, kind: 'crawl',  armor: 0.6 },
+    wyrm:     { name: 'Magma Exogorth',   hp: 120, dmg: 26,  speed: 30, w: 22, h: 14, cr: 420, kind: 'charge', tele: 0.6, fire: 1 },
+    lurker:   { name: 'Abyss Angler',  hp: 110, dmg: 22,  speed: 26, w: 19, h: 16, cr: 240, kind: 'spit',   tele: 0.7 },
+    guardian: { name: 'The Core Behemoth',  hp: 380, dmg: 28,  speed: 22, w: 26, h: 24, cr: 1100, kind: 'boss', tele: 0.8 },
     /* --- and the rest of what lives down there */
-    crab:     { name: 'Slag Crab',    hp: 44,  dmg: 12,  speed: 34, w: 16, h: 11, cr: 66,  kind: 'crawl',  armor: 0.35 },
-    bloomer:  { name: 'Bloomer',      hp: 34,  dmg: 9,   speed: 10, w: 13, h: 15, cr: 120, kind: 'crawl',  spores: 1 },
-    driller:  { name: 'Claim Jumper', hp: 90,  dmg: 21,  speed: 56, w: 18, h: 12, cr: 340, kind: 'charge', tele: 0.38 },
-    hangman:  { name: 'Ceiling Hanger', hp: 62, dmg: 24, speed: 20, w: 14, h: 18, cr: 210, kind: 'float' },
+    crab:     { name: 'Slag Scuttler',    hp: 44,  dmg: 12,  speed: 34, w: 16, h: 11, cr: 66,  kind: 'crawl',  armor: 0.35 },
+    bloomer:  { name: 'Spore Husk',      hp: 34,  dmg: 9,   speed: 10, w: 13, h: 15, cr: 120, kind: 'crawl',  spores: 1 },
+    driller:  { name: 'Claim-Jumper Droid', hp: 90,  dmg: 21,  speed: 56, w: 18, h: 12, cr: 340, kind: 'charge', tele: 0.38 },
+    hangman:  { name: 'Veil Bat', hp: 62, dmg: 24, speed: 20, w: 14, h: 18, cr: 210, kind: 'float' },
     /* --- new neighbours */
     mimic:    { name: 'Ore Mimic',    hp: 50,  dmg: 14,  speed: 40, w: 14, h: 12, cr: 160, kind: 'charge', tele: 0.5, mimic: 1 },
-    drone:    { name: 'Nova Drone',   hp: 30,  dmg: 8,   speed: 24, w: 14, h: 10, cr: 110, kind: 'float', shoots: 1, tele: 0.5 },
-    blob:     { name: 'Splitter Slime', hp: 36, dmg: 10, speed: 20, w: 15, h: 12, cr: 80,  kind: 'crawl', split: 1 }
+    drone:    { name: 'Seeker Probe',   hp: 30,  dmg: 8,   speed: 24, w: 14, h: 10, cr: 110, kind: 'float', shoots: 1, tele: 0.5 },
+    blob:     { name: 'Splitter Ooze', hp: 36, dmg: 10, speed: 20, w: 15, h: 12, cr: 80,  kind: 'crawl', split: 1 }
   };
 
   /* ---------------------------------------------------------------- strata

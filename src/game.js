@@ -476,7 +476,7 @@
     g.destruction = null;
     g.victory = null;
     g.cinematic = false;
-    g.bossSeen = 0; g.bossCard = null;
+    g.bossSeen = 0; g.bossCard = null; g.mobCard = null;
 
     g.ship.x = g.world.cx * TILE;
     g.ship.y = Math.max(30, g.world.bodyTopPx - 70);
@@ -810,31 +810,22 @@
     if (m.type !== 'mite' && U.chance(m.def.kind === 'boss' ? 1 : 0.3)) g.pickups.push(new PD.ent.Pickup(m.x, m.y, D.M.bio));
   };
 
+  // knocked out: the same blackout as running out of air, with a bang first
   g.onPlayerDown = function () {
-    if (g.player.dead) return;
-    g.player.dead = true;
-    const p = g.player;
-    // scatter a third of the hold into the dark
-    let lose = p.cargoKg * 0.34;
-    const keys = U.shuffle(Object.keys(p.cargo));
-    for (const k of keys) {
-      while (lose > 0 && p.cargo[k] > 0) {
-        p.cargo[k]--; p.cargoKg -= D.MAT[k].kg; lose -= D.MAT[k].kg;
-        if (p.cargo[k] <= 0) { delete p.cargo[k]; break; }
-      }
-    }
-    p.cargoKg = Math.max(0, p.cargoKg);
-    FX.flash(0.8, '#ff5a4d');
-    FX.shake(12);
-    FX.burst(p.x, p.y, 40, ['#ff5a4d', '#ffffff', '#ffd34d'], 200);
-    A.sfx.boom(0.8);
-    toast(['hull', 'cross', 'arrowR', 'home'], UI.COL.bad);
-    toast(['cargo', 'arrowD'], UI.COL.bad, '-33%');
-    setTimeout(() => {
+    if (g.player.dead || g.blackout) return;
+    PD.peril.passOut(g, 'hull');
+  };
+  // what happens in the dark, half way through a blackout
+  g.rescue = function () {
+    if (g.state === 'play' || g.state === 'pause') {
+      g.state = 'play';
       dock(true);
-      g.player.dead = false;
-      g.player.hull = g.player.stat('hull') * 0.6;
-    }, 700);
+    }
+    g.player.dead = false;
+    g.player.rag = 0;
+    g.player.suffocating = 0;
+    g.player.hull = g.player.stat('hull') * 0.6;
+    g.mobCard = null;
   };
 
   g.emergencyRecall = function () {
@@ -1123,7 +1114,14 @@
   }
 
   /* ------------------------------------------------------------------ update */
+  /* THE PACE. Everything in the dive and the flight runs a little under real
+     time, and the moon a touch under that: heavier, more deliberate, room
+     to see what is coming. */
+  const PACE = { play: 0.78, travel: 0.82, home: 0.9, desk: 1, title: 1 };
   function update(dt) {
+    if (PD.peril.tickBlackout(g, dt)) { A.schedule(); return; }
+    dt *= PACE[g.state] || 1;
+    g.dt = dt;
     g.time += dt;
     A.schedule();
     A.track(pickTrack());
@@ -1233,7 +1231,7 @@
         if (m.dead || m.type !== 'guardian') continue;
         if (U.dist(m.x, m.y, g.player.x, g.player.y) < 150) {
           g.bossSeen = 1;
-          g.bossCard = { t: 0, name: 'CORE WARDEN', sub: 'GUARDIAN OF ' + D.BODIES[g.bodyIndex].name.toUpperCase(), mob: m };
+          g.bossCard = { t: 0, name: 'THE CORE BEHEMOTH', sub: 'IT GREW AROUND THE HEART OF ' + D.BODIES[g.bodyIndex].name.toUpperCase(), mob: m };
           A.sfx.rumble(); A.sfx.tone(90, { type: 'sawtooth', to: 40, dur: 1.2, vol: 0.14 });
           FX.shake(6); FX.flash(0.25, '#ff8a3d');
           break;
@@ -1246,6 +1244,7 @@
       if (g.bossCard.t > 3.2) g.bossCard = null;
     }
 
+    if (g.state === 'play') dt *= PD.peril.tick(g, dt);
     const p = g.player;
     p.update(dt, g);
 
@@ -1684,24 +1683,12 @@
     FX.drawFloaters(ctx, cam, (c, s, x, y, col, size, center) =>
       F.draw(c, s, x, y, col, { center: true, scale: size >= 2 ? 2 : 1 }));
 
-    // low-air vignette
-    const airF = g.player.o2 / g.player.stat('oxygen');
-    if (airF < 0.3) {
-      const a = (1 - airF / 0.3) * 0.45 * (0.7 + 0.3 * Math.sin(g.time * 7));
-      // dithered bands closing in from the edges, no soft vignette
-      for (let i = 0; i < 5; i++) {
-        const inset = i * 9;
-        ctx.globalAlpha = a * (1 - i / 5);
-        PD.pxd.dither(ctx, inset, inset, VW - inset * 2, 9, '#8a0a1e', i % 2);
-        PD.pxd.dither(ctx, inset, VH - inset - 9, VW - inset * 2, 9, '#8a0a1e', i % 2);
-        PD.pxd.dither(ctx, inset, inset, 9, VH - inset * 2, '#8a0a1e', i % 2);
-        PD.pxd.dither(ctx, VW - inset - 9, inset, 9, VH - inset * 2, '#8a0a1e', i % 2);
-      }
-      ctx.globalAlpha = 1;
-    }
+    // out of air: tunnel vision, grey, the eyes closing
+    PD.peril.drawSuffocate(ctx, g, cam);
 
     if (g.state !== 'victory' && g.state !== 'ending') UI.hud(ctx, g);
     if (g.bossCard) drawBossCard(ctx, g.bossCard);
+    PD.peril.drawCard(ctx, g);
     UI.sellSplash(ctx, g);
     tutDraw(ctx);
 
@@ -1734,6 +1721,12 @@
       ctx.setTransform(HD, 0, 0, HD, 0, 0);
       ctx.imageSmoothingEnabled = false;
       PD.chum.draw(ctx, g, g.time);
+    }
+    // blacking out goes over everything, in every state
+    if (g.blackout) {
+      ctx.setTransform(HD, 0, 0, HD, 0, 0);
+      ctx.imageSmoothingEnabled = false;
+      PD.peril.drawBlackout(ctx, g);
     }
     // the iris goes on last, over whatever screen is underneath it
     if (FX.wipeActive()) {

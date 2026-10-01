@@ -15,15 +15,18 @@ core goes it takes the whole planet with it. Pay Mr Chum back. Then get rich.
 ## WHAT IS IN IT
 
 **Ten worlds, drilled to the core.** Forty ores across nine strata, sixteen
-kinds of thing that lives down there (one of them is a lump of gold with
-teeth), caves, magma, precursor ruins, and a core chamber with something
-enormous standing in front of it. Break the core and the world comes apart.
+species of pulp sci-fi monster with names and a field guide (the Nexar
+Stalker, the Abyss Angler, the Magma Exogorth, an Ore Mimic that is a lump of
+gold with teeth), caves, magma, precursor ruins, and a core chamber with The
+Core Behemoth standing in front of it. Run out of air and you have five
+seconds of held breath before you black out. Break the core and the world
+comes apart.
 
 **A round moon you walk all the way around.** Day and night, a sky that turns,
 your cave with a cardboard bed and a laptop on a box, and Mr Chum's face on a
 billboard on the far side, grinning at what you owe.
 
-**Build on it. Over a hundred things.** A hologram build menu, a ghost to line
+**Build on it. Over a hundred things.** A storybook build menu, a ghost to line
 it up and a CONFIRM button. Auto miners, ore factories, polishers, a bank vault
 that pays interest; a pool with shark floaties in it, a hot tub, a trampoline,
 a cannon, a Ferris wheel and a roller coaster you actually ride; mountains, a

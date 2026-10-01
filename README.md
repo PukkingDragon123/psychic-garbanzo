@@ -111,6 +111,34 @@ the screen. **The rock** is painted again too: stone cobbled into little lit
 pebbles, ore as shiny nuggets pushed into rock of its own colour, gems as
 faceted crystals, ice glassy with bubbles in it.
 
+## The field guide, and holding your breath
+
+**Everything that lives down there has been painted again, as creatures.**
+No googly eyes. Each is lit a pixel at a time off five-tone ramps, its hide
+mottled, its eyes small, mean and lit from inside: the **Stone Maggot**, the
+see-through **Void Medusa**, the **Bile Lamprey** with its ringed round mouth,
+the four-eyed **Nexar Stalker**, the **Rust Tick**, the plated **Bulwark
+Isopod**, the **Magma Exogorth** with a furnace for a mouth, the **Abyss
+Angler** and its lure, the **Slag Scuttler**, the **Spore Husk** (what is left
+of a miner, after the mushrooms), the rusted **Claim-Jumper Droid**, the **Veil
+Bat** hanging wrapped in its wings, the **Ore Mimic**, the **Seeker Probe**, the
+**Splitter Ooze** with something it ate still inside it, and guarding the core,
+**The Core Behemoth**. The first time one comes into view the world slows and
+its field-guide card drops in: name, kind, threat, one line about it.
+The space swarm is new too: **Vespid Raiders**, **Gloom Wraiths**, **Star
+Rays** and **Brood Wardens**, named on every wave.
+
+**Out of air.** The tank hitting zero no longer quietly eats your hull. You
+hold your breath for five seconds: bubbles leak from the helmet, the heart
+pounds, the colour drains, the edges close in and the eyes start shutting on
+their own, and every push gets weaker. Reach the saucer or **black out**: you
+go limp, the eyes close, the heart slows, black. Being beaten unconscious ends
+the same way. A card tells you what happened and what it cost, and you wake up
+on the moon, eyes opening twice.
+
+**Slower.** The dive runs at 78% of real time, the flight at 82% and the moon
+at 90%: heavier, more deliberate, with room to see what is coming.
+
 ## How it got here
 
 Everything below is the game's history, round by round. Some of it is gone
